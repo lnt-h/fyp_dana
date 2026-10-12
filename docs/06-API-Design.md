@@ -1,13 +1,14 @@
-# Danang TourGuide — REST API Design
+# Danang TourGuide — REST API Contract
 
-Version 1.0 | 2026-09-30. Base /api/v1; JSON; UUID IDs. This is a contract baseline, not generated OpenAPI or deployed endpoint inventory.
-JWT access sessions for private resources; public read endpoints expose published POIs only. Every nested trip/stop/proposal ID is verified against ownership and parent membership. AI credentials never go to app.
+Version 1.2 | 2026-10-12 | Status: design baseline for review. Document control and evidence status: [Index](00-INDEX.md).
 
-## Conventions
-Cursor pagination default 20/max 50. locale=vi|en; reject unsupported values. Structured error: code, message, details, requestId. 400 validation; 401 unauthenticated; 403/404 inaccessible; 409 revision/state conflict; 422 invalid AI/constraint result; 429 quota; 503 dependency unavailable. Never expose provider secrets or stacks.
-Build/accept/create/arrival use stable idempotency keys where applicable. Store owner+endpoint+key+request hash in PostgreSQL; same key/different body returns 409. Return stored result for retries; in-progress retry returns typed conflict. No 202 build response until real async polling is implemented.
+## Contract ownership and boundary
 
-## P0 endpoints
+Base path /api/v1. [openapi.json](openapi.json) owns DTO fields, schema validation and operation responses; this document owns semantic rules not expressible by schema alone. It is a design contract, not a running API inventory. The selected contract format is [OpenAPI 3.0.3](https://spec.openapis.org/oas/v3.0.3.html), not a claim that it is the latest version.
+Public reads expose published content only. Private endpoints authenticate JWT/session and verify owner plus every nested resource's parent membership before data or provider access. Inaccessible foreign IDs return 404 consistently to avoid disclosure. P1 is excluded from this P0 contract.
+
+## P0 operations
+
 | Method/path | Input or behaviour | Auth |
 |---|---|---|
 | POST /auth/register | email/password, validation and password hash | Public |
@@ -38,56 +39,59 @@ Build/accept/create/arrival use stable idempotency keys where applicable. Store 
 | GET /places/{id}/audio-guide | locale → approved asset metadata/URL, or audio_unavailable | Public |
 | POST /ai/ask | question, placeId and/or owned tripId, locale | User |
 
-GPS computation stays on app; no continuous /location stream. API cannot independently prove user presence. Simulated arrival requires server demo mode and preserves label in response. Route-unavailable plans may start only with explicit acknowledgement; UI shows missing times rather than claims of feasibility. Navigation handoff opens Maps, not a new turn-by-turn engine.
+## HTTP and errors
 
-## Core request/response shapes
+Success: register/create-trip 201; save/unsave/logout 204 without body; other operations 200. Provider_unavailable is HTTP503 with Error, not a successful Ask response. Build may return 200 provisional for route-only failure when model/constraint validation succeeds. Route refresh failure returns 503; GET shows reconciled unavailable/stale data.
+Error shape: code, message, optional details, requestId. Never return stack traces/provider secrets. 400 malformed input; 401 invalid session; 404 absent/inaccessible resource; 409 state/revision/key mismatch; 422 known constraint or invalid model output; 429 quota; 500 safe unexpected error; 503 dependency failure. Simulation outside demo is 403. Responses are specified per operation, rather than listing irrelevant errors on every endpoint.
+Stable error codes include validation_error, unauthenticated, not_found, revision_conflict, state_conflict, idempotency_mismatch, request_in_progress, proposal_expired, invalid_proposal, constraint_violation, quota_exceeded, provider_unavailable and simulation_disabled. A retryable error includes a safe explanation; HTTP429 uses Retry-After when known. Dynamic limits must be visible in validation details without exposing secrets.
+
+## Identity
+
+Register accepts normalised email and the configured 12–128-character password proposal; no truncation. Login verifies supplied credentials without applying a registration minimum that rejects existing passwords. Password hash algorithm/parameters require a trial. JWT carries subject and session identifier; protected requests validate signature/issuer/audience/expiry plus session owner/not-revoked/not-expired. Refresh rotates the stored token hash atomically; simultaneous use of the old token cannot create two valid replacements. Logout takes the refresh token, revokes the matching session, and is idempotent for a well-formed already-revoked/unknown token. It discloses no account existence. Account deletion/export policy is separate and required before pilot.
+
+## Pagination, filtering and locale
+
+Default limit 20/max50. Places sort by normalised name then ID; trips and saved records sort newest-first with ID tie-breakers. Cursor binds the caller where private, filters, locale and ordering; invalid/mismatched cursor is 400. Cursor pagination is not snapshot isolation: document behavior if curated records change between pages.
+Search normalises Unicode/case, removes Vietnamese diacritics and maps đ to d; test accented/unaccented names, category/tags and unpublished exclusions. Category uses controlled vocabulary; comma-separated tags use AND matching. bbox is west,south,east,north with ordered bounded coordinates. near is lat,lng with positive radius metres. bbox and near are mutually exclusive; near/radius must be paired. Range/size ceilings follow configuration review.
+locale accepts vi/en, default vi. Vietnamese is required. A missing reviewed English POI text may fall back to Vietnamese with requestedLocale/contentLocale returned and UI label. Audio does not silently fall back language: unavailable for the requested locale. Ask P0 is Vietnamese; en without reviewed/evaluated coverage returns 400 locale_unavailable. A configured English capability needs corpus/translation evaluation before activation.
+
+## Trip semantics
+
+Create returns draft/revision0. Preferences contain startDate/dayCount/startPoint/interests/pace/dailyStart/dailyEnd/budgetPreference/transportMode. dailyStart < dailyEnd within one local day; dates use Asia/Ho_Chi_Minh. Budget is qualitative, not a numeric guaranteed cost. Supported day/mode/stop limits are checked server-side after O-04.
+PATCH requires at least title or preferences plus expectedRevision. Preferences can change only in draft; otherwise 409 preserves the accepted plan. Title can change in any state with revision. Draft has no required stop/day records. Stop edits require planned/active; completed/current prefix is fixed during active travel. Removing the last stop of a planned day persists the explicit edit but creates a blocking empty_day warning.
+Build returns proposalId/baseRevision/status(valid|provisional)/expiresAt/days/warnings/routeStatus/modelVersion/corpusVersion. Nonempty days use published unique candidate IDs. Known infeasibility returns 422, not a valid preview. Accept rechecks owner/trip/revision/expiry/fact versions and creates a planned aggregate atomically. Start requires nonempty days, no severity=error warnings and acknowledgement of any uncertainty warning; otherwise 422/409. Travel progression requires expectedRevision; arrival has its own unique event contract and does not advance progression revision.
+Warnings include code/message/severity and optional placeId. routeStatus fresh does not imply complete feasibility. [Blueprint](12-Blueprint.md) owns the complete action matrix.
+
+## Routing and schedule
+
+Each day has an explicit start-to-first-stop leg; inter-stop legs connect stops within that day. Proposal startLeg references toPlaceId; persisted startLeg references dayId/toStopId. GET route returns dayStartLegs and inter-stop legs. Provider duration/distance/fetchedAt/mode/revision are recorded; no LLM travel estimates. Stale/unavailable responses use null estimates and no current polyline. Provider attribution/warnings must be preserved; caching/retention must follow approved provider terms.
+Edit response marks affected routes/ETAs stale. Refresh runs outside the trip transaction and applies only to the same revision; older concurrent results cannot replace newer results. The server can project expired persisted legs as stale/null on GET without mutating the database. [Google Compute Routes](https://developers.google.com/maps/documentation/routes/compute-route-over) is the integration reference; supported modes, regional behavior and terms must be verified during trial.
+
+## Arrival and media
+
+GPS requires detectedAt, accuracyMeters, distanceMeters and dwellSeconds. Manual/simulated methods make no GPS claim. Server checks current stop, configured report age/plausibility, owner and uniqueness; simulation requires demo mode. No continuous location endpoint/history is included. A pending local report is not synced until acknowledged.
+Audio available requires URL/urlExpiresAt/duration/transcript/version/human_recorded type; expiry is null only for an approved nonexpiring URL; unavailable has no URL. Missing POI is 404; missing guide/language returns 200 unavailable. URL expiry is separate from asset availability: refresh metadata on expired access URL. GET guide never enqueues synthesis. Exact event replay must not start another automatic playback.
+
+## Revision and idempotency
+
+Required Idempotency-Key: create trip, build, accept, start, arrival, complete and skip. Owner/path/key scope and canonical request hash are durable. Authenticate access before replay. Same request returns original outcome; mismatched payload is 409; in-progress is typed409. New intent/new retry after failure uses a new key after reconciliation; network retry uses the original key. Deadline/recovery and expired media semantics are in Blueprint. Client GET/reconciles after timeout or stale replay response.
+PATCH/add-stop/reorder/delete-stop use expectedRevision to prevent repeat mutation; save/unsave use natural idempotency. DELETE stop places revision in the query. Read/build-preview/route-refresh do not increment itinerary revision; trip/progress mutations do. No 202/polling job contract exists in P0.
+
+## Ask response
+
+Ask requires question plus placeId and/or owned tripId; when both exist, place must belong to permitted trip context. question is nonblank and bounded. Context validation precedes embedding/model calls. grounded response contains answer, supporting citations and/or factReferences, and requestId. insufficient_evidence contains an explanation with empty evidence arrays and no unsupported factual answer. A verified citation ID is necessary but does not establish claim entailment; held-out evaluation assesses support.
+Example below is a schema fixture, not a POI fact or measured model response:
 ```json
 {
-  "TripPreferences": {
-    "startDate": "2026-10-10", "dayCount": 1,
-    "startPoint": {"lat": 16.05, "lng": 108.20},
-    "interests": ["culture", "beach"], "pace": "balanced",
-    "dailyStart": "09:00", "dailyEnd": "17:00",
-    "budgetPreference": "moderate", "transportMode": "walking"
-  },
-  "BuildResponse": {
-    "proposalId": "uuid", "baseRevision": 2,
-    "status": "valid_or_provisional", "days": [],
-    "warnings": [], "routeStatus": "fresh_or_unavailable",
-    "modelVersion": "configured-model", "corpusVersion": "snapshot-id"
-  },
-  "Stop": {
-    "id": "uuid", "placeId": "uuid", "seq": 1,
-    "arrivalAt": null, "departureAt": null,
-    "visitDurationMin": 45, "status": "upcoming"
-  },
-  "RouteLeg": {
-    "fromStopId": "uuid", "toStopId": "uuid",
-    "durationSeconds": null, "distanceMeters": null,
-    "mode": "walking", "status": "unavailable",
-    "provider": "google_routes", "fetchedAt": null
-  },
-  "AudioGuide": {
-    "status": "available", "placeId": "uuid", "locale": "vi",
-    "url": "short-lived-media-url", "durationSeconds": 180,
-    "transcript": "reviewed text", "version": 1,
-    "narrationType": "human_recorded"
-  },
-  "AskResponse": {
-    "status": "grounded", "answer": "supported answer",
-    "citations": [{"sourceId": "uuid", "chunkId": "uuid", "title": "source title", "url": "reviewed source URL"}],
-    "factReferences": [], "requestId": "trace-id"
-  }
+  "status": "insufficient_evidence",
+  "answer": "Chưa có nguồn đã kiểm duyệt đủ để trả lời câu hỏi này.",
+  "citations": [],
+  "factReferences": [],
+  "requestId": "fixture-request-001"
 }
 ```
-Example status strings with _or_ illustrate alternatives, not literal enum values. Build status enum valid|provisional; route status fresh|stale|unavailable. Ask status grounded|insufficient_evidence|provider_unavailable. Provider_unavailable normally returns 503 with typed error. Structured operational answers use factReferences with source/date; citation IDs are server-validated, not accepted as arbitrary model URLs.
-Audio-unavailable returns metadata with status=unavailable and no URL; missing POI is 404. Existing audio playback consumes media URL directly; GET never enqueues synthesis.
 
-## P1 extensions
-POST /auth/google verifies Google token and account-linking policy.
-POST /media/scan-uploads returns owner-scoped short-lived PUT intent; POST /media/{id}/complete verifies object type/size; POST /ai/recognize receives mediaId/context → matched|ambiguous|unknown with corpus IDs and user-confirmation requirement.
-POST /ai/transcribe receives approved short audio or upload ID → editable text. Enforce size/duration limits and temporary deletion. Provider/native STT implementation remains pending; text Ask endpoint unchanged.
-No collections, weather, taste jobs, recommendations/for-you or TTS endpoints in V1.
+## Optional backlog and evolution
 
-## Validation and security
-Allowlist preference fields/modes; validate coordinate bounds and day limits configured after timeline decision. Enforce request/AI quotas, bounded provider timeouts and input size limits. Refresh tokens in platform secure storage; access tokens short lived. Public maps use restricted client key. Ingestion is developer CLI with restricted credentials, not unauthenticated admin CRUD.
+P1 extensions (Google identity, private landmark uploads/recognition and editable STT) have FR/US/UC identifiers but require a new reviewed API/media lifecycle before activation. Their earlier endpoint sketches are not part of the mandatory contract. No collections, weather, taste jobs or TTS endpoints.
+Add optional fields compatibly; breaking changes require a new API major version and migration notice. Reconcile generated implementation OpenAPI with this design and run real request/schema tests before acceptance. Design JSON validation alone cannot prove authentication, transaction or model behavior.

@@ -1,98 +1,34 @@
 # Danang TourGuide — Runtime Sequences
 
-Version 1.0 | 2026-09-30. API paths and schemas owned by [API Design](06-API-Design.md). Nest module lifelines are in-process, not microservices.
+Version 1.2 | 2026-10-12 | Status: design baseline for review. Document control and evidence status: [Index](00-INDEX.md).
 
-## Build proposal and accept
-```mermaid
-sequenceDiagram
-  actor U as Traveler
-  participant A as App
-  participant N as NestJS
-  participant M as AI/Routes providers
-  participant D as PostgreSQL
-  U->>A: Enter constraints and Generate
-  A->>N: POST trips/id/build (revision, idempotency key)
-  N->>D: Authorise and load curated candidates
-  N->>M: Structured candidate-only AI request
-  M-->>N: Draft JSON
-  N->>N: Validate IDs/schema/known facts
-  N->>M: Fetch route legs
-  M-->>N: Durations or unavailable
-  N->>N: Schedule and flag conflicts
-  N->>D: Store proposal with base revision
-  N-->>A: Proposal, warnings, route status
-  U->>A: Accept
-  A->>N: POST trips/id/proposals/pid/accept
-  N->>D: Revision check and atomic persist
-  N-->>A: Planned itinerary / 409 conflict
-```
-Provider calls outside transactions. Invalid output is rejected with bounded repair/retry; provider deadlines return unavailable. No automatic replacement of current accepted plan.
+## Source ownership
 
-## Edit and recalculate
-```mermaid
-sequenceDiagram
-  participant A as App
-  participant N as Trips/Routing
-  participant D as PostgreSQL
-  participant R as Routes
-  A->>N: PUT stops/order with full IDs and revision
-  N->>D: Check owner, membership, immutable visited stops
-  N->>D: Atomic reorder, revision++, clear affected leg values
-  N-->>A: Updated stops, routeStatus=stale
-  A->>N: POST route/refresh (revision)
-  N->>R: Fetch affected legs
-  R-->>N: Legs or failure
-  N->>D: Apply only if revision still matches
-  N-->>A: fresh / unavailable / 409 changed
-```
+The editable .drawio files below own the sequences; SVG previews support review and report embedding. This file documents contracts and exceptions without a second Mermaid version of each diagram. [Use Cases](03-Use-Cases.md) own user-level alternatives; [Blueprint](12-Blueprint.md) owns state/transaction rules.
 
-## Foreground arrival and recorded audio
-```mermaid
-sequenceDiagram
-  participant G as Device GPS
-  participant A as App
-  participant N as NestJS
-  participant S as S3/CDN
-  G-->>A: Foreground fixes
-  A->>A: Current stop, accuracy, radius, dwell
-  A->>N: POST stops/id/arrivals (method and evidence)
-  N->>N: Owner/state checks; unique event
-  N-->>A: Event and guide metadata
-  alt Auto-play opted in and not already played
-    A->>S: GET reviewed recorded audio
-    S-->>A: Audio bytes
-    A->>A: Playback
-  else No asset or disabled
-    A->>A: Show manual Play / unavailable / transcript
-  end
-```
-Permission denial uses method=manual. Simulation requires demo flag. Network failure retains a local pending arrival report with stable replay key; no server event is claimed until acknowledged. Foreground playback may use known POI asset while reporting retries; local once-per-stop guard remains necessary.
+| Scenario | Source | Preview | Trace |
+|---|---|---|---|
+| Build/accept | [drawio](diagrams/sequence-planning.drawio) | [SVG](diagrams/previews/sequence-planning.svg) | UC-06; FR-TRP-02/04; TC-07–10/26 |
+| Edit/refresh | [drawio](diagrams/sequence-edit.drawio) | [SVG](diagrams/previews/sequence-edit.svg) | UC-07; FR-TRP-03/04; TC-11/12 |
+| Arrival/audio | [drawio](diagrams/sequence-arrival.drawio) | [SVG](diagrams/previews/sequence-arrival.svg) | UC-09/10; FR-TRV-02/03; TC-14–18/30 |
+| Contextual Ask | [drawio](diagrams/sequence-rag.drawio) | [SVG](diagrams/previews/sequence-rag.svg) | UC-11; FR-AI-01; TC-19–22/29 |
 
-## Contextual RAG
-```mermaid
-sequenceDiagram
-  actor U as Traveler
-  participant A as App
-  participant N as AI module
-  participant D as PostgreSQL/pgvector
-  participant M as Model provider
-  U->>A: Ask question
-  A->>N: POST ai/ask with context IDs
-  N->>D: Authorise trip; load verified facts
-  N->>M: Text query embedding
-  M-->>N: Vector in pinned space
-  N->>D: Filtered exact retrieval
-  D-->>N: Source passages
-  alt Sufficient relevant evidence
-    N->>M: Grounded prompt with allowed citation IDs
-    M-->>N: Draft structured answer
-    N->>N: Validate citation IDs/format, enforce fact rules
-    N-->>A: grounded answer and source links
-  else Insufficient or conflicting evidence
-    N-->>A: insufficient_evidence with explanation
-  end
-```
-Known operational facts may be answered from structured records without narrative chunks. Unknown facts cannot be filled by general model knowledge. Claim support requires measured evaluation beyond ID validation.
+## Build and acceptance
 
-## P1 camera
-App permission/capture → private upload with size/type checks → NestJS calls Gemini Vision with candidate corpus/context → validates returned candidate IDs → matched/ambiguous/unknown → user confirms place. Delete temporary image after processing/expiry. Camera result is identification assistance, not evidence for POI historical facts.
+The API authenticates owner/revision/key, supplies published candidates and receives structured model IDs/order/durations. It validates schema/IDs, obtains Routes durations and checks known constraints outside a trip transaction. A short transaction stores a revision-bound preview. Explicit acceptance rechecks expiry, publication and facts, then persists plan/revision atomically. Provider failure cannot replace the previous accepted plan; known infeasibility is rejected, unknown feasibility is provisional.
+
+## Edit and route refresh
+
+A short transaction checks owner, parent membership, revision and fixed current/visited prefix, applies edits and marks affected estimates stale/null. Routes executes outside the transaction. Apply only to the same itinerary revision and do not overwrite a newer refresh result. The daily start-to-first-stop leg is invalidated when its first stop or start preferences change.
+
+## Arrival and playback
+
+The device checks foreground fixes for the current stop and reports a stable event key. Server checks current-state/ownership/evidence and stores one event per stop. Arrival does not complete the stop. GPS denial uses labelled manual arrival; simulation needs server demo mode. If offline, UI shows pending and may play an already available asset under the local playback guard; it must not claim server synchronization. Exact replay does not cause a new auto-play and requires reconciliation if later progression occurred. Expired media URLs are refreshed through guide metadata.
+
+## Ask with evidence
+
+Authorized place/trip context controls retrieval. Structured operational facts are separate from narrative passages. The query uses the pinned embedding space and current source revisions. Weak/conflicting evidence yields refusal; provider failure yields a typed error. Model reference IDs/format and operational values are validated server-side; factual entailment is assessed by the evaluation protocol, not guaranteed by an ID check.
+
+## Notation and review
+
+Lifelines, synchronous calls, dashed returns and execution bars describe the depicted scenarios. Transaction boundaries and exception semantics are specified above and in Blueprint. No background location service, async queue or independent microservice is implied. P1 camera/STT/Google sequences are deferred until activated.

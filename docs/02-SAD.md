@@ -1,83 +1,88 @@
 # Danang TourGuide — Software Architecture
 
-Version 1.0 | 2026-09-30 | Design target, not proof of deployment.
-Scope owner: [PRD](01-PRD.md). Decisions: [Project Decisions](09-Project-Decisions.md).
+Version 1.2 | 2026-10-12 | Status: design baseline for review. Document control and evidence status: [Index](00-INDEX.md).
 
-## Drivers and boundaries
-One developer, curated small corpus, mobile foreground trip experience and source-grounded AI. One NestJS modular monolith and one PostgreSQL database. No Redis, TTS, Weather API, microservices or separate Python AI backend. Scripts may use Python for curation/evaluation.
+## Design drivers and system boundary
+
+[PRD](01-PRD.md) owns required behavior; [Decisions](09-Project-Decisions.md) records rationale/status. One developer, a bounded reviewed corpus, private mobile trips and foreground assistance favor a modular monolith. The system includes mobile UI, one NestJS API, PostgreSQL, reviewed media and restricted curation scripts. Maps/Routes, model/embedding services and object storage are external dependencies.
 
 ## Context and containers
+
 ```mermaid
 flowchart TB
-  User["Traveler"] --> App["React Native / Expo"]
-  Curator["Developer / curator"] --> Import["Validated ingestion scripts"]
-  App -->|HTTPS REST| API["NestJS modular monolith"]
-  App -->|Map SDK| Maps["Google Maps / Routes"]
-  API -->|Routes requests| Maps
-  API --> DB[("PostgreSQL: PostGIS + pgvector")]
+  User[Traveler] --> App[React Native / Expo app]
+  Curator[Curator] --> Import[Validated ingestion scripts]
+  App -->|HTTPS REST| API[NestJS modular monolith]
+  App -->|Restricted map SDK| Maps[Map provider]
+  API --> Routes[Routes provider]
+  API --> DB[(PostgreSQL / PostGIS / pgvector)]
   Import --> DB
-  Import --> S3["S3: images and recorded audio"]
-  API -->|Media metadata/access| S3
-  App -->|Media playback| S3
-  API --> Models["GPT or Gemini / text embeddings"]
+  Import --> Storage[Reviewed image / recorded audio storage]
+  API -->|Metadata / access URL| Storage
+  App -->|Media bytes| Storage
+  API --> Models[LLM / text embedding provider]
 ```
-All AI credentials remain server-side. Maps client key and server key are separate and restricted. POI media access may use signed URLs or CloudFront; user camera images remain private and transient.
+The app does not receive server AI/Routes credentials. Runtime data publication is restricted to curator CLI; there is no public administration API. P1 uploads require a separate private-media lifecycle before activation.
 
-## Internal composition
-| Module | Responsibility | Dependencies |
+## Components and responsibility
+
+| Module | Owns | Dependencies / boundary |
 |---|---|---|
-| Identity | Email/password, sessions, ownership; OAuth P1 | PostgreSQL |
-| Places | Published POIs, search, geography, factual records | PostgreSQL/PostGIS |
-| Saved | Basic owner-scoped saves | Identity, Places |
-| Trips | Preferences, days/stops, status and arrival events | Places, Routing, AI |
-| Routing | Travel legs, freshness, failure state | Routes, PostgreSQL |
-| Guides | Approved audio, transcript, language and access URL | Places, S3 |
-| AI | Planning facade, RAG retrieval/generation, model adapters | Places, pgvector, provider |
+| Identity | Credentials, session state, authentication | PostgreSQL; supplies authenticated subject/session |
+| Places | Published POIs, facts/provenance, search/geography | PostgreSQL/PostGIS; no unrestricted runtime publication |
+| Saved | Owner-scoped saved places | Identity and Places |
+| Trips | Preferences, proposals, itinerary/progression/revision/arrival | Places, AI and Routing; sole trip mutation orchestrator |
+| Routing | Provider-backed start/inter-stop legs and freshness | Routes adapter and PostgreSQL |
+| Guides | Reviewed audio/transcript metadata and access | Places and storage |
+| AI | Candidate-only planning and source-grounded Ask | Places/retrieval/model ports; no direct trip mutation |
 
-These are internal code modules, not independently deployed services. Controllers validate DTOs; services enforce rules; repositories own persistence. Avoid one module per helper class. Trips orchestrates planner; AI does not mutate trip rows directly.
+Controller → application service → repository/provider port. DTO validation, ownership, state checks and transactional writes belong on the server even when the UI validates first. [Blueprint](12-Blueprint.md) owns detailed algorithms and concurrency semantics; [Database](05-Database-Design.md) owns physical integrity.
 
-## Runtime: itinerary
-Backend loads published candidates and verified constraints → AI proposes schema-conforming candidate IDs/order/durations → backend rejects invalid IDs and checks constraints → Routing fetches legs → deterministic scheduling validates known opening hours/time windows → return preview and warnings → user accepts → persist atomically.
-Use synchronous build with bounded request deadline for V1; no queue required. If deadline is exceeded return provider_unavailable and retain existing plan. Any future async mode requires a real job record and polling contract before adoption. Requests carry idempotency keys and revision checks. A heuristic fallback may be explicitly offered as a non-AI draft; never label it successful AI output.
+## Architectural views and scenarios
 
-## Runtime: RAG
-Curator reviews source text → split by headings/semantic passages (initial experiment: 300–500 tokens, modest overlap) → attach source/POI/locale/revision → text embed → pgvector. Parameters are evaluated, not assumed optimal.
-Question and authorised POI/trip allowlist → exact filtered vector search → deduplicate and evaluate relevance → combine passages with curated operational facts → grounded generation → validate cited IDs and answer format → return answer/source links or insufficient evidence. Prompt injection in question/passages cannot expand permissions or override data rules. Citation-ID validation does not prove claim correctness: evaluation checks claim support.
-Use one pinned text embedding configuration for chunks and queries. Dimension is decided by technical spike; no inherited 768-dimensional assumption. Image embeddings are Future.
+| View | Source / preview | Concerns and business trace |
+|---|---|---|
+| Logical | [drawio](diagrams/logical-view.drawio), [SVG](diagrams/previews/logical-view.svg) | BIZ-01–05; conceptual entities/associations; full physical schema is separate |
+| Process | [drawio](diagrams/process-view.drawio), [SVG](diagrams/previews/process-view.svg), [sequences](04-Sequence-Diagrams.md) | BIZ-02–04; build/accept, edit, arrival and Ask |
+| Development | [drawio](diagrams/development-view.drawio), [SVG](diagrams/previews/development-view.svg) | BIZ-05/06; internal modules and dependencies |
+| Physical | [drawio](diagrams/physical-view.drawio), [SVG](diagrams/previews/physical-view.svg) | BIZ-06; conditional AWS deployment option |
+| Scenarios | [drawio](diagrams/scenarios-view.drawio), [SVG](diagrams/previews/scenarios-view.svg), [use cases](03-Use-Cases.md) | BIZ-01–07; P0 journey and explicitly optional P1 |
 
-## Runtime: arrival and audio
-App watches foreground GPS only during active trip. Check current stop, configured arrival target/radius, acceptable accuracy, several consistent fixes/dwell. Initial radius/accuracy/dwell values are configurable and field-tested, not universal constants. Client reports arrival evidence; server verifies ownership/current stop and evidence plausibility, deduplicates by stop, but cannot prove physical presence from client GPS.
-Auto-play is a user opt-in at Start Trip; event selects reviewed recorded asset. Local playback guard plus unique event prevents repeated auto-play. Manual replay is allowed. Manual arrival works when location is denied. No continuous server location stream or location-history table. Stop watcher on pause/end; background arrival is out of V1.
+[Rich Picture](diagrams/rich-picture.drawio) frames stakeholder concerns as research hypotheses; it does not replace the five architectural views. Sources are editable, previews are review artifacts. Import/visual checks are recorded in [Document Review](18-Document-Review.md).
 
-## States and consistency
-Trip: draft → planned → active → completed; pause is a client session action, not a fabricated completed trip. Stop: upcoming → current → completed/skipped. Arrival method gps/manual/simulated is separate from stop status. Route status fresh/stale/unavailable; routing values may be null. Timezone Asia/Ho_Chi_Minh. Edit transaction increments revision, clears invalidated legs and recalculates schedule. No route-provider request holds a database transaction open. Only unvisited stops may be reordered during active trip.
+## Runtime overview
 
-## Deployment view
-```mermaid
-flowchart TB
-  Phone["Expo development/release build"] --> Ingress["HTTPS ingress: ALB + certificate"]
-  Ingress --> ECS["ECS/Fargate: one NestJS app"]
-  ECS --> RDS[("Private RDS PostgreSQL")]
-  ECS --> S3["S3 media"]
-  ECS --> Secrets["Secrets Manager"]
-  ECS --> Logs["CloudWatch"]
-  CI["GitHub Actions"] --> ECR["ECR image"]
-  ECR --> ECS
-```
-CloudFront optional for approved POI media; API also requires outbound provider connectivity. Choose subnet/NAT/public-task networking deliberately after cost review; RDS remains private and security groups restrict access. Development: API + PostgreSQL container with both extensions; use S3 test bucket or media fixtures. Expo Go is not assumed sufficient for every P1/native integration; test with a development build.
-CI: lint/typecheck/tests → image build → ECR → controlled migration → rollout → health smoke. GitHub-to-AWS short-lived identity preferred. Back up DB and version/manifest media; rehearse restore. Verify selected RDS engine supports required extensions before migration.
+Build uses current published candidates → model draft → server schema/ID/fact validation → provider legs → deterministic constraint checking → stored preview. Acceptance is explicit and atomic; old plans remain intact until accepted. V1 build is synchronous and bounded; no queue/job API is implied.
+Ask authenticates context → retrieves current compatible reviewed passages/known structured facts → generates with allowed evidence IDs → validates format/references and operational values → answers or refuses. Evidence IDs do not prove historical claim entailment; evaluation measures residual unsupported claims.
+Foreground arrival uses current-stop accuracy/radius/dwell. The server validates minimal reported evidence and uniqueness but cannot prove physical presence from client GPS. Audio is a reviewed human recording; playback opt-in and local deduplication are separate from trip progression.
 
-## Failure handling and risks
-| Failure | Behaviour |
-|---|---|
-| LLM timeout | Preserve current plan; retry explicitly; Explore remains usable |
-| Routes unavailable | No fabricated time; itinerary provisional/unavailable; navigation handoff permitted |
-| No RAG evidence/conflicting source | Withhold unsupported facts; expose uncertainty/source dates |
-| Audio missing/network fail | Transcript, retry or continue; no TTS fallback |
-| Weak GPS | Manual arrival and accuracy explanation |
-| Camera low evidence | Unknown/manual choose; P1 only |
+## Quality and failure design
 
-Rate-limit auth/AI per owner with in-process limiter for single task; document reset and multi-instance limitations. Durable idempotency/state reside in PostgreSQL. Logs contain requestId, latency, provider status and model/corpus version, not raw GPS/images/questions by default. Restrict public endpoints and redact secrets. A bounded corpus does not imply zero hallucinations or production SLA.
+| Risk / failure | Architectural response | Verification |
+|---|---|---|
+| Cross-user access | Session/owner/parent checks before data/provider access | TC-24/25 |
+| AI malformed/unknown ID or timeout | Reject/typed failure; preserve accepted itinerary; bounded repair | TC-08/22/26 |
+| Routes unavailable or stale | Null current estimates, warning and explicit acknowledgement; no AI-derived travel time | TC-10/11/35 |
+| Conflicting/missing evidence | Withhold unsupported answer; display provenance/uncertainty | TC-19–21/29 |
+| Poor/denied location | Manual arrival; foreground watcher stops on background/pause/end | TC-14–16/30 |
+| Missing/failed audio | Unavailable/transcript/retry; no synthesis | TC-17/18 |
+| Edit versus late provider result | Short transaction and revision-bound apply | TC-11/12 |
+| Model/space drift | Immutable configuration identity and version-filtered retrieval | TC-29/37 |
 
-## Report diagrams
-This file provides context/container and deployment views. Use [Use Cases](03-Use-Cases.md), [Sequences](04-Sequence-Diagrams.md), [ERD](05-Database-Design.md) and [UI](07-UI-UX-Design.md). A separate annotated Rich Picture is still required for the academic report; do not mislabel C4 as a Rich Picture.
+Initial exact vector search is a working design choice, not a latency guarantee. One API instance permits an in-process limiter for the pilot; DB idempotency is durable. Multi-instance shared quotas require a new design. Logs record request ID/status/latency/config versions; raw GPS/questions/media are omitted by default. Security details are owned by [Security/Privacy](15-Security-Privacy.md).
+
+## Deployment design and verification
+
+Local/test: Expo development build, API and isolated PostgreSQL with both extensions; deterministic provider/media fixtures; two user accounts for ownership tests. Native SDK/ORM/engine versions are pinned after feasibility trials.
+Conditional AWS option: HTTPS ingress/ALB → one ECS/Fargate API → private RDS, versioned S3 media, Secrets Manager, CloudWatch and ECR. The physical diagram represents this option. Region, resource sizes, extension compatibility, outbound networking and monthly ceiling remain O-02/O-07/O-12. Managed/private DB access and scoped storage permissions remain requirements whichever approved deployment host is chosen. A different host requires the physical view and decisions to be updated together.
+Configuration inventory: API base URL, DB DSN, JWT issuer/audience/signing material, model/embedding configuration, separate client Maps/server Routes keys, media namespace, planner/arrival limits, quotas/timeouts, log/retention policy and explicit demo mode. Document names, never secret values. Disable demo simulation in normal deployment.
+
+## Deployment and recovery acceptance
+
+1. Verify selected build, migration compatibility, content rights and actual P0/security evidence.
+2. Record cost/network configuration; build immutable artifact and back up DB plus media manifest.
+3. Apply reviewed migration with restricted migration identity; deploy API/native build and verify health, ownership, search, planning and Ask smoke.
+4. Revert to a prior compatible app image on regression. Destructive migrations need an explicit data recovery plan.
+5. Restore backup in an isolated environment; verify trip/content references and media availability. Measure data-loss interval (RPO) and restoration time (RTO); acceptable values depend on agreed recovery needs and budget.
+
+Restore is a planned verification task, not an executed result or production SLA. Release authorization/reviewer/date are recorded when deployment occurs. [Plan](13-Development-Plan.md) and [Test Plan](08-Test-Plan.md) define delivery/evidence gates.
