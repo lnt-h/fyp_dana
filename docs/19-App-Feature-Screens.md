@@ -35,24 +35,121 @@ Thanh điều hướng chính gồm 4 tab: **Khám phá · Chuyến đi · Đã 
 - Nhận diện địa danh qua camera, nhập câu hỏi bằng giọng nói và Google Sign-In: **P1**, chỉ làm sau khi P0 hoàn chỉnh.
 - Không bao gồm đặt vé/thanh toán, mạng xã hội, chatbot nói chuyện bằng giọng nói, TTS, theo dõi GPS nền, thông báo tự động hay offline hoàn chỉnh.
 
-## 3. Danh sách màn hình chi tiết
+## 3. Bản đồ màn hình đầy đủ
 
-| ID | Màn hình | Mục đích | Thành phần chính | Hành động chính |
-|---|---|---|---|---|
-| UI-01 | Khám phá | Duyệt địa điểm | Ô tìm kiếm, chip danh mục, danh sách thẻ địa điểm, nút chuyển bản đồ | Tìm/lọc, mở chi tiết, mở bản đồ |
-| UI-02 | Bản đồ khám phá | Xem các địa điểm trên bản đồ | Marker, điều khiển vị trí hiện tại, bottom sheet điểm được chọn | Chọn marker, mở chi tiết |
-| UI-03 | Chi tiết địa điểm | Cung cấp thông tin trước khi ghé thăm | Gallery ảnh, tên/danh mục, mô tả, thông tin đã xác minh, nguồn/ngày cập nhật, trạng thái audio, nút Lưu/Thêm vào chuyến đi/Hỏi AI | Lưu, thêm vào lịch trình, nghe audio, hỏi AI |
-| UI-04 | Tạo chuyến đi | Thu thập ràng buộc để tạo lịch trình | Ngày đi, số ngày, điểm xuất phát, sở thích, nhịp độ, khung giờ, ngân sách định tính, phương tiện | Kiểm tra dữ liệu, tạo đề xuất |
-| UI-05 | Xem trước lịch trình AI | Cho người dùng xét và chấp nhận đề xuất | Timeline theo ngày, các điểm dừng, thời lượng gợi ý, cảnh báo/xung đột, trạng thái tạo | Chấp nhận, tạo lại, quay lại sửa yêu cầu |
-| UI-06 | Chi tiết/chỉnh sửa lịch trình | Điều chỉnh kế hoạch đã chấp nhận | Chọn ngày, danh sách điểm đánh số, kéo-thả, thời lượng, trạng thái tuyến đường, thêm điểm, nút Bản đồ/Bắt đầu | Thêm/xoá/đổi thứ tự, đổi thời lượng, xem bản đồ, bắt đầu |
-| UI-07 | Bản đồ chuyến đi | Xem thứ tự và các chặng di chuyển | Marker đánh số, polyline từng chặng, bottom sheet điểm dừng, nhãn phương tiện/thời gian/cập nhật | Chọn điểm dừng, quay lại chỉnh sửa |
-| UI-08 | Chế độ tham quan | Điều hướng trạng thái trong chuyến đi | Điểm hiện tại/kế tiếp, bản đồ vùng lân cận, trạng thái GPS, nút xác nhận đến thủ công, Hoàn thành/Bỏ qua | Ghi nhận đến, hoàn thành/bỏ qua, mở audio/Hỏi AI |
-| UI-09 | Sheet đã đến địa điểm | Phản hồi khi người dùng đến điểm hiện tại | Tên điểm, cách xác nhận (GPS/thủ công/mô phỏng), nút audio, Hỏi AI, xem điểm tiếp theo | Phát audio, hỏi AI, tiếp tục |
-| UI-10 | Audio guide | Nghe thuyết minh | Tên người thuyết minh, ngôn ngữ, play/pause, thanh tiến độ, tua, transcript | Điều khiển phát, đọc transcript |
-| UI-11 | Đã lưu | Quản lý địa điểm yêu thích | Danh sách địa điểm đã lưu, trạng thái rỗng, nút bỏ lưu/thêm vào chuyến đi | Mở chi tiết, bỏ lưu, thêm vào lịch trình |
-| UI-12 | Đăng nhập/Đăng ký | Xác thực tài khoản | Email, mật khẩu, xác nhận mật khẩu, lỗi theo trường, liên kết chuyển form | Đăng nhập, tạo tài khoản |
-| UI-13 | Cài đặt | Quản lý phiên và quyền | Thông tin tài khoản, ngôn ngữ, trạng thái quyền vị trí, trợ giúp quyền, đăng xuất | Mở cài đặt hệ thống, đăng xuất |
-| UI-14 | Hỏi AI | Đặt câu hỏi trong ngữ cảnh | Chip ngữ cảnh địa điểm/chuyến đi, lịch sử hỏi đáp, ô nhập, nguồn dưới câu trả lời, trạng thái tải/lỗi | Gửi câu hỏi, mở nguồn, thử lại |
+Mỗi **screen** là một trang điều hướng. Các **sheet/modal** là màn hình nhỏ mở đè lên trang hiện tại; cần thiết kế và xử lý trạng thái riêng, không xem là “chỉ một popup”.
+
+```text
+Khởi động / Onboarding
+  └─ Xác thực (Đăng nhập, Đăng ký, OTP, Quên/Đặt lại mật khẩu)
+       └─ Tabs: Khám phá · Chuyến đi · Đã lưu · Cài đặt
+            ├─ Địa điểm / Bản đồ / Nguồn / Audio / Hỏi AI
+            ├─ Tạo, xem trước, chỉnh sửa, bản đồ và tham quan chuyến đi
+            └─ Các sheet xác nhận, quyền thiết bị và trạng thái lỗi
+```
+
+### 3.1. Khởi động và onboarding
+
+| ID | Screen | Trong màn hình có gì | Hành động / điều hướng |
+|---|---|---|---|
+| APP-01 | Splash | Logo Danang TourGuide, trạng thái kiểm tra phiên đăng nhập và kết nối tối thiểu | Có phiên hợp lệ → Tab Khám phá; chưa có → Onboarding/Đăng nhập. Không hiển thị lỗi kỹ thuật dài dòng. |
+| APP-02 | Onboarding 1 — Khám phá | Ảnh minh hoạ Đà Nẵng, tiêu đề “Khám phá địa điểm”, mô tả ngắn, chấm tiến trình | Tiếp tục, Bỏ qua. |
+| APP-03 | Onboarding 2 — Lập lịch trình | Minh hoạ timeline/bản đồ, mô tả AI hỗ trợ lên kế hoạch | Quay lại, Tiếp tục, Bỏ qua. |
+| APP-04 | Onboarding 3 — Tham quan | Minh hoạ GPS/audio, giải thích quyền vị trí chỉ dùng khi bắt đầu chuyến đi | Bắt đầu khám phá (không bắt buộc đăng nhập). |
+| APP-05 | Chọn ngôn ngữ | Tiếng Việt mặc định; English chỉ hiển thị khi nội dung hỗ trợ; nút lưu | Lưu lựa chọn → Khám phá. Có thể đổi lại trong Cài đặt. |
+
+### 3.2. Tài khoản và xác thực
+
+| ID | Screen | Trong màn hình có gì | Hành động / kiểm tra |
+|---|---|---|---|
+| AUTH-01 | Chọn cách bắt đầu | Logo, lợi ích đăng nhập, nút Đăng nhập, Tạo tài khoản, “Khám phá với tư cách khách” | Khách chỉ được xem dữ liệu công khai; các hành động riêng tư chuyển sang Đăng nhập. |
+| AUTH-02 | Đăng nhập | Email, mật khẩu, nút hiện/ẩn mật khẩu, “Quên mật khẩu?”, nút Đăng nhập, liên kết Đăng ký | Kiểm tra email/mật khẩu; lỗi sai thông tin, lỗi mạng, tài khoản chưa xác minh. Google Sign-In là P1. |
+| AUTH-03 | Đăng ký | Họ tên hiển thị (tuỳ chọn), email, mật khẩu, xác nhận mật khẩu, điều khoản/quyền riêng tư, nút Tạo tài khoản | Kiểm tra định dạng email, mật khẩu mạnh và mật khẩu khớp; thành công chuyển sang OTP. |
+| AUTH-04 | Xác thực OTP email | Email được che một phần, 6 ô OTP, đếm ngược gửi lại, đổi email, nút Xác thực | Tự chuyển ô, dán mã, báo mã sai/hết hạn; gửi lại OTP có giới hạn chống spam. |
+| AUTH-05 | OTP thành công | Biểu tượng thành công, thông báo tài khoản đã xác thực | Đi tới Khám phá hoặc quay lại tác vụ đang bị chặn. |
+| AUTH-06 | Quên mật khẩu | Ô email, mô tả cách nhận mã, nút Gửi mã | Không tiết lộ email có tồn tại hay không; sang OTP đặt lại mật khẩu. |
+| AUTH-07 | OTP đặt lại mật khẩu | Email che một phần, 6 ô OTP, gửi lại mã/đổi email | Mã hợp lệ → Đặt lại mật khẩu. |
+| AUTH-08 | Đặt lại mật khẩu | Mật khẩu mới, xác nhận, hiện/ẩn mật khẩu, yêu cầu mật khẩu, nút Lưu | Lưu thành công → thông báo → Đăng nhập bằng mật khẩu mới. |
+| AUTH-09 | Phiên hết hạn | Giải thích phiên đăng nhập đã hết hạn, nút Đăng nhập lại | Giữ nguyên dữ liệu công khai và màn hình trước đó; sau login quay lại tác vụ nếu an toàn. |
+
+### 3.3. Khám phá địa điểm
+
+| ID | Screen | Trong màn hình có gì | Hành động / trạng thái |
+|---|---|---|---|
+| EXP-01 | Khám phá (tab) | Header chào mừng, ô tìm kiếm, chip danh mục, khu vực “Gợi ý”, thẻ địa điểm (ảnh, tên, tag, khu vực), bottom tab | Mở tìm kiếm, lọc, chi tiết hoặc bản đồ. Có skeleton khi tải. |
+| EXP-02 | Kết quả tìm kiếm | Ô tìm kiếm có nút xoá, lịch sử gần đây (cục bộ), số kết quả, thẻ POI | Tìm theo tên/tag tiếng Việt; không có kết quả hiển thị gợi ý xoá bộ lọc. |
+| EXP-03 | Bộ lọc địa điểm (bottom sheet) | Danh mục, tag/sở thích, nút Xoá tất cả và Áp dụng, số lượng kết quả | Áp dụng bộ lọc; bộ lọc đang chọn hiển thị lại ở Khám phá. |
+| EXP-04 | Bản đồ khám phá | Bản đồ, marker POI, nút vị trí hiện tại, nút quay lại danh sách, attribution nhà cung cấp | Chọn marker → sheet địa điểm; vị trí bị từ chối vẫn xem được bản đồ. |
+| EXP-05 | Sheet địa điểm trên bản đồ | Ảnh thumbnail, tên, tag, khoảng cách chỉ khi có quyền vị trí, nút Xem chi tiết | Mở EXP-06. |
+| EXP-06 | Chi tiết địa điểm | Gallery, tên, danh mục/tag, mô tả, tọa độ/địa chỉ, giờ/giá nếu có, thời lượng gợi ý, nguồn và ngày cập nhật, audio, nút Lưu/Thêm vào chuyến đi/Hỏi AI | Vuốt ảnh, mở nguồn, lưu, thêm vào hành trình, phát audio, hỏi AI. Dữ liệu thiếu phải ghi rõ “Chưa có thông tin”. |
+| EXP-07 | Gallery ảnh toàn màn hình | Ảnh lớn, chỉ số ảnh, mô tả/credit, nút đóng | Vuốt ảnh; xem nguồn/credit ảnh khi có. |
+| EXP-08 | Nguồn thông tin địa điểm | Danh sách nguồn: tiêu đề, đơn vị, ngày, đoạn thông tin liên quan, liên kết ngoài nếu có | Mở liên kết bằng trình duyệt; quay lại chi tiết. |
+| EXP-09 | Chọn chuyến đi để thêm điểm (sheet) | Danh sách chuyến đi `draft/planned`, tìm chuyến đi, nút Tạo chuyến mới | Chọn một chuyến → xác nhận thêm; không thêm trùng. |
+| EXP-10 | Xác nhận thêm điểm | Tên địa điểm, chuyến đi/ngày sẽ thêm, cảnh báo tuyến đường cần cập nhật | Xác nhận/huỷ; thành công có snackbar và nút xem lịch trình. |
+
+### 3.4. Lưu địa điểm và quản lý chuyến đi
+
+| ID | Screen | Trong màn hình có gì | Hành động / trạng thái |
+|---|---|---|---|
+| SAV-01 | Đã lưu (tab) | Tiêu đề, tìm kiếm trong danh sách đã lưu, thẻ địa điểm, nút bỏ lưu/thêm vào chuyến đi | Mở chi tiết, bỏ lưu, thêm vào chuyến đi. Trạng thái rỗng có nút Khám phá. |
+| SAV-02 | Xác nhận bỏ lưu (sheet) | Tên địa điểm, giải thích hành động | Bỏ lưu/giữ lại. Có thể dùng undo snackbar sau khi thành công. |
+| TRIP-01 | Chuyến đi (tab) | Nút Tạo chuyến đi, nhóm Nháp/Sắp diễn ra/Đang tham quan/Đã hoàn thành, thẻ chuyến đi | Mở chi tiết, tiếp tục chuyến đang active, tạo chuyến. Trạng thái rỗng có CTA. |
+| TRIP-02 | Tạo chuyến đi — thông tin cơ bản | Tên chuyến (tuỳ chọn), ngày bắt đầu, số ngày, điểm xuất phát | Tiếp tục; kiểm tra ngày và giới hạn số ngày. |
+| TRIP-03 | Tạo chuyến đi — sở thích | Danh mục sở thích chọn nhiều, nhịp độ chậm/vừa/nhanh, ngân sách định tính | Tiếp tục/quay lại. |
+| TRIP-04 | Tạo chuyến đi — di chuyển & thời gian | Phương tiện, giờ bắt đầu/kết thúc mỗi ngày, tóm tắt lựa chọn | Tạo nháp và “Tạo lịch trình AI”. |
+| TRIP-05 | Đang tạo lịch trình AI | Animation tải không dùng phần trăm giả, tóm tắt yêu cầu, nút Huỷ chờ | Hoàn tất → xem trước; lỗi/time-out → trạng thái lỗi nhưng giữ nháp. |
+| TRIP-06 | Xem trước lịch trình AI | Tab ngày, timeline điểm dừng, thời lượng gợi ý, tuyến đường, panel cảnh báo/thiếu dữ liệu, nút Chấp nhận/Tạo lại/Sửa yêu cầu | Chấp nhận sau khi xem; lỗi ràng buộc chắc chắn chặn chấp nhận. |
+| TRIP-07 | Chi tiết lịch trình | Tiêu đề/trạng thái chuyến, chọn ngày, các điểm theo thứ tự, route status, cảnh báo, nút Sửa/Bản đồ/Bắt đầu chuyến | Mở sửa, bản đồ, bắt đầu; nháp chưa có kế hoạch chỉ hiển thị tạo đề xuất. |
+| TRIP-08 | Sửa lịch trình | Danh sách điểm có số thứ tự, kéo-thả và nút Lên/Xuống hỗ trợ accessibility, sửa thời lượng, xoá điểm, thêm điểm | Lưu thay đổi nguyên tử; hiện cảnh báo route stale sau sửa. Không cho sửa điểm hiện tại/đã đi khi active. |
+| TRIP-09 | Thêm điểm vào ngày (sheet) | Tìm kiếm/lọc POI, danh sách kết quả, ngày đang thêm | Chọn điểm → thêm vào cuối hoặc chọn vị trí; ngăn trùng điểm. |
+| TRIP-10 | Sửa thời lượng điểm (sheet) | Tên điểm, stepper/ô số phút, thời lượng gợi ý, xác nhận | Lưu; kiểm tra giới hạn thời lượng. |
+| TRIP-11 | Xác nhận xoá điểm (sheet) | Tên điểm, ảnh hưởng đến tuyến đường/lịch | Xoá/huỷ; nếu ngày trống phải hiển thị cảnh báo chặn Start. |
+| TRIP-12 | Bản đồ chuyến đi | Marker đánh số, polyline từng chặng, danh sách chặng, phương tiện, thời gian và thời điểm cập nhật | Chọn marker/chặng; thời lượng không có dữ liệu hiển thị “Chưa có ước tính”. |
+| TRIP-13 | Chi tiết chặng đường (sheet) | Điểm đi/đến, khoảng cách/thời lượng nếu có, phương tiện, thời điểm lấy dữ liệu, trạng thái fresh/stale/unavailable | Đóng/quay lại; không gọi đây là ETA được đảm bảo. |
+| TRIP-14 | Xác nhận bắt đầu chuyến đi | Tóm tắt ngày đầu, cảnh báo còn lại, checkbox đã hiểu bất định, giải thích GPS foreground và toggle tự phát audio mặc định tắt | Bắt đầu khi không có lỗi chặn; chuyển Travel mode. |
+| TRIP-15 | Chuyến đi hoàn thành | Tóm tắt số điểm hoàn thành/bỏ qua, ngày kết thúc, nút xem lại lịch trình/khám phá tiếp | Không chỉnh sửa lịch sử điểm; quay về tab Chuyến đi. |
+
+### 3.5. Chế độ tham quan, GPS và audio
+
+| ID | Screen | Trong màn hình có gì | Hành động / trạng thái |
+|---|---|---|---|
+| LIVE-01 | Chế độ tham quan | Bản đồ vùng hiện tại, tên/ảnh điểm hiện tại, điểm kế tiếp, tiến độ, GPS status, nút Hướng dẫn đường, Đã đến, Hoàn thành/Bỏ qua, Ask | Chỉ theo dõi GPS khi app mở và screen này hoạt động. |
+| LIVE-02 | Giải thích quyền vị trí (sheet) | Lý do dùng vị trí, “chỉ khi tham quan”, phương án xác nhận thủ công | Cho phép/Không phải bây giờ. Không ép quyền để tiếp tục. |
+| LIVE-03 | Vị trí bị từ chối/yếu (sheet) | Trạng thái quyền hoặc độ chính xác, hướng dẫn bật lại, nút Xác nhận đã đến thủ công | Mở cài đặt hệ thống hoặc xác nhận thủ công. |
+| LIVE-04 | Xác nhận đến thủ công | Tên điểm hiện tại, nhãn “Thủ công”, lý do chọn (tuỳ chọn), xác nhận | Tạo arrival event dạng manual; không ghi là GPS. |
+| LIVE-05 | Đã đến địa điểm (arrival sheet) | Tên/ảnh điểm, phương thức GPS/thủ công/mô phỏng, audio có sẵn, nút Hỏi AI, thông tin điểm tiếp theo | Mở audio/Ask, đóng để tiếp tục tham quan. |
+| LIVE-06 | Xác nhận hoàn thành/bỏ qua điểm | Tên điểm, lựa chọn Hoàn thành hoặc Bỏ qua, lý do bỏ qua tuỳ chọn | Chuyển điểm tiếp theo; điểm cuối → TRIP-15. |
+| LIVE-07 | Audio guide | Ảnh/tên POI, người thuyết minh, ngôn ngữ, play/pause, tua ±15 giây, tiến độ, tốc độ phát, transcript | Điều khiển audio; asset thiếu → Audio unavailable. |
+| LIVE-08 | Transcript audio | Văn bản transcript, phần đang phát được highlight nếu hỗ trợ, cỡ chữ | Đóng/quay về player; không cần micro. |
+| LIVE-09 | Audio không khả dụng (sheet) | Lý do: chưa có audio/không có ngôn ngữ/không tải được, transcript nếu có | Đọc transcript, thử lại (lỗi mạng), đóng. |
+
+### 3.6. Hỏi AI, cài đặt và màn hình dùng chung
+
+| ID | Screen | Trong màn hình có gì | Hành động / trạng thái |
+|---|---|---|---|
+| AI-01 | Hỏi AI | Chip ngữ cảnh POI/chuyến đi, lịch sử câu hỏi, ô nhập đa dòng, nút Gửi, câu trả lời và thẻ nguồn | Gửi câu hỏi; không có mic ở P0. Câu trả lời thiếu bằng chứng phải có trạng thái riêng. |
+| AI-02 | Chi tiết nguồn AI (sheet) | Claim/câu trả lời liên quan, nguồn, đoạn trích hỗ trợ, ngày/corpus version nếu có | Mở nguồn đầy đủ/đóng. |
+| AI-03 | AI thiếu bằng chứng | Giải thích không đủ nguồn tin cậy, gợi ý câu hỏi khác hoặc mở nguồn POI | Sửa câu hỏi, quay lại chi tiết. |
+| AI-04 | AI tạm không khả dụng | Lỗi provider/network rõ ràng, nút Thử lại và quay lại | Không tự tạo câu trả lời giả. |
+| SET-01 | Cài đặt (tab) | Avatar/tên/email, ngôn ngữ, quyền vị trí, trợ giúp, quyền riêng tư, đăng xuất | Mở các trang thiết lập chi tiết. |
+| SET-02 | Tài khoản | Thông tin cơ bản, trạng thái email đã xác minh, đổi mật khẩu | Mở AUTH-06/luồng đổi mật khẩu; không hiển thị mật khẩu hiện tại. |
+| SET-03 | Quyền & vị trí | Trạng thái Location, giải thích cách app dùng quyền, nút Mở cài đặt hệ thống | Không tự bật quyền; có hướng dẫn fallback thủ công. |
+| SET-04 | Ngôn ngữ | Danh sách ngôn ngữ, mô tả phạm vi nội dung/audio hiện có | Lưu và tải lại UI/nội dung phù hợp. |
+| SET-05 | Giới thiệu & quyền riêng tư | Phiên bản app, chính sách quyền riêng tư, điều khoản, liên hệ phản hồi | Mở liên kết ngoài khi có. |
+| SET-06 | Xác nhận đăng xuất | Email hiện tại, thông báo dữ liệu cục bộ cần đồng bộ, nút Đăng xuất | Đăng xuất và thu hồi phiên → AUTH-01. |
+| COM-01 | Lỗi mạng toàn cục | Minh hoạ offline, mô tả ngắn, Thử lại, quay lại dữ liệu đã tải | Không xoá form/nháp người dùng đang nhập. |
+| COM-02 | Không có quyền truy cập | Icon khoá, giải thích yêu cầu đăng nhập/quyền sở hữu | Đăng nhập hoặc quay lại. |
+| COM-03 | Màn hình tải | Skeleton đúng ngữ cảnh (thẻ, detail, timeline) | Không chặn điều hướng không cần thiết. |
+| COM-04 | Snackbar/toast | Thông báo ngắn: đã lưu, đã bỏ lưu, đã thêm điểm, lỗi lưu; action Undo khi phù hợp | Tự ẩn, có screen-reader announcement. |
+| COM-05 | Xác nhận rời form chưa lưu | Nội dung thay đổi chưa lưu, nút Rời đi/Ở lại | Chỉ hiện khi có dữ liệu người dùng chưa ghi nhận. |
+
+### 3.7. Màn hình P1 (không chặn MVP)
+
+| ID | Screen | Trong màn hình có gì | Hành động |
+|---|---|---|---|
+| P1-01 | Camera nhận diện địa danh | Permission, camera preview, chụp/chọn ảnh, khung hướng dẫn | Gửi ảnh để tìm ứng viên POI đã công bố; không tự tạo POI. |
+| P1-02 | Kết quả nhận diện | Ảnh đã chụp, một hoặc nhiều ứng viên, trạng thái không nhận diện được | Người dùng xác nhận rồi mở chi tiết, hoặc tự tìm kiếm. |
+| P1-03 | Nhập câu hỏi bằng giọng nói | Trạng thái ghi âm, waveform, văn bản nhận dạng có thể sửa, nút dùng văn bản | Cấp micro khi người dùng bấm; lỗi/từ chối → quay về gõ chữ. |
 
 ## 4. Quy tắc trải nghiệm quan trọng
 
