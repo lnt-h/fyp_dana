@@ -4,7 +4,7 @@ Version 1.3 | 2026-10-19 | Status: design baseline for review. Document control 
 
 ## Contract ownership and boundary
 
-Base path /api/v1. [openapi.json](openapi.json) owns DTO fields, schema validation and operation responses; this document owns semantic rules not expressible by schema alone. It is a design contract, not a running API inventory. The selected contract format is [OpenAPI 3.0.3](https://spec.openapis.org/oas/v3.0.3.html), not a claim that it is the latest version.
+Base path /api/v1. This document owns the reviewed endpoint, DTO, validation, response and semantic contract. A local `openapi.json` may be generated for tooling but is intentionally not tracked. The intended machine-readable format is [OpenAPI 3.0.3](https://spec.openapis.org/oas/v3.0.3.html), not a claim that it is the latest version or that a running API exists.
 Public reads expose published English content only and apply an IP-aware public-read rate limit in addition to infrastructure abuse controls. Private endpoints authenticate JWT/session and verify owner plus every nested resource's parent membership before data or provider access. Inaccessible foreign IDs return 404 consistently to avoid disclosure. P1 is excluded from this P0 contract.
 
 ## P0 operations

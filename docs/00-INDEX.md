@@ -14,7 +14,7 @@ Owner: sinh viên phát triển đồ án; technical reviewer và giảng viên 
 
 Trạng thái **design baseline for review** nghĩa là tài liệu đã được đồng bộ để review, không có nghĩa ứng dụng, migration, API, GPS, AI, deployment hay nghiên cứu người dùng đã chạy. Version 1.3 thay thế 1.2 về product direction và giữ lịch sử quyết định: D-10/D-12, TC-36 và UI-10 được đánh dấu superseded/retired, không tái sử dụng ID.
 
-`docs/openapi.json` là hợp đồng API chính thức có kiểm soát phiên bản nên vẫn được Git theo dõi. `.gitignore` chỉ loại các bản contract sinh tạm như `openapi.generated.*`, build output, cache, log, editor và secret cục bộ.
+`docs/06-API-Design.md` là hợp đồng API được theo dõi trong Git. Bản `docs/openapi.json` cục bộ không được commit; `.gitignore` cũng loại contract sinh tạm, build output, cache, log, editor và secret cục bộ.
 
 ## Tài liệu sở hữu nội dung
 
@@ -28,8 +28,8 @@ Trạng thái **design baseline for review** nghĩa là tài liệu đã đượ
 | [12-Blueprint](12-Blueprint.md) | Thuật toán, state, transaction, idempotency, cache và resume |
 | [04-Sequences](04-Sequence-Diagrams.md) | Catalogue và semantics của sequence diagrams |
 | [05-Database](05-Database-Design.md), [DDL](database.sql) | Data model, alias/translation provenance, constraint và cascade |
-| [06-API](06-API-Design.md), [OpenAPI](openapi.json) | Auth, versioning, request/response và canonical machine-readable contract |
-| [07-UI/UX](07-UI-UX-Design.md), [Wireframes](UI_UX_design/wireframes.html) | Canonical screen inventory, states, navigation, tokens và editable concept frames |
+| [06-API](06-API-Design.md) | Auth, versioning, request/response và API contract |
+| [07-UI/UX](07-UI-UX-Design.md), [Design system](../design.md) | Screen inventory, states, navigation và visual contract |
 | [15-Security/Privacy](15-Security-Privacy.md) | Threat model, guest/auth boundary, deletion/retention, cache/privacy |
 | [16-Data Curation](16-Data-Curation.md) | English/local aliases, nguồn, dịch, media/offline rights và RAG publication |
 | [13-Development Plan](13-Development-Plan.md) | Mốc, TASK-01–29, phụ thuộc, ước lượng sơ bộ và rủi ro |
@@ -39,7 +39,7 @@ Trạng thái **design baseline for review** nghĩa là tài liệu đã đượ
 | [17-Research/Academic](17-Research-and-Academic-Plan.md) | RQ, tuyển participant, nguồn đã đọc, competitor evidence và report mapping |
 | [18-Document Review](18-Document-Review.md) | Các kiểm tra thật sự đã chạy, kết quả và giới hạn |
 
-[design.md](../design.md) và [19-App-Feature-Screens](19-App-Feature-Screens.md) là retirement stubs; không còn sở hữu UI requirements hoặc screen IDs. Nguồn UI chính thức là 07-UI-UX. Curator CLI là workflow kỹ thuật, không phải màn admin mới.
+[design.md](../design.md) là visual contract theo format DESIGN.md dành cho designer, developer và agent; 07-UI-UX sở hữu flow, screen ID và behavior. Curator CLI là workflow kỹ thuật, không phải màn admin mới.
 
 Thứ tự đọc khuyến nghị: BRD → PRD/stories → use cases → SAD/Blueprint → DB/API/UI → security/curation → plan/test/traceability. Research chạy song song với xác minh problem/market và phải cập nhật yêu cầu nếu bằng chứng mâu thuẫn.
 

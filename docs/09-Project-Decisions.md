@@ -30,7 +30,7 @@ Selected scope records the user's product choice. Working design records the app
 | D-18 | Revision checks, durable idempotency, short transactions | Working design | Protects user edits and retry safety; no external calls inside trip transactions |
 | D-19 | Explicit start-to-first-stop leg per day | Working design | Travel from start must count in schedule; no assumed hotel or overnight position |
 | D-20 | Versioned immutable embedding-space identity | Working design | Never mix model/dimension/task; re-embed into new space before switch |
-| D-21 | HTML wireframes plus editable draw.io sources | Working design | Reviewable docs artifacts; native behavior must be evaluated later |
+| D-21 | Root design.md, Figma screens and editable draw.io sources | Working design | Reviewable design artifacts; native behavior must be evaluated later |
 | D-22 | JWT session identifier checked against session state | Working design | Logout invalidates the selected session for protected requests; avoid false immediate-revocation claims from token expiry alone |
 | D-23 | English-first P0 for an international first-time visitor to Da Nang | Selected scope | App copy and reviewed P0 content are English. Search also matches reviewed Vietnamese names and romanized aliases. Keep the locale field with `en` as the default; no unreviewed machine-translated fallback. |
 | D-24 | P0 itineraries are one day only (`dayCount=1`) | Selected scope | Makes scheduling, field testing and recovery feasible for one developer. Preserve multi-day-capable schema/configuration for later versions without exposing it in P0. |

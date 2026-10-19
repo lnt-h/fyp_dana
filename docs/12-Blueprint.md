@@ -25,7 +25,7 @@ Design subject: mobile travel companion plus API, curated ingestion and media. T
 | Dependency | C-02, C-05 | Controllers → services → repository/ports; Trips orchestrates AI/Routing; AI cannot mutate trips |
 | Interaction | C-01, C-03, C-04 | Build/accept; edit/refresh; arrival/audio; RAG; 04-Sequence-Diagrams.md and sequence sources |
 | Information | C-01..04 | UUID entity references; factual provenance; locale/model/corpus versions; 05-Database-Design.md |
-| Interface | C-02, C-03 | HTTPS /api/v1; DTO schemas; current revision; error envelope; 06-API-Design.md/openapi.json |
+| Interface | C-02, C-03 | HTTPS /api/v1; DTO schemas; current revision; error envelope; 06-API-Design.md |
 | State dynamics | C-03, C-04 | Trip/stop/route/proposal/session rules in 12-Blueprint.md |
 | Algorithm | C-01, C-03, C-04 | Candidate validation, schedule constraints, filtered retrieval, arrival detection below |
 | Resources | C-05 | Single API process; DB indexes; bounded provider deadlines; 02-SAD.md |

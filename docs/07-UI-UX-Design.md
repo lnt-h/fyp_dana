@@ -4,7 +4,7 @@ Version 1.3 | 2026-10-19 | Status: canonical mobile UI contract for review. Docu
 
 ## Ownership and product surface
 
-This document is the single canonical source for DaNavi flow, screen inventory, supporting sheets/states, navigation, tokens, responsive behavior and Figma handoff. [wireframes.html](UI_UX_design/wireframes.html) is its review rendering. Root design.md and [19-App-Feature-Screens.md](19-App-Feature-Screens.md) are retired stubs retained for history; they do not own tokens, components or screen scope.
+This document is the canonical source for DaNavi flow, screen inventory, supporting sheets/states, navigation behavior and Figma handoff. The root [design.md](../design.md) is the canonical visual contract for tokens, typography, components, layout, depth and responsive styling. Keeping these responsibilities separate prevents competing UI specifications.
 
 Reference mobile viewport is iPhone 393×852. P0 app copy and reviewed content are English. Vietnamese names and romanization appear only as reviewed search aliases. All examples are fixtures unless linked to approved content; screenshots/references inspire patterns and are not production UI.
 
@@ -87,50 +87,9 @@ Proposal stops are read-only until **Save & customize** succeeds. Edit controls 
 
 Compact phones 320–374 px keep at least 16 px gutters, scroll chips/carousels and stack paired actions. Reference phones 375–430 px scale the 393 px layout. Larger phones/tablets cap text/forms; no tablet split-view commitment. Components grow vertically with larger text; critical source/status/recovery copy is never truncated.
 
-## Coastal blue-white design tokens
+## Visual system and required states
 
-| Token | Value | Role |
-|---|---:|---|
-| color.primary | #075985 | Primary actions, active destination, focus emphasis |
-| color.primaryPressed | #0C4A6E | Pressed action |
-| color.primarySoft | #E0F2FE | Selected chip, info surface |
-| color.coastalAccent | #0284C7 | Map/illustration accent, not body text on white |
-| color.canvas | #FFFFFF | Main surface |
-| color.background | #F0F9FF | Coastal page background |
-| color.surfaceGrouped | #F8FAFC | Grouped controls/cards |
-| color.ink | #0F172A | Headings |
-| color.body | #334155 | Body text |
-| color.muted | #64748B | Metadata on white only |
-| color.border | #BAE6FD | Dividers/control boundary; never the sole state cue |
-| color.success / successBg | #166534 / #DCFCE7 | Verified/synced/completed |
-| color.warning / warningBg | #854D0E / #FEF3C7 | Pending/uncertain/simulated |
-| color.error / errorBg | #B91C1C / #FEF2F2 | Invalid/provider failure |
-| color.mapOverlay | #0F172A | Opaque map/status overlay with white text |
-
-Typography: Inter with system fallback; display 28/36 700, screen title 26/34 700, section 18/26 600, body 16/24 400, button 15/22 600, helper 13/20 400, tab 11/16 600. Spacing 4/8/12/16/20/24/32/40. Radius 8/12/16/24/28/full. Interactive targets are at least 44×44 logical points.
-
-### Contrast calculation record
-
-Ratios below were calculated from sRGB relative luminance on 2026-10-19; they are arithmetic checks, not an accessibility certification:
-
-| Foreground / background | Ratio |
-|---|---:|
-| White / primary #075985 | 7.56:1 |
-| White / primaryPressed #0C4A6E | 9.46:1 |
-| Ink #0F172A / white | 17.85:1 |
-| Body #334155 / white | 10.35:1 |
-| Muted #64748B / white | 4.76:1 |
-| Primary #075985 / primarySoft #E0F2FE | 6.59:1 |
-| Success / successBg | 6.49:1 |
-| Warning / warningBg | 6.15:1 |
-| Error / errorBg | 5.91:1 |
-| White / mapOverlay #0F172A | 17.85:1 |
-
-Native text scaling, VoiceOver/TalkBack, focus order, real map tiles, photography overlays and disabled/pressed states still require device checks.
-
-## Components and required states
-
-Use a small semantic set: Button, IconButton, TextField, SearchField, Chip, PlaceCard, CompactPlaceCard, StopRow, SourceCard, Notice, StatePanel, MapPin/ListFallback, BottomNavigation, BottomSheet, AudioPlayer and AskComposer. Each interactive component covers normal/pressed/focused/loading/disabled where applicable. Drag reorder has Move up/Move down alternatives.
+Colors, typography, spacing, radii, elevation, motion, component styling, responsive rules and agent implementation prompts live only in [design.md](../design.md). This document does not duplicate those values. Any visual change updates design.md; any flow, screen ownership or behavioral change updates this document.
 
 State labels are explicit:
 
@@ -162,4 +121,4 @@ Support text scaling, screen-reader labels, logical focus, keyboard avoidance, r
 
 ## Review status and limitations
 
-The HTML wireframes were updated as a docs review artifact. They do not prove native behavior, Figma synchronization, map/provider integration, accessibility or factual/media rights. Product review confirms copy/actions before implementation; native evidence is recorded only after real builds and tests.
+The repository design specification and Figma screens are review artifacts. They do not prove native behavior, Figma synchronization, map/provider integration, accessibility or factual/media rights. Product review confirms copy/actions before implementation; native evidence is recorded only after real builds and tests.

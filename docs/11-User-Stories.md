@@ -202,7 +202,7 @@ Given I start an accepted trip, When prefetch runs, Then text, transcripts and o
 
 ## Screen ownership
 
-Every allocated UI ID is defined in [UI design](07-UI-UX-Design.md). The editable P0 concept frames are represented in [wireframes](UI_UX_design/wireframes.html). UI-10 is retired, UI-19 identifies Trips and UI-20 identifies account-deletion confirmation; retired IDs are never reused. Optional P1 screens are excluded from P0 acceptance. Curator CLI is an engineering workflow, not a new admin app screen. Split implementation tasks smaller than stories; preserve FR IDs when refining acceptance.
+Every allocated UI ID is defined in [UI design](07-UI-UX-Design.md); the root [design system](../design.md) owns visual tokens and component styling. UI-10 is retired, UI-19 identifies Trips and UI-20 identifies account-deletion confirmation; retired IDs are never reused. Optional P1 screens are excluded from P0 acceptance. Curator CLI is an engineering workflow, not a new admin app screen. Split implementation tasks smaller than stories; preserve FR IDs when refining acceptance.
 
 ## Review status
 
