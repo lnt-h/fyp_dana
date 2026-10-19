@@ -1,0 +1,25 @@
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# JavaScript / Expo build artifacts
+node_modules/
+.expo/
+dist/
+build/
+coverage/
+*.log
+
+# Temporary and generated contract copies
+*.tmp
+*.bak
+openapi.generated.json
+openapi.generated.yaml
+docs/openapi.json

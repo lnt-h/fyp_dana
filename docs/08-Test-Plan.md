@@ -1,10 +1,10 @@
-# Danang TourGuide — Test Plan and Evaluation
+# DaNavi — Test Plan and Evaluation
 
-Version 1.2 | 2026-10-12 | Status: design baseline for review. Document control and evidence status: [Index](00-INDEX.md).
+Version 1.3 | 2026-10-19 | Status: design baseline for review. Document control and evidence status: [Index](00-INDEX.md).
 
 ## Test plan control and strategy
 
-Identifier DTG-MTP-1.2. Scope: native mobile, API/session/ownership, database/migrations, curation/media, Routes/model adapters and the core journey. Future features and third-party internal correctness are excluded; dependency failure handling is included. P1 cases31–33 are deferred unless scope is activated. Every runtime result is currently NOT RUN; design/schema checks do not count as app tests.
+Identifier DN-MTP-1.3. Scope: native mobile, API/session/ownership, database/migrations, curation/media, external map handoff, read-only essentials cache, Routes/model adapters and the core journey. Future features and third-party internal correctness are excluded; dependency failure handling is included. P1 cases 31–33 are deferred unless scope is activated. TC-36 is retired and its ID is not reused. Every runtime result is currently NOT RUN; design/schema checks do not count as app tests.
 Unit: deterministic schedule/constraints, reorder/state transitions, GPS filtering, evidence handling. Integration: API plus isolated real PostgreSQL/PostGIS/pgvector; migrations, concurrency, ownership. System/E2E: native flow with deterministic provider fixtures plus separate real-provider smoke/evaluation. Field: actual foreground GPS/audio on target phone. UAT: proposed ≥5 independent consenting participants; method confirmed by supervisor before recruitment.
 Jest/Supertest and a native E2E runner are implementation candidates to pin after trial; no executed test suite is claimed. Fixtures are synthetic and labelled; real corpus/provider/field data is separately versioned.
 
@@ -19,12 +19,12 @@ Developer prepares/runs tests; reviewer examines risk-sensitive evidence; UAT us
 
 | TC | FR/NFR | Preconditions → action | Expected |
 |---|---|---|---|
-| TC-01 | FR-POI-01 | Final corpus → run publication validator | 30–50 valid published POIs; missing source/coordinates rejected |
-| TC-02 | FR-EXP-01 | Seed Vietnamese names → search name/tag/category | Correct matching published records |
+| TC-01 | FR-POI-01 | Final corpus → run publication validator | 15–20 valid published POIs across four categories; exactly five approved English audio assets; invalid records rejected |
+| TC-02 | FR-EXP-01 | Seed English/local names and aliases → search name/tag/category | Correct accent-insensitive matching of published records |
 | TC-03 | FR-EXP-01 | No matching term → search | Empty state; no invented result |
 | TC-04 | FR-PLC-01 | Unknown hours/price → detail | Unknown labels, no default open/free |
 | TC-05 | FR-MAP-01 | Itinerary exists → select marker 2 | Matching second stop detail |
-| TC-06 | FR-PREF-01 | Invalid dates/time/coordinates → generate | Field/API validation; no provider request |
+| TC-06 | FR-PREF-01 | Invalid day count/time/start source/transport → generate | One-day/car/start-point validation; no provider request |
 | TC-07 | FR-TRP-02 | Valid candidates/Routes fixture → build and accept | Structured persisted trip with corpus IDs and provenance |
 | TC-08 | FR-TRP-02 | Model returns invented/unpublished ID → build | Rejected; not saved or shown as valid |
 | TC-09 | FR-TRP-02 | Known closed hours/impossible time window → build | Conflict/relax constraints; no invented availability |
@@ -32,13 +32,13 @@ Developer prepares/runs tests; reviewer examines risk-sensitive evidence; UAT us
 | TC-11 | FR-TRP-03 | Planned trip → reorder/add/remove/duration edit | Atomic valid order; changed legs stale; updated revision |
 | TC-12 | FR-TRP-03 | Concurrent old revision/invalid ID permutation → reorder | 409/400 and no partial changes |
 | TC-13 | FR-TRV-01 | Start → complete/skip all stops | One current stop; consistent progress and completed trip |
-| TC-14 | FR-TRV-02 | Accurate dwell within current-stop zone → arrive twice | One event and one auto-play opportunity |
-| TC-15 | FR-TRV-02 | Poor accuracy/denied permission → manual arrival | No GPS event; one labelled manual event |
+| TC-14 | FR-TRV-02 | Use primary “I’ve arrived” action twice | One manual event and one auto-play opportunity |
+| TC-15 | FR-TRV-02 | Foreground accurate dwell or denied permission → arrive | Optional GPS event only when qualified; manual path remains available |
 | TC-16 | FR-TRV-02 | Next-stop fix/non-demo simulated request → report | No wrong-stop arrival; simulation rejected outside demo |
 | TC-17 | FR-TRV-03 | Approved asset and opt-in → arrival/play/pause | Real human asset, correct POI/locale, playback works |
 | TC-18 | FR-TRV-03 | No audio/failed media fetch → listen | Unavailable/retry/transcript; zero TTS calls |
 | TC-19 | FR-AI-01 | Reviewed matching passages → ask | Supported answer with valid supporting sources |
-| TC-20 | FR-AI-01 | Empty/weak/wrong-POI passages → ask history | Insufficient evidence, no invented fact/citation |
+| TC-20 | FR-AI-01 | Empty/weak/wrong-POI passages → single-turn Ask | Insufficient evidence, no invented fact/citation or server conversation state |
 | TC-21 | FR-AI-01 | Unknown price or injected question/source → ask | No operational invention or permission/rule override |
 | TC-22 | FR-AI-01, NFR-REL-01 | AI provider times out → ask/build | Typed unavailable state, prior plan preserved |
 | TC-23 | FR-SAV-01 | A saves twice/unsaves; B tries access | No duplicate; private scope enforced |
@@ -55,25 +55,33 @@ Developer prepares/runs tests; reviewer examines risk-sensitive evidence; UAT us
 
 | TC-34 | FR-PREF-01, FR-TRP-02/03 | Preferences/title across trip states | Preserve accepted plan; correct revision/state rules |
 | TC-35 | FR-TRP-02/03/04, FR-TRV-01 | Known conflict versus unknown facts | Block hard conflicts; acknowledge uncertainty |
-| TC-36 | FR-EXP-01, FR-PLC-01, FR-AI-01, FR-TRV-03 | Filters and missing English content | Correct matching/validation and explicit language behavior |
+| TC-36 | Retired | Superseded by TC-41 and TC-42 on 2026-10-19 | Retained for audit; never reuse this ID |
 | TC-37 | NFR-SEC/REL, FR-TRP-03/04, FR-AI-01 | Apply schema and invalid writes | Enforced DB integrity plus service checks |
+| TC-38 | FR-AUTH-03 | Re-authenticate and delete account | Owned data cascades; retained operational records follow policy |
+| TC-39 | FR-TRV-04 | Open external directions, return and arrive | HTTPS handoff works; fresh foreground fix/dwell; manual arrival remains primary |
+| TC-40 | FR-OFF-01 | Start trip with partial cache and offline rights | Eligible essentials cached read-only; failures are explicit and resumable |
+| TC-41 | FR-EXP-01, FR-PLC-01 | Search English/local aliases with accents and `đ` | Published results match deterministically without false invented records |
+| TC-42 | FR-POI-01, FR-AI-01, FR-TRV-03 | Validate translated text and English audio provenance | `source_language`, origin source and human review/rights are present |
+| TC-43 | FR-AUTH-01, FR-PREF-01, FR-SAV-01, FR-AI-01 | Use guest gates then sign in | Guest may browse/preview; protected actions gate; planner form survives login |
+| TC-44 | FR-OFF-01, FR-TRV-01/02 | Kill/relaunch during active trip and pending arrival | Active trip and stable idempotency key restore without duplicate event/audio |
+| TC-45 | NFR-REL-01 | Old/minimum/current app call API | Version headers are emitted; unsupported client receives typed upgrade response |
 
 ## Case execution procedure
 
 For every case record fixture/build/device/config and exact actions; compare response, persisted state and visible UI against assertions. Pass requires all assertions; an unavailable prerequisite is Blocked, not Pass. Preserve redacted failure evidence and retest links. Reset isolated fixtures as needed; avoid live user/media data. This common procedure replaces repeated administrative paragraphs in each case.
 
-### TC-01 — Final corpus → run publication validator
+### TC-01 — Final English-first corpus → run publication validator
 
 FR-POI-01. Priority: P0 / quality.
 Fixture: Load final approved corpus and publication validator.
 Action: Attempt import with missing source and invalid coordinate; run validation on valid final corpus.
-Assert: Invalid rows rejected with reasons; count valid published places and rights records.
+Assert: Invalid rows rejected with reasons; 15–20 published places cover Culture, Beach, Food and Nature; exactly five approved human English audio assets have rights records.
 
-### TC-02 — Seed Vietnamese names → search name/tag/category
+### TC-02 — Seed English/local names and aliases → search name/tag/category
 
 FR-EXP-01. Priority: P0 / quality.
-Fixture: Seed published Vietnamese names/tags plus unpublished control.
-Action: Search exact/normalised supported names, tags and category; paginate.
+Fixture: Seed published English names, Vietnamese local names, aliases/romanisations/tags plus unpublished control.
+Action: Search exact/normalised accented and unaccented names, aliases, tags and category; paginate.
 Assert: Matching corpus IDs only, deterministic next cursor; unpublished absent.
 
 ### TC-03 — No matching term → search
@@ -97,12 +105,12 @@ Fixture: Create ordered trip stops and Explore fixture.
 Action: Select Explore pin and itinerary pin 2.
 Assert: Correct POI/stop detail; numbering agrees with persisted seq.
 
-### TC-06 — Invalid dates/time/coordinates → generate
+### TC-06 — Invalid day count/time/start source/transport → generate
 
 FR-PREF-01. Priority: P0 / quality.
-Fixture: Authenticate and create invalid dates/window/start point fixture.
+Fixture: Authenticate and create invalid day count, time window, start source, preset/pin/current-location payload and transport fixture.
 Action: Submit invalid preferences.
-Assert: 400 field details and provider call counter remains zero.
+Assert: Only one day and car/ride-hailing are accepted; a valid pin, current location or supported preset is required; 400 field details and provider call counter remains zero.
 
 ### TC-07 — Valid candidates/Routes fixture → build and accept
 
@@ -153,19 +161,19 @@ Fixture: Create nonempty planned trip.
 Action: Start; complete first; skip next; finish remaining.
 Assert: One current stop throughout; final trip completed.
 
-### TC-14 — Accurate dwell within current-stop zone → arrive twice
+### TC-14 — Use primary “I’ve arrived” action twice
 
 FR-TRV-02. Priority: P0 / quality.
-Fixture: Activate current stop with valid GPS dwell evidence.
-Action: Send qualifying arrival twice using same and new replay keys.
-Assert: One event; client offers auto-play once.
+Fixture: Activate current stop and prepare the manual arrival control.
+Action: Tap “I’ve arrived” twice using the same persisted idempotency key, including one retry after reconnect.
+Assert: One event with manual method; client offers automatic playback once and keeps intentional replay available.
 
-### TC-15 — Poor accuracy/denied permission → manual arrival
+### TC-15 — Foreground dwell and denied-permission behavior
 
 FR-TRV-02. Priority: P0 / quality.
-Fixture: Deny GPS or inject poor-accuracy fixes.
-Action: Wait for detector then use manual arrival.
-Assert: No GPS event; manual method displayed and persisted.
+Fixture: Use a qualifying fresh foreground fix/dwell, then deny permission or inject stale/poor-accuracy fixes.
+Action: Resume the app, observe optional dwell, then use manual arrival where GPS does not qualify.
+Assert: Qualifying foreground dwell creates at most one GPS event; stale/poor/denied data creates none; manual action stays visible and persists its method.
 
 ### TC-16 — Next-stop fix/non-demo simulated request → report
 
@@ -195,12 +203,12 @@ Fixture: Seed reviewed matching passages and allowed sources.
 Action: Ask an answerable question; inspect each factual claim.
 Assert: Valid permitted references with actual claim support.
 
-### TC-20 — Empty/weak/wrong-POI passages → ask history
+### TC-20 — Empty/weak/wrong-POI passages → single-turn Ask
 
 FR-AI-01. Priority: P0 / quality.
 Fixture: Use empty/weak/wrong-POI evidence fixture.
 Action: Ask unsupported history question.
-Assert: Insufficient evidence; no invented fact/reference.
+Assert: Insufficient evidence; no invented fact/reference; no server-side conversation or message history is created.
 
 ### TC-21 — Unknown price or injected question/source → ask
 
@@ -307,12 +315,9 @@ Fixture: known-closed/time-overrun/empty-day plans and separate unknown-hours or
 Action: build known-infeasible preview; remove final planned-day stop; attempt Start; fix conflict and refresh; Start provisional plan with/without acknowledgement.
 Assert: known infeasible build returns422; explicit edit persists with severity=error warning and Start blocked; corrected plan can start; uncertainty alone remains provisional and requires acknowledgement. Fresh routing does not remove unknown-hours warning.
 
-### TC-36 — Search filters and language fallback follow contract
+### TC-36 — Retired language-fallback case
 
-Requirement: FR-EXP-01, FR-PLC-01, FR-AI-01, FR-TRV-03. Priority: P0.
-Fixture: synthetic published/unpublished POIs with Vietnamese accented names, tags, coordinates; one lacks reviewed English/audio.
-Action: compare accented/unaccented/case/đ search; combine tags; send invalid bbox/near/radius/cursor; request English detail/audio/Ask without coverage.
-Assert: correct published matches and AND tags; invalid filters400; detail explicitly identifies Vietnamese fallback; English audio unavailable; unsupported English Ask400 locale_unavailable. No fixture record counted as real corpus.
+Retired on 2026-10-19. English is the P0 product language, so Vietnamese fallback and `locale_unavailable` are no longer the expected behavior. Alias/search coverage moved to TC-41 and translation provenance moved to TC-42. This identifier must not be reassigned.
 
 ### TC-37 — Apply physical schema and probe integrity
 
@@ -320,6 +325,62 @@ Requirement: NFR-SEC-01, NFR-REL-01, FR-TRP-03/04, FR-AI-01. Priority: P0.
 Fixture: isolated empty PostgreSQL with selected PostGIS/pgvector versions; design DDL and test seed.
 Action: apply migration; attempt duplicate day positions/current stops/arrivals, cross-trip/day edges, wrong-dimension chunks, embedding identity update and nonfresh nonnull estimates; execute valid deferred reorder.
 Assert: invalid writes rejected and transaction rolls back; valid reorder commits; one active embedding space; application tests cover state/publication rules beyond SQL. Record actual DB/ORM versions; design-file inspection is not this test's execution.
+
+### TC-38 — Account deletion with re-authentication
+
+Requirement: FR-AUTH-03, NFR-SEC-01. Priority: P0.
+Fixture: Account A owns trips, saves, sessions and pending idempotency records; account B is an isolation control; retention policy is pinned.
+Action: Attempt deletion without/with wrong password, then confirm with the current password and call `POST /account/delete`; replay old access/refresh credentials.
+Assert: Missing/wrong re-authentication is rejected; successful call returns 204, revokes sessions and removes or anonymises A-owned rows according to the documented cascade/retention matrix; B is unchanged; old credentials fail. Record backup/log retention limitations rather than claiming immediate erasure there.
+
+### TC-39 — External map handoff and foreground return
+
+Requirement: FR-TRV-04, FR-TRV-02. Priority: P0.
+Fixture: Active trip on supported iOS/Android device with destination coordinates and Google Maps/Apple Maps availability combinations.
+Action: Open Directions, verify the HTTPS destination, switch to the external app, return to DaNavi and then use “I’ve arrived”; separately allow a fresh accurate foreground dwell.
+Assert: Correct destination and safe fallback browser choice; no background-tracking claim; return triggers a fresh location read; dwell is optional/deduplicated; manual arrival is still the primary, visible path.
+
+### TC-40 — Read-only essentials cache with partial failure
+
+Requirement: FR-OFF-01, NFR-REL-01. Priority: P0.
+Fixture: Planned trip with eligible/ineligible audio, transcripts and stop content; storage and network failure variants.
+Action: Start Trip, interrupt and resume downloads, go offline, then open every stop and audio control.
+Assert: Text/transcripts and rights-approved audio cache read-only; no map/routing tiles are promised; progress and partial failure are explicit; cached content opens offline; unavailable content does not appear downloaded; retry is safe.
+
+### TC-41 — English/local alias and accent-insensitive search
+
+Requirement: FR-EXP-01, FR-PLC-01. Priority: P0.
+Fixture: Published/unpublished controls for English name, Vietnamese name, romanisation, common alias, accents and `đ`, with distractors.
+Action: Query every supported variant, case and accent form; combine category/tag filters; submit invalid geo/cursor filters.
+Assert: Correct published records and deterministic ordering/cursor; no unpublished/distractor leak; invalid filters return 400; result displays canonical English name and local name where useful.
+
+### TC-42 — English translation and media provenance
+
+Requirement: FR-POI-01, FR-AI-01, FR-TRV-03. Priority: P0 / quality.
+Fixture: English content translated from Vietnamese, native-English content, incomplete review, missing origin link and audio without offline rights.
+Action: Run publication/ingestion validators, retrieve Ask sources and attempt audio caching.
+Assert: Published translations record `source_language`, origin source and human review; incomplete provenance is rejected; citations resolve to reviewed text; only explicitly licensed audio is cached. No machine translation is represented as human-reviewed.
+
+### TC-43 — Guest gates and planner-form preservation
+
+Requirement: FR-AUTH-01, FR-PREF-01, FR-SAV-01, FR-AI-01. Priority: P0.
+Fixture: Logged-out app with Explore data and audio preview; valid account for continuation.
+Action: Browse Explore/Detail and preview audio; attempt Save, Ask and Generate; fill planning form before Generate; sign in from the gate and return.
+Assert: Browse/detail/preview work as guest; protected actions present a clear sign-in gate; completed form values survive; generation does not start automatically after login and requires explicit Generate; server also rejects unauthenticated protected calls.
+
+### TC-44 — Restore active trip and pending arrival after process kill
+
+Requirement: FR-OFF-01, FR-TRV-01, FR-TRV-02, NFR-REL-01. Priority: P0.
+Fixture: Active trip with cached essentials and a locally persisted unsynchronised arrival event/idempotency key.
+Action: Kill the app before acknowledgement, relaunch offline, reconnect and retry; repeat after server acknowledgement.
+Assert: Active trip/current stop/cache state restore; the original stable key is reused until acknowledgement; server stores one arrival; automatic audio fires at most once; no false synced state is shown.
+
+### TC-45 — App/API compatibility gate
+
+Requirement: NFR-REL-01. Priority: P0 / release.
+Fixture: API configured with current API version and minimum supported app version; old, minimum and current client builds.
+Action: Call representative public and authenticated endpoints and exercise the app startup check.
+Assert: Responses expose API/minimum-app version headers; minimum/current clients continue; unsupported old client receives typed 426 and a user-facing required-update state; version comparison is deterministic and documented.
 
 ## Evaluation protocol
 
@@ -329,17 +390,17 @@ Developer prepares fixtures and runs evaluation; independent factual reviewer/UA
 
 ### Source-grounded question answering
 
-Prepare 40–60 manually reviewed held-out questions across supported history/culture, known/unknown operational facts, wrong-POI/ambiguity/conflicting evidence and adversarial prompts. Label relevant chunks, supported acceptable claims and expected refusal. Use a separate tuning set for threshold/K/prompt. Record repeated-run variation.
+Prepare 40–60 manually reviewed English held-out questions across supported history/culture, known/unknown hours and prices, distractor passages, cross-POI confusion, ambiguous/conflicting evidence and adversarial prompts. Label relevant chunks, supported acceptable claims and expected refusal. Use a separate tuning set for threshold/K/prompt. Record repeated-run variation. Because the corpus is deliberately small, report per-POI coverage and prevent duplicate or near-duplicate passages from leaking across tuning and held-out sets.
 Metrics: Recall@K = relevant labelled chunks retrieved in top K / total labelled relevant chunks (only answerable retrieval cases); supported-claim rate = cited-supported factual claims / factual claims generated; unsupported-claim rate = unsupported factual claims / factual claims generated; citation validity = allowed IDs / returned IDs; citation support separately reviews whether cited passage supports associated claim; correct refusal rate and false refusal rate on their respective labelled subsets. A zero denominator is N/A, never 100%. Report per-language/category and micro/macro choices. Latency includes full API path; distinguish retrieval versus generation failure.
 Proposed held-out targets from PRD/Test Plan: ≥90% supported factual claims, ≥90% correct no-answer handling, zero observed invented corpus IDs/operational facts. Finite sample is not a universal guarantee. Reviewer checks actual cited passage/claim, not model confidence.
 
 ### Planning
 
-At least 20 feasible/infeasible scenarios with start point, window, known hours, pace, budget uncertainty, transport/day limits and unavailable routes. Assert schema/corpus IDs, start-to-first leg, schedule/timezone, known-constraint violations, explicit warnings, edit preservation, revision/replay and timeout. Compare to deterministic candidate/constraint baseline using identical facts; record feasibility/latency rather than unproved optimality.
+At least 20 feasible/infeasible one-day scenarios with pinned/current/preset start point, time window, known hours, pace, budget uncertainty, car/ride-hailing and unavailable routes. Assert schema/corpus IDs, start-to-first leg, Asia/Ho_Chi_Minh display, VND prices, known-constraint violations, explicit warnings, edit preservation, revision/replay and timeout. Compare to deterministic candidate/constraint baseline using identical facts; record feasibility and end-to-end planning latency rather than unproved optimality.
 
 ### GPS/audio field study
 
-Use real target phone at several flagship POIs and varied approaches/accuracy. Record arrival target/radius/accuracy/dwell, fix sequence, ground-truth approach, detection time and duplicate count. Count true/missed/false arrivals; manual and simulated trials separate. Report limitations from entrances/buildings/device/network. Verify opt-in defaults, one automatic playback, manual replay, interruptions, offline reporting and transcript fallback. Do not generalise foreground test to background behaviour.
+Use real target phone at several flagship POIs and varied approaches/accuracy. Record arrival target/radius/accuracy/dwell, foreground-resume fix sequence, ground-truth approach, detection time and duplicate count. Count true/missed/false arrivals; manual and simulated trials separate. Report limitations from entrances/buildings/device/network. Verify external-map return, the primary manual arrival action, opt-in defaults, one automatic playback, manual replay, interruptions, offline reporting and transcript fallback. Do not generalise foreground testing to background behavior.
 
 ### Usability protocol
 
@@ -357,7 +418,7 @@ A claim supported by a source means supported by that specific reviewed source, 
 
 ## Execution ledger
 
-No application/DB/field/UAT execution exists in this repository. TC-01–30 and TC-34–37: NOT RUN. TC-31–33: DEFERRED P1. UAT-01–05: NOT COLLECTED. AI/planning/GPS/performance: NOT MEASURED. Deployment/restore: NOT EXECUTED.
+No application/DB/field/UAT execution exists in this repository. TC-01–30, TC-34–35 and TC-37–45: NOT RUN. TC-31–33: DEFERRED P1. TC-36: RETIRED. UAT-01–05: NOT COLLECTED. AI/planning/GPS/performance: NOT MEASURED. Deployment/restore: NOT EXECUTED.
 
 Use one row per actual run when execution starts:
 

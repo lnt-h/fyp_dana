@@ -1,119 +1,165 @@
-# Danang TourGuide — UI/UX Design
+# DaNavi — Canonical UI/UX Design
 
-Version 1.2 | 2026-10-12 | Status: design baseline for review. Document control and evidence status: [Index](00-INDEX.md).
+Version 1.3 | 2026-10-19 | Status: canonical mobile UI contract for review. Document control and evidence status: [Index](00-INDEX.md).
 
-## Navigation and screens
+## Ownership and product surface
 
-Tabs: Explore · Trips · Saved · Settings. Map, audio and Ask AI are contextual screens/sheets.
+This document is the single canonical source for DaNavi flow, screen inventory, supporting sheets/states, navigation, tokens, responsive behavior and Figma handoff. [wireframes.html](UI_UX_design/wireframes.html) is its review rendering. Root design.md and [19-App-Feature-Screens.md](19-App-Feature-Screens.md) are retired stubs retained for history; they do not own tokens, components or screen scope.
 
-| Screen | Essential elements | Requirements |
-|---|---|---|
-| Explore | Search, category chips, POI cards, Map toggle | FR-EXP-01 |
-| Explore map | Curated pins, selected POI bottom sheet | FR-MAP-01 |
-| POI detail | Gallery, verified facts/source date, Save/Add to trip, audio availability, Ask | FR-PLC-01, FR-SAV-01 |
-| Create trip | Date/day count, start point, interests, pace, transport, time window, budget preference | FR-PREF-01 |
-| Build preview | Loading/cancel wait; candidate stops, conflicts, Accept/Regenerate | FR-TRP-02 |
-| Itinerary | Day timeline, add/remove, drag reorder, duration, route freshness | FR-TRP-03 |
-| Trip map | Ordered markers, selected stop, legs, unavailable-time labels | FR-TRP-04, FR-MAP-01 |
-| Travel mode | Current/next stop, Start/Continue, location status, manual arrival, Complete/Skip | FR-TRV-01/02 |
-| Arrival sheet | Correct POI, method label, audio action, Ask, next stop | FR-TRV-02 |
-| Audio player | Human narrator label, language, play/pause/seek/progress, transcript | FR-TRV-03 |
-| Ask AI | Current POI/trip context, editable question, source links, refusal/retry | FR-AI-01 |
-| Saved | Simple list, unsave, add to trip | FR-SAV-01 |
-| Login/settings | Email login, language, permissions, session/logout; OAuth P1 | FR-AUTH-01 |
-| Camera / STT | P1 only; permission/capture/unknown and transcript confirmation | FR-CAM-01, FR-STT-01 |
+Reference mobile viewport is iPhone 393×852. P0 app copy and reviewed content are English. Vietnamese names and romanization appear only as reviewed search aliases. All examples are fixtures unless linked to approved content; screenshots/references inspire patterns and are not production UI.
 
-## Core flow and low-fidelity layouts
+## End-to-end flow
 
-Explore → POI detail/Save → Create trip → Preview → Accept → Edit → Trip map → Start Trip → Arrival → Audio/Ask → Complete/Skip → next.
+    Welcome → Home → Explore/Search or Explore Map → Place Detail
+      Save → Login gate
+      Ask AI → Login gate
+      Plan with AI → Preferences → Generate → Login gate when needed
 
-Wireframe specifications (layout blocks, review layouts):
-- Explore: safe-area header/title; search field; horizontal category chips; list of image/name/tags cards; fixed bottom tabs.
-- Detail: image gallery; name and category; facts with source/date; description; audio availability row; sticky Add/Save; contextual Ask action.
-- Planner: top progress/title; form sections; validation beside fields; Generate footer. Preview replaces form with day/stop cards and warning panel above Accept.
-- Itinerary: day selector; numbered draggable stop rows, duration and route status; Add stop; map toggle; Start footer.
-- Travel: current-stop header; map region; arrival sheet; recorded player; Complete/Skip buttons; next-stop preview.
-- Ask: POI context chip; message history; source cards beneath answer; question box; Send; microphone only when P1 available.
-The HTML gallery below supplies annotated review layouts. Native screenshots and actual behavior are captured after implementation; Figma is not an additional mandatory deliverable.
+    Generate → AI Itinerary Result → Save & customize → Edit Itinerary
+      → Route Map / Trip Ready → Active Trip → External directions
+      → return and reconcile → I've arrived → Arrival & Audio / Ask AI
+      → Next stop → Trip Completed
 
-## Required states
+    Home · Explore · Trips · Saved are bottom destinations.
+    Profile & Settings opens from the avatar, not a fifth tab.
 
-| Flow | Loading/normal | Empty/error/fallback |
-|---|---|---|
-| Search | Skeleton; selectable cards | No result/clear filters; retry network |
-| Planning | Progress without fabricated percentage | Invalid inputs, insufficient candidates, conflicts, timeout preserving prior itinerary |
-| Edit | Saving; revised timeline | Stale route chip, missing durations, concurrent edit reload |
-| GPS | Foreground permission/status | Denied/weak: manual arrival; never claim GPS arrival for manual |
-| Arrival | One current-stop sheet | Simulated arrival badge; ignore duplicate reports |
-| Audio | Opt-in automatic play or manual button | Missing language/asset: unavailable; retry/transcript; no Generate audio button |
-| Ask | Context chip/typing state | Insufficient evidence, conflicting source, provider unavailable |
-| Camera P1 | Preview/capture/confirm candidate | Denied, unknown, ambiguous, retry/manual choose |
-| STT P1 | Recording → editable text | Denied mic/transcription failure → type question |
+A guest can browse Home/Explore/Map/Detail and play a bounded audio preview. Trips and Saved show a “Sign in to view” state. Save, Ask and Generate open login. Planning inputs survive login; return to the filled form and require another explicit Generate tap. Never start an AI request automatically after authentication.
 
-At Start Trip, show foreground-only explanation and auto-play toggle default off. When enabled, arrival initiates playback. Disable auto-play when user stops the active travel session; intentional replay remains allowed. Do not require microphone permission for prerecorded playback.
+## Stable screen inventory
 
-Facts: unknown hours ≠ open; unknown price ≠ free. Suggested visit durations labelled as planning estimates. Route-provider duration labelled with fetch time/mode, not live guaranteed ETA. No calibrated-looking vision percentage without validation.
+Primary screens are full destinations or steps with distinct user goals. Sheets, confirmations, loading/error/empty/offline variants and permission explanations are supporting states, not additional primary screens.
 
-## Accessibility and usability
-
-Measure contrast, support text scaling, label pins/buttons/player controls for screen readers, maintain touch targets and avoid colour-only status. Verify TalkBack/VoiceOver on native builds; browser Lighthouse/Axe does not certify React Native accessibility. UAT tasks: find/save a POI, build itinerary, reorder/select marker, arrive/listen, ask and inspect source. Record task time/errors/help and SUS.
-
-## Demo simulation
-
-Simulated arrival and sample route badges must be visible throughout relevant screens and logs. Human prerecorded audio is real product content, not a simulation merely because it is prerecorded. Optional camera simulation must never be presented as live recognition.
-
-## Stable screen IDs and reviewable layouts
-
-| ID | Screen | Priority | Stories / FR |
+| ID | Primary screen | Essential content/actions | Trace |
 |---|---|---|---|
-| UI-01 | Explore | P0 | US-01 / FR-POI-01; US-02 / FR-EXP-01 |
-| UI-02 | Explore map | P0 | US-04 / FR-MAP-01 |
-| UI-03 | POI detail | P0 | US-01 / FR-POI-01; US-03 / FR-PLC-01; US-05 / FR-SAV-01; US-14 / FR-AI-01 |
-| UI-04 | Create trip | P0 | US-07 / FR-PREF-01 |
-| UI-05 | Build preview | P0 | US-08 / FR-TRP-02 |
-| UI-06 | Itinerary | P0 | US-08 / FR-TRP-02; US-09 / FR-TRP-03; US-10 / FR-TRP-04 |
-| UI-07 | Trip map | P0 | US-04 / FR-MAP-01; US-10 / FR-TRP-04 |
-| UI-08 | Travel mode | P0 | US-11 / FR-TRV-01; US-12 / FR-TRV-02 |
-| UI-09 | Arrival sheet | P0 | US-12 / FR-TRV-02; US-13 / FR-TRV-03 |
-| UI-10 | Audio player | P0 | US-13 / FR-TRV-03 |
-| UI-11 | Saved | P0 | US-05 / FR-SAV-01 |
-| UI-12 | Login | P0 | US-06 / FR-AUTH-01; US-17 / FR-AUTH-02 |
-| UI-13 | Settings | P0 | US-06 / FR-AUTH-01 |
-| UI-14 | Ask AI | P0 | US-14 / FR-AI-01; US-16 / FR-STT-01 |
-| UI-15 | Camera | P1 | US-15 / FR-CAM-01 |
-| UI-16 | Speech input | P1 | US-16 / FR-STT-01 |
+| UI-17 | Welcome | English value proposition, privacy/trust cue, Continue, Skip to explore | App shell; D-23/D-25 |
+| UI-18 | Home | Greeting, featured reviewed places, Plan my day, nearby/curated entry points, avatar | BIZ-01/02; FR-EXP-01, FR-PREF-01 |
+| UI-01 | Explore / Search | Search English/Vietnamese/romanized aliases, four category chips, cards, map switch | US-01/02; FR-POI-01, FR-EXP-01 |
+| UI-02 | Explore Map | Curated pins, selected-place sheet, list fallback, provider attribution | US-04; FR-MAP-01 |
+| UI-03 | Place Detail | Gallery/credit, English description, local name, facts/source date, preview audio, Save, Ask | US-01/03/05/13/14; FR-POI/PLC/SAV/TRV-03/AI |
+| UI-04 | AI Trip Preferences | Date, fixed one day, required map pin/current location/preset, interests, pace, time, budget; car/ride-hailing shown read-only | US-07; FR-PREF-01 |
+| UI-05 | AI Itinerary Result | Honest generation state, one-day stop proposal, uncertainty panel, Regenerate, Save & customize | US-08; FR-TRP-02 |
+| UI-06 | Edit Itinerary | Accepted stops, add/remove/reorder/duration, accessible move controls, route freshness | US-08/09/10; FR-TRP-02/03/04 |
+| UI-07 | Route Map / Trip Ready | Ordered pins, start leg, car route, unavailable/stale labels, cache estimate/status, Start Trip | US-04/10/11/19/20; FR-MAP/TRP-04/TRV-01/04/OFF-01 |
+| UI-19 | Trips | Active/upcoming/completed cards, restore active trip, guest sign-in state | US-11/19/20; FR-TRV-01/04, FR-OFF-01 |
+| UI-11 | Saved | Saved list, unsave, add to planning, guest sign-in state | US-05; FR-SAV-01 |
+| UI-08 | Active Trip | Current/next stop, map preview, Open directions, I've arrived, Complete/Skip, pending-sync state | US-11/12/19/20; FR-TRV-01/02/04, FR-OFF-01 |
+| UI-09 | Arrival & Audio | Current POI/method, human audio controls/transcript, cache state, Ask, next action | US-12/13/20; FR-TRV-02/03, FR-OFF-01 |
+| UI-14 | Ask AI | Current context, one question, answer-level source cards, local-only history, insufficient-evidence/provider states | US-14; FR-AI-01 |
+| UI-13 | Profile & Settings | Account, English language status, permissions, privacy, logout, Delete account entry | US-06/18; FR-AUTH-01/03 |
 
-[HTML wireframe gallery](UI_UX_design/wireframes.html) and [design system](07-UI-UX-Design.md) provide annotated layouts/tokens for handoff. They use illustrative place names and maps; no real source/fact/audio or provider result is implied. Arrival design explicitly demonstrates manual mode, Ask demonstrates insufficient evidence. Buttons link between review screens; this docs artifact is not application implementation. Native accessibility and factual media review remain later evidence gates.
+### Supporting screens, sheets and states
 
-## Design tokens and component handoff
+| ID / owner | Supporting surface | Rule |
+|---|---|---|
+| UI-12 | Login / Register | Return to the initiating action; no password-recovery promise in P0; keyboard-safe state |
+| UI-20 | Delete Account confirmation | Explain cascade/retention, password reauthentication, exact confirmation, cancel, transaction failure |
+| UI-15 | Camera Landmark Recognition (P1) | Permission, capture, candidate confirmation, unknown/ambiguous/manual fallback; outside P0 demo |
+| UI-16 | Speech Input (P1) | Permission, recording, editable transcript, typing fallback; outside P0 demo |
+| UI-02/UI-04/UI-08 | Location explanation | Request only on use; current-location shortcut never blocks map pin/preset |
+| UI-07/UI-08/UI-09 | Cache/pending sheet | Per-item progress; partial/retry/online-only; pending is never shown as synced |
+| All data screens | Loading / empty / error / offline | Recovery action and last-known/stale label where applicable; no generic toast-only failure |
+| UI-14 | Insufficient evidence | No unsupported answer; show empty evidence and a useful next action |
+| UI-08 | Trip completed state | Summary and return to Trips; state of UI-08, not a new primary screen |
 
-### Tokens
+UI-10 Audio player is **Retired 2026-10-19**, superseded by the Arrival & Audio states inside UI-09. Its ID is never reused. UI-01–09 and UI-11–16 keep their historical meanings; the v1.3 labels clarify them without assigning an old ID to a different screen.
 
-Ink #172d3c; secondary text #526779; primary #0e7490 with white label; surface #ffffff; background #edf3f6; border #ccd9e1. Warning background #fff7ed/text #78350f; success background #dcfce7/text #166534. Verify contrast numerically and on native target; diagrams/map placeholders are not content imagery.
-Spacing: 4,8,12,16,24,32; default mobile content padding 20–24. Body16, helper14, title26–28, line height ≥1.4 for body; support system text scaling rather than fixed truncation. Radius8/12/16/28. Target interactive area ≥44×44 logical points; no colour-only status.
+## Navigation and interaction contracts
 
-### Components and states
+Bottom navigation: **Home · Explore · Trips · Saved**. Preserve each tab stack when switching. Avatar opens UI-13. Ask is contextual, not a tab. Back from an authentication gate returns to the initiating screen with safe local inputs intact.
 
-Button: normal/pressed/focused/loading/disabled; keep action label meaningful and prevent duplicate requests while awaiting response. Text input: default/focused/invalid/disabled; label persists, error adjacent and screen-reader announced. Card: image alt/name/tags/action; no false price/rating. Stop row: numbered label/duration/route freshness; drag plus accessible up/down alternative. Warning: description/action, never dismiss critical constraint invisibly. Source card: title/date/open source, external document reference displayed if no URL. Audio: play/pause/seek/transcript/unavailable/retry; human narration label. Arrival: current POI/method/pending/synced/duplicate guard. Map: pins with labels and list fallback. Ask: context/answer/supporting source/refusal/provider failure.
+External directions use an HTTPS Google/Apple Maps handoff to the reviewed entrance. The in-app map says “Route preview”; it never says turn-by-turn. When DaNavi returns to foreground, show a short “Updating your trip…” state, reconcile the active trip/current stop, request a fresh fix and then expose **I've arrived** as the primary action. GPS dwell is a helper, not a promise of background tracking.
 
-### Navigation, responsiveness and permissions
+Proposal stops are read-only until **Save & customize** succeeds. Edit controls appear only on the accepted itinerary. Current/completed/skipped stops remain fixed during an active trip. Route/provider failure never replaces user edits.
 
-Tabs Explore/Trips/Saved/Settings; contextual Map/Audio/Ask. Minimum design phone viewport320; larger phones use flexible width. Tablet/desktop product support is not committed; HTML gallery is a review surface. Native screen reader focus goes to arrival/error heading without trapping other controls. Start Trip shows foreground-only GPS explanation and audio opt-in default off. Playing a recording never requests microphone access. P1 permissions requested on use with typing/manual fallback.
+## Screen composition at 393×852
 
-### Wireframe limitations
+- Safe-area-aware top region; standard horizontal gutter 20 px, compact chrome 16 px.
+- Bottom navigation reserves 82 px plus device inset. Sticky actions clear it.
+- Reading/forms cap near 560 px on wide devices; maps/media can expand behind centered sheets.
+- Welcome: coastal image/illustration region, short English promise, one dominant Continue action.
+- Home: 56 px header/avatar, featured reviewed places, primary Plan my day card, curated sections.
+- Explore: persistent 48 px search, horizontally scrollable category chips, 4:3 place cards and map switch.
+- Detail: 260 px hero, opaque attribution, local-name/helper row, facts/sources before secondary actions.
+- Planning: single column; start point map/preset section; validation adjacent to fields; fixed Generate footer.
+- Result/Edit: stop cards and warnings; result uses Save & customize, edit uses Save changes/Trip ready.
+- Route/Active: map-first upper region; accessible sheet handles; persistent current-stop and sync status.
+- Ask: context chip, local display history, answer followed immediately by source cards, composer.
 
-[wireframes.html](UI_UX_design/wireframes.html) includes 16 inspectable annotated layouts. It illustrates flow, not live GPS/maps/auth/playback. Missing verified data is deliberately unknown. P0 native VoiceOver/TalkBack/scaling checks remain TC-28; HTML review does not certify mobile accessibility. Final imagery/icons and Figma library are not required for this docs draft; later assets must preserve licensing/alt text.
+Compact phones 320–374 px keep at least 16 px gutters, scroll chips/carousels and stack paired actions. Reference phones 375–430 px scale the 393 px layout. Larger phones/tablets cap text/forms; no tablet split-view commitment. Components grow vertically with larger text; critical source/status/recovery copy is never truncated.
 
-### Asset and handoff checklist
+## Coastal blue-white design tokens
 
-Use versioned approved POI media, SVG icons with text where ambiguous, explicit loading/empty/error/permission-denied states. Engineering maps every screen to story/FR table in 11-User-Stories.md. Measurements/tokens live here; wireframes show hierarchy. Product review confirms copy/actions before implementation. Reviewer names and sign-off TBD.
+| Token | Value | Role |
+|---|---:|---|
+| color.primary | #075985 | Primary actions, active destination, focus emphasis |
+| color.primaryPressed | #0C4A6E | Pressed action |
+| color.primarySoft | #E0F2FE | Selected chip, info surface |
+| color.coastalAccent | #0284C7 | Map/illustration accent, not body text on white |
+| color.canvas | #FFFFFF | Main surface |
+| color.background | #F0F9FF | Coastal page background |
+| color.surfaceGrouped | #F8FAFC | Grouped controls/cards |
+| color.ink | #0F172A | Headings |
+| color.body | #334155 | Body text |
+| color.muted | #64748B | Metadata on white only |
+| color.border | #BAE6FD | Dividers/control boundary; never the sole state cue |
+| color.success / successBg | #166534 / #DCFCE7 | Verified/synced/completed |
+| color.warning / warningBg | #854D0E / #FEF3C7 | Pending/uncertain/simulated |
+| color.error / errorBg | #B91C1C / #FEF2F2 | Invalid/provider failure |
+| color.mapOverlay | #0F172A | Opaque map/status overlay with white text |
 
-## Contract-specific interaction rules
+Typography: Inter with system fallback; display 28/36 700, screen title 26/34 700, section 18/26 600, body 16/24 400, button 15/22 600, helper 13/20 400, tab 11/16 600. Spacing 4/8/12/16/20/24/32/40. Radius 8/12/16/24/28/full. Interactive targets are at least 44×44 logical points.
 
-After acceptance, preferences are read-only; changing dates/start/day count requires a new draft without modifying the old trip. During travel, current/visited rows cannot be moved/removed; accessible move controls apply only to upcoming rows. An empty day, known closed visit or time-window overrun shows a blocking warning and disables Start; an uncertainty warning requires acknowledgement and is never represented as guaranteed feasibility.
-Search/text fallback shows requested and actual content language. English audio unavailable does not silently play Vietnamese. P0 Ask is Vietnamese; unsupported English coverage is disclosed. Map/route screen preserves provider attribution/warnings where required; route estimates expired by policy show stale/null.
-A late replay response does not replace newer displayed progression; reconcile GET. Pending arrival and URL expiration have distinct UI states. Local auto-play guard survives resume/retry; an interrupted automatic attempt exposes manual retry. Optional P1 layouts are backlog illustrations, not required P0 screens.
+### Contrast calculation record
 
-## Token contrast check
+Ratios below were calculated from sRGB relative luminance on 2026-10-19; they are arithmetic checks, not an accessibility certification:
 
-Calculated from specified sRGB values: ink on white14.22:1; secondary text on background5.25:1; white on primary5.36:1; warning text on warning background8.54:1; success text on success background6.49:1. These pairs exceed the 4.5:1 normal-text target described in [WCAG2.1 contrast guidance](https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html). This is a numerical token check, not native/browser accessibility certification. Disabled controls and decorative borders need separate contextual review; do not rely on the low-contrast decorative border to identify an interactive control.
+| Foreground / background | Ratio |
+|---|---:|
+| White / primary #075985 | 7.56:1 |
+| White / primaryPressed #0C4A6E | 9.46:1 |
+| Ink #0F172A / white | 17.85:1 |
+| Body #334155 / white | 10.35:1 |
+| Muted #64748B / white | 4.76:1 |
+| Primary #075985 / primarySoft #E0F2FE | 6.59:1 |
+| Success / successBg | 6.49:1 |
+| Warning / warningBg | 6.15:1 |
+| Error / errorBg | 5.91:1 |
+| White / mapOverlay #0F172A | 17.85:1 |
+
+Native text scaling, VoiceOver/TalkBack, focus order, real map tiles, photography overlays and disabled/pressed states still require device checks.
+
+## Components and required states
+
+Use a small semantic set: Button, IconButton, TextField, SearchField, Chip, PlaceCard, CompactPlaceCard, StopRow, SourceCard, Notice, StatePanel, MapPin/ListFallback, BottomNavigation, BottomSheet, AudioPlayer and AskComposer. Each interactive component covers normal/pressed/focused/loading/disabled where applicable. Drag reorder has Move up/Move down alternatives.
+
+State labels are explicit:
+
+- loading: skeleton/progress without fabricated percentages;
+- empty: what is missing and the next action;
+- error: provider/network/validation distinction plus retry;
+- offline: last updated/revision and unavailable actions;
+- pending: local action not yet server-confirmed;
+- stale: route/content revision expired;
+- insufficient evidence: no factual answer;
+- simulated: persistent badge in demo-only GPS/route fixtures.
+
+Audio always says “Human-recorded guide”. Playback never requests microphone permission. Guest preview and full active-trip audio are distinguishable. Auto-play defaults off and the per-stop guard survives resume/process restart.
+
+## Content and accessibility rules
+
+All production copy is English. Display Da Nang time as Asia/Ho_Chi_Minh where ambiguity exists and prices in VND. Unknown hours do not mean open; unknown price does not mean free. Suggested visit duration is an estimate. Route time shows mode/fetch freshness and provider attribution. Source cards stay adjacent to the fact/answer they support.
+
+Support text scaling, screen-reader labels, logical focus, keyboard avoidance, reduced motion and list alternatives for map gestures. Do not rely on colour alone. Permission prompts are preceded by a plain-language explanation and requested only at the action that needs them.
+
+## Figma and engineering handoff
+
+- Frame: 393×852; use English screen names matching the inventory.
+- Keep Mood Board/reference screenshots separate from production frames; never trace or ship a reference screenshot as UI.
+- The Figma screen set is a review prototype. Tokens and behavior in this document take precedence when old Figma styling conflicts with v1.3.
+- Annotate guest/auth state, live/fixture/simulated data, provider attribution, offline rights and source ownership.
+- Provide one canonical frame per primary screen; use variants/adjacent frames only for required states, not duplicate screens.
+- Engineering maps each frame to its UI/US/FR/TC IDs and verifies 393 px plus one compact width.
+
+## Review status and limitations
+
+The HTML wireframes were updated as a docs review artifact. They do not prove native behavior, Figma synchronization, map/provider integration, accessibility or factual/media rights. Product review confirms copy/actions before implementation; native evidence is recorded only after real builds and tests.

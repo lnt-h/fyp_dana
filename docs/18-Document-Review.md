@@ -1,72 +1,64 @@
-# Danang TourGuide — Documentation Review Record
+# DaNavi — Documentation Review Record
 
-Version 1.2 | 2026-10-12 | Status: design baseline for review. Document control and evidence status: [Index](00-INDEX.md).
+Version 1.3 | 2026-10-19 | Status: documentation baseline ready for stakeholder review. Document ownership and navigation: [Index](00-INDEX.md).
 
 ## Purpose and review scope
 
-Internal engineering review, separate from the main dissertation. Version1.2 retains selected P0 and file organization. Reviews identify source support, consistency and validation limits; they are not institutional/IEEE/UML certification. Named technical/academic sign-off is still pending.
+This record reports only checks actually performed on the v1.3 documentation set. It is an internal engineering review, not a claim of institutional approval, standards certification, implemented functionality or production readiness. Runtime, database, provider, store and native-device evidence remain separate delivery gates.
 
-## Changes reviewed
+## Changes reviewed in v1.3
 
-- One owner per requirement/design/contract/configuration; shared controls replace repetitive task/use-case/test administration.
-- Correct unsupported COMP1682 sample-size attribution; distinguish public academic guidance from the actual missing rubric.
-- Cite preliminary primary research and official integration references; competitor capabilities are publisher descriptions, not measured app findings.
-- Clarify draft-only preferences, fixed active prefix, hard conflicts versus uncertainty, per-day start legs, language fallback, session logout and replay/media expiration.
-- Encode additional DTO branch validation and physical same-day/embedding-space integrity. Add TC-34–37 to cover these contracts.
-- Keep P1 identifiers but exclude optional scope from mandatory delivery/acceptance. Keep security, curation, traceability and evaluation details.
+- Reframed DaNavi for English-first, first-time international visitors to Da Nang and bounded the core experience to one-day planning.
+- Defined a guest-first model: Explore, Place Detail and audio preview remain public; Generate, Save and Ask AI require authentication while preserving the in-progress form across sign-in.
+- Standardized start-point capture as a map pin, current location or a small preset list; P0 transport is car/ride-hailing only.
+- Made external Google/Apple Maps handoff the navigation path. “I’ve arrived” is primary; foreground GPS fix and dwell are secondary confirmation.
+- Added read-only trip essentials cache, active-trip restoration, minimum supported app/API version handling and a complete account-deletion slice.
+- Reduced the content target to 15–20 curated POIs across Culture, Beach, Food and Nature, with at least five flagship English audio guides.
+- Kept Ask AI authenticated and single-turn at the server boundary; client-side history is device-only. Added English alias search and translation provenance.
+- Consolidated product UI into 15 primary screens plus supporting authentication, deletion and P1 camera/voice screens. Retired duplicate UI specifications without reusing retired IDs.
+- Updated API, data model, security, curation, test, traceability, plan, research and diagrams to the same scope.
 
 ## Current review results
 
-Validation results are filled only from checks actually performed on the final artifacts. Runtime/database/browser/native execution is outside the performed document checks.
-
 | Check | Result actually observed | Limit |
 |---|---|---|
-| Markdown local links/table shapes | No unresolved local link or inconsistent table columns in the 19 documents | Checks existence/structure, not external factual truth |
-| Requirement/trace identifiers | 17 distinct FRs, six NFRs; all in RTM; no unknown full requirement ID | Planned coverage only |
-| Cases/tasks | 37 distinct TC procedures, 24 task outputs; all TC IDs referenced in RTM | 34 P0/quality and three deferred P1; none executed |
-| OpenAPI structure | Parsed JSON, resolved local refs; 27 unique operation IDs, 39 schemas; required path parameters present | No external full OpenAPI validator or live API execution available |
-| Selected schema branches | 22 synthetic positive/negative fixtures match expected acceptance using an in-session checker | Checker covers selected type/required/enum/oneOf/anyOf/not/range/format rules; not a standards-certified validator or service test |
-| Wireframe links/IDs | 16 screen sections, unique IDs, no dangling internal navigation anchor | No browser render/interaction or native device verification in this revision |
-| Color tokens | Five specified text pairs numerically exceed4.5:1; input border3.03:1 | Token calculation only; no full accessibility conformance claim |
-| Draw.io source structure | Ten retained sources: balanced tags, unique cell IDs, valid cell references | Source import/render not executed; prior v1.1 previews were inspected and are unchanged |
-| DDL review |19 tables; same-day route FKs, nonfresh-null rules, embedding identity and operation deadlines specified | Not executed/parsed by PostgreSQL; migration/extension trial remains TC-37 |
-| Source support | Primary papers/instrument and official technical/product/academic pages inspected; access dates and claim limits recorded | Preliminary literature review; no institutional approval or competitor benchmark |
-| Evidence integrity | No participant responses, measured model scores, real POI/media rights or runtime results inserted | These require real collection/execution later |
+| Markdown structure | 21 Markdown files checked; 130 local links resolved; checked tables have consistent columns | Structural check only; external URLs and factual claims require source review |
+| Requirements and traceability | 20 canonical FRs are present in the RTM: 17 P0 and three P1 | Traceability is planned coverage, not execution evidence |
+| Cases and tasks | 45 unique test IDs and 29 task outputs: 41 active P0/quality tests, three deferred P1 tests and one retired test | No test case or task is marked executed by this review |
+| OpenAPI | JSON parsed; 24 paths, 28 operations, 40 schemas and 249 local `$ref` uses resolved; operation IDs are unique and path parameters are required | No live endpoint or external full OpenAPI conformance run |
+| Targeted API contracts | Version 1.3, account deletion, typed `426`, one-day planning, three start-point options, car-only transport, four categories, English Ask locale and cache metadata were asserted | Assertions cover the v1.3 decisions, not every possible schema branch |
+| Wireframes | 17 unique editable HTML screen frames at 393×852; static scan found no obvious Vietnamese app copy | Browser/native visual render, interaction and screen-reader review were not executed |
+| Color tokens | Ten recorded text/background pairs range from 4.76:1 to 17.85:1 and meet the stated normal-text threshold | Arithmetic token check only; photography, maps, scaling and native states still need device checks |
+| Diagrams | Ten Draw.io sources and ten SVG previews are well-formed; source cell IDs are unique and references resolve | Full-size visual inspection and Draw.io re-import were not executed |
+| Database definition | 19 tables plus the v1.3 locale, alias, translation, transport, deletion and provenance fields passed static checks | SQL was not executed against PostgreSQL/PostGIS/pgvector |
+| Research/source support | Competitor and store-policy claims were bounded to official pages inspected on 2026-10-19; no novelty or superiority conclusion was inserted | No comparative usability benchmark, participant study or supervisor validation yet |
+| Evidence integrity | No participant responses, measured model scores, real content rights, runtime results or store acceptance were fabricated | These remain explicit external evidence gates |
 
 ## Repository checklist applicability
 
-The 15 checklist workbooks were read in the preceding document review; the retained mapping below identifies applicable design topics. This revision preserves their role as review aids. File names containing IEEE/UML are not evidence of certification, and no blanket pass is asserted for each workbook row. Official standard editions/applicability and institutional rubric require separate confirmation if claimed.
+The retained checklist workbooks are review aids. Their filenames do not prove IEEE/UML compliance, and this review does not assert that every workbook row passes.
 
-| Source checklist in repository | Final artifacts | Coverage / applicability |
+| Checklist area | Canonical v1.3 artifacts | Remaining evidence |
 |---|---|---|
-| analysis/PRD_IEEE_29148_Checklist.xlsx | 01-PRD.md; 10-BRD.md; 11-User-Stories.md; 14-Traceability.md | Context/personas, measurable FR/NFR/interfaces, numbered trace. Exact SLA/capacity beyond bounded test target not committed. |
-| design/SAD_IEEE_1016_Checklist.xlsx | 02-SAD.md; 12-Blueprint.md; 09-Project-Decisions.md | Composition, logical/interaction/information/interfaces, physical target, alternatives. Resource values remain pending trial/budget. |
-| design/BluePrint_Design_IEEE_1016_2009_Checklist.xlsx | 12-Blueprint.md; 14-Traceability.md | Stakeholder concerns/views/algorithms/quality scenarios; no standards certification. |
-| design/UseCase_Document_UML2.0_Checklist.xlsx | 03-Use-Cases.md; diagrams/scenarios-view.drawio | IDs/actors/triggers/pre/postconditions/main/alternate/exception/data. Include/extend not forced where semantics unnecessary. |
-| design/Class_Diagram_UML2.0_Checklist.xlsx | diagrams/logical-view.drawio; 05-Database-Design.md | Conceptual classes/visibility/types/operations/multiplicities; abstract/static/inheritance not claimed. |
-| design/Activity_Diagram_UML2.0_Checklist.xlsx | diagrams/process-view.drawio; 12-Blueprint.md | Actions/decisions/guards/start/end; advanced fork/pin/signal/exception symbols N/A to the depicted control-flow subset. |
-| design/Component_Diagram_UML2.0_Checklist.xlsx | diagrams/development-view.drawio; 02-SAD.md | Internal components/dependencies/interfaces in SAD; formal notation import review pending. |
-| design/Deployment_Diagram_UML2.0_Checklist.xlsx | diagrams/physical-view.drawio; 02-SAD.md | Execution nodes, communication and resource target. No deployed IP/resources invented. |
-| design/Sequence_Diagram_UML2.0_Checklist.xlsx | 04-Sequence-Diagrams.md; diagrams/sequence-*.drawio | Named lifelines/synchronous calls/returns/execution bars; simple scenario paths; combined fragments not forced. |
-| design/API_Design_IEEE-1016-2009Checklist.xlsx | 06-API-Design.md; openapi.json | Auth/ownership, error envelope, cursors, revision/idempotency, version evolution. HATEOAS N/A; nested parent paths deliberate tradeoff. |
-| design/UI_UX_Design_IEEE-1016-2009_Checklist.xlsx | 07-UI-UX-Design.md; UI_UX_design/wireframes.html | Personas/navigation/tokens/states/trace/targets. Desktop dashboards N/A; native/HTML visual accessibility review pending. |
-| design/Database_Design_Checklist.xlsx | 05-Database-Design.md; database.sql; 16-Data-Curation.md | Relational/geographic/vector integrity/indexes/source lifecycle; DDL execution and benchmark pending. |
-| design/Polyglot_DB_Design_Checklist.xlsx | 05-Database-Design.md; database.sql | Postgres + extensions selected; extra NoSQL/Graph stores N/A; ANN deferred pending measured need. |
-| design/Checklist_Database Design Review.xlsx | 05-Database-Design.md; database.sql; 02-SAD.md | Normalization/keys/cardinality/physical constraints/backup plan; runtime DB review not claimed. |
-| verification/Test_Plan_IEEE_829_Checklist.xlsx | 08-Test-Plan.md; 13-Development-Plan.md | Identifier/items/scope/approach/criteria/suspension/resume/owners/evidence/risks. Dates/approvals not yet supplied. |
+| Product/requirements | 01-PRD.md; 10-BRD.md; 11-User-Stories.md; 14-Traceability.md | Approved objectives, rubric and stakeholder sign-off |
+| Architecture/design | 02-SAD.md; 09-Project-Decisions.md; 12-Blueprint.md; diagrams/ | Provider trials, pinned versions and visual import review |
+| API/database | 05-Database-Design.md; 06-API-Design.md; database.sql; openapi.json | PostgreSQL migration trial, live contract and load evidence |
+| UI/UX | 07-UI-UX-Design.md; UI_UX_design/wireframes.html | Native build, accessibility, map/photo contrast and interaction review |
+| Verification | 08-Test-Plan.md; 13-Development-Plan.md; 14-Traceability.md | Executed cases, defects, retests and acceptance records |
+| Security/content/research | 15-Security-Privacy.md; 16-Data-Curation.md; 17-Research-and-Academic-Plan.md | Rights, translation/narration QA, consent, recruitment and empirical results |
 
-## Unresolved evidence and next gates
+## Unresolved gates before implementation acceptance
 
 | Gate | Required evidence / owner |
 |---|---|
-| Academic alignment | Actual approved objectives/template/rubric; student and supervisor |
-| Feasibility configuration | Native/DB/ORM/model/Routes trials and pinned versions; developer |
-| Visual import/native review | draw.io import and full-size readability; gallery/browser review and later native accessibility |
-| Research/content policy | Consent/storage and genuine source/image/narration rights; student/curator |
-| Implementation acceptance | Real builds/migrations, P0 cases and failure/retest history; developer/reviewer |
-| Evaluation | Real held-out claim support/planning/field/UAT evidence and validity limits |
-| Deployment if required | Agreed budget, actual smoke/restore and authorized release |
+| Academic alignment | Approved objectives, report template and rubric; student and supervisor |
+| Technical feasibility | Native shell, database/extensions, routes provider, location foreground behavior and model trials; developer |
+| Store readiness | Public privacy policy, Google Play external account-deletion resource, data declarations and selected test distribution channel; product/developer |
+| Content readiness | 15–20 verified POIs, English review, image/audio rights, five completed audio guides and offline-use permission; curator/narrator |
+| Visual/native review | Full-size diagram review, wireframe review, native text scaling, VoiceOver/TalkBack and target-device checks; designer/developer |
+| Implementation acceptance | Builds, migrations, P0 tests, failure/retest history, crash reporting, active-trip recovery and old-version blocking; developer/reviewer |
+| Research/evaluation | Participant consent, international-visitor recruitment, held-out RAG evaluation, field GPS checks and UAT; researcher |
 
-## Review outcome interpretation
+## Review outcome
 
-Design content can be complete for review while these external/empirical gates remain open. Unknown inputs are tracked with owner and dependent gate in Decisions rather than filled with invented data. No reviewer approval, competitor benchmark, participant response or system test outcome has been inferred from a written design.
+The v1.3 documents are internally aligned as a reviewable product specification for the agreed DaNavi direction. This means the written scope, flow, identifiers and contracts are consistent enough for stakeholder review; it does not mean the app has been implemented or validated. Commit and push are intentionally deferred until the stakeholder approves this documentation review.

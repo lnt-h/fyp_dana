@@ -1,10 +1,10 @@
-# Danang TourGuide — Software Architecture
+# DaNavi — Software Architecture
 
-Version 1.2 | 2026-10-12 | Status: design baseline for review. Document control and evidence status: [Index](00-INDEX.md).
+Version 1.3 | 2026-10-19 | Status: design baseline for review. Document control and evidence status: [Index](00-INDEX.md).
 
 ## Design drivers and system boundary
 
-[PRD](01-PRD.md) owns required behavior; [Decisions](09-Project-Decisions.md) records rationale/status. One developer, a bounded reviewed corpus, private mobile trips and foreground assistance favor a modular monolith. The system includes mobile UI, one NestJS API, PostgreSQL, reviewed media and restricted curation scripts. Maps/Routes, model/embedding services and object storage are external dependencies.
+[PRD](01-PRD.md) owns required behavior; [Decisions](09-Project-Decisions.md) records rationale/status. One developer, a bounded English-first corpus, private mobile trips and foreground assistance favor a modular monolith. The system includes the mobile app and device-only read cache, one NestJS API, PostgreSQL, reviewed media and restricted curation scripts. Maps/Routes, external Google/Apple Maps handoff, model/embedding services and object storage are external dependencies.
 
 ## Context and containers
 
@@ -14,6 +14,7 @@ flowchart TB
   Curator[Curator] --> Import[Validated ingestion scripts]
   App -->|HTTPS REST| API[NestJS modular monolith]
   App -->|Restricted map SDK| Maps[Map provider]
+  App -->|Reviewed destination via HTTPS| ExternalMaps[Google / Apple Maps]
   API --> Routes[Routes provider]
   API --> DB[(PostgreSQL / PostGIS / pgvector)]
   Import --> DB
@@ -22,19 +23,20 @@ flowchart TB
   App -->|Media bytes| Storage
   API --> Models[LLM / text embedding provider]
 ```
-The app does not receive server AI/Routes credentials. Runtime data publication is restricted to curator CLI; there is no public administration API. P1 uploads require a separate private-media lifecycle before activation.
+The app does not receive server AI/Routes credentials. The external map target is built only from reviewed entrance coordinates and does not return continuous location data. Runtime data publication is restricted to curator CLI; there is no public administration API. P1 uploads require a separate private-media lifecycle before activation.
 
 ## Components and responsibility
 
 | Module | Owns | Dependencies / boundary |
 |---|---|---|
-| Identity | Credentials, session state, authentication | PostgreSQL; supplies authenticated subject/session |
+| Identity | Credentials, session state, authentication and reauthenticated account deletion | PostgreSQL; supplies authenticated subject/session and cascade boundary |
 | Places | Published POIs, facts/provenance, search/geography | PostgreSQL/PostGIS; no unrestricted runtime publication |
 | Saved | Owner-scoped saved places | Identity and Places |
 | Trips | Preferences, proposals, itinerary/progression/revision/arrival | Places, AI and Routing; sole trip mutation orchestrator |
 | Routing | Provider-backed start/inter-stop legs and freshness | Routes adapter and PostgreSQL |
-| Guides | Reviewed audio/transcript metadata and access | Places and storage |
-| AI | Candidate-only planning and source-grounded Ask | Places/retrieval/model ports; no direct trip mutation |
+| Guides | Reviewed English audio/transcript metadata, access and offline-right flag | Places and storage |
+| AI | Candidate-only planning and single-turn source-grounded Ask | Places/retrieval/model ports; no direct trip mutation or server conversation store |
+| Mobile state/cache | Guest planner draft, active-trip recovery, pending idempotency keys and read-only essentials | Device storage; revision-bound, contains no credentials/raw GPS history/offline maps |
 
 Controller → application service → repository/provider port. DTO validation, ownership, state checks and transactional writes belong on the server even when the UI validates first. [Blueprint](12-Blueprint.md) owns detailed algorithms and concurrency semantics; [Database](05-Database-Design.md) owns physical integrity.
 
@@ -52,9 +54,10 @@ Controller → application service → repository/provider port. DTO validation,
 
 ## Runtime overview
 
-Build uses current published candidates → model draft → server schema/ID/fact validation → provider legs → deterministic constraint checking → stored preview. Acceptance is explicit and atomic; old plans remain intact until accepted. V1 build is synchronous and bounded; no queue/job API is implied.
-Ask authenticates context → retrieves current compatible reviewed passages/known structured facts → generates with allowed evidence IDs → validates format/references and operational values → answers or refuses. Evidence IDs do not prove historical claim entailment; evaluation measures residual unsupported claims.
-Foreground arrival uses current-stop accuracy/radius/dwell. The server validates minimal reported evidence and uniqueness but cannot prove physical presence from client GPS. Audio is a reviewed human recording; playback opt-in and local deduplication are separate from trip progression.
+Guests can Explore, open Detail and preview audio. Save, Ask and Generate are protected server actions. A guest planner draft remains on-device through login; returning from authentication never triggers generation automatically.
+Build uses one-day/car preferences and current published candidates → model draft → server schema/ID/fact validation → provider legs → deterministic constraint checking → stored preview. **Save & customize** explicitly accepts the preview before edits. Old plans remain intact until accepted. V1 build is synchronous and bounded; no queue/job API is implied.
+Ask authenticates one question/context → retrieves current compatible reviewed English passages/known structured facts → generates with allowed evidence IDs → validates format/references and operational values → answers or refuses. No server conversation/history is stored. Evidence IDs do not prove historical claim entailment; evaluation measures residual unsupported claims.
+Directions use an HTTPS handoff to Google/Apple Maps. On DaNavi foreground resume, the app refreshes the active stop and requests a fresh fix; it does not depend on background tracking. **I've arrived** is the primary action, while current-stop accuracy/radius/dwell is an optional helper. The server validates minimal reported evidence and uniqueness but cannot prove physical presence from client GPS. Audio is a reviewed human English recording; playback opt-in and local deduplication are separate from trip progression. At Start, a bounded revision manifest prefetches read-only text, transcripts and rights-approved audio; maps/routes are never claimed offline.
 
 ## Quality and failure design
 
@@ -68,20 +71,24 @@ Foreground arrival uses current-stop accuracy/radius/dwell. The server validates
 | Missing/failed audio | Unavailable/transcript/retry; no synthesis | TC-17/18 |
 | Edit versus late provider result | Short transaction and revision-bound apply | TC-11/12 |
 | Model/space drift | Immutable configuration identity and version-filtered retrieval | TC-29/37 |
+| External-map return or app process kill | Refresh state/fix on foreground; persist active trip and idempotency key until acknowledgement | TC-39/44 |
+| Partial cache or unlicensed audio | Manifest/progress/explicit failure; cache only permitted read-only assets | TC-40/42 |
+| Account-deletion failure | Password reauthentication and one transaction/cascade; revoke sessions only on successful workflow | TC-38 |
+| Old incompatible mobile client | API/minimum-app version headers and typed 426 update gate | TC-45 |
 
-Initial exact vector search is a working design choice, not a latency guarantee. One API instance permits an in-process limiter for the pilot; DB idempotency is durable. Multi-instance shared quotas require a new design. Logs record request ID/status/latency/config versions; raw GPS/questions/media are omitted by default. Security details are owned by [Security/Privacy](15-Security-Privacy.md).
+Initial exact vector search is a working design choice, not a latency guarantee. An in-process limiter is acceptable only for local/closed trials; external Ask/Generate access requires a distributed control. DB idempotency is durable and the mobile client persists a key before sending a recoverable action. Logs record request ID/status/latency/config versions; raw GPS/questions/media are omitted by default. Security details are owned by [Security/Privacy](15-Security-Privacy.md).
 
 ## Deployment design and verification
 
 Local/test: Expo development build, API and isolated PostgreSQL with both extensions; deterministic provider/media fixtures; two user accounts for ownership tests. Native SDK/ORM/engine versions are pinned after feasibility trials.
 Conditional AWS option: HTTPS ingress/ALB → one ECS/Fargate API → private RDS, versioned S3 media, Secrets Manager, CloudWatch and ECR. The physical diagram represents this option. Region, resource sizes, extension compatibility, outbound networking and monthly ceiling remain O-02/O-07/O-12. Managed/private DB access and scoped storage permissions remain requirements whichever approved deployment host is chosen. A different host requires the physical view and decisions to be updated together.
-Configuration inventory: API base URL, DB DSN, JWT issuer/audience/signing material, model/embedding configuration, separate client Maps/server Routes keys, media namespace, planner/arrival limits, quotas/timeouts, log/retention policy and explicit demo mode. Document names, never secret values. Disable demo simulation in normal deployment.
+Configuration inventory: API base URL, DB DSN, JWT issuer/audience/signing material, model/embedding configuration, separate client Maps/server Routes keys, allowed external-map hosts, media namespace, cache size/revision rules, minimum app/API versions, planner/arrival limits, distributed quotas/timeouts, log/deletion/backup retention policy and explicit demo mode. Document names, never secret values. Disable demo simulation in normal deployment.
 
 ## Deployment and recovery acceptance
 
 1. Verify selected build, migration compatibility, content rights and actual P0/security evidence.
 2. Record cost/network configuration; build immutable artifact and back up DB plus media manifest.
-3. Apply reviewed migration with restricted migration identity; deploy API/native build and verify health, ownership, search, planning and Ask smoke.
+3. Apply reviewed migration with restricted migration identity; deploy API/native build and verify health, ownership, English alias search, guest gates, planning, external handoff, cache, deletion, version gate and Ask smoke.
 4. Revert to a prior compatible app image on regression. Destructive migrations need an explicit data recovery plan.
 5. Restore backup in an isolated environment; verify trip/content references and media availability. Measure data-loss interval (RPO) and restoration time (RTO); acceptable values depend on agreed recovery needs and budget.
 
