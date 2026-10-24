@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-The repository currently contains one Expo application at `apps/mobile`. It implements the splash and first onboarding screen; backend services described below are a target architecture, not deployed software.
+The repository currently contains one Expo application at `apps/mobile`. It implements the splash and two onboarding slides; backend services described below are a target architecture, not deployed software.
 
 ### Mobile stack
 

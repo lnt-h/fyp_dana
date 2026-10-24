@@ -13,13 +13,13 @@ Gonarra is an early mobile product build.
 Implemented:
 
 - Branded splash screen with an automatic transition.
-- First onboarding screen based on the Figma design.
+- Two onboarding slides based on the Figma design: discovery and day planning.
 - Responsive layouts, safe-area handling, accessible button semantics, and branded application icons.
 - Expo Router application shell for iOS, Android, and web.
 
 Not yet implemented:
 
-- Authentication, place discovery, maps, trip planning, audio playback, offline support, backend APIs, and production analytics.
+- Authentication, place discovery, functional maps, persisted trip planning, audio playback, offline support, backend APIs, and production analytics.
 
 Documentation distinguishes current behavior from planned behavior. A planned feature must not be presented as shipped.
 

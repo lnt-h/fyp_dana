@@ -8,7 +8,7 @@ Gonarra is an audio-first mobile guide for discovering Da Nang through curated s
   <img src="docs/assets/readme/onboarding.jpg" width="220" alt="Gonarra onboarding screen" />
 </p>
 
-Built with React Native, Expo, TypeScript, and Expo Router. The current product slice includes the branded splash and first onboarding screen.
+Built with React Native, Expo, TypeScript, and Expo Router. The current product slice includes the branded splash and two Figma-based onboarding slides.
 
 ## Getting started
 
@@ -22,9 +22,9 @@ Press `a` for Android, `i` for iOS, or `w` for web. To create a native developme
 
 ## Documentation
 
-- [Product](docs/PRODUCT.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Development](docs/DEVELOPMENT.md)
-- [Research](docs/RESEARCH.md)
+- Product: [overview](docs/PRODUCT.md), [business requirements](docs/10-BRD.md), [product requirements](docs/01-PRD.md), and [user stories](docs/11-User-Stories.md)
+- Design: [architecture](docs/ARCHITECTURE.md), [use cases](docs/03-Use-Cases.md), [runtime sequences](docs/04-Sequence-Diagrams.md), [data model](docs/05-Database-Design.md), and [API contract](docs/06-API-Design.md)
+- Delivery: [development guide](docs/DEVELOPMENT.md), [development plan](docs/13-Development-Plan.md), [test plan](docs/08-Test-Plan.md), and [traceability](docs/14-Traceability.md)
+- Governance: [security and privacy](docs/15-Security-Privacy.md), [data curation](docs/16-Data-Curation.md), and [research plan](docs/RESEARCH.md)
 
 Design source: [Gonarra Figma prototype](https://www.figma.com/design/JvXw7rVf5KxoA6LlDJEqAt/Tourguide-app-UI).
