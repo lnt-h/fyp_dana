@@ -1,15 +1,17 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Image, ImageSourcePropType, StyleSheet, View } from 'react-native';
 import Svg, {
   Defs,
-  LinearGradient as SvgLinearGradient,
+  Ellipse,
+  FeGaussianBlur,
+  Filter,
+  G,
+  LinearGradient,
   Mask,
-  RadialGradient,
   Rect,
   Stop,
 } from 'react-native-svg';
 
-const planningPreview = require('../../../../assets/onboarding/plan-tour.png') as ImageSourcePropType;
+const planningHero = require('../../../../assets/onboarding/planning-hero.png') as ImageSourcePropType;
 const patternCells = Array.from({ length: 100 }, (_, index) => index);
 
 const designFrame = {
@@ -17,10 +19,11 @@ const designFrame = {
   width: 440,
 } as const;
 
-const designPreview = {
-  height: 336.5521,
-  top: 192.6003,
-  width: 355.5391,
+const exportedHero = {
+  height: 400,
+  left: 11,
+  top: 160,
+  width: 419,
 } as const;
 
 const designPattern = {
@@ -32,28 +35,15 @@ const designPattern = {
 } as const;
 
 const designAmbientGlow = {
-  height: 754,
-  left: -159,
-  top: 338,
-  width: 757,
+  centerX: 219.5,
+  centerY: 715,
+  radiusX: 378.5,
+  radiusY: 377,
 } as const;
 
-const designMapCard = {
-  borderRadius: 24.3913,
-  height: 243.3467,
-  left: 9.1,
-  rotation: '-4.52deg',
-  top: 12.9,
-  width: 337.4135,
-} as const;
-
-const designInfoCard = {
-  borderRadius: 16.2609,
-  height: 87.4023,
-  left: 19.39,
-  rotation: '3.86deg',
-  top: 216.21,
-  width: 317.0874,
+const lowerFade = {
+  height: 493,
+  top: 463,
 } as const;
 
 type Props = {
@@ -61,194 +51,129 @@ type Props = {
   width: number;
 };
 
-function AmbientGlow({ height, width }: { height: number; width: number }) {
+type BackgroundProps = {
+  height: number;
+  left: number;
+  width: number;
+};
+
+function PlanningBackground({ height, left, width }: BackgroundProps) {
   return (
-    <Svg height={height} viewBox="0 0 757 754" width={width}>
+    <Svg
+      height={height}
+      style={[styles.background, { left }]}
+      viewBox={`0 0 ${designFrame.width} ${designFrame.height}`}
+      width={width}
+    >
       <Defs>
-        <SvgLinearGradient id="ambientColor" x1="0" x2="0" y1="0" y2="1">
+        <LinearGradient id="planningAmbient" x1="0" x2="0" y1="0" y2="1">
           <Stop offset="0" stopColor="#BBE9FF" />
           <Stop offset="0.5" stopColor="#4383B6" />
           <Stop offset="1" stopColor="#C7CFD1" />
-        </SvgLinearGradient>
-        <RadialGradient id="ambientMask" r="50%">
-          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={1} />
-          <Stop offset="0.72" stopColor="#FFFFFF" stopOpacity={0.82} />
+        </LinearGradient>
+        <LinearGradient id="planningVeil" x1="0" x2="0" y1="0" y2="1">
+          <Stop offset="0" stopColor="#BBE9FF" />
           <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
-        </RadialGradient>
-        <Mask id="softAmbientEdge">
-          <Rect fill="url(#ambientMask)" height={754} width={757} />
+        </LinearGradient>
+        <LinearGradient id="planningLowerFade" x1="0" x2="0" y1="0" y2="1">
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0} />
+          <Stop offset="0.12545185" stopColor="#FFFFFF" stopOpacity={0.25} />
+          <Stop offset="0.27795538" stopColor="#FFFFFF" stopOpacity={0.5} />
+          <Stop offset="0.5940541" stopColor="#FFFFFF" stopOpacity={1} />
+          <Stop offset="1" stopColor="#FFFFFF" stopOpacity={1} />
+        </LinearGradient>
+        <LinearGradient id="patternSideVisibility" x1="0" x2="1" y1="0" y2="0">
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.75} />
+          <Stop offset="0.23" stopColor="#FFFFFF" stopOpacity={0.5} />
+          <Stop offset="0.38" stopColor="#FFFFFF" stopOpacity={0.08} />
+          <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity={0} />
+          <Stop offset="0.62" stopColor="#FFFFFF" stopOpacity={0.08} />
+          <Stop offset="0.77" stopColor="#FFFFFF" stopOpacity={0.5} />
+          <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.75} />
+        </LinearGradient>
+        <Mask id="patternSideMask">
+          <Rect fill="url(#patternSideVisibility)" height={designFrame.height} width={designFrame.width} />
         </Mask>
+        <Filter height="160%" id="ambientBlur" width="160%" x="-30%" y="-30%">
+          <FeGaussianBlur stdDeviation={50} />
+        </Filter>
+        <Filter height="120%" id="patternBlur" width="120%" x="-10%" y="-10%">
+          <FeGaussianBlur stdDeviation={1} />
+        </Filter>
+        <Filter height="120%" id="lowerFadeBlur" width="120%" x="-10%" y="-10%">
+          <FeGaussianBlur stdDeviation={10} />
+        </Filter>
       </Defs>
-      <Rect fill="url(#ambientColor)" height={754} mask="url(#softAmbientEdge)" width={757} />
+
+      <Ellipse
+        cx={designAmbientGlow.centerX}
+        cy={designAmbientGlow.centerY}
+        fill="url(#planningAmbient)"
+        filter="url(#ambientBlur)"
+        rx={designAmbientGlow.radiusX}
+        ry={designAmbientGlow.radiusY}
+      />
+
+      <G filter="url(#patternBlur)" mask="url(#patternSideMask)">
+        {patternCells.map((cell) => (
+          <Rect
+            fill="#FFFFFF"
+            fillOpacity={0.2}
+            height={designPattern.cell}
+            key={cell}
+            rx={designPattern.cornerRadius}
+            width={designPattern.cell}
+            x={designPattern.left + (cell % 10) * designPattern.step}
+            y={designPattern.top + Math.floor(cell / 10) * designPattern.step}
+          />
+        ))}
+      </G>
+
+      <Rect fill="url(#planningVeil)" height={designFrame.height} width={designFrame.width} />
+      <Rect
+        fill="url(#planningLowerFade)"
+        filter="url(#lowerFadeBlur)"
+        height={lowerFade.height}
+        width={designFrame.width}
+        y={lowerFade.top}
+      />
     </Svg>
   );
 }
 
 export function PlanningOnboardingScene({ height, width }: Props) {
   const scale = Math.min(width / designFrame.width, height / designFrame.height);
-  const previewWidth = designPreview.width * scale;
-  const previewHeight = designPreview.height * scale;
-  const previewTop = designPreview.top * scale;
-  const patternCell = designPattern.cell * scale;
-  const patternStep = designPattern.step * scale;
-  const fadeTop = 463 * scale;
+  const canvasWidth = designFrame.width * scale;
+  const canvasHeight = designFrame.height * scale;
+  const canvasLeft = (width - canvasWidth) / 2;
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <View
-        style={[
-          styles.ambientGlow,
-          {
-            height: designAmbientGlow.height * scale,
-            left: designAmbientGlow.left * scale,
-            top: designAmbientGlow.top * scale,
-            width: designAmbientGlow.width * scale,
-          },
-        ]}
-      >
-        <AmbientGlow height={designAmbientGlow.height * scale} width={designAmbientGlow.width * scale} />
-      </View>
-
-      <LinearGradient
-        colors={['#BBE9FF', 'rgba(255,255,255,0)']}
-        locations={[0, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-
-      <View
-        style={[
-          styles.pattern,
-          {
-            height: designPattern.step * 10 * scale,
-            left: designPattern.left * scale,
-            top: designPattern.top * scale,
-            width: designPattern.step * 10 * scale,
-          },
-        ]}
-      >
-        {patternCells.map((cell) => (
-          <View
-            key={cell}
-            style={[
-              styles.patternCell,
-              {
-                borderRadius: designPattern.cornerRadius * scale,
-                borderWidth: Math.max(0.75, scale),
-                height: patternCell,
-                left: (cell % 10) * patternStep,
-                top: Math.floor(cell / 10) * patternStep,
-                width: patternCell,
-              },
-            ]}
-          />
-        ))}
-      </View>
-
-      <LinearGradient
-        colors={[
-          'rgba(255,255,255,0)',
-          'rgba(255,255,255,0.25)',
-          'rgba(255,255,255,0.5)',
-          '#FFFFFF',
-          '#FFFFFF',
-        ]}
-        locations={[0, 0.12545185, 0.27795538, 0.5940541, 1]}
-        style={[styles.fade, { height: Math.max(0, height - fadeTop), top: fadeTop }]}
-      />
-
-      <View
+      <PlanningBackground height={canvasHeight} left={canvasLeft} width={canvasWidth} />
+      <Image
+        accessibilityIgnoresInvertColors
+        resizeMode="contain"
+        source={planningHero}
         style={[
           styles.preview,
           {
-            height: previewHeight,
-            left: (width - previewWidth) / 2,
-            top: previewTop,
-            width: previewWidth,
+            height: exportedHero.height * scale,
+            left: canvasLeft + exportedHero.left * scale,
+            top: exportedHero.top * scale,
+            width: exportedHero.width * scale,
           },
         ]}
-      >
-        <Image
-          accessibilityIgnoresInvertColors
-          resizeMode="contain"
-          source={planningPreview}
-          style={styles.previewImage}
-        />
-        <View
-          style={[
-            styles.mapCardDepth,
-            {
-              borderRadius: designMapCard.borderRadius * scale,
-              borderWidth: Math.max(0.75, scale),
-              height: designMapCard.height * scale,
-              left: designMapCard.left * scale,
-              top: designMapCard.top * scale,
-              transform: [{ rotate: designMapCard.rotation }],
-              width: designMapCard.width * scale,
-            },
-          ]}
-        />
-        <View
-          style={[
-            styles.infoCardDepth,
-            {
-              borderRadius: designInfoCard.borderRadius * scale,
-              borderWidth: Math.max(0.75, scale),
-              height: designInfoCard.height * scale,
-              left: designInfoCard.left * scale,
-              top: designInfoCard.top * scale,
-              transform: [{ rotate: designInfoCard.rotation }],
-              width: designInfoCard.width * scale,
-            },
-          ]}
-        />
-      </View>
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  ambientGlow: {
-    opacity: 0.42,
+  background: {
     position: 'absolute',
-  },
-  pattern: {
-    position: 'absolute',
-  },
-  patternCell: {
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderColor: 'rgba(255,255,255,0.38)',
-    position: 'absolute',
-    shadowColor: '#71AFC6',
-    shadowOffset: { height: 3, width: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  fade: {
-    left: 0,
-    position: 'absolute',
-    right: 0,
+    top: 0,
   },
   preview: {
     position: 'absolute',
-  },
-  previewImage: {
-    height: '100%',
-    width: '100%',
-  },
-  mapCardDepth: {
-    borderColor: 'rgba(0,131,156,0.28)',
-    position: 'absolute',
-    shadowColor: '#0B3045',
-    shadowOffset: { height: 8, width: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-  },
-  infoCardDepth: {
-    borderColor: 'rgba(255,255,255,0.72)',
-    position: 'absolute',
-    shadowColor: '#0B3045',
-    shadowOffset: { height: 5, width: 0 },
-    shadowOpacity: 0.22,
-    shadowRadius: 14,
   },
 });
