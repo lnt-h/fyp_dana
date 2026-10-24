@@ -1,6 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import {
+  Animated,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -8,33 +10,157 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 
 import { Wordmark } from '../components/brand/BrandMarks';
 import { OnboardingMosaic } from '../features/onboarding/components/OnboardingMosaic';
+import { PlanningOnboardingScene } from '../features/onboarding/components/PlanningOnboardingScene';
 import { colors } from '../theme/colors';
+
+const slides = [
+  {
+    key: 'discover',
+    title: 'Discover Da Nang’s\nstories, anytime,\nat any stop!',
+  },
+  {
+    key: 'plan',
+    title: 'Pin what you love, plan\nyour day, let the city\nsurprise you!',
+  },
+] as const;
+
+const lastSlideIndex = slides.length - 1;
+
+function DirectionIcon({ direction }: { direction: 'back' | 'next' }) {
+  const path = direction === 'back' ? 'M15 5L7 13L15 21' : 'M9 5L17 13L9 21';
+
+  return (
+    <Svg height={26} viewBox="0 0 24 26" width={24}>
+      <Path
+        d={path}
+        fill="none"
+        stroke={colors.white}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+    </Svg>
+  );
+}
 
 export default function OnboardingScreen() {
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const buttonBottom = Math.max(insets.bottom, 12) + 14;
+  const [slideIndex, setSlideIndex] = useState(0);
+  const opacity = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const isAnimating = useRef(false);
+  const useNativeDriver = Platform.OS !== 'web';
+
+  const buttonBottom = Math.max(insets.bottom, 34);
+  const titleFontSize = Math.min(37, width * 0.084);
+  const slide = slides[slideIndex];
+
+  const changeSlide = useCallback(
+    (nextIndex: number, direction: -1 | 1) => {
+      if (nextIndex < 0 || nextIndex > lastSlideIndex || isAnimating.current) {
+        return;
+      }
+
+      isAnimating.current = true;
+      Animated.parallel([
+        Animated.timing(opacity, {
+          duration: 110,
+          toValue: 0,
+          useNativeDriver,
+        }),
+        Animated.timing(translateX, {
+          duration: 110,
+          toValue: direction * -14,
+          useNativeDriver,
+        }),
+      ]).start(({ finished }) => {
+        if (!finished) {
+          isAnimating.current = false;
+          return;
+        }
+
+        setSlideIndex(nextIndex);
+        translateX.setValue(direction * 18);
+
+        Animated.parallel([
+          Animated.timing(opacity, {
+            duration: 220,
+            toValue: 1,
+            useNativeDriver,
+          }),
+          Animated.timing(translateX, {
+            duration: 220,
+            toValue: 0,
+            useNativeDriver,
+          }),
+        ]).start(() => {
+          isAnimating.current = false;
+        });
+      });
+    },
+    [opacity, translateX, useNativeDriver],
+  );
 
   const handleNext = useCallback(() => {
-    // The next onboarding route will be connected with the next product slice.
-  }, []);
+    if (slideIndex < lastSlideIndex) {
+      changeSlide(slideIndex + 1, 1);
+    }
+  }, [changeSlide, slideIndex]);
+
+  const handleBack = useCallback(() => {
+    if (slideIndex > 0) {
+      changeSlide(slideIndex - 1, -1);
+    }
+  }, [changeSlide, slideIndex]);
 
   const handleSkip = useCallback(() => {
-    // The authenticated/home route is intentionally outside this two-screen slice.
+    // The home experience will own onboarding completion in the next product slice.
   }, []);
 
   return (
     <View style={styles.screen}>
       <StatusBar style="dark" />
-      <OnboardingMosaic height={height} width={width} />
+
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            opacity,
+            transform: [{ translateX }],
+          },
+        ]}
+      >
+        {slide.key === 'discover' ? (
+          <OnboardingMosaic height={height} width={width} />
+        ) : (
+          <PlanningOnboardingScene height={height} width={width} />
+        )}
+
+        <View style={[styles.copyBlock, { bottom: buttonBottom + 174 }]}>
+          <Text
+            style={[
+              styles.title,
+              {
+                fontSize: titleFontSize,
+                lineHeight: titleFontSize + 1,
+              },
+            ]}
+          >
+            {slide.title}
+          </Text>
+        </View>
+      </Animated.View>
 
       <View style={[styles.header, { top: insets.top + 10 }]}>
         <Wordmark />
         <Pressable
           accessibilityHint="Skip the onboarding introduction"
+          accessibilityLabel="Skip onboarding"
           accessibilityRole="button"
           hitSlop={12}
           onPress={handleSkip}
@@ -44,31 +170,56 @@ export default function OnboardingScreen() {
         </Pressable>
       </View>
 
-      <View style={[styles.copyBlock, { bottom: buttonBottom + 184 }]}>
-        <Text style={styles.title}>Discover Da Nang’s{`\n`}stories, anytime,{`\n`}at any stop!</Text>
+      <View style={[styles.pagination, { bottom: buttonBottom + 90 }]}>
+        {slides.map((item, index) => (
+          <View
+            accessibilityLabel={`Onboarding page ${index + 1} of ${slides.length}`}
+            key={item.key}
+            style={[styles.pageDot, index === slideIndex && styles.pageDotActive]}
+          />
+        ))}
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.pageDot} />
       </View>
 
-      <View style={[styles.pagination, { bottom: buttonBottom + 86 }]}>
-        <View style={[styles.pageDot, styles.pageDotActive]} />
-        <View style={styles.pageDot} />
-        <View style={styles.pageDot} />
-      </View>
-
-      <Pressable
-        accessibilityHint="Continue to the next onboarding step"
-        accessibilityRole="button"
-        onPress={handleNext}
-        style={({ pressed }) => [
-          styles.nextButton,
-          { bottom: buttonBottom, width: width - 32 },
-          pressed && styles.nextButtonPressed,
+      <View
+        style={[
+          styles.footer,
+          {
+            bottom: buttonBottom,
+            left: slideIndex === 0 ? 16 : 22,
+            right: slideIndex === 0 ? 16 : 21,
+          },
         ]}
       >
-        <Text style={styles.nextText}>Next</Text>
-        <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.arrow}>
-          →
-        </Text>
-      </Pressable>
+        {slideIndex > 0 ? (
+          <Pressable
+            accessibilityHint="Return to the previous onboarding step"
+            accessibilityLabel="Previous onboarding step"
+            accessibilityRole="button"
+            onPress={handleBack}
+            style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
+          >
+            <DirectionIcon direction="back" />
+          </Pressable>
+        ) : null}
+
+        <Pressable
+          accessibilityHint={
+            slideIndex < lastSlideIndex
+              ? 'Continue to the next onboarding step'
+              : 'Continue when the next onboarding step is available'
+          }
+          accessibilityLabel="Next onboarding step"
+          accessibilityRole="button"
+          onPress={handleNext}
+          style={({ pressed }) => [styles.nextButton, pressed && styles.nextButtonPressed]}
+        >
+          <Text style={styles.nextText}>Next</Text>
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.nextIcon}>
+            <DirectionIcon direction="next" />
+          </View>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -90,19 +241,20 @@ const styles = StyleSheet.create({
   },
   skipButton: {
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 20,
     height: 40,
     justifyContent: 'center',
-    minWidth: 64,
+    minWidth: 88,
   },
   skipText: {
     color: colors.deepOcean,
-    fontSize: 16,
-    fontWeight: '600',
-    lineHeight: 22,
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 24,
   },
   pressed: {
-    backgroundColor: colors.skyWash,
+    backgroundColor: 'rgba(255,255,255,0.6)',
   },
   copyBlock: {
     alignItems: 'center',
@@ -113,10 +265,8 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.deepOcean,
-    fontSize: 30,
-    fontWeight: '700',
-    letterSpacing: -0.8,
-    lineHeight: 31,
+    fontWeight: '500',
+    letterSpacing: -1.35,
     textAlign: 'center',
   },
   pagination: {
@@ -127,7 +277,7 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
     right: 0,
-    zIndex: 3,
+    zIndex: 4,
   },
   pageDot: {
     backgroundColor: colors.mutedDot,
@@ -139,17 +289,33 @@ const styles = StyleSheet.create({
     backgroundColor: colors.deepOcean,
     width: 28,
   },
+  footer: {
+    flexDirection: 'row',
+    gap: 15,
+    height: 60,
+    position: 'absolute',
+    zIndex: 4,
+  },
+  backButton: {
+    alignItems: 'center',
+    backgroundColor: '#B8C0C4',
+    borderRadius: 30,
+    height: 60,
+    justifyContent: 'center',
+    width: 60,
+  },
+  backButtonPressed: {
+    backgroundColor: '#A7B0B5',
+    transform: [{ scale: 0.98 }],
+  },
   nextButton: {
     alignItems: 'center',
-    alignSelf: 'center',
     backgroundColor: colors.ink,
     borderRadius: 30,
+    flex: 1,
     flexDirection: 'row',
     height: 60,
     justifyContent: 'center',
-    left: 16,
-    position: 'absolute',
-    zIndex: 4,
   },
   nextButtonPressed: {
     opacity: 0.82,
@@ -157,14 +323,12 @@ const styles = StyleSheet.create({
   },
   nextText: {
     color: colors.white,
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '700',
-    lineHeight: 22,
+    lineHeight: 24,
   },
-  arrow: {
-    color: colors.white,
-    fontSize: 18,
-    lineHeight: 22,
-    marginLeft: 8,
+  nextIcon: {
+    marginLeft: 6,
+    transform: [{ scale: 0.58 }],
   },
 });
