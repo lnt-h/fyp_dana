@@ -1,4 +1,5 @@
 export const colors = {
+  audioTeal: '#00839C',
   deepOcean: '#0B3045',
   ink: '#00141E',
   mutedDot: '#D4E0E5',

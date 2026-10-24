@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import {
   Animated,
@@ -30,6 +31,11 @@ const slides = [
 
 const lastSlideIndex = slides.length - 1;
 
+const designFrame = {
+  height: 956,
+  width: 440,
+} as const;
+
 function DirectionIcon({ direction }: { direction: 'back' | 'next' }) {
   const path = direction === 'back' ? 'M15 5L7 13L15 21' : 'M9 5L17 13L9 21';
 
@@ -56,14 +62,14 @@ export default function OnboardingScreen() {
   const isAnimating = useRef(false);
   const useNativeDriver = Platform.OS !== 'web';
 
-  const buttonBottom = Math.max(insets.bottom, 34);
-  const horizontalPadding = Math.max(16, width * 0.04);
-  const headerTop = insets.top + Math.max(4, width * 0.01);
-  const wordmarkWidth = Math.min(108, width * 0.25);
-  const wordmarkHeight = wordmarkWidth * (32 / 133);
-  const mosaicTop = headerTop + wordmarkHeight + Math.max(6, width * 0.015);
-  const titleFontSize = Math.min(37, width * 0.084);
   const slide = slides[slideIndex];
+  const designScale = Math.min(width / designFrame.width, height / designFrame.height);
+  const buttonBottom = Math.max(insets.bottom, 34);
+  const horizontalPadding = 16 * designScale;
+  const headerTop = Math.max(insets.top + 8 * designScale, 72 * designScale);
+  const wordmarkWidth = 133 * designScale;
+  const headerFadeHeight = (slide.key === 'discover' ? 202 : 184) * designScale;
+  const titleFontSize = Math.min(37, width * 0.084);
 
   const changeSlide = useCallback(
     (nextIndex: number, direction: -1 | 1) => {
@@ -141,7 +147,7 @@ export default function OnboardingScreen() {
         ]}
       >
         {slide.key === 'discover' ? (
-          <OnboardingMosaic height={height} topInset={mosaicTop} width={width} />
+          <OnboardingMosaic height={height} width={width} />
         ) : (
           <PlanningOnboardingScene height={height} width={width} />
         )}
@@ -161,6 +167,13 @@ export default function OnboardingScreen() {
         </View>
       </Animated.View>
 
+      <LinearGradient
+        colors={[colors.white, 'rgba(255,255,255,0.5)', 'rgba(255,255,255,0)']}
+        locations={slide.key === 'discover' ? [0.4426653, 0.7473981, 1] : [0.3656812, 0.7950298, 1]}
+        pointerEvents="none"
+        style={[styles.headerFade, { height: headerFadeHeight }]}
+      />
+
       <View style={[styles.header, { left: horizontalPadding, right: horizontalPadding, top: headerTop }]}>
         <Wordmark width={wordmarkWidth} />
         <Pressable
@@ -169,9 +182,27 @@ export default function OnboardingScreen() {
           accessibilityRole="button"
           hitSlop={12}
           onPress={handleSkip}
-          style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.skipButton,
+            {
+              borderRadius: 20 * designScale,
+              height: 40 * designScale,
+              width: 88 * designScale,
+            },
+            pressed && styles.pressed,
+          ]}
         >
-          <Text style={styles.skipText}>Skip</Text>
+          <Text
+            style={[
+              styles.skipText,
+              {
+                fontSize: 20 * designScale,
+                lineHeight: 22 * designScale,
+              },
+            ]}
+          >
+            Skip
+          </Text>
         </Pressable>
       </View>
 
@@ -242,20 +273,21 @@ const styles = StyleSheet.create({
     position: 'absolute',
     zIndex: 4,
   },
+  headerFade: {
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 3,
+  },
   skipButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.68)',
-    borderRadius: 20,
-    minHeight: 40,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
-    minWidth: 64,
-    paddingHorizontal: 12,
   },
   skipText: {
     color: colors.deepOcean,
-    fontSize: 16,
-    fontWeight: '600',
-    lineHeight: 22,
+    fontWeight: '700',
   },
   pressed: {
     backgroundColor: 'rgba(255,255,255,0.6)',

@@ -2,7 +2,26 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image, ImageSourcePropType, StyleSheet, View } from 'react-native';
 
 const planningPreview = require('../../../../assets/onboarding/plan-tour.png') as ImageSourcePropType;
-const patternCells = Array.from({ length: 60 }, (_, index) => index);
+const patternCells = Array.from({ length: 100 }, (_, index) => index);
+
+const designFrame = {
+  height: 956,
+  width: 440,
+} as const;
+
+const designPreview = {
+  height: 336.5521,
+  top: 192.6003,
+  width: 355.5391,
+} as const;
+
+const designPattern = {
+  cell: 90.2076,
+  cornerRadius: 16.0611,
+  left: -290.5,
+  step: 96.0322,
+  top: 31,
+} as const;
 
 type Props = {
   height: number;
@@ -10,28 +29,60 @@ type Props = {
 };
 
 export function PlanningOnboardingScene({ height, width }: Props) {
-  const previewWidth = Math.min(width * 0.81, 380);
-  const previewHeight = previewWidth * (673 / 711);
-  const previewTop = Math.max(height * 0.19, 142);
+  const scale = Math.min(width / designFrame.width, height / designFrame.height);
+  const previewWidth = designPreview.width * scale;
+  const previewHeight = designPreview.height * scale;
+  const previewTop = designPreview.top * scale;
+  const patternCell = designPattern.cell * scale;
+  const patternStep = designPattern.step * scale;
+  const fadeTop = 463 * scale;
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <LinearGradient
-        colors={['#D7F4FA', '#EAF8FC', '#FFFFFF']}
-        locations={[0, 0.5, 0.9]}
+        colors={['#BBE9FF', 'rgba(255,255,255,0)']}
+        locations={[0, 1]}
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={styles.pattern}>
+      <View
+        style={[
+          styles.pattern,
+          {
+            height: designPattern.step * 10 * scale,
+            left: designPattern.left * scale,
+            top: designPattern.top * scale,
+            width: designPattern.step * 10 * scale,
+          },
+        ]}
+      >
         {patternCells.map((cell) => (
-          <View key={cell} style={styles.patternCell} />
+          <View
+            key={cell}
+            style={[
+              styles.patternCell,
+              {
+                borderRadius: designPattern.cornerRadius * scale,
+                height: patternCell,
+                left: (cell % 10) * patternStep,
+                top: Math.floor(cell / 10) * patternStep,
+                width: patternCell,
+              },
+            ]}
+          />
         ))}
       </View>
 
       <LinearGradient
-        colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.42)', '#FFFFFF']}
-        locations={[0, 0.34, 0.72]}
-        style={[styles.fade, { height: height * 0.58, top: height * 0.42 }]}
+        colors={[
+          'rgba(255,255,255,0)',
+          'rgba(255,255,255,0.25)',
+          'rgba(255,255,255,0.5)',
+          '#FFFFFF',
+          '#FFFFFF',
+        ]}
+        locations={[0, 0.12545185, 0.27795538, 0.5940541, 1]}
+        style={[styles.fade, { height: Math.max(0, height - fadeTop), top: fadeTop }]}
       />
 
       <Image
@@ -54,20 +105,11 @@ export function PlanningOnboardingScene({ height, width }: Props) {
 
 const styles = StyleSheet.create({
   pattern: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 7,
-    left: -44,
-    opacity: 0.3,
     position: 'absolute',
-    right: -44,
-    top: 178,
   },
   patternCell: {
-    aspectRatio: 1,
-    backgroundColor: 'rgba(255,255,255,0.42)',
-    borderRadius: 16,
-    width: '19%',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    position: 'absolute',
   },
   fade: {
     left: 0,
