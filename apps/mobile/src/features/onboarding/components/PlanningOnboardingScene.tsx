@@ -38,6 +38,24 @@ const designAmbientGlow = {
   width: 757,
 } as const;
 
+const designMapCard = {
+  borderRadius: 24.3913,
+  height: 243.3467,
+  left: 9.1,
+  rotation: '-4.52deg',
+  top: 12.9,
+  width: 337.4135,
+} as const;
+
+const designInfoCard = {
+  borderRadius: 16.2609,
+  height: 87.4023,
+  left: 19.39,
+  rotation: '3.86deg',
+  top: 216.21,
+  width: 317.0874,
+} as const;
+
 type Props = {
   height: number;
   width: number;
@@ -91,6 +109,12 @@ export function PlanningOnboardingScene({ height, width }: Props) {
         <AmbientGlow height={designAmbientGlow.height * scale} width={designAmbientGlow.width * scale} />
       </View>
 
+      <LinearGradient
+        colors={['#BBE9FF', 'rgba(255,255,255,0)']}
+        locations={[0, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+
       <View
         style={[
           styles.pattern,
@@ -109,7 +133,7 @@ export function PlanningOnboardingScene({ height, width }: Props) {
               styles.patternCell,
               {
                 borderRadius: designPattern.cornerRadius * scale,
-                borderWidth: Math.max(0.5, 0.8 * scale),
+                borderWidth: Math.max(0.75, scale),
                 height: patternCell,
                 left: (cell % 10) * patternStep,
                 top: Math.floor(cell / 10) * patternStep,
@@ -119,12 +143,6 @@ export function PlanningOnboardingScene({ height, width }: Props) {
           />
         ))}
       </View>
-
-      <LinearGradient
-        colors={['#BBE9FF', 'rgba(255,255,255,0)']}
-        locations={[0, 1]}
-        style={StyleSheet.absoluteFill}
-      />
 
       <LinearGradient
         colors={[
@@ -138,10 +156,7 @@ export function PlanningOnboardingScene({ height, width }: Props) {
         style={[styles.fade, { height: Math.max(0, height - fadeTop), top: fadeTop }]}
       />
 
-      <Image
-        accessibilityIgnoresInvertColors
-        resizeMode="contain"
-        source={planningPreview}
+      <View
         style={[
           styles.preview,
           {
@@ -151,7 +166,42 @@ export function PlanningOnboardingScene({ height, width }: Props) {
             width: previewWidth,
           },
         ]}
-      />
+      >
+        <Image
+          accessibilityIgnoresInvertColors
+          resizeMode="contain"
+          source={planningPreview}
+          style={styles.previewImage}
+        />
+        <View
+          style={[
+            styles.mapCardDepth,
+            {
+              borderRadius: designMapCard.borderRadius * scale,
+              borderWidth: Math.max(0.75, scale),
+              height: designMapCard.height * scale,
+              left: designMapCard.left * scale,
+              top: designMapCard.top * scale,
+              transform: [{ rotate: designMapCard.rotation }],
+              width: designMapCard.width * scale,
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.infoCardDepth,
+            {
+              borderRadius: designInfoCard.borderRadius * scale,
+              borderWidth: Math.max(0.75, scale),
+              height: designInfoCard.height * scale,
+              left: designInfoCard.left * scale,
+              top: designInfoCard.top * scale,
+              transform: [{ rotate: designInfoCard.rotation }],
+              width: designInfoCard.width * scale,
+            },
+          ]}
+        />
+      </View>
     </View>
   );
 }
@@ -165,13 +215,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   patternCell: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(255,255,255,0.38)',
     position: 'absolute',
-    shadowColor: '#FFFFFF',
+    shadowColor: '#71AFC6',
     shadowOffset: { height: 3, width: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 2,
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
   fade: {
     left: 0,
@@ -180,5 +230,25 @@ const styles = StyleSheet.create({
   },
   preview: {
     position: 'absolute',
+  },
+  previewImage: {
+    height: '100%',
+    width: '100%',
+  },
+  mapCardDepth: {
+    borderColor: 'rgba(0,131,156,0.28)',
+    position: 'absolute',
+    shadowColor: '#0B3045',
+    shadowOffset: { height: 8, width: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+  },
+  infoCardDepth: {
+    borderColor: 'rgba(255,255,255,0.72)',
+    position: 'absolute',
+    shadowColor: '#0B3045',
+    shadowOffset: { height: 5, width: 0 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
   },
 });
