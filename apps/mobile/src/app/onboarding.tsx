@@ -57,7 +57,6 @@ export default function OnboardingScreen() {
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [slideIndex, setSlideIndex] = useState(0);
-  const opacity = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
   const isAnimating = useRef(false);
   const useNativeDriver = Platform.OS !== 'web';
@@ -78,18 +77,11 @@ export default function OnboardingScreen() {
       }
 
       isAnimating.current = true;
-      Animated.parallel([
-        Animated.timing(opacity, {
-          duration: 110,
-          toValue: 0,
-          useNativeDriver,
-        }),
-        Animated.timing(translateX, {
-          duration: 110,
-          toValue: direction * -14,
-          useNativeDriver,
-        }),
-      ]).start(({ finished }) => {
+      Animated.timing(translateX, {
+        duration: 110,
+        toValue: direction * -14,
+        useNativeDriver,
+      }).start(({ finished }) => {
         if (!finished) {
           isAnimating.current = false;
           return;
@@ -98,23 +90,16 @@ export default function OnboardingScreen() {
         setSlideIndex(nextIndex);
         translateX.setValue(direction * 18);
 
-        Animated.parallel([
-          Animated.timing(opacity, {
-            duration: 220,
-            toValue: 1,
-            useNativeDriver,
-          }),
-          Animated.timing(translateX, {
-            duration: 220,
-            toValue: 0,
-            useNativeDriver,
-          }),
-        ]).start(() => {
+        Animated.timing(translateX, {
+          duration: 220,
+          toValue: 0,
+          useNativeDriver,
+        }).start(() => {
           isAnimating.current = false;
         });
       });
     },
-    [opacity, translateX, useNativeDriver],
+    [translateX, useNativeDriver],
   );
 
   const handleNext = useCallback(() => {
@@ -141,7 +126,6 @@ export default function OnboardingScreen() {
         style={[
           StyleSheet.absoluteFill,
           {
-            opacity,
             transform: [{ translateX }],
           },
         ]}
