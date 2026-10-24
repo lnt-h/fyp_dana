@@ -1,9 +1,10 @@
 {
   "expo": {
-    "name": "DaNavi",
-    "slug": "danavi-mobile",
-    "scheme": "danavi",
+    "name": "Gonarra",
+    "slug": "gonarra-mobile",
+    "scheme": "gonarra",
     "version": "1.0.0",
+    "description": "A mobile tour guide for discovering Da Nang through curated stops, local stories, and audio experiences.",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -12,7 +13,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0B3045",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -24,7 +25,7 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
-      "package": "com.anonymous.danavimobile"
+      "package": "com.anonymous.gonarramobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
