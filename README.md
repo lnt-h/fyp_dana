@@ -1,12 +1,10 @@
 # Gonarra
 
-Gonarra is an audio-first mobile guide for discovering Da Nang through curated stops, local stories, and location-aware experiences.
-
 <p align="center">
-  <img src="docs/assets/readme/splash.jpg" width="220" alt="Gonarra splash screen" />
-  &nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/readme/onboarding.jpg" width="220" alt="Gonarra onboarding screen" />
+  <img src="apps/mobile/assets/brand/gonarra-app-icon.svg" width="72" alt="Gonarra" />
 </p>
+
+Gonarra is an audio-first mobile guide for discovering Da Nang through curated stops, local stories, and location-aware experiences.
 
 Built with React Native, Expo, TypeScript, and Expo Router. The current product slice includes the branded splash and two Figma-based onboarding slides.
 

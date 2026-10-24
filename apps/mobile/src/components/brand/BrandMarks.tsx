@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Animated, Platform, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, Platform, StyleSheet, View } from 'react-native';
 import Svg, {
   Circle,
   Defs,
@@ -9,6 +9,20 @@ import Svg, {
 } from 'react-native-svg';
 
 import { colors } from '../../theme/colors';
+
+const loadingAnimation = {
+  dotCount: 3,
+  dotSize: 4,
+  gap: 4,
+  pauseDuration: 240,
+  pulseDuration: 180,
+  staggerDelay: 120,
+} as const;
+
+export const LOADING_CYCLE_DURATION_MS =
+  (loadingAnimation.dotCount - 1) * loadingAnimation.staggerDelay +
+  loadingAnimation.pulseDuration * 2 +
+  loadingAnimation.pauseDuration;
 
 export function SplashLogo() {
   return (
@@ -35,34 +49,99 @@ export function SplashLogo() {
 }
 
 export function LoadingDots() {
-  const opacity = useRef(new Animated.Value(0.45)).current;
+  const progress = useRef(
+    Array.from({ length: loadingAnimation.dotCount }, () => new Animated.Value(0)),
+  ).current;
+  const [reduceMotionEnabled, setReduceMotionEnabled] = useState(false);
   const useNativeDriver = Platform.OS !== 'web';
 
   useEffect(() => {
+    let isMounted = true;
+
+    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (isMounted) {
+        setReduceMotionEnabled(enabled);
+      }
+    });
+
+    const subscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      setReduceMotionEnabled,
+    );
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    progress.forEach((value) => {
+      value.stopAnimation();
+      value.setValue(reduceMotionEnabled ? 0.5 : 0);
+    });
+
+    if (reduceMotionEnabled) {
+      return;
+    }
+
+    const pulses = progress.map((value) =>
+      Animated.sequence([
+        Animated.timing(value, {
+          duration: loadingAnimation.pulseDuration,
+          toValue: 1,
+          useNativeDriver,
+        }),
+        Animated.timing(value, {
+          duration: loadingAnimation.pulseDuration,
+          toValue: 0,
+          useNativeDriver,
+        }),
+      ]),
+    );
+
     const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, { duration: 520, toValue: 1, useNativeDriver }),
-        Animated.timing(opacity, { duration: 520, toValue: 0.45, useNativeDriver }),
+        Animated.stagger(loadingAnimation.staggerDelay, pulses),
+        Animated.delay(loadingAnimation.pauseDuration),
       ]),
     );
 
     animation.start();
     return () => animation.stop();
-  }, [opacity, useNativeDriver]);
+  }, [progress, reduceMotionEnabled, useNativeDriver]);
 
   return (
-    <Animated.View style={{ opacity }}>
-      <Svg height={36} viewBox="0 0 36 36" width={36}>
-        <Path
-          d="M9 22.5C8.17157 22.5 7.5 21.8284 7.5 21C7.5 20.1716 8.17157 19.5 9 19.5C9.82843 19.5 10.5 20.1716 10.5 21C10.5 21.8284 9.82843 22.5 9 22.5ZM18 19.5C17.1716 19.5 16.5 18.8284 16.5 18C16.5 17.1716 17.1716 16.5 18 16.5C18.8284 16.5 19.5 17.1716 19.5 18C19.5 18.8284 18.8284 19.5 18 19.5ZM27 16.5C26.1716 16.5 25.5 15.8284 25.5 15C25.5 14.1716 26.1716 13.5 27 13.5C27.8284 13.5 28.5 14.1716 28.5 15C28.5 15.8284 27.8284 16.5 27 16.5Z"
-          fill="none"
-          stroke={colors.white}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
+    <View
+      accessibilityLabel="Loading Gonarra"
+      accessibilityRole="progressbar"
+      style={styles.loadingDots}
+    >
+      {progress.map((value, index) => (
+        <Animated.View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          key={`loading-dot-${index}`}
+          style={[
+            styles.loadingDot,
+            {
+              opacity: value.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.35, 1],
+              }),
+              transform: [
+                {
+                  scale: value.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.8, 1.2],
+                  }),
+                },
+              ],
+            },
+          ]}
         />
-      </Svg>
-    </Animated.View>
+      ))}
+    </View>
   );
 }
 
@@ -127,3 +206,18 @@ export function Wordmark({ width }: WordmarkProps) {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingDot: {
+    backgroundColor: colors.white,
+    borderRadius: loadingAnimation.dotSize / 2,
+    height: loadingAnimation.dotSize,
+    width: loadingAnimation.dotSize,
+  },
+  loadingDots: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: loadingAnimation.gap,
+    justifyContent: 'center',
+  },
+});
