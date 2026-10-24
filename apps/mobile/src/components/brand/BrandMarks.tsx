@@ -82,10 +82,18 @@ const gradientWordmarkPaths = [
   'M129.01 8.47876V21.28',
 ];
 
-export function Wordmark() {
+const wordmarkAspectRatio = 133 / 32;
+
+type WordmarkProps = {
+  width: number;
+};
+
+export function Wordmark({ width }: WordmarkProps) {
+  const height = width / wordmarkAspectRatio;
+
   return (
-    <View accessibilityLabel="Gonarra" style={{ height: 32, width: 133 }}>
-      <Svg height={32} viewBox="0 0 133 32" width={133}>
+    <View accessibilityLabel="Gonarra" accessibilityRole="image" style={{ height, width }}>
+      <Svg height="100%" viewBox="0 0 133 32" width="100%">
         <Defs>
           <SvgLinearGradient id="wordmark" x1="64" x2="131" y1="0" y2="0">
             <Stop offset="0" stopColor={colors.deepOcean} />

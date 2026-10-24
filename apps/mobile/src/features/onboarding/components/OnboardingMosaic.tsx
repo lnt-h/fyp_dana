@@ -15,6 +15,7 @@ const images = {
 
 type Props = {
   height: number;
+  topInset: number;
   width: number;
 };
 
@@ -57,7 +58,7 @@ function AudioMark({ size }: { size: number }) {
   );
 }
 
-export function OnboardingMosaic({ height, width }: Props) {
+export function OnboardingMosaic({ height, topInset, width }: Props) {
   const horizontalPadding = 16;
   const gap = 12;
   const availableWidth = width - horizontalPadding * 2 - gap * 2;
@@ -70,24 +71,26 @@ export function OnboardingMosaic({ height, width }: Props) {
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <View style={[styles.column, { left: horizontalPadding, width: narrow }]}>
-        <Tile height={215 * verticalScale} radius={radiusNarrow} source={images.marbleMountains} top={0} width={narrow} />
-        <Tile height={367 * verticalScale} radius={radiusNarrow} source={images.chamSculpture} top={227 * verticalScale} width={narrow} />
-        <Tile height={261 * verticalScale} radius={radiusNarrow} source={images.marbleMountains} top={606 * verticalScale} width={narrow} />
-      </View>
-
-      <View style={[styles.column, { left: horizontalPadding + narrow + gap, width: wide }]}>
-        <Tile height={344 * verticalScale} radius={radiusWide} source={images.dragonBridge} top={-25 * verticalScale} width={wide} />
-        <View style={[styles.audioMark, { height: 94 * verticalScale, top: 349 * verticalScale, width: wide }]}>
-          <AudioMark size={94 * verticalScale} />
+      <View style={[styles.artwork, { top: topInset }]}>
+        <View style={[styles.column, { left: horizontalPadding, width: narrow }]}>
+          <Tile height={215 * verticalScale} radius={radiusNarrow} source={images.marbleMountains} top={0} width={narrow} />
+          <Tile height={367 * verticalScale} radius={radiusNarrow} source={images.chamSculpture} top={227 * verticalScale} width={narrow} />
+          <Tile height={261 * verticalScale} radius={radiusNarrow} source={images.marbleMountains} top={606 * verticalScale} width={narrow} />
         </View>
-        <Tile height={344 * verticalScale} radius={radiusWide} source={images.beach} top={473 * verticalScale} width={wide} />
-      </View>
 
-      <View style={[styles.column, { left: horizontalPadding + narrow + gap + wide + gap, width: narrow }]}>
-        <Tile height={215 * verticalScale} radius={radiusNarrow} source={images.cyclo} top={0} width={narrow} />
-        <Tile height={371 * verticalScale} radius={radiusNarrow} source={images.cityBridge} top={227 * verticalScale} width={narrow} />
-        <Tile height={215 * verticalScale} radius={radiusNarrow} source={images.beach} top={610 * verticalScale} width={narrow} />
+        <View style={[styles.column, { left: horizontalPadding + narrow + gap, width: wide }]}>
+          <Tile height={344 * verticalScale} radius={radiusWide} source={images.dragonBridge} top={-25 * verticalScale} width={wide} />
+          <View style={[styles.audioMark, { height: 94 * verticalScale, top: 349 * verticalScale, width: wide }]}>
+            <AudioMark size={94 * verticalScale} />
+          </View>
+          <Tile height={344 * verticalScale} radius={radiusWide} source={images.beach} top={473 * verticalScale} width={wide} />
+        </View>
+
+        <View style={[styles.column, { left: horizontalPadding + narrow + gap + wide + gap, width: narrow }]}>
+          <Tile height={215 * verticalScale} radius={radiusNarrow} source={images.cyclo} top={0} width={narrow} />
+          <Tile height={371 * verticalScale} radius={radiusNarrow} source={images.cityBridge} top={227 * verticalScale} width={narrow} />
+          <Tile height={215 * verticalScale} radius={radiusNarrow} source={images.beach} top={610 * verticalScale} width={narrow} />
+        </View>
       </View>
 
       <LinearGradient
@@ -100,6 +103,12 @@ export function OnboardingMosaic({ height, width }: Props) {
 }
 
 const styles = StyleSheet.create({
+  artwork: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
   column: {
     bottom: 0,
     position: 'absolute',

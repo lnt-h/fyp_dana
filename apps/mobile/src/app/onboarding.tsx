@@ -57,6 +57,11 @@ export default function OnboardingScreen() {
   const useNativeDriver = Platform.OS !== 'web';
 
   const buttonBottom = Math.max(insets.bottom, 34);
+  const horizontalPadding = Math.max(16, width * 0.04);
+  const headerTop = insets.top + Math.max(4, width * 0.01);
+  const wordmarkWidth = Math.min(108, width * 0.25);
+  const wordmarkHeight = wordmarkWidth * (32 / 133);
+  const mosaicTop = headerTop + wordmarkHeight + Math.max(6, width * 0.015);
   const titleFontSize = Math.min(37, width * 0.084);
   const slide = slides[slideIndex];
 
@@ -136,7 +141,7 @@ export default function OnboardingScreen() {
         ]}
       >
         {slide.key === 'discover' ? (
-          <OnboardingMosaic height={height} width={width} />
+          <OnboardingMosaic height={height} topInset={mosaicTop} width={width} />
         ) : (
           <PlanningOnboardingScene height={height} width={width} />
         )}
@@ -156,8 +161,8 @@ export default function OnboardingScreen() {
         </View>
       </Animated.View>
 
-      <View style={[styles.header, { top: insets.top + 10 }]}>
-        <Wordmark />
+      <View style={[styles.header, { left: horizontalPadding, right: horizontalPadding, top: headerTop }]}>
+        <Wordmark width={wordmarkWidth} />
         <Pressable
           accessibilityHint="Skip the onboarding introduction"
           accessibilityLabel="Skip onboarding"
@@ -234,24 +239,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    left: 16,
     position: 'absolute',
-    right: 16,
     zIndex: 4,
   },
   skipButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.68)',
     borderRadius: 20,
-    height: 40,
+    minHeight: 40,
     justifyContent: 'center',
-    minWidth: 88,
+    minWidth: 64,
+    paddingHorizontal: 12,
   },
   skipText: {
     color: colors.deepOcean,
-    fontSize: 20,
-    fontWeight: '700',
-    lineHeight: 24,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
   },
   pressed: {
     backgroundColor: 'rgba(255,255,255,0.6)',
