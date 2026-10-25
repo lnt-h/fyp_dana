@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Image, ImageSourcePropType, StyleSheet, View } from 'react-native';
 import Svg, {
   Defs,
@@ -141,7 +142,7 @@ function PlanningBackground({ height, left, width }: BackgroundProps) {
   );
 }
 
-export function PlanningOnboardingScene({ height, width }: Props) {
+export const PlanningOnboardingScene = memo(function PlanningOnboardingScene({ height, width }: Props) {
   const scale = Math.min(width / designFrame.width, height / designFrame.height);
   const canvasWidth = designFrame.width * scale;
   const canvasHeight = designFrame.height * scale;
@@ -166,7 +167,7 @@ export function PlanningOnboardingScene({ height, width }: Props) {
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   background: {

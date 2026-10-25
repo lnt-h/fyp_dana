@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Platform, StyleSheet, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Platform, StyleSheet, View } from 'react-native';
 import Svg, {
   Circle,
   Defs,
@@ -9,6 +9,7 @@ import Svg, {
 } from 'react-native-svg';
 
 import { colors } from '../../theme/colors';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 const loadingAnimation = {
   dotCount: 3,
@@ -52,28 +53,8 @@ export function LoadingDots() {
   const progress = useRef(
     Array.from({ length: loadingAnimation.dotCount }, () => new Animated.Value(0)),
   ).current;
-  const [reduceMotionEnabled, setReduceMotionEnabled] = useState(false);
+  const reduceMotionEnabled = useReducedMotion();
   const useNativeDriver = Platform.OS !== 'web';
-
-  useEffect(() => {
-    let isMounted = true;
-
-    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (isMounted) {
-        setReduceMotionEnabled(enabled);
-      }
-    });
-
-    const subscription = AccessibilityInfo.addEventListener(
-      'reduceMotionChanged',
-      setReduceMotionEnabled,
-    );
-
-    return () => {
-      isMounted = false;
-      subscription.remove();
-    };
-  }, []);
 
   useEffect(() => {
     progress.forEach((value) => {

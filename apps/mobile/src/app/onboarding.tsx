@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import {
   Animated,
+  Easing,
   Platform,
   Pressable,
   StyleSheet,
@@ -16,6 +17,7 @@ import Svg, { Path } from 'react-native-svg';
 import { Wordmark } from '../components/brand/BrandMarks';
 import { OnboardingMosaic } from '../features/onboarding/components/OnboardingMosaic';
 import { PlanningOnboardingScene } from '../features/onboarding/components/PlanningOnboardingScene';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { colors } from '../theme/colors';
 
 const slides = [
@@ -35,6 +37,25 @@ const designFrame = {
   height: 956,
   width: 440,
 } as const;
+
+const slideTransition = {
+  duration: 260,
+  offset: 24,
+} as const;
+
+type SlideCopyProps = {
+  bottom: number;
+  fontSize: number;
+  title: string;
+};
+
+function SlideCopy({ bottom, fontSize, title }: SlideCopyProps) {
+  return (
+    <View style={[styles.copyBlock, { bottom }]}>
+      <Text style={[styles.title, { fontSize, lineHeight: fontSize + 1 }]}>{title}</Text>
+    </View>
+  );
+}
 
 function DirectionIcon({ direction }: { direction: 'back' | 'next' }) {
   const path = direction === 'back' ? 'M15 5L7 13L15 21' : 'M9 5L17 13L9 21';
@@ -57,8 +78,11 @@ export default function OnboardingScreen() {
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [slideIndex, setSlideIndex] = useState(0);
-  const translateX = useRef(new Animated.Value(0)).current;
+  const [planningPrepared, setPlanningPrepared] = useState(false);
+  const transitionProgress = useRef(new Animated.Value(0)).current;
+  const scheduledFrame = useRef<number | null>(null);
   const isAnimating = useRef(false);
+  const reducedMotionEnabled = useReducedMotion();
   const useNativeDriver = Platform.OS !== 'web';
 
   const slide = slides[slideIndex];
@@ -69,48 +93,66 @@ export default function OnboardingScreen() {
   const wordmarkWidth = 133 * designScale;
   const headerFadeHeight = (slide.key === 'discover' ? 202 : 184) * designScale;
   const titleFontSize = Math.min(37, width * 0.084);
+  const copyBottom = buttonBottom + 174;
+  const transitionOffset = slideTransition.offset * designScale;
+
+  useEffect(() => {
+    const preparationTask = requestIdleCallback(() => {
+      setPlanningPrepared(true);
+    }, { timeout: 500 });
+
+    return () => {
+      cancelIdleCallback(preparationTask);
+      transitionProgress.stopAnimation();
+
+      if (scheduledFrame.current !== null) {
+        cancelAnimationFrame(scheduledFrame.current);
+      }
+    };
+  }, [transitionProgress]);
 
   const changeSlide = useCallback(
-    (nextIndex: number, direction: -1 | 1) => {
+    (nextIndex: number) => {
       if (nextIndex < 0 || nextIndex > lastSlideIndex || isAnimating.current) {
         return;
       }
 
       isAnimating.current = true;
-      Animated.timing(translateX, {
-        duration: 110,
-        toValue: direction * -14,
-        useNativeDriver,
-      }).start(({ finished }) => {
-        if (!finished) {
-          isAnimating.current = false;
-          return;
-        }
-
+      const runTransition = () => {
         setSlideIndex(nextIndex);
-        translateX.setValue(direction * 18);
-
-        Animated.timing(translateX, {
-          duration: 220,
-          toValue: 0,
+        Animated.timing(transitionProgress, {
+          duration: reducedMotionEnabled ? 0 : slideTransition.duration,
+          easing: Easing.out(Easing.cubic),
+          toValue: nextIndex,
           useNativeDriver,
         }).start(() => {
           isAnimating.current = false;
         });
-      });
+      };
+
+      if (nextIndex === 1 && !planningPrepared) {
+        setPlanningPrepared(true);
+        scheduledFrame.current = requestAnimationFrame(() => {
+          scheduledFrame.current = null;
+          runTransition();
+        });
+        return;
+      }
+
+      runTransition();
     },
-    [translateX, useNativeDriver],
+    [planningPrepared, reducedMotionEnabled, transitionProgress, useNativeDriver],
   );
 
   const handleNext = useCallback(() => {
     if (slideIndex < lastSlideIndex) {
-      changeSlide(slideIndex + 1, 1);
+      changeSlide(slideIndex + 1);
     }
   }, [changeSlide, slideIndex]);
 
   const handleBack = useCallback(() => {
     if (slideIndex > 0) {
-      changeSlide(slideIndex - 1, -1);
+      changeSlide(slideIndex - 1);
     }
   }, [changeSlide, slideIndex]);
 
@@ -123,33 +165,55 @@ export default function OnboardingScreen() {
       <StatusBar style="dark" />
 
       <Animated.View
+        accessibilityElementsHidden={slideIndex !== 0}
+        importantForAccessibility={slideIndex === 0 ? 'auto' : 'no-hide-descendants'}
+        pointerEvents="none"
         style={[
-          StyleSheet.absoluteFill,
+          styles.slideLayer,
           {
-            transform: [{ translateX }],
+            opacity: transitionProgress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [1, 0],
+            }),
+            transform: [
+              {
+                translateX: transitionProgress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, -transitionOffset],
+                }),
+              },
+            ],
           },
         ]}
       >
-        {slide.key === 'discover' ? (
-          <OnboardingMosaic height={height} width={width} />
-        ) : (
-          <PlanningOnboardingScene height={height} width={width} />
-        )}
-
-        <View style={[styles.copyBlock, { bottom: buttonBottom + 174 }]}>
-          <Text
-            style={[
-              styles.title,
-              {
-                fontSize: titleFontSize,
-                lineHeight: titleFontSize + 1,
-              },
-            ]}
-          >
-            {slide.title}
-          </Text>
-        </View>
+        <OnboardingMosaic height={height} width={width} />
+        <SlideCopy bottom={copyBottom} fontSize={titleFontSize} title={slides[0].title} />
       </Animated.View>
+
+      {planningPrepared ? (
+        <Animated.View
+          accessibilityElementsHidden={slideIndex !== 1}
+          importantForAccessibility={slideIndex === 1 ? 'auto' : 'no-hide-descendants'}
+          pointerEvents="none"
+          style={[
+            styles.slideLayer,
+            {
+              opacity: transitionProgress,
+              transform: [
+                {
+                  translateX: transitionProgress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [transitionOffset, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <PlanningOnboardingScene height={height} width={width} />
+          <SlideCopy bottom={copyBottom} fontSize={titleFontSize} title={slides[1].title} />
+        </Animated.View>
+      ) : null}
 
       <LinearGradient
         colors={[colors.white, 'rgba(255,255,255,0.5)', 'rgba(255,255,255,0)']}
@@ -249,6 +313,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     flex: 1,
     overflow: 'hidden',
+  },
+  slideLayer: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   header: {
     alignItems: 'center',

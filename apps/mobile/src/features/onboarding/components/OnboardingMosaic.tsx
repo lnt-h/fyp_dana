@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image, ImageSourcePropType, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, G, Path, RadialGradient, Stop } from 'react-native-svg';
@@ -104,7 +105,7 @@ function AudioMark({ size }: { size: number }) {
   );
 }
 
-export function OnboardingMosaic({ height, width }: Props) {
+export const OnboardingMosaic = memo(function OnboardingMosaic({ height, width }: Props) {
   const scale = Math.min(width / designFrame.width, height / designFrame.height);
   const canvasLeft = (width - designFrame.width * scale) / 2;
   const narrow = 109 * scale;
@@ -204,7 +205,7 @@ export function OnboardingMosaic({ height, width }: Props) {
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   column: {
