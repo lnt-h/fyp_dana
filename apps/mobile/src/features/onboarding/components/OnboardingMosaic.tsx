@@ -1,9 +1,12 @@
 import { memo } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Image, ImageSourcePropType, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, G, Path, RadialGradient, Stop } from 'react-native-svg';
 
 import { colors } from '../../../theme/colors';
+import {
+  OnboardingLowerFade,
+  OnboardingPatternBackdrop,
+} from './OnboardingPatternBackground';
 
 const images = {
   beach: require('../../../../assets/onboarding/beach.png'),
@@ -112,10 +115,10 @@ export const OnboardingMosaic = memo(function OnboardingMosaic({ height, width }
   const wide = 166 * scale;
   const radiusNarrow = narrow / 2;
   const radiusWide = wide / 2;
-  const fadeTop = 330 * scale;
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <OnboardingPatternBackdrop height={height} variant="discover" width={width} />
       <View style={[styles.column, { left: canvasLeft + 16 * scale, width: narrow }]}>
         <Tile
           crop={imageCrops.marbleMountains}
@@ -192,17 +195,7 @@ export const OnboardingMosaic = memo(function OnboardingMosaic({ height, width }
         />
       </View>
 
-      <LinearGradient
-        colors={[
-          'rgba(255,255,255,0)',
-          'rgba(255,255,255,0.25)',
-          'rgba(255,255,255,0.5)',
-          colors.white,
-          colors.white,
-        ]}
-        locations={[0, 0.12545185, 0.27795538, 0.5940541, 1]}
-        style={[styles.fade, { height: Math.max(0, height - fadeTop), top: fadeTop }]}
-      />
+      <OnboardingLowerFade height={height} variant="discover" width={width} />
     </View>
   );
 });
@@ -227,10 +220,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     left: 0,
     position: 'absolute',
-  },
-  fade: {
-    left: 0,
-    position: 'absolute',
-    right: 0,
   },
 });

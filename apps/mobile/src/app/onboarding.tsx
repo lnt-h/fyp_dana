@@ -39,8 +39,7 @@ const designFrame = {
 } as const;
 
 const slideTransition = {
-  duration: 260,
-  offset: 24,
+  duration: 220,
 } as const;
 
 type SlideCopyProps = {
@@ -48,6 +47,8 @@ type SlideCopyProps = {
   fontSize: number;
   title: string;
 };
+
+type TransitionAction = 'back' | 'primary';
 
 function SlideCopy({ bottom, fontSize, title }: SlideCopyProps) {
   return (
@@ -79,6 +80,7 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const [slideIndex, setSlideIndex] = useState(0);
   const [planningPrepared, setPlanningPrepared] = useState(false);
+  const [transitionAction, setTransitionAction] = useState<TransitionAction | null>(null);
   const transitionProgress = useRef(new Animated.Value(0)).current;
   const scheduledFrame = useRef<number | null>(null);
   const isAnimating = useRef(false);
@@ -94,15 +96,18 @@ export default function OnboardingScreen() {
   const headerFadeHeight = (slide.key === 'discover' ? 202 : 184) * designScale;
   const titleFontSize = Math.min(37, width * 0.084);
   const copyBottom = buttonBottom + 174;
-  const transitionOffset = slideTransition.offset * designScale;
+  const isLastSlide = slideIndex === lastSlideIndex;
+  const primaryButtonDisabled = isLastSlide || transitionAction !== null;
 
   useEffect(() => {
-    const preparationTask = requestIdleCallback(() => {
+    // Mount the next scene immediately after the first frame so a fast tap never
+    // has to build its images and SVG hierarchy during the transition itself.
+    scheduledFrame.current = requestAnimationFrame(() => {
+      scheduledFrame.current = null;
       setPlanningPrepared(true);
-    }, { timeout: 500 });
+    });
 
     return () => {
-      cancelIdleCallback(preparationTask);
       transitionProgress.stopAnimation();
 
       if (scheduledFrame.current !== null) {
@@ -112,21 +117,26 @@ export default function OnboardingScreen() {
   }, [transitionProgress]);
 
   const changeSlide = useCallback(
-    (nextIndex: number) => {
+    (nextIndex: number, action: TransitionAction) => {
       if (nextIndex < 0 || nextIndex > lastSlideIndex || isAnimating.current) {
         return;
       }
 
       isAnimating.current = true;
+      setTransitionAction(action);
       const runTransition = () => {
-        setSlideIndex(nextIndex);
         Animated.timing(transitionProgress, {
           duration: reducedMotionEnabled ? 0 : slideTransition.duration,
           easing: Easing.out(Easing.cubic),
           toValue: nextIndex,
           useNativeDriver,
-        }).start(() => {
+        }).start(({ finished }) => {
+          if (finished) {
+            setSlideIndex(nextIndex);
+          }
+
           isAnimating.current = false;
+          setTransitionAction(null);
         });
       };
 
@@ -146,13 +156,13 @@ export default function OnboardingScreen() {
 
   const handleNext = useCallback(() => {
     if (slideIndex < lastSlideIndex) {
-      changeSlide(slideIndex + 1);
+      changeSlide(slideIndex + 1, 'primary');
     }
   }, [changeSlide, slideIndex]);
 
   const handleBack = useCallback(() => {
     if (slideIndex > 0) {
-      changeSlide(slideIndex - 1);
+      changeSlide(slideIndex - 1, 'back');
     }
   }, [changeSlide, slideIndex]);
 
@@ -168,6 +178,8 @@ export default function OnboardingScreen() {
         accessibilityElementsHidden={slideIndex !== 0}
         importantForAccessibility={slideIndex === 0 ? 'auto' : 'no-hide-descendants'}
         pointerEvents="none"
+        renderToHardwareTextureAndroid
+        shouldRasterizeIOS
         style={[
           styles.slideLayer,
           {
@@ -175,14 +187,6 @@ export default function OnboardingScreen() {
               inputRange: [0, 1],
               outputRange: [1, 0],
             }),
-            transform: [
-              {
-                translateX: transitionProgress.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, -transitionOffset],
-                }),
-              },
-            ],
           },
         ]}
       >
@@ -195,18 +199,12 @@ export default function OnboardingScreen() {
           accessibilityElementsHidden={slideIndex !== 1}
           importantForAccessibility={slideIndex === 1 ? 'auto' : 'no-hide-descendants'}
           pointerEvents="none"
+          renderToHardwareTextureAndroid
+          shouldRasterizeIOS
           style={[
             styles.slideLayer,
             {
               opacity: transitionProgress,
-              transform: [
-                {
-                  translateX: transitionProgress.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [transitionOffset, 0],
-                  }),
-                },
-              ],
             },
           ]}
         >
@@ -280,6 +278,8 @@ export default function OnboardingScreen() {
             accessibilityHint="Return to the previous onboarding step"
             accessibilityLabel="Previous onboarding step"
             accessibilityRole="button"
+            accessibilityState={{ disabled: transitionAction !== null }}
+            disabled={transitionAction !== null}
             onPress={handleBack}
             style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
           >
@@ -289,19 +289,36 @@ export default function OnboardingScreen() {
 
         <Pressable
           accessibilityHint={
-            slideIndex < lastSlideIndex
+            !isLastSlide
               ? 'Continue to the next onboarding step'
-              : 'Continue when the next onboarding step is available'
+              : 'Journey start will be available with the home experience'
           }
-          accessibilityLabel="Next onboarding step"
+          accessibilityLabel={isLastSlide ? 'Start your journey' : 'Next onboarding step'}
           accessibilityRole="button"
+          accessibilityState={{
+            busy: transitionAction === 'primary',
+            disabled: primaryButtonDisabled,
+          }}
+          disabled={primaryButtonDisabled}
           onPress={handleNext}
-          style={({ pressed }) => [styles.nextButton, pressed && styles.nextButtonPressed]}
+          style={({ pressed }) => [
+            styles.nextButton,
+            isLastSlide && styles.nextButtonDisabled,
+            pressed && !primaryButtonDisabled && !reducedMotionEnabled && styles.nextButtonPressed,
+          ]}
         >
-          <Text style={styles.nextText}>Next</Text>
-          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.nextIcon}>
-            <DirectionIcon direction="next" />
-          </View>
+          {() => (
+            <>
+              <Text style={styles.nextText}>{isLastSlide ? 'Start Your Journey' : 'Next'}</Text>
+              <View
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={styles.nextIcon}
+              >
+                <DirectionIcon direction="next" />
+              </View>
+            </>
+          )}
         </Pressable>
       </View>
     </View>
@@ -409,8 +426,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   nextButtonPressed: {
-    opacity: 0.82,
-    transform: [{ scale: 0.99 }],
+    opacity: 0.94,
+    transform: [{ scale: 0.985 }],
+  },
+  nextButtonDisabled: {
+    backgroundColor: colors.disabledButton,
   },
   nextText: {
     color: colors.white,

@@ -4,23 +4,14 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  LOADING_CYCLE_DURATION_MS,
-  LoadingDots,
-  SplashLogo,
-} from '../components/brand/BrandMarks';
+import { LoadingDots, SplashLogo } from '../components/brand/BrandMarks';
 import { colors } from '../theme/colors';
-
-const SPLASH_CYCLE_COUNT = 2;
-const SPLASH_DURATION_MS = LOADING_CYCLE_DURATION_MS * SPLASH_CYCLE_COUNT;
 
 export default function SplashScreen() {
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    const timer = setTimeout(() => router.replace('/onboarding'), SPLASH_DURATION_MS);
-
-    return () => clearTimeout(timer);
+    router.replace('/onboarding');
   }, []);
 
   return (

@@ -20,11 +20,6 @@ const loadingAnimation = {
   staggerDelay: 120,
 } as const;
 
-export const LOADING_CYCLE_DURATION_MS =
-  (loadingAnimation.dotCount - 1) * loadingAnimation.staggerDelay +
-  loadingAnimation.pulseDuration * 2 +
-  loadingAnimation.pauseDuration;
-
 export function SplashLogo() {
   return (
     <Svg accessibilityRole="image" height={99} viewBox="0 0 78.6462 98.8539" width={79}>

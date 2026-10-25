@@ -1,6 +1,7 @@
 export const colors = {
   audioTeal: '#00839C',
   deepOcean: '#0B3045',
+  disabledButton: '#A8A8A8',
   ink: '#00141E',
   mutedDot: '#D4E0E5',
   skyWash: '#E8F5F7',
