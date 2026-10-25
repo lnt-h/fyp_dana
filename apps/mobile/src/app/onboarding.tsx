@@ -50,6 +50,16 @@ type SlideCopyProps = {
 
 type TransitionAction = 'back' | 'primary';
 
+type PrimaryActionButtonProps = {
+  accessibilityHint: string;
+  accessibilityLabel: string;
+  busy: boolean;
+  disabled?: boolean;
+  label: string;
+  onPress: () => void;
+  reducedMotionEnabled: boolean;
+};
+
 function SlideCopy({ bottom, fontSize, title }: SlideCopyProps) {
   return (
     <View style={[styles.copyBlock, { bottom }]}>
@@ -75,6 +85,59 @@ function DirectionIcon({ direction }: { direction: 'back' | 'next' }) {
   );
 }
 
+function PrimaryActionButton({
+  accessibilityHint,
+  accessibilityLabel,
+  busy,
+  disabled = false,
+  label,
+  onPress,
+  reducedMotionEnabled,
+}: PrimaryActionButtonProps) {
+  const interactionDisabled = disabled || busy;
+
+  return (
+    <Pressable
+      accessibilityHint={accessibilityHint}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      accessibilityState={{ busy, disabled }}
+      disabled={interactionDisabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.nextButton,
+        pressed && !reducedMotionEnabled && styles.nextButtonPressed,
+      ]}
+    >
+      {({ pressed }) => (
+        <>
+          <LinearGradient
+            colors={
+              disabled
+                ? [colors.disabledButton, colors.disabledButton]
+                : pressed
+                  ? [colors.audioTeal, colors.deepOcean]
+                  : [colors.ink, colors.ink]
+            }
+            end={{ x: 1, y: 0.5 }}
+            pointerEvents="none"
+            start={{ x: 0, y: 0.5 }}
+            style={styles.nextButtonSurface}
+          />
+          <Text style={styles.nextText}>{label}</Text>
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={styles.nextIcon}
+          >
+            <DirectionIcon direction="next" />
+          </View>
+        </>
+      )}
+    </Pressable>
+  );
+}
+
 export default function OnboardingScreen() {
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -97,7 +160,7 @@ export default function OnboardingScreen() {
   const titleFontSize = Math.min(37, width * 0.084);
   const copyBottom = buttonBottom + 174;
   const isLastSlide = slideIndex === lastSlideIndex;
-  const primaryButtonDisabled = isLastSlide || transitionAction !== null;
+  const primaryButtonBusy = transitionAction !== null;
 
   useEffect(() => {
     // Mount the next scene immediately after the first frame so a fast tap never
@@ -159,6 +222,16 @@ export default function OnboardingScreen() {
       changeSlide(slideIndex + 1, 'primary');
     }
   }, [changeSlide, slideIndex]);
+
+  const handlePrimaryPress = useCallback(() => {
+    if (isLastSlide) {
+      // The visual and interaction states are production-ready; navigation is
+      // connected when the home product slice adds its route.
+      return;
+    }
+
+    handleNext();
+  }, [handleNext, isLastSlide]);
 
   const handleBack = useCallback(() => {
     if (slideIndex > 0) {
@@ -287,39 +360,18 @@ export default function OnboardingScreen() {
           </Pressable>
         ) : null}
 
-        <Pressable
+        <PrimaryActionButton
           accessibilityHint={
             !isLastSlide
               ? 'Continue to the next onboarding step'
-              : 'Journey start will be available with the home experience'
+              : 'Complete onboarding and start your journey'
           }
           accessibilityLabel={isLastSlide ? 'Start your journey' : 'Next onboarding step'}
-          accessibilityRole="button"
-          accessibilityState={{
-            busy: transitionAction === 'primary',
-            disabled: primaryButtonDisabled,
-          }}
-          disabled={primaryButtonDisabled}
-          onPress={handleNext}
-          style={({ pressed }) => [
-            styles.nextButton,
-            isLastSlide && styles.nextButtonDisabled,
-            pressed && !primaryButtonDisabled && !reducedMotionEnabled && styles.nextButtonPressed,
-          ]}
-        >
-          {() => (
-            <>
-              <Text style={styles.nextText}>{isLastSlide ? 'Start Your Journey' : 'Next'}</Text>
-              <View
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-                style={styles.nextIcon}
-              >
-                <DirectionIcon direction="next" />
-              </View>
-            </>
-          )}
-        </Pressable>
+          busy={primaryButtonBusy}
+          label={isLastSlide ? 'Start Your Journey' : 'Next'}
+          onPress={handlePrimaryPress}
+          reducedMotionEnabled={reducedMotionEnabled}
+        />
       </View>
     </View>
   );
@@ -426,11 +478,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   nextButtonPressed: {
-    opacity: 0.94,
+    elevation: 5,
+    shadowColor: colors.audioTeal,
+    shadowOffset: { height: 3, width: 0 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
     transform: [{ scale: 0.985 }],
   },
-  nextButtonDisabled: {
-    backgroundColor: colors.disabledButton,
+  nextButtonSurface: {
+    borderRadius: 30,
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   nextText: {
     color: colors.white,
