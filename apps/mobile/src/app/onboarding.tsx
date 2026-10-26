@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
   Animated,
@@ -16,6 +17,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { Wordmark } from '../components/brand/BrandMarks';
 import { OnboardingMosaic } from '../features/onboarding/components/OnboardingMosaic';
+import { PersonalizedOnboardingScene } from '../features/onboarding/components/PersonalizedOnboardingScene';
 import { PlanningOnboardingScene } from '../features/onboarding/components/PlanningOnboardingScene';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { colors } from '../theme/colors';
@@ -29,8 +31,13 @@ const slides = [
     key: 'plan',
     title: 'Pin what you love, plan\nyour day, let the city\nsurprise you!',
   },
+  {
+    key: 'personalized',
+    title: 'Flow at your rhythm\nwith personalized\nAI picks!',
+  },
 ] as const;
 
+const onboardingStepCount = slides.length;
 const lastSlideIndex = slides.length - 1;
 
 const designFrame = {
@@ -142,7 +149,7 @@ export default function OnboardingScreen() {
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [slideIndex, setSlideIndex] = useState(0);
-  const [planningPrepared, setPlanningPrepared] = useState(false);
+  const [remainingSlidesPrepared, setRemainingSlidesPrepared] = useState(false);
   const [transitionAction, setTransitionAction] = useState<TransitionAction | null>(null);
   const transitionProgress = useRef(new Animated.Value(0)).current;
   const scheduledFrame = useRef<number | null>(null);
@@ -159,15 +166,15 @@ export default function OnboardingScreen() {
   const headerFadeHeight = (slide.key === 'discover' ? 202 : 184) * designScale;
   const titleFontSize = Math.min(37, width * 0.084);
   const copyBottom = buttonBottom + 174;
-  const isLastSlide = slideIndex === lastSlideIndex;
+  const isFinalStep = slideIndex === onboardingStepCount - 1;
   const primaryButtonBusy = transitionAction !== null;
 
   useEffect(() => {
-    // Mount the next scene immediately after the first frame so a fast tap never
-    // has to build its images and SVG hierarchy during the transition itself.
+    // Mount the remaining scenes immediately after the first frame so a fast tap
+    // never has to build their images and SVG hierarchy during a transition.
     scheduledFrame.current = requestAnimationFrame(() => {
       scheduledFrame.current = null;
-      setPlanningPrepared(true);
+      setRemainingSlidesPrepared(true);
     });
 
     return () => {
@@ -203,8 +210,8 @@ export default function OnboardingScreen() {
         });
       };
 
-      if (nextIndex === 1 && !planningPrepared) {
-        setPlanningPrepared(true);
+      if (nextIndex > 0 && !remainingSlidesPrepared) {
+        setRemainingSlidesPrepared(true);
         scheduledFrame.current = requestAnimationFrame(() => {
           scheduledFrame.current = null;
           runTransition();
@@ -214,7 +221,7 @@ export default function OnboardingScreen() {
 
       runTransition();
     },
-    [planningPrepared, reducedMotionEnabled, transitionProgress, useNativeDriver],
+    [reducedMotionEnabled, remainingSlidesPrepared, transitionProgress, useNativeDriver],
   );
 
   const handleNext = useCallback(() => {
@@ -224,14 +231,13 @@ export default function OnboardingScreen() {
   }, [changeSlide, slideIndex]);
 
   const handlePrimaryPress = useCallback(() => {
-    if (isLastSlide) {
-      // The visual and interaction states are production-ready; navigation is
-      // connected when the home product slice adds its route.
+    if (isFinalStep) {
+      router.replace('/home');
       return;
     }
 
     handleNext();
-  }, [handleNext, isLastSlide]);
+  }, [handleNext, isFinalStep]);
 
   const handleBack = useCallback(() => {
     if (slideIndex > 0) {
@@ -240,7 +246,7 @@ export default function OnboardingScreen() {
   }, [changeSlide, slideIndex]);
 
   const handleSkip = useCallback(() => {
-    // The home experience will own onboarding completion in the next product slice.
+    router.replace('/home');
   }, []);
 
   return (
@@ -257,6 +263,7 @@ export default function OnboardingScreen() {
           styles.slideLayer,
           {
             opacity: transitionProgress.interpolate({
+              extrapolate: 'clamp',
               inputRange: [0, 1],
               outputRange: [1, 0],
             }),
@@ -267,23 +274,50 @@ export default function OnboardingScreen() {
         <SlideCopy bottom={copyBottom} fontSize={titleFontSize} title={slides[0].title} />
       </Animated.View>
 
-      {planningPrepared ? (
-        <Animated.View
-          accessibilityElementsHidden={slideIndex !== 1}
-          importantForAccessibility={slideIndex === 1 ? 'auto' : 'no-hide-descendants'}
-          pointerEvents="none"
-          renderToHardwareTextureAndroid
-          shouldRasterizeIOS
-          style={[
-            styles.slideLayer,
-            {
-              opacity: transitionProgress,
-            },
-          ]}
-        >
-          <PlanningOnboardingScene height={height} width={width} />
-          <SlideCopy bottom={copyBottom} fontSize={titleFontSize} title={slides[1].title} />
-        </Animated.View>
+      {remainingSlidesPrepared ? (
+        <>
+          <Animated.View
+            accessibilityElementsHidden={slideIndex !== 1}
+            importantForAccessibility={slideIndex === 1 ? 'auto' : 'no-hide-descendants'}
+            pointerEvents="none"
+            renderToHardwareTextureAndroid
+            shouldRasterizeIOS
+            style={[
+              styles.slideLayer,
+              {
+                opacity: transitionProgress.interpolate({
+                  extrapolate: 'clamp',
+                  inputRange: [0, 1, 2],
+                  outputRange: [0, 1, 0],
+                }),
+              },
+            ]}
+          >
+            <PlanningOnboardingScene height={height} width={width} />
+            <SlideCopy bottom={copyBottom} fontSize={titleFontSize} title={slides[1].title} />
+          </Animated.View>
+
+          <Animated.View
+            accessibilityElementsHidden={slideIndex !== 2}
+            importantForAccessibility={slideIndex === 2 ? 'auto' : 'no-hide-descendants'}
+            pointerEvents="none"
+            renderToHardwareTextureAndroid
+            shouldRasterizeIOS
+            style={[
+              styles.slideLayer,
+              {
+                opacity: transitionProgress.interpolate({
+                  extrapolate: 'clamp',
+                  inputRange: [1, 2],
+                  outputRange: [0, 1],
+                }),
+              },
+            ]}
+          >
+            <PersonalizedOnboardingScene height={height} width={width} />
+            <SlideCopy bottom={copyBottom} fontSize={titleFontSize} title={slides[2].title} />
+          </Animated.View>
+        </>
       ) : null}
 
       <LinearGradient
@@ -308,7 +342,7 @@ export default function OnboardingScreen() {
               height: 40 * designScale,
               width: 88 * designScale,
             },
-            pressed && styles.pressed,
+            pressed && styles.skipButtonPressed,
           ]}
         >
           <Text
@@ -326,14 +360,13 @@ export default function OnboardingScreen() {
       </View>
 
       <View style={[styles.pagination, { bottom: buttonBottom + 90 }]}>
-        {slides.map((item, index) => (
+        {Array.from({ length: onboardingStepCount }, (_, index) => (
           <View
-            accessibilityLabel={`Onboarding page ${index + 1} of ${slides.length}`}
-            key={item.key}
+            accessibilityLabel={`Onboarding page ${index + 1} of ${onboardingStepCount}`}
+            key={`onboarding-page-${index + 1}`}
             style={[styles.pageDot, index === slideIndex && styles.pageDotActive]}
           />
         ))}
-        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.pageDot} />
       </View>
 
       <View
@@ -362,13 +395,13 @@ export default function OnboardingScreen() {
 
         <PrimaryActionButton
           accessibilityHint={
-            !isLastSlide
+            !isFinalStep
               ? 'Continue to the next onboarding step'
               : 'Complete onboarding and start your journey'
           }
-          accessibilityLabel={isLastSlide ? 'Start your journey' : 'Next onboarding step'}
+          accessibilityLabel={isFinalStep ? 'Start your journey' : 'Next onboarding step'}
           busy={primaryButtonBusy}
-          label={isLastSlide ? 'Start Your Journey' : 'Next'}
+          label={isFinalStep ? 'Start Your Journey' : 'Next'}
           onPress={handlePrimaryPress}
           reducedMotionEnabled={reducedMotionEnabled}
         />
@@ -408,13 +441,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
+    shadowColor: colors.ink,
+    shadowOffset: { height: 4, width: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
   },
   skipText: {
     color: colors.deepOcean,
     fontWeight: '700',
   },
-  pressed: {
-    backgroundColor: 'rgba(255,255,255,0.6)',
+  skipButtonPressed: {
+    backgroundColor: 'rgba(255,255,255,0.32)',
+    transform: [{ scale: 0.98 }],
   },
   copyBlock: {
     alignItems: 'center',

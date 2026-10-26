@@ -27,7 +27,13 @@ const designPattern = {
 const patternCells = Array.from({ length: 100 }, (_, index) => index);
 const lowerFadeTop = {
   discover: 330,
+  personalized: 330,
   planning: 463,
+} as const;
+const lowerFadeStrength = {
+  discover: 0.58,
+  personalized: 0.42,
+  planning: 0.42,
 } as const;
 
 // Exact vector geometry exported from Figma node 201:214 / 115:501.
@@ -41,7 +47,7 @@ const ambientWash = {
 
 type CanvasProps = {
   height: number;
-  variant: 'discover' | 'planning';
+  variant: 'discover' | 'personalized' | 'planning';
   width: number;
 };
 
@@ -65,6 +71,7 @@ export const OnboardingPatternBackdrop = memo(function OnboardingPatternBackdrop
   const { canvasHeight, canvasLeft, canvasWidth } = getCanvasMetrics(height, width);
   const ambientBlurId = `${variant}AmbientBlur`;
   const ambientGradientId = `${variant}AmbientGradient`;
+  const cellGlassId = `${variant}CellGlass`;
   const patternBlurId = `${variant}PatternBlur`;
   const veilId = `${variant}Veil`;
   const ambientLayer = (
@@ -80,14 +87,10 @@ export const OnboardingPatternBackdrop = memo(function OnboardingPatternBackdrop
     <G filter={`url(#${patternBlurId})`} key="pattern">
       {patternCells.map((cell) => (
         <Rect
-          fill="#BBE9FF"
-          fillOpacity={0.2}
+          fill={`url(#${cellGlassId})`}
           height={designPattern.cell}
-          key={cell}
+          key={`glass-cell-${cell}`}
           rx={designPattern.cornerRadius}
-          stroke="#FFFFFF"
-          strokeOpacity={0.24}
-          strokeWidth={1}
           width={designPattern.cell}
           x={designPattern.left + (cell % 10) * designPattern.step}
           y={designPattern.top + Math.floor(cell / 10) * designPattern.step}
@@ -103,10 +106,10 @@ export const OnboardingPatternBackdrop = memo(function OnboardingPatternBackdrop
       width={designFrame.width}
     />
   );
-  const layers =
-    variant === 'discover'
-      ? [veilLayer, ambientLayer, patternLayer]
-      : [ambientLayer, veilLayer, patternLayer];
+  // Figma layer order: ambient ellipse → glass pattern → full-screen veil.
+  // Keeping the pattern below the veil is what creates the uneven, partially
+  // hidden blocks seen in the export instead of a flat visible square grid.
+  const layers = [ambientLayer, patternLayer, veilLayer];
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -133,8 +136,13 @@ export const OnboardingPatternBackdrop = memo(function OnboardingPatternBackdrop
             <Stop offset="0" stopColor="#BBE9FF" />
             <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
           </LinearGradient>
+          <LinearGradient id={cellGlassId} x1="0" x2="0" y1="0" y2="1">
+            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.28} />
+            <Stop offset="0.55" stopColor="#FFFFFF" stopOpacity={0.2} />
+            <Stop offset="1" stopColor="#DDF4FF" stopOpacity={0.12} />
+          </LinearGradient>
           <Filter height="120%" id={patternBlurId} width="120%" x="-10%" y="-10%">
-            <FeGaussianBlur stdDeviation={1} />
+            <FeGaussianBlur stdDeviation={0.35} />
           </Filter>
           <Filter height="130%" id={ambientBlurId} width="125%" x="-12%" y="-12%">
             <FeGaussianBlur stdDeviation={50} />
@@ -156,6 +164,7 @@ export const OnboardingLowerFade = memo(function OnboardingLowerFade({
   const fadeId = `${variant}LowerFade`;
   const fadeBlurId = `${variant}LowerFadeBlur`;
   const fadeTop = lowerFadeTop[variant];
+  const fadeStrength = lowerFadeStrength[variant];
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -168,10 +177,10 @@ export const OnboardingLowerFade = memo(function OnboardingLowerFade({
         <Defs>
           <LinearGradient id={fadeId} x1="0" x2="0" y1="0" y2="1">
             <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0} />
-            <Stop offset="0.12545185" stopColor="#FFFFFF" stopOpacity={0.25} />
-            <Stop offset="0.27795538" stopColor="#FFFFFF" stopOpacity={0.5} />
-            <Stop offset="0.5940541" stopColor="#FFFFFF" stopOpacity={1} />
-            <Stop offset="1" stopColor="#FFFFFF" stopOpacity={1} />
+            <Stop offset="0.12545185" stopColor="#FFFFFF" stopOpacity={fadeStrength * 0.25} />
+            <Stop offset="0.27795538" stopColor="#FFFFFF" stopOpacity={fadeStrength * 0.5} />
+            <Stop offset="0.5940541" stopColor="#FFFFFF" stopOpacity={fadeStrength} />
+            <Stop offset="1" stopColor="#FFFFFF" stopOpacity={fadeStrength} />
           </LinearGradient>
           <Filter height="120%" id={fadeBlurId} width="120%" x="-10%" y="-10%">
             <FeGaussianBlur stdDeviation={10} />

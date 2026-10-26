@@ -77,7 +77,7 @@ function Tile({ crop, height, radius, source, top, width }: TileProps) {
   );
 }
 
-function AudioMark({ size }: { size: number }) {
+export function AudioMark({ size }: { size: number }) {
   return (
     <Svg height={size} viewBox="0 0 94 94" width={size}>
       <Defs>
