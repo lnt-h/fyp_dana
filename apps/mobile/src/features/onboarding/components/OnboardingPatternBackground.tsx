@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { LinearGradient as NativeLinearGradient } from 'expo-linear-gradient';
 import Svg, {
   Defs,
   FeGaussianBlur,
@@ -28,14 +29,8 @@ const patternCells = Array.from({ length: 100 }, (_, index) => index);
 const lowerFadeTop = {
   discover: 330,
   personalized: 330,
-  planning: 463,
+  planning: 450,
 } as const;
-const lowerFadeStrength = {
-  discover: 0.58,
-  personalized: 0.42,
-  planning: 0.42,
-} as const;
-
 // Exact vector geometry exported from Figma node 201:214 / 115:501.
 const ambientWash = {
   height: 822.7,
@@ -160,41 +155,16 @@ export const OnboardingLowerFade = memo(function OnboardingLowerFade({
   variant,
   width,
 }: CanvasProps) {
-  const { canvasHeight, canvasLeft, canvasWidth } = getCanvasMetrics(height, width);
-  const fadeId = `${variant}LowerFade`;
-  const fadeBlurId = `${variant}LowerFadeBlur`;
-  const fadeTop = lowerFadeTop[variant];
-  const fadeStrength = lowerFadeStrength[variant];
-
+  const { scale } = getCanvasMetrics(height, width);
+  // Local .fig nodes 230:580 / 242:454 / 242:461 use full white at
+  // 59.4% of the fade. Native gradients avoid SVG filter differences on phones.
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Svg
-        height={canvasHeight}
-        style={[styles.canvas, { left: canvasLeft }]}
-        viewBox={`0 0 ${designFrame.width} ${designFrame.height}`}
-        width={canvasWidth}
-      >
-        <Defs>
-          <LinearGradient id={fadeId} x1="0" x2="0" y1="0" y2="1">
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0} />
-            <Stop offset="0.12545185" stopColor="#FFFFFF" stopOpacity={fadeStrength * 0.25} />
-            <Stop offset="0.27795538" stopColor="#FFFFFF" stopOpacity={fadeStrength * 0.5} />
-            <Stop offset="0.5940541" stopColor="#FFFFFF" stopOpacity={fadeStrength} />
-            <Stop offset="1" stopColor="#FFFFFF" stopOpacity={fadeStrength} />
-          </LinearGradient>
-          <Filter height="120%" id={fadeBlurId} width="120%" x="-10%" y="-10%">
-            <FeGaussianBlur stdDeviation={10} />
-          </Filter>
-        </Defs>
-        <Rect
-          fill={`url(#${fadeId})`}
-          filter={`url(#${fadeBlurId})`}
-          height={designFrame.height - fadeTop}
-          width={designFrame.width}
-          y={fadeTop}
-        />
-      </Svg>
-    </View>
+    <NativeLinearGradient
+      pointerEvents="none"
+      colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.25)', 'rgba(255,255,255,0.5)', '#FFFFFF', '#FFFFFF']}
+      locations={[0, 0.12545185, 0.27795538, 0.5940541, 1]}
+      style={{ position: 'absolute', top: lowerFadeTop[variant] * scale, bottom: 0, left: 0, right: 0 }}
+    />
   );
 });
 

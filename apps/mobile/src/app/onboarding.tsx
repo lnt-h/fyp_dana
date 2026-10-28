@@ -164,8 +164,9 @@ export default function OnboardingScreen() {
   const headerTop = Math.max(insets.top + 8 * designScale, 72 * designScale);
   const wordmarkWidth = 133 * designScale;
   const headerFadeHeight = (slide.key === 'discover' ? 202 : 184) * designScale;
-  const titleFontSize = Math.min(37, width * 0.084);
-  const copyBottom = buttonBottom + 174;
+  const titleFontSize = 37 * designScale;
+  // Figma title ends at y=762 on the 440×956 reference frame.
+  const copyBottom = Math.max(buttonBottom + 150 * designScale, height - 762 * designScale);
   const isFinalStep = slideIndex === onboardingStepCount - 1;
   const primaryButtonBusy = transitionAction !== null;
 
@@ -232,7 +233,7 @@ export default function OnboardingScreen() {
 
   const handlePrimaryPress = useCallback(() => {
     if (isFinalStep) {
-      router.replace('/home');
+      router.replace('/welcome');
       return;
     }
 
@@ -246,7 +247,7 @@ export default function OnboardingScreen() {
   }, [changeSlide, slideIndex]);
 
   const handleSkip = useCallback(() => {
-    router.replace('/home');
+    router.replace('/welcome');
   }, []);
 
   return (
@@ -255,6 +256,7 @@ export default function OnboardingScreen() {
 
       <Animated.View
         accessibilityElementsHidden={slideIndex !== 0}
+        aria-hidden={slideIndex !== 0}
         importantForAccessibility={slideIndex === 0 ? 'auto' : 'no-hide-descendants'}
         pointerEvents="none"
         renderToHardwareTextureAndroid
@@ -278,6 +280,7 @@ export default function OnboardingScreen() {
         <>
           <Animated.View
             accessibilityElementsHidden={slideIndex !== 1}
+        aria-hidden={slideIndex !== 1}
             importantForAccessibility={slideIndex === 1 ? 'auto' : 'no-hide-descendants'}
             pointerEvents="none"
             renderToHardwareTextureAndroid
@@ -299,6 +302,7 @@ export default function OnboardingScreen() {
 
           <Animated.View
             accessibilityElementsHidden={slideIndex !== 2}
+        aria-hidden={slideIndex !== 2}
             importantForAccessibility={slideIndex === 2 ? 'auto' : 'no-hide-descendants'}
             pointerEvents="none"
             renderToHardwareTextureAndroid
@@ -448,7 +452,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     color: colors.deepOcean,
-    fontWeight: '700',
+    fontFamily: 'HankenGrotesk_700Bold',
   },
   skipButtonPressed: {
     backgroundColor: 'rgba(255,255,255,0.32)',
@@ -463,7 +467,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.deepOcean,
-    fontWeight: '500',
+    fontFamily: 'HankenGrotesk_500Medium',
     letterSpacing: -1.35,
     textAlign: 'center',
   },
@@ -534,7 +538,7 @@ const styles = StyleSheet.create({
   nextText: {
     color: colors.white,
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: 'HankenGrotesk_700Bold',
     lineHeight: 24,
   },
   nextIcon: {

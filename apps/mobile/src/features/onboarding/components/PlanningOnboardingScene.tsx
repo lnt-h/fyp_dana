@@ -6,7 +6,7 @@ import {
   OnboardingPatternBackdrop,
 } from './OnboardingPatternBackground';
 
-const planningHero = require('../../../../assets/onboarding/planning-hero.png') as ImageSourcePropType;
+const planningHero = require('../../../../assets/images/onboarding/planning-hero.png') as ImageSourcePropType;
 const designFrame = {
   height: 956,
   width: 440,

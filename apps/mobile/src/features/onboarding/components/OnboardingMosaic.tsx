@@ -9,14 +9,14 @@ import {
 } from './OnboardingPatternBackground';
 
 const images = {
-  beach: require('../../../../assets/onboarding/beach.png'),
-  chamSculpture: require('../../../../assets/onboarding/cham-sculpture.png'),
-  cityBridge: require('../../../../assets/onboarding/city-bridge.png'),
-  cyclo: require('../../../../assets/onboarding/cyclo.png'),
-  dragonBridge: require('../../../../assets/onboarding/dragon-bridge.png'),
-  linhUngPagoda: require('../../../../assets/onboarding/linh-ung-pagoda.png'),
-  marbleMountains: require('../../../../assets/onboarding/marble-mountains.png'),
-  miQuang: require('../../../../assets/onboarding/mi-quang.png'),
+  beach: require('../../../../assets/images/places/beach.png'),
+  chamSculpture: require('../../../../assets/images/places/cham-sculpture.png'),
+  cityBridge: require('../../../../assets/images/places/city-bridge.png'),
+  cyclo: require('../../../../assets/images/places/cyclo.png'),
+  dragonBridge: require('../../../../assets/images/places/dragon-bridge.png'),
+  linhUngPagoda: require('../../../../assets/images/places/linh-ung-pagoda.png'),
+  marbleMountains: require('../../../../assets/images/places/marble-mountains.png'),
+  miQuang: require('../../../../assets/images/places/mi-quang.png'),
 } satisfies Record<string, ImageSourcePropType>;
 
 const designFrame = {

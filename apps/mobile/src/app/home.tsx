@@ -15,9 +15,9 @@ const designFrame = {
 } as const;
 
 const images = {
-  avatar: require('../../assets/onboarding/cyclo.png'),
-  beach: require('../../assets/onboarding/beach.png'),
-  museum: require('../../assets/onboarding/cham-sculpture.png'),
+  avatar: require('../../assets/images/places/cyclo.png'),
+  beach: require('../../assets/images/places/beach.png'),
+  museum: require('../../assets/images/places/cham-sculpture.png'),
 } satisfies Record<string, ImageSourcePropType>;
 
 function NotificationIcon({ size }: { size: number }) {
