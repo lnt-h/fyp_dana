@@ -2,9 +2,12 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Wordmark } from '../../components/brand/BrandMarks';
-import { Action, AuthShell, TextLink, palette } from '../../features/auth/components/AuthUI';
+import { Action, AuthShell, SocialActions, TextLink, palette } from '../../features/auth/components/AuthUI';
+import { ProviderIcon } from '../../features/auth/components/AuthIcons';
+import { useAccount } from '../../features/account/AccountContext';
 
 export default function WelcomeScreen() {
+  const { clearSession } = useAccount();
   return (
     <AuthShell>
       <View style={styles.brand}>
@@ -29,9 +32,10 @@ export default function WelcomeScreen() {
         Your Da Nang{'\n'}story starts here<Text style={styles.period}>.</Text>
       </Text>
       <Text style={styles.subtitle}>Discover local stories. Make the day yours.</Text>
-      <Action title="Continue with Email" onPress={() => router.push('/register')} />
+      <Action title="Continue with Email" icon={<ProviderIcon provider="email" />} onPress={() => router.push('/register')} />
+      <SocialActions />
       <TextLink title="Sign in" onPress={() => router.push('/login')} />
-      <TextLink title="Explore as a guest  →" onPress={() => router.replace('/home')} />
+      <TextLink title="Explore without an account  →" onPress={() => { clearSession(); router.replace('/home'); }} />
     </AuthShell>
   );
 }

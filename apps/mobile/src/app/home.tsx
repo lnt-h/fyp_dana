@@ -1,5 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { router } from 'expo-router';
+import { useAccount } from '../features/account/AccountContext';
+import { AccountIcon } from '../features/account/AccountUI';
 import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
@@ -15,7 +18,6 @@ const designFrame = {
 } as const;
 
 const images = {
-  avatar: require('../../assets/images/places/cyclo.png'),
   beach: require('../../assets/images/places/beach.png'),
   museum: require('../../assets/images/places/cham-sculpture.png'),
 } satisfies Record<string, ImageSourcePropType>;
@@ -87,6 +89,7 @@ function MapMarker({ height, left, scale, source, top, width }: MarkerProps) {
 }
 
 export default function HomeScreen() {
+  const { profile } = useAccount();
   const { height, width } = useWindowDimensions();
   const scale = Math.min(width / designFrame.width, height / designFrame.height);
   const canvasWidth = designFrame.width * scale;
@@ -125,6 +128,7 @@ export default function HomeScreen() {
         <Pressable
           accessibilityLabel="Profile"
           accessibilityRole="button"
+          onPress={() => router.push('/profile')}
           style={[
             styles.avatar,
             {
@@ -137,7 +141,7 @@ export default function HomeScreen() {
           ]}
         >
           <LinearGradient colors={['#BDEBFF', '#75C8DD']} style={StyleSheet.absoluteFill} />
-          <Image resizeMode="cover" source={images.avatar} style={styles.avatarImage} />
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{profile.name.trim() ? <Text style={{ color: colors.deepOcean, fontFamily: 'HankenGrotesk_700Bold', fontSize: 20 }}>{profile.name.trim()[0].toUpperCase()}</Text> : <AccountIcon name="person" />}</View>
         </Pressable>
 
         <Pressable
@@ -257,11 +261,6 @@ const styles = StyleSheet.create({
     shadowOffset: { height: 3, width: 0 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
-  },
-  avatarImage: {
-    height: '100%',
-    opacity: 0.88,
-    width: '100%',
   },
   canvas: {
     overflow: 'hidden',

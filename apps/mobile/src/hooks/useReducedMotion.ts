@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
+import { useAccount } from '../features/account/AccountContext';
 
 export function useReducedMotion() {
+  const { reduceMotion } = useAccount();
   const [isReducedMotionEnabled, setIsReducedMotionEnabled] = useState(false);
 
   useEffect(() => {
@@ -26,5 +28,5 @@ export function useReducedMotion() {
     };
   }, []);
 
-  return isReducedMotionEnabled;
+  return isReducedMotionEnabled || reduceMotion;
 }

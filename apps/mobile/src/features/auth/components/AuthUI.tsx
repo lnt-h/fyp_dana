@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { colors } from '../../../theme/colors';
+import { ArrowIcon, ProviderIcon } from './AuthIcons';
 
 export const palette = { ...colors, muted: '#71899A', border: '#DCE8EE', error: '#AF3434' };
 export function AuthShell({ children, back, step, skip }: { children: ReactNode; back?: () => void; step?: number; skip?: () => void }) {
@@ -21,7 +22,7 @@ export function AuthShell({ children, back, step, skip }: { children: ReactNode;
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24 }]}>
       <View style={s.inner}>
         {back && <View style={s.nav}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={back} style={s.touch}><Text style={s.back}>‹</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={back} style={s.touch}><ArrowIcon back color={colors.deepOcean} /></Pressable>
           {step && <View accessibilityLabel={`Step ${step} of 3`} style={s.steps}>{[1, 2, 3].map(n => <View key={n} style={[s.step, n <= step && { backgroundColor: colors.audioTeal }]} />)}</View>}
           {skip ? <Pressable accessibilityRole="button" onPress={skip} style={s.touch}><Text style={s.link}>Skip</Text></Pressable> : <View style={s.touch} />}
         </View>}
@@ -31,16 +32,25 @@ export function AuthShell({ children, back, step, skip }: { children: ReactNode;
   </KeyboardAvoidingView>;
 }
 export function BrandSymbol() {
-  return <View style={s.symbol} accessible={false}><Svg width={64} height={76} viewBox="0 0 80 94"><Path d="M57 36a23 23 0 1 1-46 0a23 23 0 1 1 46 0M57 25v38c0 27-26 32-43 19" fill="none" stroke={colors.deepOcean} strokeWidth={13} strokeLinecap="round" /><Circle cx={72} cy={9} r={7} fill={colors.sun} /></Svg></View>;
+  return <View style={s.symbol} aria-hidden={true}><Svg width={64} height={76} viewBox="0 0 80 94"><Path d="M57 36a23 23 0 1 1-46 0a23 23 0 1 1 46 0M57 25v38c0 27-26 32-43 19" fill="none" stroke={colors.deepOcean} strokeWidth={13} strokeLinecap="round" /><Circle cx={72} cy={9} r={7} fill={colors.sun} /></Svg></View>;
 }
 export function Heading({ title, subtitle, left = false }: { title: string; subtitle: string; left?: boolean }) {
   return <View style={s.heading}><Text accessibilityRole="header" style={[s.title, left && { textAlign: 'left' }]}>{title}</Text><Text style={[s.subtitle, left && { textAlign: 'left' }]}>{subtitle}</Text></View>;
 }
-export function Action({ title, onPress, secondary = false }: { title: string; onPress: () => void; secondary?: boolean }) {
+export function Action({ title, onPress, secondary = false, icon, arrow = false }: { title: string; onPress: () => void; secondary?: boolean; icon?: ReactNode; arrow?: boolean }) {
   return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [s.action, secondary && s.secondary, pressed && { opacity: 0.75 }]}>
     {!secondary && <LinearGradient colors={[colors.deepOcean, '#105B70']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />}
-    <Text style={[s.actionText, secondary && { color: colors.deepOcean }]}>{title}</Text>
+    <View style={s.actionContent}>{icon}<Text style={[s.actionText, secondary && { color: colors.deepOcean }]}>{title}</Text>{arrow && <ArrowIcon color={secondary ? colors.deepOcean : colors.white} />}</View>
   </Pressable>;
+}
+export function SocialActions({ divider = false }: { divider?: boolean }) {
+  const [provider, setProvider] = useState('');
+  return <>
+    {divider && <View style={s.divider}><View style={s.dividerLine} /><Text style={s.note}>or continue with</Text><View style={s.dividerLine} /></View>}
+    <Action secondary title="Continue with Google" icon={<ProviderIcon provider="google" />} onPress={() => setProvider('Google')} />
+    <Action secondary title="Continue with Apple" icon={<ProviderIcon provider="apple" />} onPress={() => setProvider('Apple')} />
+    {!!provider && <Text accessibilityLiveRegion="polite" style={s.note}>{provider} sign-in is not available yet. Continue with Email to try the preview.</Text>}
+  </>;
 }
 function FieldIcon({ kind }: { kind: 'email' | 'password' | 'person' }) {
   const paths = {
@@ -48,15 +58,15 @@ function FieldIcon({ kind }: { kind: 'email' | 'password' | 'person' }) {
     password: 'M6 10h12v11H6ZM8 10V6a4 4 0 0 1 8 0v4',
     person: 'M8 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0M4 22v-4a8 6 0 0 1 16 0v4',
   };
-  return <Svg width={21} height={24} viewBox="0 0 24 24" accessible={false}><Path d={paths[kind]} fill="none" stroke={colors.deepOcean} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" /></Svg>;
+  return <Svg width={21} height={24} viewBox="0 0 24 24" aria-hidden={true}><Path d={paths[kind]} fill="none" stroke={colors.deepOcean} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" /></Svg>;
 }
 
-export function Field({ label, error, password, ...props }: TextInputProps & { label: string; error?: string; password?: boolean }) {
+export function Field({ label, error, password, placeholder, ...props }: TextInputProps & { label: string; error?: string; password?: boolean }) {
   const [visible, setVisible] = useState(false);
-  return <View style={s.fieldBlock}><View style={[s.field, !!error && { borderColor: palette.error }]}>
+  return <View style={s.fieldBlock}><Text style={s.label}>{label}</Text><View style={[s.field, !!error && { borderColor: palette.error }]}>
     <FieldIcon kind={password ? 'password' : props.keyboardType === 'email-address' ? 'email' : 'person'} />
-    <TextInput {...props} accessibilityLabel={label} secureTextEntry={password && !visible} placeholder={label} placeholderTextColor={palette.muted} style={s.input} />
-    {password && <Pressable accessibilityRole="button" accessibilityLabel={visible ? 'Hide password' : 'Show password'} onPress={() => setVisible(!visible)} style={s.touch}><Svg width={23} height={23} viewBox="0 0 24 24" accessible={false}>
+    <TextInput {...props} accessibilityLabel={label} secureTextEntry={password && !visible} placeholder={placeholder ?? label} placeholderTextColor={palette.muted} style={s.input} />
+    {password && <Pressable accessibilityRole="button" accessibilityLabel={visible ? 'Hide password' : 'Show password'} onPress={() => setVisible(!visible)} style={s.touch}><Svg width={23} height={23} viewBox="0 0 24 24" aria-hidden={true}>
       <Path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" fill="none" stroke={colors.deepOcean} strokeWidth={1.7} />
       <Circle cx={12} cy={12} r={3} fill="none" stroke={colors.deepOcean} strokeWidth={1.7} />
       {visible && <Path d="M3 3l18 18" stroke={colors.deepOcean} strokeWidth={1.7} />}
@@ -72,8 +82,10 @@ export const s = StyleSheet.create({
   content: { flexGrow: 1, paddingHorizontal: 24 }, inner: { width: '100%', maxWidth: 480, alignSelf: 'center', flex: 1 },
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }, touch: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }, back: { fontSize: 42, color: colors.deepOcean, lineHeight: 44 },
   steps: { flexDirection: 'row', gap: 8 }, step: { width: 42, height: 5, borderRadius: 5, backgroundColor: palette.border },
-  symbol: { alignItems: 'center', marginTop: 20, marginBottom: 24 }, heading: { marginBottom: 28 }, title: { color: colors.deepOcean, fontSize: 32, fontWeight: '800', textAlign: 'center', letterSpacing: -0.8 }, subtitle: { color: palette.muted, fontSize: 16, lineHeight: 24, textAlign: 'center', marginTop: 12 },
-  action: { minHeight: 56, borderRadius: 22, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', marginTop: 12, padding: 16 }, actionText: { color: 'white', fontSize: 17, fontWeight: '700', textAlign: 'center' }, secondary: { borderWidth: 1.5, borderColor: palette.border, backgroundColor: 'white' },
+  symbol: { alignItems: 'center', marginTop: 12, marginBottom: 20 }, heading: { marginBottom: 24 }, title: { color: colors.deepOcean, fontSize: 30, lineHeight: 35, fontFamily: 'HankenGrotesk_700Bold', textAlign: 'center', letterSpacing: -0.8 }, subtitle: { color: palette.muted, fontSize: 16, lineHeight: 24, fontFamily: 'HankenGrotesk_500Medium', textAlign: 'center', marginTop: 10 },
+  actionContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, width: '100%' },
+  divider: { flexDirection: 'row', alignItems: 'baseline', gap: 14, marginBottom: 4 }, dividerLine: { height: 1, backgroundColor: palette.border, flex: 1 },
+  action: { minHeight: 56, borderRadius: 22, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', marginTop: 12, padding: 16 }, actionText: { color: 'white', fontSize: 17, fontFamily: 'HankenGrotesk_700Bold', textAlign: 'center', flexShrink: 1 }, secondary: { borderWidth: 1.5, borderColor: palette.border, backgroundColor: 'white' },
   fieldBlock: { marginBottom: 16 }, label: { fontSize: 13, fontWeight: '600', color: colors.deepOcean, marginBottom: 7 }, field: { flexDirection: 'row', alignItems: 'center', minHeight: 58, borderWidth: 1.5, borderColor: palette.border, borderRadius: 17, backgroundColor: 'white', paddingHorizontal: 16 }, input: { flex: 1, minWidth: 0, marginLeft: 12, fontSize: 16, color: colors.deepOcean, paddingVertical: 16 }, error: { fontSize: 13, color: palette.error, marginTop: 6 },
   link: { color: colors.audioTeal, fontWeight: '700', fontSize: 15 }, textLink: { minHeight: 44, justifyContent: 'center', alignItems: 'center', paddingVertical: 10 }, note: { color: palette.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 18 },
 });

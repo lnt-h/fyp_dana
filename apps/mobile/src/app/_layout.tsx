@@ -5,6 +5,13 @@ import { HankenGrotesk_700Bold } from '@expo-google-fonts/hanken-grotesk/700Bold
 import { Stack } from 'expo-router';
 
 import { colors } from '../theme/colors';
+import { AccountProvider } from '../features/account/AccountContext';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+
+function AppStack() {
+  const reduceMotion = useReducedMotion();
+  return <Stack screenOptions={{ animation: reduceMotion ? 'none' : 'fade', contentStyle: { backgroundColor: colors.deepOcean }, headerShown: false }} />;
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({ HankenGrotesk_500Medium, HankenGrotesk_700Bold });
@@ -12,12 +19,6 @@ export default function RootLayout() {
     return <View style={{ flex: 1, backgroundColor: colors.deepOcean, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.white} accessibilityLabel="Loading Gonarra" /></View>;
   }
   return (
-    <Stack
-      screenOptions={{
-        animation: 'fade',
-        contentStyle: { backgroundColor: colors.deepOcean },
-        headerShown: false,
-      }}
-    />
+    <AccountProvider><AppStack /></AccountProvider>
   );
 }

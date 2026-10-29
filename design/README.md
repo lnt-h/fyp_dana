@@ -1,5 +1,16 @@
 # Authentication design references
 
+## Current auth, Profile and Settings preview — 2026-10-29
+
+- Welcome keeps its landscape composition and includes Email, Google and Apple icons/buttons. Guest entry is labeled “Explore without an account”. Social buttons explain provider unavailability instead of pretending to authenticate.
+- Registration has labeled fields with caller-provided placeholders, optional preferences, retained selections when skipping/backtracking, and a completion screen. Blank inputs remain allowed for UI review. Preferences selected as a guest seed the registration choices.
+- Finishing registration copies name, email and travel preferences into a shared in-memory preview profile. Login starts a preview profile without authenticating. Passwords remain local to the form and are cleared on completion.
+- Home’s avatar opens `/profile`. `/edit-profile` and `/travel-preferences` support Save and Cancel. `/settings` includes a working reduced-motion override, expandable data/legal/about information and a confirmation before clearing the preview session.
+- The reduced-motion preference applies to navigation and onboarding, alongside the operating system setting. Profile data and preferences do not persist after an application restart. Real authentication, server storage, account deletion and published legal pages remain unimplemented.
+- Checked TypeScript, iOS bundle export and browser flows for registration → Home → Profile, profile editing, preference editing, Skip/back retention and the reduced-motion switch. Native simulator reload timed out during this pass; this is not a claim of native visual verification.
+
+The dated notes below document earlier review passes; this section supersedes older behavior descriptions where they differ.
+
 - `01-welcome.png`: welcome and entry choices.
 - `02-login.png`: email sign-in.
 - `03-register-account.png`: account form.
@@ -10,7 +21,7 @@ The implementation uses native React Native components and Expo Router. Current 
 
 Intentional differences from the references:
 
-- Social sign-in is omitted until providers are configured.
+- Social sign-in buttons and their provider icons are present; tapping them explains that provider sign-in is not connected yet.
 - Preferences use the four planned categories: Culture, Beach, Food, Nature.
 - Authentication is an explicitly labeled UI preview. No network authentication, durable preferences, password recovery, or legal consent collection is implemented.
 - Completion opens the existing Home screen as a guest and does not claim an account was created.
