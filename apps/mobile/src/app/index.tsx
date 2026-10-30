@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useAuth } from '@clerk/expo';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
@@ -8,11 +9,12 @@ import { LoadingDots, SplashLogo } from '../components/brand/BrandMarks';
 import { colors } from '../theme/colors';
 
 export default function SplashScreen() {
+  const { isLoaded, isSignedIn } = useAuth();
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    router.replace('/onboarding');
-  }, []);
+    if (isLoaded) router.replace(isSignedIn ? '/home' : '/onboarding');
+  }, [isLoaded, isSignedIn]);
 
   return (
     <View style={styles.screen}>

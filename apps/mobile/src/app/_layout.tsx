@@ -1,3 +1,5 @@
+import { ClerkProvider, useAuth, useSession } from '@clerk/expo';
+import { tokenCache } from '@clerk/expo/token-cache';
 import { useFonts } from 'expo-font';
 import { ActivityIndicator, View } from 'react-native';
 import { HankenGrotesk_500Medium } from '@expo-google-fonts/hanken-grotesk/500Medium';
@@ -8,9 +10,32 @@ import { colors } from '../theme/colors';
 import { AccountProvider } from '../features/account/AccountContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
+
+if (!publishableKey) {
+  throw new Error("Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Add your key to .env.local.\nRun: 1) clerk auth login  2) clerk link  3) clerk env pull — then restart the dev server.");
+}
+
 function AppStack() {
   const reduceMotion = useReducedMotion();
-  return <Stack screenOptions={{ animation: reduceMotion ? 'none' : 'fade', contentStyle: { backgroundColor: colors.deepOcean }, headerShown: false }} />;
+  const { isLoaded, isSignedIn } = useAuth();
+  const { session } = useSession();
+  if (!isLoaded) return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator accessibilityLabel="Loading your session" /></View>;
+  const pendingTask = Boolean(session?.currentTask);
+  return <Stack screenOptions={{ animation: reduceMotion ? 'none' : 'fade', contentStyle: { backgroundColor: colors.deepOcean }, headerShown: false }}>
+    <Stack.Protected guard={pendingTask}><Stack.Screen name="auth-task" /></Stack.Protected>
+    <Stack.Protected guard={!pendingTask}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="onboarding" />
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="sso-callback" />
+      <Stack.Screen name="home" />
+      <Stack.Screen name="profile" />
+      <Stack.Screen name="settings" />
+      <Stack.Screen name="travel-preferences" />
+      <Stack.Protected guard={Boolean(isSignedIn)}><Stack.Screen name="edit-profile" /></Stack.Protected>
+    </Stack.Protected>
+  </Stack>;
 }
 
 export default function RootLayout() {
@@ -19,6 +44,8 @@ export default function RootLayout() {
     return <View style={{ flex: 1, backgroundColor: colors.deepOcean, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.white} accessibilityLabel="Loading Gonarra" /></View>;
   }
   return (
-    <AccountProvider><AppStack /></AccountProvider>
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <AccountProvider><AppStack /></AccountProvider>
+    </ClerkProvider>
   );
 }

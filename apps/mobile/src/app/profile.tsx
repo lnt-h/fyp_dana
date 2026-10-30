@@ -6,7 +6,7 @@ import { AccountIcon, AccountRow, AccountShell, a } from '../features/account/Ac
 import { Action, palette } from '../features/auth/components/AuthUI';
 
 export default function ProfileScreen() {
-  const { profile, isPreviewProfile } = useAccount();
+  const { profile, isSignedIn } = useAccount();
   const initials = profile.name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase();
   return <AccountShell title="Profile" fallback="/home">
     <View style={a.card}>
@@ -16,10 +16,10 @@ export default function ProfileScreen() {
       </LinearGradient>
       <View style={styles.identity}>
         <View style={styles.avatar}>{initials ? <Text style={styles.initials}>{initials}</Text> : <AccountIcon name="person" />}</View>
-        <View style={styles.badge}><Text style={styles.badgeText}>{isPreviewProfile ? 'PREVIEW PROFILE' : 'EXPLORER'}</Text></View>
-        <Text style={a.title}>{profile.name || (isPreviewProfile ? 'Your profile' : 'Hello, explorer')}</Text>
-        <Text style={a.body}>{isPreviewProfile ? profile.email || 'Add your details to make it yours.' : 'Your Da Nang story is just beginning.'}</Text>
-        <Action secondary={isPreviewProfile} title={isPreviewProfile ? 'Edit profile' : 'Create an account'} onPress={() => router.push(isPreviewProfile ? '/edit-profile' : '/register')} />
+        <View style={styles.badge}><Text style={styles.badgeText}>{isSignedIn ? 'YOUR ACCOUNT' : 'EXPLORER'}</Text></View>
+        <Text style={a.title}>{profile.name || (isSignedIn ? 'Your profile' : 'Hello, explorer')}</Text>
+        <Text style={a.body}>{isSignedIn ? profile.email || 'Add your details to make it yours.' : 'Your Da Nang story is just beginning.'}</Text>
+        <Action secondary={isSignedIn} title={isSignedIn ? 'Edit profile' : 'Create an account'} onPress={() => router.push(isSignedIn ? '/edit-profile' : '/register')} />
       </View>
     </View>
     <Text style={a.section}>YOUR WAY TO EXPLORE</Text>
@@ -31,7 +31,7 @@ export default function ProfileScreen() {
     <View style={a.card}>
       <AccountRow icon="settings" title="Settings" subtitle="Accessibility, privacy and app information" onPress={() => router.push('/settings')} />
     </View>
-    <Text style={a.note}>Profile and preferences are kept for this preview session only.</Text>
+    <Text style={a.note}>{isSignedIn ? 'Your profile and preferences are saved to your account.' : 'Guest preferences are kept for this session only.'}</Text>
   </AccountShell>;
 }
 const styles = StyleSheet.create({

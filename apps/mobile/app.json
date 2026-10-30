@@ -34,7 +34,10 @@
     "plugins": [
       "expo-router",
       "expo-audio",
-      "expo-status-bar"
+      "expo-status-bar",
+      "@clerk/expo",
+      "expo-secure-store",
+      "expo-web-browser"
     ]
   }
 }

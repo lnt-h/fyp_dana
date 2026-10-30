@@ -1,6 +1,6 @@
 # Gonarra — Working Plan
 
-Last updated: 2026-10-28
+Last updated: 2026-10-29
 
 **Status:** Provisional product and delivery roadmap. This is not yet a decision-complete implementation specification. Resolve each phase's decision gates before implementing dependent work.
 
@@ -20,7 +20,16 @@ Gonarra is a mobile-first travel companion for international first-time visitors
 - Existing product and architecture documents are context; consequential decisions must be revalidated.
 - Unchosen providers, infrastructure, and budget are explicit decision gates, not silently selected defaults.
 
-The repository already contains an app shell, branded splash, and onboarding. Inspect the implementation and dependency compatibility before extending them. The manifest currently declares Expo `~58.0.19`, React Native `0.88.0`, React `19.3.0`, Expo Router `~58.0.26`, and TypeScript `~6.0.3`; these are recorded declarations, not verified compatibility claims. Check installed versions, the lockfile, and official documentation before implementation.
+The repository already contains an app shell, branded splash, onboarding, and preview account/home screens. The dependency baseline was aligned using Expo CLI on 2026-10-29: Expo `~58.0.21`, React Native `0.88.1`, React `19.3.0`, Expo Router `~58.0.28`, and TypeScript `~6.0.3`. TypeScript validation and dependency validation pass, and Expo Doctor passes 20/20 checks. Native builds and device behavior remain unverified. npm audit reports eight dependency findings (five low, three high) in the Expo tooling dependency chain; its proposed automatic fix downgrades Expo to SDK 51 and was not applied. Inspect current compatibility again before future dependency changes.
+
+### Authentication implementation update — 2026-10-29
+
+- Integrated the selected existing Clerk application with `@clerk/expo` and secure native token caching.
+- Connected the custom React Native sign-up, email verification, password sign-in/recovery, Google/Apple SSO, and sign-out controls.
+- Profile names and travel preferences now use Clerk user data; guest preferences remain session-only.
+- Enabled email/password and email-code verification in the development instance. Google, Apple, and Native API were already enabled. Production is not configured.
+- TypeScript, Expo Doctor (20/20), Clerk Doctor, and bundle export pass; web screens and empty-field validation were inspected. Expo Go launch, Welcome layout, and empty login validation were also verified on the iPhone 18 Pro simulator.
+- Real account sign-in, social callbacks, and native session restoration still need verification. Account deletion, email updates, legal documents, and additional session-task flows remain unfinished.
 
 ## 2. Intended capabilities
 

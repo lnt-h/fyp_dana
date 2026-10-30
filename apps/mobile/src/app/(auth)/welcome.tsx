@@ -1,13 +1,18 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Wordmark } from '../../components/brand/BrandMarks';
 import { Action, AuthShell, SocialActions, TextLink, palette } from '../../features/auth/components/AuthUI';
 import { ProviderIcon } from '../../features/auth/components/AuthIcons';
-import { useAccount } from '../../features/account/AccountContext';
+import { useAuth } from '@clerk/expo';
+import { Redirect } from 'expo-router';
 
 export default function WelcomeScreen() {
-  const { clearSession } = useAccount();
+  const { isSignedIn } = useAuth();
+  const { height } = useWindowDimensions();
+  const compact = height < 750;
+  const heroHeight = Math.max(120, Math.min(180, height * 0.2));
+  if (isSignedIn) return <Redirect href="/home" />;
   return (
     <AuthShell>
       <View style={styles.brand}>
@@ -15,7 +20,7 @@ export default function WelcomeScreen() {
         <Text style={styles.tagline}>EXPLORE · PLAN · EXPERIENCE</Text>
       </View>
       <View style={styles.destination} accessibilityElementsHidden aria-hidden importantForAccessibility="no-hide-descendants">
-        <View style={styles.heroFrame}>
+        <View style={[styles.heroFrame, { height: heroHeight }]}>
           <Image source={require('../../../assets/images/welcome/dragon-bridge-detail.png')} resizeMode="cover" style={styles.hero} />
           <LinearGradient colors={['transparent', 'rgba(3, 45, 63, 0.85)']} style={styles.heroShade} />
           <View style={styles.destinationCopy}>
@@ -28,23 +33,27 @@ export default function WelcomeScreen() {
           <Image source={require('../../../assets/images/welcome/cathedral.png')} resizeMode="cover" style={styles.detailPhoto} />
         </View>
       </View>
-      <Text accessibilityRole="header" style={styles.title}>
+      <Text accessibilityRole="header" style={[styles.title, compact && styles.compactTitle]}>
         Your Da Nang{'\n'}story starts here<Text style={styles.period}>.</Text>
       </Text>
       <Text style={styles.subtitle}>Discover local stories. Make the day yours.</Text>
-      <Action title="Continue with Email" icon={<ProviderIcon provider="email" />} onPress={() => router.push('/register')} />
+      <Action title="Sign up with Email" icon={<ProviderIcon provider="email" />} onPress={() => router.push('/register')} />
       <SocialActions />
-      <TextLink title="Sign in" onPress={() => router.push('/login')} />
-      <TextLink title="Explore without an account  →" onPress={() => { clearSession(); router.replace('/home'); }} />
+      <View style={styles.footer}>
+        <Pressable accessibilityRole="link" accessibilityLabel="Already have an account? Sign in" onPress={() => router.push('/login')} style={({ pressed }) => [styles.signIn, pressed && { opacity: 0.7 }]}>
+          <Text style={styles.accountPrompt}>Already have an account? <Text style={styles.signInText}>Sign in</Text></Text>
+        </Pressable>
+        <TextLink title="Explore without an account  →" onPress={() => router.replace('/home')} />
+      </View>
     </AuthShell>
   );
 }
 
 const styles = StyleSheet.create({
-  brand: { marginTop: 14, gap: 12 },
+  brand: { marginTop: 4, gap: 10 },
   tagline: { fontSize: 10, letterSpacing: 2.6, color: palette.muted },
-  destination: { marginTop: 28, marginBottom: 32, paddingBottom: 16 },
-  heroFrame: { width: '100%', aspectRatio: 1.35, borderRadius: 24, overflow: 'hidden', backgroundColor: palette.skyWash },
+  destination: { marginTop: 20, marginBottom: 20, paddingBottom: 12 },
+  heroFrame: { width: '100%', borderRadius: 24, overflow: 'hidden', backgroundColor: palette.skyWash },
   hero: { position: 'absolute', width: '100%', height: '100%', borderRadius: 24 },
   heroShade: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '65%' },
   destinationCopy: { position: 'absolute', bottom: 22, left: 22, right: 120 },
@@ -53,7 +62,12 @@ const styles = StyleSheet.create({
   accent: { width: 32, height: 4, borderRadius: 2, backgroundColor: palette.sun, marginTop: 10 },
   detailFrame: { position: 'absolute', bottom: 0, right: 18, width: 96, height: 120, borderRadius: 18, borderWidth: 5, borderColor: palette.white, backgroundColor: palette.white, shadowColor: palette.deepOcean, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.16, shadowRadius: 10, elevation: 4 },
   detailPhoto: { width: '100%', height: '100%', borderRadius: 13 },
-  title: { fontSize: 34, lineHeight: 40, fontFamily: 'HankenGrotesk_700Bold', letterSpacing: -1, color: palette.deepOcean },
+  title: { fontSize: 32, lineHeight: 38, fontFamily: 'HankenGrotesk_700Bold', letterSpacing: -1, color: palette.deepOcean },
+  compactTitle: { fontSize: 28, lineHeight: 34 },
   period: { color: palette.sun },
-  subtitle: { fontSize: 16, lineHeight: 24, color: palette.muted, marginTop: 12, marginBottom: 18 },
+  subtitle: { fontSize: 16, lineHeight: 24, color: palette.muted, marginTop: 8, marginBottom: 8 },
+  footer: { marginTop: 12, paddingBottom: 8 },
+  signIn: { minHeight: 48, paddingVertical: 12, justifyContent: 'center', alignItems: 'center' },
+  accountPrompt: { color: palette.muted, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  signInText: { color: palette.audioTeal, fontFamily: 'HankenGrotesk_700Bold' },
 });

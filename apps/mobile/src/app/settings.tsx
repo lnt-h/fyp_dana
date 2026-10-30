@@ -7,7 +7,9 @@ import { AccountRow, AccountShell, a } from '../features/account/AccountUI';
 import { Action, TextLink, palette } from '../features/auth/components/AuthUI';
 
 export default function SettingsScreen() {
-  const { reduceMotion, setReduceMotion, clearSession, isPreviewProfile } = useAccount();
+  const { reduceMotion, setReduceMotion, clearSession, isSignedIn } = useAccount();
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   function toggle(key: string) { setExpanded(expanded === key ? null : key); }
@@ -25,21 +27,28 @@ export default function SettingsScreen() {
     </View>
     <Text style={a.section}>PRIVACY & ABOUT</Text>
     <View style={a.card}>
-      <AccountRow icon="shield" title="Your data" subtitle="How this preview handles your details" onPress={() => toggle('data')} />
-      {expanded === 'data' && <Text style={[a.body, { paddingHorizontal: 20, paddingBottom: 20 }]}>Profile details and preferences stay in memory for this session. They are not sent to an account service and are cleared when the app restarts. Passwords are not added to your profile. No account has been created; account deletion is not available in this preview.</Text>}
+      <AccountRow icon="shield" title="Your data" subtitle="How your account details are stored" onPress={() => toggle('data')} />
+      {expanded === 'data' && <Text style={[a.body, { paddingHorizontal: 20, paddingBottom: 20 }]}>Clerk manages account identity and authentication. Signed-in profile details and travel preferences are saved to your account. Guest preferences stay in memory until the app restarts. Account deletion is not available in this app yet.</Text>}
       <View style={a.divider} />
       <AccountRow icon="shield" title="Terms & privacy" onPress={() => toggle('legal')} />
-      {expanded === 'legal' && <Text style={[a.body, { paddingHorizontal: 20, paddingBottom: 20 }]}>Terms of Service and Privacy Policy have not been published yet. They will be available before real account registration opens.</Text>}
+      {expanded === 'legal' && <Text style={[a.body, { paddingHorizontal: 20, paddingBottom: 20 }]}>Terms of Service and Privacy Policy have not been published yet. This development version is for testing only.</Text>}
       <View style={a.divider} />
       <AccountRow icon="info" title="About Gonarra" subtitle={`Version ${Constants.expoConfig?.version ?? '1.0.0'}`} onPress={() => toggle('about')} />
-      {expanded === 'about' && <Text style={[a.body, { paddingHorizontal: 20, paddingBottom: 20 }]}>Explore, plan and experience Da Nang. Gonarra brings local stories and travel inspiration together. You’re using an interactive preview.</Text>}
+      {expanded === 'about' && <Text style={[a.body, { paddingHorizontal: 20, paddingBottom: 20 }]}>Explore, plan and experience Da Nang. Gonarra brings local stories and travel inspiration together. You’re using a development version.</Text>}
     </View>
     <Text style={a.section}>THIS SESSION</Text>
     <View style={a.card}>
-      <AccountRow icon="exit" title={isPreviewProfile ? 'End preview session' : 'Reset preview'} subtitle="Clear profile details and preferences" onPress={() => setConfirmReset(true)} />
+      <AccountRow icon="exit" title={isSignedIn ? 'Sign out' : 'Reset guest session'} subtitle="End this session on this device" onPress={() => setConfirmReset(true)} />
       {confirmReset && <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-        <Text style={a.body}>Clear this session and return to Welcome? Your current profile and preferences will be removed from this preview.</Text>
-        <Action title="Clear and return to Welcome" onPress={() => { clearSession(); router.dismissAll(); router.replace('/welcome'); }} />
+        <Text style={a.body}>Return to Welcome? Your saved account details will be kept. Guest preferences on this device will be cleared.</Text>
+        {!!notice && <Text accessibilityLiveRegion="polite" style={a.body}>{notice}</Text>}
+        <Action title={busy ? 'Please wait…' : 'Confirm and return to Welcome'} disabled={busy} onPress={async () => {
+          if (busy) return;
+          setBusy(true); setNotice('');
+          try { await clearSession(); router.dismissAll(); router.replace('/welcome'); }
+          catch { setNotice('Could not end the session. Please try again.'); }
+          finally { setBusy(false); }
+        }} />
         <TextLink title="Keep exploring" onPress={() => setConfirmReset(false)} />
       </View>}
     </View>

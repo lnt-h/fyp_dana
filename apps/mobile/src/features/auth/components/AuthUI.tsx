@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
+import { useAuth, useSSO } from '@clerk/expo';
+import { authErrorMessage } from '../authErrors';
+import { finishAuth } from '../finishAuth';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -37,19 +40,37 @@ export function BrandSymbol() {
 export function Heading({ title, subtitle, left = false }: { title: string; subtitle: string; left?: boolean }) {
   return <View style={s.heading}><Text accessibilityRole="header" style={[s.title, left && { textAlign: 'left' }]}>{title}</Text><Text style={[s.subtitle, left && { textAlign: 'left' }]}>{subtitle}</Text></View>;
 }
-export function Action({ title, onPress, secondary = false, icon, arrow = false }: { title: string; onPress: () => void; secondary?: boolean; icon?: ReactNode; arrow?: boolean }) {
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [s.action, secondary && s.secondary, pressed && { opacity: 0.75 }]}>
+export function Action({ title, onPress, secondary = false, icon, arrow = false, disabled = false }: { title: string; onPress: () => void; secondary?: boolean; icon?: ReactNode; arrow?: boolean; disabled?: boolean }) {
+  return <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [s.action, secondary && s.secondary, (pressed || disabled) && { opacity: 0.55 }]}>
     {!secondary && <LinearGradient colors={[colors.deepOcean, '#105B70']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />}
     <View style={s.actionContent}>{icon}<Text style={[s.actionText, secondary && { color: colors.deepOcean }]}>{title}</Text>{arrow && <ArrowIcon color={secondary ? colors.deepOcean : colors.white} />}</View>
   </Pressable>;
 }
 export function SocialActions({ divider = false }: { divider?: boolean }) {
-  const [provider, setProvider] = useState('');
+  const { isLoaded } = useAuth();
+  const { startSSOFlow } = useSSO();
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState('');
+  async function authenticate(strategy: 'oauth_google' | 'oauth_apple') {
+    if (busy || !isLoaded) return;
+    setBusy(true); setNotice('');
+    try {
+      const result = await startSSOFlow({ strategy });
+      if (result.createdSessionId && result.setActive) {
+        await result.setActive({ session: result.createdSessionId, navigate: finishAuth });
+      } else if (result.signUp?.status === 'missing_requirements') {
+        setNotice('The provider did not supply all required account details. Please use email registration or contact support.');
+      } else if (result.authSessionResult?.type === 'success') {
+        setNotice('Additional verification is required. Please sign in with your email.');
+      }
+    } catch (error) { setNotice(authErrorMessage(error)); }
+    finally { setBusy(false); }
+  }
   return <>
     {divider && <View style={s.divider}><View style={s.dividerLine} /><Text style={s.note}>or continue with</Text><View style={s.dividerLine} /></View>}
-    <Action secondary title="Continue with Google" icon={<ProviderIcon provider="google" />} onPress={() => setProvider('Google')} />
-    <Action secondary title="Continue with Apple" icon={<ProviderIcon provider="apple" />} onPress={() => setProvider('Apple')} />
-    {!!provider && <Text accessibilityLiveRegion="polite" style={s.note}>{provider} sign-in is not available yet. Continue with Email to try the preview.</Text>}
+    <Action secondary disabled={busy || !isLoaded} title="Continue with Google" icon={<ProviderIcon provider="google" />} onPress={() => void authenticate('oauth_google')} />
+    <Action secondary disabled={busy || !isLoaded} title="Continue with Apple" icon={<ProviderIcon provider="apple" />} onPress={() => void authenticate('oauth_apple')} />
+    {!!notice && <Text accessibilityLiveRegion="polite" style={s.error}>{notice}</Text>}
   </>;
 }
 function FieldIcon({ kind }: { kind: 'email' | 'password' | 'person' }) {
@@ -76,7 +97,6 @@ export function Field({ label, error, password, placeholder, ...props }: TextInp
 export function TextLink({ title, onPress }: { title: string; onPress: () => void }) {
   return <Pressable accessibilityRole="button" onPress={onPress} style={s.textLink}><Text style={s.link}>{title}</Text></Pressable>;
 }
-export function PreviewNote() { return <Text style={s.note}>UI preview</Text>; }
 export const s = StyleSheet.create({
   fill: { flex: 1, backgroundColor: 'white' }, background: { position: 'absolute', top: 0, left: 0, right: 0, height: 350 },
   content: { flexGrow: 1, paddingHorizontal: 24 }, inner: { width: '100%', maxWidth: 480, alignSelf: 'center', flex: 1 },

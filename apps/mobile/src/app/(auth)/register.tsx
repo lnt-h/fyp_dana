@@ -1,69 +1,68 @@
-import { useCallback, useState } from 'react';
-import { BackHandler, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
-import { Action, AuthShell, BrandSymbol, Field, Heading, PreviewNote, SocialActions, TextLink, palette, s } from '../../features/auth/components/AuthUI';
-import { TripReadyIllustration } from '../../features/auth/components/TripReadyIllustration';
-import { useAccount, type Interest, type TravelType } from '../../features/account/AccountContext';
-import { TravelPreferences } from '../../features/account/TravelPreferences';
+import { useState } from 'react';
+import { Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { useAuth, useSignUp } from '@clerk/expo';
+import { Action, AuthShell, BrandSymbol, Field, Heading, SocialActions, TextLink, s } from '../../features/auth/components/AuthUI';
+import { authErrorMessage } from '../../features/auth/authErrors';
+import { authDestination } from '../../features/auth/finishAuth';
 
 export default function RegisterScreen() {
-  const { profile, startPreview } = useAccount();
-  const [step, setStep] = useState(1);
+  const { isLoaded } = useAuth();
+  const { signUp, fetchStatus } = useSignUp();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [accepted, setAccepted] = useState(false);
-  const [selected, setSelected] = useState<Interest[]>(profile.interests);
-  const [travelType, setTravelType] = useState<TravelType | undefined>(profile.travelType);
+  const [code, setCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
   const [notice, setNotice] = useState('');
-  const back = useCallback(() => {
-    Keyboard.dismiss();
-    if (step > 1) setStep(step - 1);
-    else if (router.canGoBack()) router.back();
-    else router.replace('/welcome');
-  }, [step]);
-  useFocusEffect(useCallback(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => { back(); return true; });
-    return () => subscription.remove();
-  }, [back]));
-  function next() { Keyboard.dismiss(); setNotice(''); setStep(step + 1); }
-  function finish() {
-    startPreview({ name: name.trim(), email: email.trim(), interests: selected, travelType });
-    setPassword(''); router.replace('/home');
+  const [busy, setBusy] = useState(false);
+  const disabled = !isLoaded || busy || fetchStatus === 'fetching';
+  async function run(action: () => Promise<void>) {
+    if (disabled) return;
+    setBusy(true); setNotice('');
+    try { await action(); } catch (error) { setNotice(authErrorMessage(error)); }
+    finally { setBusy(false); }
   }
-  return <AuthShell key={step} back={back} step={step} skip={step === 2 ? () => setStep(3) : undefined}>
-    {step === 1 && <>
-      <BrandSymbol /><Heading title={'Create your\nGonarra account'} subtitle="Start exploring Da Nang your way." />
-      <Field label="Full name" placeholder="Your name" value={name} onChangeText={setName} autoComplete="name" autoCapitalize="words" />
-      <Field label="Email address" placeholder="you@example.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} autoComplete="email" />
-      <Field label="Password" placeholder="Create a password" value={password} onChangeText={setPassword} password autoCapitalize="none" autoCorrect={false} autoComplete="new-password" onSubmitEditing={next} returnKeyType="next" />
-      <View style={styles.consent}>
-        <Pressable accessibilityRole="checkbox" accessibilityLabel="Agree to terms and privacy policy (preview)" accessibilityState={{ checked: accepted }} aria-checked={accepted} onPress={() => setAccepted(!accepted)} style={styles.checkboxTouch}>
-          <View style={[styles.checkbox, accepted && styles.checked]}><Text style={styles.tick}>{accepted ? '✓' : ''}</Text></View>
-        </Pressable>
-        <Text style={styles.consentText}>I agree to the <Text accessibilityRole="link" style={s.link} onPress={() => setNotice('Terms of Service are not published yet.')}>Terms of Service</Text> and <Text accessibilityRole="link" style={s.link} onPress={() => setNotice('Privacy Policy is not published yet.')}>Privacy Policy</Text></Text>
-      </View>
-      {!!notice && <Text accessibilityLiveRegion="polite" style={s.note}>{notice}</Text>}
-      <Action title="Continue" arrow onPress={next} /><PreviewNote />
-      <SocialActions divider />
-      <TextLink title="Already have an account? Sign in" onPress={() => router.replace('/login')} />
+  async function complete() {
+    if (signUp.status !== 'complete') {
+      setNotice('Additional account information is required. Please check your details or try another sign-in method.'); return;
+    }
+    setPassword('');
+    const { error } = await signUp.finalize({ navigate: authDestination('/travel-preferences') });
+    if (error) throw error;
+  }
+  function submit() { void run(async () => {
+    if (verifying) {
+      if (!code.trim()) { setNotice('Enter the verification code.'); return; }
+      const { error } = await signUp.verifications.verifyEmailCode({ code: code.trim() });
+      if (error) throw error;
+      await complete();
+    } else {
+      if (!name.trim() || !email.trim() || !password) { setNotice('Enter your name, email address and password.'); return; }
+      const [firstName, ...lastName] = name.trim().split(/\s+/);
+      const { error } = await signUp.password({ firstName, lastName: lastName.join(' '), emailAddress: email.trim(), password });
+      if (error) throw error;
+      if (signUp.status === 'complete') { await complete(); return; }
+      setPassword(''); setVerifying(true);
+      const sent = await signUp.verifications.sendEmailCode();
+      if (sent.error) throw sent.error;
+    }
+  }); }
+  return <AuthShell back={() => router.canGoBack() ? router.back() : router.replace('/welcome')}>
+    <BrandSymbol /><Heading title={verifying ? 'Check your email' : 'Create your\nGonarra account'} subtitle={verifying ? `Enter the code sent to ${email.trim()}.` : 'Start exploring Da Nang your way.'} />
+    {verifying ? <Field label="Verification code" value={code} onChangeText={setCode} keyboardType="number-pad" autoComplete="one-time-code" onSubmitEditing={submit} editable={!disabled} /> : <>
+      <Field label="Full name" value={name} onChangeText={setName} autoComplete="name" autoCapitalize="words" editable={!disabled} />
+      <Field label="Email address" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} autoComplete="email" editable={!disabled} />
+      <Field label="Password" value={password} onChangeText={setPassword} password autoCapitalize="none" autoCorrect={false} autoComplete="new-password" onSubmitEditing={submit} editable={!disabled} />
+      <Text style={s.note}>Use at least 15 characters for your password.</Text>
     </>}
-    {step === 2 && <>
-      <Heading title={'Tell us about\nyour travel style'} subtitle="Make it yours. You can change this in Profile." left />
-      <TravelPreferences selected={selected} onSelect={setSelected} travelType={travelType} onTravelType={setTravelType} />
-      <Action title="Next" arrow onPress={next} />
-    </>}
-    {step === 3 && <View style={styles.completion}>
-      <TripReadyIllustration /><Heading title="You’re all set!" subtitle="Let’s start exploring Da Nang together." />
-      <Action title="Start Exploring" arrow onPress={finish} /><PreviewNote />
-    </View>}
+    <View nativeID="clerk-captcha" />
+    {!!notice && <Text accessibilityLiveRegion="polite" style={s.error}>{notice}</Text>}
+    <Action title={disabled ? 'Please wait…' : verifying ? 'Verify email' : 'Create account'} disabled={disabled} onPress={submit} />
+    {verifying ? <>
+      <TextLink title="Resend code" onPress={() => void run(async () => { const { error } = await signUp.verifications.sendEmailCode(); if (error) throw error; setNotice('A new verification code has been sent.'); })} />
+      <TextLink title="Use a different email" onPress={() => void run(async () => { await signUp.reset(); setVerifying(false); setCode(''); })} />
+    </> : <SocialActions divider />}
+    <TextLink title="Already have an account? Sign in" onPress={() => router.replace('/login')} />
   </AuthShell>;
 }
-const styles = StyleSheet.create({
-  completion: { flex: 1, justifyContent: 'center', paddingBottom: 12 },
-  consent: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48 },
-  checkbox: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: palette.muted, alignItems: 'center', justifyContent: 'center' },
-  checked: { backgroundColor: palette.audioTeal, borderColor: palette.audioTeal }, tick: { color: palette.white },
-  consentText: { flex: 1, fontSize: 13, lineHeight: 20, color: palette.deepOcean },
-  checkboxTouch: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-});

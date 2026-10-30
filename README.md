@@ -6,13 +6,16 @@
 
 Gonarra is an audio-first mobile guide for discovering Da Nang through curated stops, local stories, and location-aware experiences.
 
-Built with React Native, Expo, TypeScript, and Expo Router. The current product slice includes the branded splash and two Figma-based onboarding slides.
+Built with React Native, Expo, TypeScript, and Expo Router. The current product slice includes branded onboarding, discovery UI, and Clerk-backed authentication with profile and travel preferences.
 
 ## Getting started
 
 ```bash
 cd apps/mobile
 npm ci
+# Authenticate the CLI, then restore keys for the existing linked Clerk app:
+npx -y clerk@latest auth login
+npx -y clerk@latest env pull
 npx expo start --go
 ```
 
