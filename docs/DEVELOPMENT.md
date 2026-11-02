@@ -42,12 +42,17 @@ The following commands become applicable when their projects, profiles, dependen
 
 | Working directory | Prerequisite | Planned commands |
 |---|---|---|
+| apps/api | Catalog schema, provider registry and importer CLI | `uv run gonarra catalog import --provider overture --release <release> --city hoi-an --dry-run`, then the reviewed non-dry run; exact command is not available until Phase 2 implements it |
+| apps/api | Curator workflow and publication validator | Validate a candidate manifest, review conflicts/rights and publish by expected revision; commands/API will be documented when implemented |
+| apps/api | Provider benchmark fixtures and opted-in credentials | Run the 100-POI/100-route benchmark separately from normal unit tests; live-provider evidence must name provider/configuration and may incur cost |
 | apps/mobile | jest-expo, component tests and Maestro flows | `npm test` and native Maestro acceptance on preview builds |
 | apps/mobile | EAS project, platform credentials, eas.json | `eas build --profile development --platform ios`, `eas build --profile development --platform android`. Use preview for QA and production for release. |
 
 ## CI, staging and release
 
-GitHub Actions checks docs, mobile types and dependencies, backend lint/types/tests, migrations against a clean database, OpenAPI-generated mobile types, image build and leaked secrets. Keep provider secrets in server configuration. Compare generated types to the committed contract.
+GitHub Actions checks docs, mobile types and dependencies, backend lint/types/tests, migrations against a clean database, OpenAPI-generated mobile types, image build and leaked secrets. Keep provider secrets in server configuration. Never commit provider payload dumps unless they are minimal, redacted, contractually retainable test fixtures with source/license metadata. Compare generated types to the committed contract.
+
+Phase 2 import development uses pinned provider releases and bounded city extracts. A developer must be able to run schema and deterministic importer tests without network access. Live import/benchmark jobs are explicit opt-in commands with quota and cost guardrails; unit tests never call Google, Gemini or local-map providers. Do not copy credentials into Compose files, mobile environment files, notebooks or shell history.
 
 Deploy the tagged image via Artifact Registry to staging Cloud Run. Apply Alembic migrations as a controlled step against Cloud SQL. Check health, authenticated access, denied cross-owner access, planner and explicit Save. Verify media after a test restore, rehearse application rollback and document migration compatibility/forward fixes. Record measured recovery time and recoverable data window.
 

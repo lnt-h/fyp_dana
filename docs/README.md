@@ -9,7 +9,7 @@ The [BRD](BRD.md) defines business outcomes and release gates. The [PRD](PRD.md)
 | Which relations, keys and transactions preserve trip integrity? | [Database design](DATABASE-DESIGN.md) |
 | Where does each component run, and which stack implements it? | [Architecture](ARCHITECTURE.md) |
 | What can mobile send, receive, retry and Save? | [API](API.md) |
-| What makes a place publishable or a preview valid? | [Data and curation](DATA.md) |
+| Where does POI data come from, what may be stored and what makes a place publishable? | [Data supply, provenance and publication](DATA.md) |
 | Who can access data, and what happens on deletion? | [Security and privacy](SECURITY.md) |
 | Which scenario demonstrates each requirement? | [Testing and traceability](TESTING.md) |
 | How do I run the current app and build future releases? | [Development](DEVELOPMENT.md) |
