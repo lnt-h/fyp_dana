@@ -7,7 +7,7 @@ The [BRD](BRD.md) defines business outcomes and release gates. The [PRD](PRD.md)
 | How does each actor complete a task or recover from failure? | [Use cases](USE-CASES.md) |
 | What can the delivery team accept for each user need? | [User stories](USER-STORIES.md) |
 | Which relations, keys and transactions preserve trip integrity? | [Database design](DATABASE-DESIGN.md) |
-| Where does each component run, and which stack implements it? | [Architecture](ARCHITECTURE.md) |
+| Where does each component run, how does trusted data enter the system, and how does planning reach explicit Save? | [Architecture and Mermaid workflows](ARCHITECTURE.md) |
 | What can mobile send, receive, retry and Save? | [API](API.md) |
 | Where does POI data come from, what may be stored and what makes a place publishable? | [Data supply, provenance and publication](DATA.md) |
 | Who can access data, and what happens on deletion? | [Security and privacy](SECURITY.md) |

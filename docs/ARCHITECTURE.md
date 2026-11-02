@@ -13,29 +13,173 @@ The system uses one Expo client and one Python modular monolith. The implemented
 | Integrations | Gemini through Google GenAI SDK, optional Agno/AgentOS orchestration behind a domain interface, HTTPX provider adapters, Clerk JWKS verification, sse-starlette for stream delivery |
 | Quality | Ruff, mypy, pytest/asyncio/cov, respx, testcontainers. Jest/jest-expo and React Native Testing Library for components, Maestro for native E2E |
 
-## Data plane
+## System architecture
 
-```text
-Overture/FSQ release   Wikidata   official/operator evidence   licensed media
-        \                 |                 |                       /
-         -> importer -> staging -> identity resolution -> bilingual review
-                                            |
-                                            v
-                                 immutable publication manifest
-                                            |
-                       +--------------------+--------------------+
-                       |                                         |
-                  Explore/search                    planner candidate DTO
-                                                                 |
-                                                      Gemini proposes IDs/order
-                                                                 |
-                                                deterministic validation/schedule
-                                                                 |
-                                        Google Routes -> preview -> explicit Save
+This is the target deployment view. The API and catalog commands share one modular-monolith codebase; the diagram does not imply microservices, Redis or a message queue. Solid arrows are Gonarra-owned request/data paths. Dotted arrows cross a third-party or operational boundary.
 
-Google Places / local map providers -> policy-aware runtime adapter -> attributed view
-                                      (no implicit canonical persistence)
+```mermaid
+flowchart LR
+    subgraph client ["Client Apps"]
+        traveler["Expo Mobile App"]
+        curator["Curator Tools and CLI"]
+    end
+
+    subgraph gateway ["API Edge"]
+        ingress["Cloud Run HTTPS Ingress"]
+    end
+
+    subgraph service ["Gonarra Application"]
+        backend["FastAPI Modular Monolith"]
+        catalogCommands["Catalog Import and Publish Commands"]
+    end
+
+    subgraph datastore ["Owned Data"]
+        postgres["Cloud SQL PostgreSQL with PostGIS and pgvector"]
+        media["Cloud Storage Licensed Media"]
+    end
+
+    subgraph external ["External and Platform Services"]
+        clerk["Clerk Identity"]
+        gemini["Gemini Structured Generation"]
+        routes["Google Routes"]
+        places["Google Places Runtime Enrichment"]
+        sources["Approved Catalog and Evidence Sources"]
+        secrets["Secret Manager"]
+        observability["Cloud Logging and Monitoring"]
+    end
+
+    traveler -->|"REST and SSE"| ingress
+    curator -->|"Restricted operations"| ingress
+    ingress -->|"Routes requests"| backend
+    backend -->|"Runs commands"| catalogCommands
+    backend -->|"Reads and writes"| postgres
+    backend -->|"Reads media metadata"| media
+    catalogCommands -->|"Stages and publishes"| postgres
+    catalogCommands -->|"Stores approved assets"| media
+    traveler -.->|"Clerk SDK sessions"| clerk
+    backend -.->|"Verifies JWT and JWKS"| clerk
+    backend -.->|"Gemini proposes IDs"| gemini
+    backend -.->|"Routes measures legs"| routes
+    backend -.->|"Places enriches views"| places
+    catalogCommands -.->|"Imports approved fields"| sources
+    backend -.->|"Loads credentials"| secrets
+    backend -.->|"Emits redacted signals"| observability
 ```
+
+The mobile app never talks to Gemini, Routes, Places, the database or object storage with server credentials. FastAPI owns authentication/authorization, catalog visibility, proposal validation, scheduling, Plan Health, preview revisions and explicit Save. Provider adapters are anti-corruption layers: raw provider payloads never enter domain repositories.
+
+## Catalog ingestion and publication workflow
+
+This workflow explains where app data comes from. Generative AI is not a catalog source and cannot publish a place, fact, coordinate, opening hour, price, rating, image or route measurement.
+
+```mermaid
+flowchart LR
+    subgraph supply ["Approved Supply"]
+        openData[/"Overture or FSQ release"/]
+        factualEvidence[/"Wikidata or official evidence"/]
+        licensedMedia[/"Wikimedia or owned media"/]
+        localProvider[/"Approved local provider"/]
+    end
+
+    subgraph ingest ["Controlled Ingestion"]
+        policy{Policy active?}
+        importRun["Create import run"]
+        staging[(Staging records)]
+        normalize["Normalize typed fields"]
+        resolve["Resolve place identity"]
+        evidence["Attach field evidence"]
+    end
+
+    subgraph review ["Human and Deterministic Review"]
+        bilingual["Review Vietnamese and English"]
+        rights["Review source and media rights"]
+        publishGate{Publication gates pass?}
+    end
+
+    subgraph publish ["Published Catalog"]
+        manifest[(Immutable manifest)]
+        explore["Explore and Search"]
+        planner["Planner candidates"]
+        guide["Contextual Local Guide"]
+    end
+
+    quarantine["Quarantine with reason"]
+    preserve["Keep last manifest active"]
+
+    openData & factualEvidence & licensedMedia & localProvider --> policy
+    policy -->|"Yes"| importRun
+    policy -->|"No"| quarantine
+    importRun --> staging
+    staging --> normalize --> resolve --> evidence
+    evidence --> bilingual --> rights --> publishGate
+    publishGate -->|"Yes"| manifest
+    publishGate -->|"No"| quarantine
+    quarantine -.-> preserve
+    manifest --> explore & planner & guide
+
+    style supply fill:#C2E5FF,stroke:#3DADFF
+    style ingest fill:#FFECBD,stroke:#FFC943
+    style review fill:#DCCCFF,stroke:#874FFF
+    style publish fill:#CDF4D3,stroke:#66D575
+    style quarantine fill:#FFCDC2,stroke:#FF7556
+    style preserve fill:#D9D9D9,stroke:#B3B3B3
+```
+
+An import is deterministic and idempotent for the same provider release and configuration. Every publishable field retains source, license, retrieval time and evidence. A failed import or rejected review leaves the previous immutable manifest available to Explore, Planner, Local Guide and already-saved trips.
+
+## Itinerary planning, editing and Save workflow
+
+The critical acceptance path is a Vietnamese two-day Hoi An trip. The traveler locks one stop, regenerates only day two, reviews the same preview on timeline and map, then explicitly saves it.
+
+```mermaid
+flowchart LR
+    start(["Start planner"])
+    authenticate["Verify Clerk session"]
+    collect[/"Collect trip constraints"/]
+    required{Required input complete?}
+    clarify["Ask a focused question"]
+    manifest["Pin publication manifest"]
+    candidates["Build eligible POI set"]
+    proposal["Gemini proposes IDs and order"]
+    validate{Proposal valid?}
+    repair["One bounded repair"]
+    routes["Measure changed route legs"]
+    schedule["Schedule and compute Plan Health"]
+    preview[(Revision-bound preview)]
+    action{Traveler action?}
+    manual["Edit stop or duration"]
+    regenerate["Regenerate day two"]
+    locks["Preserve locked stop"]
+    revision{Base revision current?}
+    save["Promote preview atomically"]
+    accepted[(Accepted trip revision)]
+    recover["Return recoverable warning"]
+    unchanged["Keep saved trip unchanged"]
+
+    start --> authenticate --> collect --> required
+    required -->|"No"| clarify
+    clarify --> collect
+    required -->|"Yes"| manifest --> candidates --> proposal --> validate
+    validate -->|"Repairable"| repair --> validate
+    validate -->|"Valid"| routes --> schedule --> preview --> action
+    validate -->|"Rejected"| recover
+    routes -.->|"Provider failure"| recover
+    schedule -.->|"Blocked leg"| recover
+    recover --> unchanged
+    action -->|"Manual edit"| manual --> routes
+    action -->|"Regenerate day two"| regenerate --> locks --> routes
+    action -->|"Save"| revision
+    action -->|"Cancel"| unchanged
+    revision -->|"Yes"| save --> accepted
+    revision -->|"No"| recover
+
+    style preview fill:#C2E5FF,stroke:#3DADFF
+    style accepted fill:#CDF4D3,stroke:#66D575
+    style recover fill:#FFECBD,stroke:#FFC943
+    style unchanged fill:#D9D9D9,stroke:#B3B3B3
+```
+
+The preview stores its owner, base trip revision, locked stops, catalog manifest and permitted route provenance. Timeline and map read the same preview revision. Manual or AI edits invalidate only affected route legs and downstream schedules. Provider, model, network or revision failure cannot overwrite the accepted trip; only the explicit Save transition promotes a preview.
 
 Provider adapters are anti-corruption layers. Each adapter maps external schemas into typed internal DTOs and declares which fields are identifiers, ephemeral display values or contractually retainable. Domain repositories never accept raw provider JSON. Import jobs and refresh jobs are application commands inside the modular monolith, not model tools and not independent microservices.
 
