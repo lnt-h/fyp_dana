@@ -44,7 +44,7 @@ Last audited: 2026-10-28. A repository asset is not automatically cleared for pu
 
 For each approved photograph, record the original source URL, creator, license/permission reference, required attribution, permitted modifications, redistribution/offline rights, reviewer, and review date. Keep private permission evidence outside the public repository. Unknown rights must remain explicitly unknown.
 
-Future audio requires narrator permission, recording ownership, transcript provenance, and explicit offline-download authorization. Do not use generated destination imagery as evidence of a real place.
+Use the [catalog and media contract](../../../docs/DATA.md) for source, reuse rights, attribution and review of destination images. Do not use generated destination imagery as evidence of a real place.
 
 ### Welcome imagery — local Figma review
 

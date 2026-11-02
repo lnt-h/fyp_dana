@@ -1,113 +1,27 @@
-# Gonarra Architecture
+# Architecture and stack
 
-## Current implementation
+The target is one Expo client and one Python modular monolith. The [repository overview](../README.md) describes the implemented mobile baseline. Domain modules own identity, catalog, trips, planning, routing and contextual answers inside the API process.
 
-The repository currently contains one Expo application at `apps/mobile`. It implements the splash and two onboarding slides; backend services described below are a target architecture, not deployed software.
+| Boundary | Implementation target |
+|---|---|
+| Mobile shell and identity | Expo SDK 58, React Native 0.88.1, React 19.3, TypeScript 6, Expo Router, Clerk Expo and SecureStore |
+| Planner UI | React Hook Form + Zod for input, Zustand for draft/UI state, TanStack Query v5 for server state, i18next/react-i18next and expo-localization for vi/en |
+| Native interaction | react-native-maps with Google Maps on iOS/Android, draggable-flatlist with Expo-compatible Reanimated and Gesture Handler, external Apple/Google Maps for navigation |
+| Transport | HTTPS REST and SSE through expo/fetch, native-device streaming spike before selecting a fallback. Generate mobile types from FastAPI OpenAPI with openapi-typescript |
+| API and persistence | Python 3.12 with uv, FastAPI/Uvicorn, Pydantic v2/settings, SQLAlchemy 2 async, psycopg 3, Alembic, PostgreSQL 16 with PostGIS and pgvector |
+| Integrations | Agno/AgentOS, Gemini through Google GenAI SDK, HTTPX for Routes, Clerk JWKS verification, sse-starlette for stream delivery |
+| Quality | Ruff, mypy, pytest/asyncio/cov, respx, testcontainers. Jest/jest-expo and React Native Testing Library for components, Maestro for native E2E |
 
-### Mobile stack
+## Request path
 
-- React Native 0.88 and React 19.
-- Expo SDK 58.
-- Expo Router for file-based navigation.
-- TypeScript in strict mode.
-- `react-native-svg` for resolution-independent brand marks.
-- `expo-linear-gradient` for branded visual treatments.
+1. Verify Clerk identity, resource ownership, revision and request limits before private retrieval or paid calls.
+2. Concierge routes intent to Planner or Local Guide. Planner receives eligible published IDs, restrictions and reviewed facts. Local Guide reads approved evidence for the scoped POI or trip. Agents receive typed read tools.
+3. Validate the Planner proposal with Pydantic and domain checks. Permit Repair one bounded attempt for a correctable output error. Google Routes supplies WALK/DRIVE measurements. The scheduler computes times and Plan Health. A missing required leg yields a blocked/incomplete result.
+4. Store a revision-bound preview. Only the explicit accept operation can atomically promote it. Recheck revision and publication after provider work, outside long-lived transactions. See [API](API.md).
+5. Guide answers stream in the selected locale with source identifiers, or return insufficient_evidence. Cancellation and stream failure preserve the current edit.
 
-### Mobile structure
+## Deployment boundary
 
-```text
-apps/mobile/
-├── assets/
-│   ├── brand/          # Editable SVG brand sources
-│   └── onboarding/     # Screen-specific photography
-└── src/
-    ├── app/            # Expo Router routes and root layout
-    ├── components/     # Reusable brand and UI components
-    ├── features/       # Feature-owned components
-    └── theme/          # Shared design tokens
-```
+GitHub Actions builds a multi-stage API image in Artifact Registry. Cloud Run serves it under a dedicated service account with scoped Cloud SQL and Secret Manager access. Cloud Storage serves licensed versioned media. Cloud Logging/Monitoring collect redacted outcomes, latency, failure and quota signals. Separate development, staging and production configuration. Store server credentials outside the client. Restrict the client Maps SDK key by platform, app and API.
 
-The splash route is `/`. After a short branded transition it replaces itself with `/onboarding`, preventing the splash screen from remaining in navigation history.
-
-Images remain local, deterministic application assets. Vector brand marks are React components when they need runtime rendering and tracked SVG files when they are build or platform-icon sources.
-
-## Target system boundary
-
-The intended product can remain a modular monolith until measurement demonstrates a need for additional services:
-
-```text
-Mobile app
-  → HTTPS API
-    → PostgreSQL and object storage
-    → map and route provider
-    → language model and embedding provider
-```
-
-Proposed backend modules:
-
-- Identity and sessions.
-- Published places and search.
-- Saves.
-- Trip preferences, proposal validation, and itinerary editing.
-- Route metadata and external-map handoff.
-- Arrival and trip progression.
-- Audio metadata and authorised cache manifests.
-- Source-backed question answering.
-- Restricted content curation.
-
-No microservices, queue, Redis, or background-location service is required for the first release.
-
-## State and data model
-
-Conceptual records:
-
-- `User` and revocable `Session`.
-- `Place`, reviewed aliases, media, facts, and sources.
-- `Trip`, `TripDay`, ordered `TripStop`, and revisioned `RouteLeg`.
-- Accepted proposal metadata and idempotency records.
-- `ArrivalEvent` with one accepted event per trip stop.
-- `AudioGuide` with language, version, transcript, rights, and offline policy.
-- `Save`, source passages, and content revisions.
-
-The physical database schema will be designed when backend implementation starts. This repository deliberately does not keep speculative production DDL.
-
-## API principles
-
-- Validate every request at the boundary and return typed errors.
-- Authenticate private operations and enforce ownership on the server.
-- Version client/API compatibility and reject unsupported clients explicitly.
-- Use optimistic revisions for itinerary edits.
-- Persist idempotency keys for replayable build, acceptance, and arrival operations.
-- Keep provider calls outside database transactions.
-- Never invent missing route, opening-hour, price, or source data.
-- Paginate list endpoints and include locale and freshness metadata where relevant.
-
-## Security and privacy invariants
-
-- Secrets remain server-side and are never embedded in the mobile bundle.
-- Passwords use an approved adaptive hash; refresh credentials are stored only as hashes and rotate atomically.
-- Logout and account deletion revoke active sessions.
-- Private trips, saves, questions, and arrival records are owner-scoped.
-- Logs omit raw passwords, tokens, precise location, questions, and media by default.
-- Location is requested only for a visible action and used in the foreground.
-- Account deletion requires reauthentication and an explicit confirmation.
-- Source, translation, image, narration, and offline-use rights are recorded before publication.
-
-## Reliability invariants
-
-- Accepted itineraries are not overwritten by a failed generation or edit.
-- Active-trip progress has one current stop and an immutable visited prefix.
-- Cached content is bound to itinerary and content revisions.
-- Offline mutations are pending until reconciled.
-- Route/provider failures produce recoverable states, not fabricated values.
-- Process restart restores the active trip and stable replay keys.
-
-## Open production decisions
-
-- Final Android application ID and iOS bundle identifier.
-- Minimum supported OS versions and physical test-device matrix.
-- Backend framework, hosting region, database service, and restore objectives.
-- Map, route, language-model, embedding, and media-storage providers.
-- Content licensing, privacy policy, retention periods, and store declarations.
-
-These decisions must be recorded when implementation evidence exists; documentation must not present options as completed infrastructure.
+Benchmark and pin Gemini model/settings during prototype work. Record provider configuration, prompt, corpus and content revisions with evaluation results. See [development](DEVELOPMENT.md) for release gates.

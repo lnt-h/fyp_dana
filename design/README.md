@@ -1,6 +1,8 @@
 # Authentication design references
 
-## Current auth, Profile and Settings preview — 2026-10-29
+These dated snapshots describe the UI at review time. Use the [repository overview](../README.md) for current Clerk integration and the [documentation index](../docs/README.md) for active contracts.
+
+## Historical auth, Profile and Settings preview — 2026-10-29
 
 - Welcome keeps its landscape composition and includes Email, Google and Apple icons/buttons. Guest entry is labeled “Explore without an account”. Social buttons explain provider unavailability instead of pretending to authenticate.
 - Registration has labeled fields with caller-provided placeholders, optional preferences, retained selections when skipping/backtracking, and a completion screen. Blank inputs remain allowed for UI review. Preferences selected as a guest seed the registration choices.
@@ -41,7 +43,7 @@ Read the supplied `Tourguide app UI.fig` locally after Figma MCP reached its acc
 - Existing onboarding copy matches Figma wording. Auth preview explanations were repetitive; reduced to a short UI-preview marker. Welcome supporting copy is shortened.
 - Welcome uses a landscape Dragon Bridge hero with a smaller cathedral photo overlapping its corner, instead of the capsule columns used by onboarding. Both photos are dedicated embedded assets. It is not claimed as an exact recreation of the five-photo Welcome PNG, whose individual source photos are absent from this local `.fig`.
 
-### Current preview behavior (supersedes earlier validation notes)
+### October 2026 preview behavior (supersedes earlier validation notes)
 
 As requested, blank inputs do not block Next or Sign In. Registration goes through all three steps without email, password, or terms validation. Sign In opens Home as a UI preview only; no authentication request occurs. Back, Skip, selection, and show/hide password remain interactive. Production validation and real authentication must be reinstated when a backend is connected.
 
@@ -49,7 +51,7 @@ As requested, blank inputs do not block Next or Sign In. Registration goes throu
 
 Onboarding text nodes (including `236:276` and `242:470`) specify Hanken Grotesk Medium at 37px in the 440px frame. The app now bundles Medium and Bold through `@expo-google-fonts/hanken-grotesk` 0.4.3 and `expo-font` 58.0.10, rather than relying on system fonts. Fonts are loaded at the root before screens mount, following the [Expo font-loading guidance](https://docs.expo.dev/develop/user-interface/fonts/). Font provenance: [Google Fonts Hanken Grotesk](https://github.com/google/fonts/tree/main/ofl/hankengrotesk).
 
-The existing Home tab bar still has Home / Explore / AI guide / Trips, while `pland.md` requires Home / Explore / Trips / Saved. This pre-existing product/design conflict is recorded for the Home/navigation implementation; this onboarding/auth review does not silently change those destinations.
+The existing Home tab bar still has Home / Explore / AI guide / Trips. The [product requirements document](../docs/PRD.md) establishes a planner-first bilingual experience and does not include a standalone AI-guide tab in the MVP. This screen predates the 2026-11-02 pivot and must be reconciled during the core-loop prototype rather than treated as the active navigation contract.
 
 
 ## Verification of this review

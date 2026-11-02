@@ -23,3 +23,13 @@ coverage/
 openapi.generated.json
 openapi.generated.yaml
 docs/openapi.json
+
+# Root-local planning and agent handoff notes
+/plan.md
+/progress.md
+/AGENTS.md
+/agent.md
+/agents.md
+/AGENT.md
+/plan-ai.md
+/pland.md

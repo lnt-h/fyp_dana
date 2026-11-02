@@ -4,9 +4,9 @@
   <img src="apps/mobile/assets/brand/gonarra-app-icon.svg" width="72" alt="Gonarra" />
 </p>
 
-Gonarra is an audio-first mobile guide for discovering Da Nang through curated stops, local stories, and location-aware experiences.
+Gonarra is the working name for a bilingual Vietnamese/English AI itinerary planner for travel in Vietnam. The planned launch supports Hà Nội, Thành phố Hồ Chí Minh, Đà Nẵng, Hội An, and Huế with editable one-to-three-day itineraries shown as a timeline and map.
 
-Built with React Native, Expo, TypeScript, and Expo Router. The current product slice includes branded onboarding, discovery UI, and Clerk-backed authentication with profile and travel preferences.
+Built with React Native, Expo, TypeScript, and Expo Router. The current implemented slice includes branded onboarding, preview discovery UI, and Clerk-backed authentication with profile and travel preferences. The AI planner, bilingual city catalog, routing backend, and Local Guide are not implemented yet.
 
 ## Getting started
 
@@ -23,9 +23,6 @@ Press `a` for Android, `i` for iOS, or `w` for web. To create a native developme
 
 ## Documentation
 
-- Product: [overview](docs/PRODUCT.md), [business requirements](docs/10-BRD.md), [product requirements](docs/01-PRD.md), and [user stories](docs/11-User-Stories.md)
-- Design: [architecture](docs/ARCHITECTURE.md), [use cases](docs/03-Use-Cases.md), [runtime sequences](docs/04-Sequence-Diagrams.md), [data model](docs/05-Database-Design.md), and [API contract](docs/06-API-Design.md)
-- Delivery: [development guide](docs/DEVELOPMENT.md), [development plan](docs/13-Development-Plan.md), [test plan](docs/08-Test-Plan.md), and [traceability](docs/14-Traceability.md)
-- Governance: [security and privacy](docs/15-Security-Privacy.md), [data curation](docs/16-Data-Curation.md), and [research plan](docs/RESEARCH.md)
+Start with the [business requirements](docs/BRD.md) and [product requirements](docs/PRD.md). The [documentation index](docs/README.md) links use cases, user stories, database design, engineering contracts and release evidence requirements.
 
-Design source: [Gonarra Figma prototype](https://www.figma.com/design/JvXw7rVf5KxoA6LlDJEqAt/Tourguide-app-UI).
+The [historical design reference](design/README.md) records earlier visual review passes.
