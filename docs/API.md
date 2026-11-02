@@ -1,6 +1,6 @@
 # Mobile–API contract
 
-Target REST namespace is /v1. Return structured data in the requested vi/en locale. OpenAPI becomes the wire contract with the backend foundation. Client-supplied owner IDs never authorize access.
+REST resources use `/v1`. `GET /health` is process liveness, `GET /ready` verifies database connectivity, and authenticated `GET /v1/me` maps the verified Clerk subject to an internal account UUID. The committed `apps/api/openapi.json` is generated from FastAPI and checked for drift in CI. Client-supplied owner IDs never authorize access.
 
 | Operation | Target contract |
 |---|---|
@@ -15,6 +15,8 @@ Target REST namespace is /v1. Return structured data in the requested vi/en loca
 PlanPreview returns previewId, previewRevision, baseRevision, expiresAt, ordered days/stops/legs with stable IDs, planHealth, warnings, assumptions, locks and provenance. Each leg carries mode, route availability and Google Routes distance/duration when available. Timeline and map consume the same revision. A revision may be selected for review before acceptance.
 
 ## Failure and replay
+
+Errors use `{ "error": { "code", "message", "retryable", "request_id", "context" } }`. Every response carries `X-Request-ID`; logs record request metadata without tokens or bodies.
 
 Scope idempotency keys by owner and operation for generation, edits, regeneration and Save. Replay an identical successful request once logically, and reject key reuse with a different payload. Reject stale revisions with a conflict before committing. A blocked or expired preview cannot be accepted. Use a typed error code, request ID and field/revision details where applicable. Report retryability for timeouts/unavailability. Reject foreign nested IDs before a model or routing request. Keep accepted and pending state recoverable across retry.
 

@@ -1,0 +1,38 @@
+services:
+  db:
+    # The official PostGIS image currently publishes amd64 images only.
+    # Docker Desktop uses emulation on Apple Silicon; Cloud SQL remains native.
+    platform: linux/amd64
+    build:
+      context: ./infra/postgres
+    environment:
+      POSTGRES_DB: gonarra
+      POSTGRES_USER: gonarra
+      POSTGRES_PASSWORD: gonarra
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gonarra -d gonarra"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - gonarra-postgres:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ./apps/api
+    environment:
+      GONARRA_DATABASE_URL: postgresql+psycopg://gonarra:gonarra@db:5432/gonarra
+      GONARRA_ENVIRONMENT: development
+    env_file:
+      - path: ./apps/api/.env
+        required: false
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  gonarra-postgres:

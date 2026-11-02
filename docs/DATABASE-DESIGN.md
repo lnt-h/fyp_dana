@@ -1,6 +1,6 @@
 # Database design
 
-**Target logical schema · PostgreSQL 16, PostGIS and pgvector.** Alembic migrations will implement this design with the backend foundation. The [data contract](DATA.md) governs publication, bilingual review and rights.
+**PostgreSQL 16, PostGIS and pgvector.** Migration `20261102_0001` enables `pgcrypto`, `postgis` and `vector` and creates the unique Clerk-subject-to-account mapping. Later migrations implement the remaining relations below. The [data contract](DATA.md) governs publication, bilingual review and rights.
 
 ## Relationships and keys
 

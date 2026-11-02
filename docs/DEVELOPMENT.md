@@ -19,16 +19,29 @@ npm run check:dependencies
 
 Before native handoff run npx expo-doctor and verify the actual device flow. Metro startup or web rendering alone cannot verify native sessions, maps or streaming.
 
+Backend dependencies are locked to Python 3.12 with uv. Docker Desktop can run PostgreSQL with all required extensions and the API:
+
+```sh
+docker compose build db api
+docker compose up -d db
+cd apps/api
+uv sync --all-groups
+uv run alembic upgrade head
+uv run ruff check .
+uv run mypy app
+uv run pytest
+uv run pytest -m integration
+uv run python scripts/export_openapi.py --check
+```
+
+From the repository root, `docker compose up -d api` serves `/health`, `/ready`, `/docs` and `/openapi.json` on port 8000. The official PostGIS image currently runs through amd64 emulation on Apple Silicon development machines.
+
 ## Planned commands and prerequisites
 
 The following commands become applicable when their projects, profiles, dependencies and scripts are added. Production releases target iOS and Android.
 
 | Working directory | Prerequisite | Planned commands |
 |---|---|---|
-| Repository root | Compose database with PostGIS/pgvector | `docker compose up -d db` |
-| apps/api | Python 3.12, uv project/lock, settings and reachable local DB | `uv sync --all-groups`, `uv run alembic upgrade head`, `uv run uvicorn app.main:app --reload` |
-| apps/api | Backend tooling and test database | `uv run ruff check .`, `uv run mypy app`, `uv run pytest` |
-| Repository root | API Dockerfile and build context | `docker build -f apps/api/Dockerfile .` |
 | apps/mobile | jest-expo, component tests and Maestro flows | `npm test` and native Maestro acceptance on preview builds |
 | apps/mobile | EAS project, platform credentials, eas.json | `eas build --profile development --platform ios`, `eas build --profile development --platform android`. Use preview for QA and production for release. |
 

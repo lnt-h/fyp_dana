@@ -1,6 +1,6 @@
 # Architecture and stack
 
-The target is one Expo client and one Python modular monolith. The [repository overview](../README.md) describes the implemented mobile baseline. Domain modules own identity, catalog, trips, planning, routing and contextual answers inside the API process.
+The system uses one Expo client and one Python modular monolith. The implemented foundation includes FastAPI, typed settings, async SQLAlchemy/psycopg, Alembic, PostgreSQL 16 with PostGIS/pgvector, health/readiness endpoints, Clerk JWT verification, internal account mapping, error envelopes, request IDs, Docker and CI. Domain modules own identity, catalog, trips, planning, routing and contextual answers inside the API process.
 
 | Boundary | Implementation target |
 |---|---|

@@ -6,7 +6,7 @@
 
 Gonarra is the working name for a bilingual Vietnamese/English AI itinerary planner for travel in Vietnam. The planned launch supports Hà Nội, Thành phố Hồ Chí Minh, Đà Nẵng, Hội An, and Huế with editable one-to-three-day itineraries shown as a timeline and map.
 
-Built with React Native, Expo, TypeScript, and Expo Router. The current implemented slice includes branded onboarding, preview discovery UI, and Clerk-backed authentication with profile and travel preferences. The AI planner, bilingual city catalog, routing backend, and Local Guide are not implemented yet.
+Built with React Native, Expo, TypeScript, Expo Router and a Python/FastAPI modular monolith. The current slice includes branded onboarding, Clerk-backed mobile authentication, a containerized PostgreSQL 16 foundation with PostGIS/pgvector, versioned migrations, health/readiness endpoints and server-side Clerk JWT verification. Catalog, planning, Routes and Local Guide modules follow in later phases.
 
 ## Getting started
 
@@ -20,6 +20,16 @@ npx expo start --go
 ```
 
 Press `a` for Android, `i` for iOS, or `w` for web. To create a native development build, run `npm run android` or `npm run ios`.
+
+Run the backend foundation from the repository root:
+
+```bash
+docker compose up -d db
+cd apps/api
+uv sync --all-groups
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload
+```
 
 ## Documentation
 

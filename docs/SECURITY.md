@@ -2,7 +2,7 @@
 
 | Boundary | Required control and evidence |
 |---|---|
-| Identity | Clerk manages credentials and sessions. Verify signature, issuer, expiry and configured audience/authorized parties server-side. Derive the owner from verified identity. Test invalid, expired and foreign credentials. |
+| Identity | Clerk manages credentials and sessions. The API verifies RS256 signature, issuer, expiry/not-before, subject and configured audience/authorized party, then maps the subject to a unique internal account UUID. Test valid, invalid, expired and foreign credentials. |
 | Private resources | Check owner plus parent membership before data retrieval, agent invocation or provider spend. Test foreign trip, session, preview, lock and stop IDs. Parameterize queries and validate DTO ranges. |
 | AI, routing and external links | Treat prompts and retrieved passages as untrusted data. Allowlist published IDs, sources and typed read tools. Use fixed external map targets and verified coordinates. Provider failure leaves accepted state intact. |
 | Abuse and concurrency | Bound payloads, per-owner and service quotas, deadlines, retries and repair cost. Verify idempotency, revision checks and quota enforcement across deployed instances before pilot. |
