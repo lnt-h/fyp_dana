@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SCR-037 Booking handoff sheet</title>
+<style>
+:root{
+  /* As-built tokens: apps/mobile/src/theme/colors.ts + AuthUI/AccountUI palettes */
+  --deepOcean:#0B3045;--ink:#07151E;--teal:#28B6B5;--tealDark:#0B8EA8;--audioTeal:#00839C;--sun:#F6A623;
+  --skyWash:#E8F5F7;--mutedDot:#D4E0E5;--white:#FFFFFF;--disabled:#A8A8A8;
+  --canvas:#F5FAFC;--border:#DCE8EE;--cardBorder:#E4EDF2;--mutedBuilt:#71899A;--error:#AF3434;
+  /* Proposed tokens (README §6.2) — contrast-corrected and semantic */
+  --textMuted:#5E7585;--tealText:#00788F;--errorBg:#FDECEA;--warn:#9A6200;--warnBg:#FFF5E4;--ok:#1E7A4C;--okBg:#E9F6EF;
+  --r-action:22px;--r-field:17px;--r-card:24px;--r-icon:14px;--r-chip:10px;
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:22px;--s6:24px;
+  --font:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --phone:390px;--desk:1280px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font);background:#EEF3F6;color:var(--ink);font-size:14px;line-height:1.45}
+a{color:var(--tealText)}
+:focus-visible{outline:3px solid var(--tealText);outline-offset:2px}
+.doc{background:var(--deepOcean);color:#fff;padding:12px 16px;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline}
+.doc b{font-size:16px}.doc span{opacity:.9;font-size:12px}.doc a{color:#BBE9FF}
+.sample{background:var(--warnBg);color:#5B3A00;padding:8px 16px;font-size:12px;border-bottom:1px solid #F0DDB8}
+.vp{position:absolute;opacity:0;pointer-events:none}
+.vpbar{display:flex;gap:8px;align-items:center;padding:10px 16px;background:#fff;border-bottom:1px solid var(--border);flex-wrap:wrap;font-size:12px}
+.vpbar label{border:1.5px solid var(--border);border-radius:999px;padding:6px 12px;cursor:pointer;min-height:32px}
+#vp360:checked~.vpbar label[for=vp360],#vp390:checked~.vpbar label[for=vp390],#vp430:checked~.vpbar label[for=vp430],
+#vp1280:checked~.vpbar label[for=vp1280],#vp1440:checked~.vpbar label[for=vp1440]{background:var(--deepOcean);color:#fff;border-color:var(--deepOcean)}
+#vp360:checked~main{--phone:360px}#vp390:checked~main{--phone:390px}#vp430:checked~main{--phone:430px}
+#vp1280:checked~main{--desk:1280px}#vp1440:checked~main{--desk:1440px}
+main{padding:16px;max-width:1900px}
+.state{margin:0 0 28px}
+.state>h2{font-size:15px;margin:0 0 4px;color:var(--deepOcean)}
+.state>p.why{margin:0 0 10px;color:var(--textMuted);font-size:12px;max-width:900px}
+.pair{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.lang{font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--textMuted);margin:0 0 6px}
+/* phone frame */
+.phone{width:var(--phone);min-height:760px;background:var(--canvas);border:10px solid #1C2A33;border-radius:40px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.phone.light{background:#fff}
+.sb{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-size:12px;font-weight:700;color:var(--ink)}
+.appbar{display:flex;align-items:center;gap:8px;padding:4px 12px 10px}
+.appbar h1{flex:1;text-align:center;font-size:20px;margin:0;color:var(--deepOcean)}
+.ib{width:44px;height:44px;border-radius:14px;border:0;background:transparent;display:inline-flex;align-items:center;justify-content:center;font-size:20px;color:var(--deepOcean);flex:none}
+.ib.round{border-radius:50%;background:#fff;box-shadow:0 1px 4px #0B30451f}
+.body{flex:1;padding:4px 16px 16px;overflow:hidden}
+.title{font-size:28px;line-height:1.21;font-weight:700;color:var(--deepOcean);margin:6px 0}
+.lead{color:var(--textMuted);margin:0 0 14px}
+.sec{font-size:11px;font-weight:700;letter-spacing:1.8px;color:var(--textMuted);margin:14px 4px 8px;text-transform:uppercase}
+.card{background:#fff;border:1px solid var(--cardBorder);border-radius:var(--r-card);padding:14px;margin-bottom:12px}
+.row{display:flex;align-items:center;gap:12px;min-height:56px}
+.ic{width:42px;height:42px;border-radius:var(--r-icon);background:var(--skyWash);display:flex;align-items:center;justify-content:center;flex:none;color:var(--audioTeal);font-weight:700}
+.grow{flex:1;min-width:0}
+.rt{font-weight:700;color:var(--deepOcean)}
+.sub{color:var(--textMuted);font-size:13px}
+.small{font-size:12px;color:var(--textMuted)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;border-radius:var(--r-action);padding:12px 16px;font-weight:700;font-size:16px;border:0;width:100%;margin-top:10px;font-family:inherit;text-align:center}
+.btn.primary{background:linear-gradient(135deg,var(--deepOcean),#105B70);color:#fff} /* AuthUI.tsx:43-45 Action */
+.btn.teal{background:var(--tealText);color:#fff}
+.btn.secondary{background:#fff;color:var(--deepOcean);border:1.5px solid var(--border)}
+.btn.danger{background:var(--error);color:#fff}
+.btn.disabled{background:linear-gradient(135deg,var(--deepOcean),#105B70);color:#fff;opacity:.55} /* AuthUI.tsx:44 disabled = opacity .55 */
+.btn.sm{min-height:44px;font-size:14px;border-radius:14px;width:auto;margin:0}
+.link{color:var(--tealText);font-weight:700;min-height:44px;display:inline-flex;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:46px;padding:0 15px;display:inline-flex;align-items:center;border-radius:16px;border:1.5px solid var(--border);background:#fff;font-weight:700;color:var(--deepOcean);font-size:14px}
+.chip.on{background:var(--tealText);color:#fff;border-color:var(--tealText)} /* TravelPreferences.tsx:50-51 */
+.seg{display:flex;background:#E3ECF1;border-radius:14px;padding:3px;gap:3px}
+.seg span{flex:1;min-height:40px;display:flex;align-items:center;justify-content:center;border-radius:11px;font-weight:700;color:#3F5666;font-size:13px}
+.seg span.on{background:#fff;color:var(--deepOcean);box-shadow:0 1px 3px #0B304526}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:13px;font-weight:600;color:var(--deepOcean);margin-bottom:6px}
+.input{min-height:58px;border:1.5px solid var(--border);border-radius:var(--r-field);background:#fff;padding:14px 16px;color:var(--deepOcean);font-size:16px}
+.input.ph{color:var(--textMuted)}
+.input.err{border-color:var(--error)}
+.input.area{min-height:110px}
+.errt{color:var(--error);font-size:13px;margin-top:6px}
+.badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;white-space:nowrap}
+.b-ok{background:var(--okBg);color:var(--ok)}.b-warn{background:var(--warnBg);color:var(--warn)}.b-block{background:var(--errorBg);color:var(--error)}
+.b-unsaved{background:#fff;color:var(--deepOcean);border:1.5px dashed var(--deepOcean)}.b-neutral{background:var(--skyWash);color:var(--deepOcean)}
+.b-lock{background:var(--deepOcean);color:#fff}
+.banner{border-radius:16px;padding:10px 12px;font-size:13px;margin-bottom:10px;display:flex;gap:8px;align-items:flex-start}
+.banner b{display:block}
+.bn-info{background:var(--skyWash);color:var(--deepOcean)}.bn-warn{background:var(--warnBg);color:#5B3A00}.bn-err{background:var(--errorBg);color:#7A1F1F}.bn-off{background:#E3E8EB;color:var(--ink)}
+.stop{display:flex;gap:10px;background:#fff;border:1px solid var(--cardBorder);border-radius:18px;padding:12px;min-height:72px}
+.stop.sel{border:2px solid var(--tealText)}
+.stop.blocked{border-left:5px solid var(--error)}.stop.warn{border-left:5px solid var(--warn)}
+.num{width:28px;height:28px;border-radius:50%;background:var(--deepOcean);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none}
+.time{font-weight:700;color:var(--deepOcean);font-size:13px}
+.nm{font-weight:700;color:var(--deepOcean)}
+.alt{color:var(--textMuted);font-size:12px}
+.leg{margin:2px 0 2px 24px;padding:6px 0 6px 18px;border-left:2px dotted var(--textMuted);font-size:12px;color:var(--textMuted);min-height:34px;display:flex;align-items:center;gap:6px}
+.leg.na{border-left-style:dashed;border-left-color:var(--error);color:var(--error)}
+.tabbar{display:flex;justify-content:space-around;padding:6px;background:rgba(211,220,225,.88);border-radius:40px;margin:0 40px 14px} /* HomeTabBar.tsx:108,130,149 */
+.searchpill{display:flex;align-items:center;gap:10px;min-height:52px;border-radius:26px;border:1px solid #A9D6DE;background:#fff;padding:5px 5px 5px 14px;box-shadow:0 2px 8px #07151E12;color:var(--ink)} /* home.tsx:150-183,330 */
+.searchpill .ph{flex:1;color:var(--textMuted)}
+.mic{width:40px;height:40px;border-radius:20px;background:var(--skyWash);display:flex;align-items:center;justify-content:center;color:var(--audioTeal);font-weight:700;flex:none}
+.dots{display:flex;gap:4px;justify-content:center}.dots i{width:8px;height:8px;border-radius:4px;background:var(--mutedDot)}.dots i.on{width:28px;background:var(--deepOcean)}
+.tab{display:flex;flex-direction:column;align-items:center;font-size:11px;font-weight:700;color:#292D32;min-width:60px;min-height:52px;justify-content:center;border-radius:30px}
+.tab.on{background:rgba(187,233,255,.72);color:var(--deepOcean)}
+.tab i{font-style:normal;font-size:18px}
+.sticky{padding:10px 16px 18px;background:#fff;border-top:1px solid var(--cardBorder)}
+.scrim{position:absolute;inset:0;background:#07151E66;display:flex;align-items:flex-end}
+.sheet{background:#fff;border-radius:40px 40px 0 0;box-shadow:0 -4px 14px #07151E0f;padding:10px 16px 22px;width:100%;max-height:92%;overflow:hidden}
+.grab{width:68px;height:4px;border-radius:2px;background:#C9C9C9;margin:0 auto 10px}
+.sheet h3{margin:4px 0 8px;font-size:20px;color:var(--deepOcean)}
+.dialog{background:#fff;border-radius:22px;margin:auto 22px;padding:18px;align-self:center;width:100%}
+.scrim.center{align-items:center}
+.map{position:relative;background:linear-gradient(135deg,#DDEFF3,#EAF4E6 60%,#E9F1F6);overflow:hidden}
+.map svg{position:absolute;inset:0;width:100%;height:100%}
+.pin{position:absolute;width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--deepOcean);display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+.pin span{transform:rotate(45deg);color:#fff;font-weight:700;font-size:12px}
+.pin.sel{background:var(--tealText);width:38px;height:38px}
+.pin.bad{background:var(--error)}
+.attr{position:absolute;right:8px;bottom:6px;font-size:10px;background:#ffffffcc;padding:2px 6px;border-radius:6px;color:var(--ink)}
+.skel{background:linear-gradient(90deg,#E3ECF1,#F1F6F9,#E3ECF1);border-radius:10px;height:14px;margin:8px 0}
+.bubble{max-width:86%;border-radius:18px;padding:10px 12px;margin:6px 0;font-size:14px}
+.me{margin-left:auto;background:var(--deepOcean);color:#fff;border-bottom-right-radius:6px}
+.bot{background:#fff;border:1px solid var(--cardBorder);color:var(--ink);border-bottom-left-radius:6px}
+.srcs{margin-top:8px;border-top:1px solid var(--cardBorder);padding-top:6px;font-size:12px;color:var(--textMuted)}
+.src{display:flex;gap:6px;align-items:center;min-height:32px}
+.fact{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #ECF2F5}
+.fact .k{width:38%;font-size:12px;color:var(--textMuted);font-weight:700}
+.fact .v{flex:1;color:var(--deepOcean)}
+.composer{display:flex;gap:8px;align-items:center;padding:8px 12px 16px;background:#fff;border-top:1px solid var(--cardBorder)}
+.composer .input{flex:1;min-height:48px;padding:12px 14px;font-size:14px}
+.wave{display:flex;gap:4px;align-items:center;justify-content:center;height:60px}
+.wave i{display:block;width:6px;border-radius:3px;background:var(--tealText)}
+.check{display:flex;gap:10px;align-items:flex-start;min-height:44px}
+.box{width:22px;height:22px;border:2px solid var(--deepOcean);border-radius:6px;flex:none;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff}
+.box.on{background:var(--deepOcean)}
+.steps li{margin:6px 0}
+.focusring{outline:3px solid var(--tealText);outline-offset:2px}
+.notes{background:#fff;border:1px solid var(--border);border-radius:16px;padding:14px 16px;max-width:1100px;margin:8px 0 28px;font-size:13px}
+.notes h2{font-size:15px;margin:0 0 8px;color:var(--deepOcean)}
+.notes h3{font-size:13px;margin:12px 0 4px;color:var(--deepOcean)}
+.notes table{border-collapse:collapse;width:100%;font-size:12px}
+.notes th,.notes td{border:1px solid var(--border);padding:5px 7px;text-align:left;vertical-align:top}
+.notes th{background:var(--canvas)}
+footer{padding:16px;font-size:12px;color:var(--textMuted)}
+/* desktop admin */
+.desk{position:relative;width:var(--desk);min-height:780px;background:var(--canvas);border:1px solid #C9D6DD;border-radius:10px;display:flex;overflow:hidden}
+.scrollx{max-width:100%;overflow-x:auto;padding-bottom:6px}
+.side{width:220px;background:var(--deepOcean);color:#fff;padding:18px 12px;flex:none}
+.side .logo{font-weight:700;font-size:20px;margin:0 8px 18px}
+.side .nav{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:12px;color:#DCEBF2;font-weight:600}
+.side .nav.on{background:#ffffff1f;color:#fff}
+.dmain{flex:1;display:flex;flex-direction:column;min-width:0}
+.top{display:flex;align-items:center;gap:12px;padding:14px 22px;background:#fff;border-bottom:1px solid var(--cardBorder)}
+.top h1{margin:0;font-size:20px;color:var(--deepOcean);flex:1}
+.dbody{padding:18px 22px;display:flex;gap:18px;align-items:flex-start}
+.tbl{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--cardBorder);border-radius:14px;overflow:hidden;font-size:13px}
+.tbl th{background:#EDF4F7;text-align:left;padding:10px;color:var(--deepOcean);font-size:12px;border-bottom:1px solid var(--cardBorder)}
+.tbl td{padding:10px;border-bottom:1px solid #ECF2F5;vertical-align:top;color:var(--ink)}
+.tbl tr.sel td{background:#EAF6F8}
+.kpis{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.kpi{background:#fff;border:1px solid var(--cardBorder);border-radius:14px;padding:10px 14px;min-width:150px}
+.kpi b{font-size:20px;color:var(--deepOcean);display:block}
+.meter{height:8px;background:#E3ECF1;border-radius:4px;overflow:hidden;margin-top:6px}.meter i{display:block;height:100%;background:var(--tealText)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.sel{min-height:40px;border:1.5px solid var(--border);border-radius:12px;padding:8px 12px;background:#fff;font-size:13px;color:var(--deepOcean)}
+.dbody>.grow{min-width:0;overflow-x:auto}
+.panel{background:#fff;border:1px solid var(--cardBorder);border-radius:16px;padding:14px;width:340px;flex:none}
+code{background:#EDF4F7;padding:1px 5px;border-radius:5px;font-size:12px}
+@media (max-width:760px){.pair{flex-direction:column}.phone{width:min(var(--phone),100%)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<input class="vp" type="radio" name="vp" id="vp360"><input class="vp" type="radio" name="vp" id="vp390" checked><input class="vp" type="radio" name="vp" id="vp430">
+<header class="doc"><b>SCR-037 — Booking handoff sheet</b><span>Gonarra UI/UX wireframe · GONARRA-UIUX · v0.1 Draft · 2026-11-04 · owner Lê Ngọc Tấn Hiền · approver trantrongminh [Pending]</span><span>Traces: US-029, US-030, US-031, US-037 · FR-064, FR-065, FR-066, FR-067, FR-079, FR-080, FR-081 · BR-018, BR-041</span><span>Prompt: design/UI-UX-Design_prompt.md v2.0 · <a href="../README.md">Specification (README.md)</a></span></header>
+<div class="sample" role="note">Sample content. Place names are real places; every hour, address, distance, duration, date, price, count and source shown is an illustrative placeholder, not verified data. People are personas (Tom, Linh) from BRD SC-01..03.</div>
+<div class="vpbar"><b>Viewport</b><label for="vp360">360 px</label><label for="vp390">390 px</label><label for="vp430">430 px</label><span>Traveler app: phone portrait. Frames reflow; nothing is truncated.</span></div>
+<main>
+<section class="state"><h2>Stays (SC-03)</h2><p class="why">US-029 AC1: city and check-in/check-out prefilled; only partners that accept dates are listed (AC2). Partner names in text, no logos (BRAND_CONSTRAINTS).</p><div class="pair"><div><p class="lang">TIẾNG VIỆT (vi-VN)</p><div class="phone" role="group" aria-label="Stay handoff"><div class="sb" aria-hidden="true"><span>9:41</span><span>▮▮▮ ◔ ▭</span></div><div class="appbar"><button class="ib" aria-label="Quay lại">‹</button><h1>Hội An · 2 ngày</h1><span class="ib" aria-hidden="true"></span></div><div class="body"><span class="badge b-ok">Đã lưu</span></div><div class="scrim" role="dialog" aria-modal="true" aria-label="Tìm chỗ ở tại Hội An"><div class="sheet"><div class="grab"></div><h3>Tìm chỗ ở tại Hội An</h3>
+<div class="badge b-neutral" style="margin-bottom:8px">Nhận 16/01 · Trả 18/01/2027 · 2 đêm</div><div class="row" style="border-bottom:1px solid #ECF2F5"><span class="ic">↗</span><div class="grow"><div class="rt">Agoda</div><div class="sub">Chỗ ở · Hội An</div></div><span aria-hidden="true">↗</span></div><div class="row" style="border-bottom:1px solid #ECF2F5"><span class="ic">↗</span><div class="grow"><div class="rt">Booking.com</div><div class="sub">Chỗ ở · Hội An</div></div><span aria-hidden="true">↗</span></div>
+<p class="small">Bạn sẽ rời Gonarra để mở trang đối tác. Gonarra không đặt chỗ hay nhận thanh toán.</p>
+<button class="btn secondary" >Đóng</button></div></div></div></div><div><p class="lang">ENGLISH (en-US)</p><div class="phone" role="group" aria-label="Stay handoff"><div class="sb" aria-hidden="true"><span>9:41</span><span>▮▮▮ ◔ ▭</span></div><div class="appbar"><button class="ib" aria-label="Back">‹</button><h1>Hội An · 2 days</h1><span class="ib" aria-hidden="true"></span></div><div class="body"><span class="badge b-ok">Saved</span></div><div class="scrim" role="dialog" aria-modal="true" aria-label="Find a stay in Hội An"><div class="sheet"><div class="grab"></div><h3>Find a stay in Hội An</h3>
+<div class="badge b-neutral" style="margin-bottom:8px">Check-in 16 Jan · Check-out 18 Jan 2027 · 2 nights</div><div class="row" style="border-bottom:1px solid #ECF2F5"><span class="ic">↗</span><div class="grow"><div class="rt">Agoda</div><div class="sub">Stays · Hội An</div></div><span aria-hidden="true">↗</span></div><div class="row" style="border-bottom:1px solid #ECF2F5"><span class="ic">↗</span><div class="grow"><div class="rt">Booking.com</div><div class="sub">Stays · Hội An</div></div><span aria-hidden="true">↗</span></div>
+<p class="small">You will leave Gonarra for the partner's site. Gonarra does not book or take payment.</p>
+<button class="btn secondary" >Close</button></div></div></div></div></div></section><section class="state"><h2>Stays with indicative prices (Could)</h2><p class="why">US-031 AC1–AC4: retrieval time, partner-confirms notice, never stored; hidden with a message when unavailable; first item cut (DEC-003).</p><div class="pair"><div><p class="lang">TIẾNG VIỆT (vi-VN)</p><div class="phone" role="group" aria-label="Prices"><div class="sb" aria-hidden="true"><span>9:41</span><span>▮▮▮ ◔ ▭</span></div><div class="appbar"><button class="ib" aria-label="Quay lại">‹</button><h1>Hội An · 2 ngày</h1><span class="ib" aria-hidden="true"></span></div><div class="body"><span class="badge b-ok">Đã lưu</span></div><div class="scrim" role="dialog" aria-modal="true" aria-label="Tìm chỗ ở tại Hội An"><div class="sheet"><div class="grab"></div><h3>Tìm chỗ ở tại Hội An</h3>
+<div class="badge b-neutral" style="margin-bottom:8px">Nhận 16/01 · Trả 18/01/2027 · 2 đêm</div><div class="row" style="border-bottom:1px solid #ECF2F5"><span class="ic">↗</span><div class="grow"><div class="rt">Agoda</div><div class="sub">Chỗ ở · Hội An</div></div><span aria-hidden="true">↗</span></div><div class="row" style="border-bottom:1px solid #ECF2F5"><span class="ic">↗</span><div class="grow"><div class="rt">Booking.com</div><div class="sub">Chỗ ở · Hội An</div></div><span aria-hidden="true">↗</span></div><p class="sec">Giá tham khảo</p><div class="card"><div class="row"><div class="grow"><div class="rt">Khách sạn mẫu A</div><div class="sub">từ 1.250.000 ₫/đêm</div></div></div>
+<p class="small">Lấy lúc 09:12 hôm nay. Đối tác xác nhận giá cuối cùng. Giá không được lưu cùng chuyến đi.</p></div>
+<p class="small">Bạn sẽ rời Gonarra để mở trang đối tác. Gonarra không đặt chỗ hay nhận thanh toán.</p>
+<button class="btn secondary" >Đóng</button></div></div></div></div><div><p class="lang">ENGLISH (en-US)</p><div class="phone" role="group" aria-label="Prices"><div class="sb" aria-hidden="true"><span>9:41</span><span>▮▮▮ ◔ ▭</span></div><div class="appbar"><button class="ib" aria-label="Back">‹</button><h1>Hội An · 2 days</h1><span class="ib" aria-hidden="true"></span></div><div class="body"><span class="badge b-ok">Saved</span></div><div class="scrim" role="dialog" aria-modal="true" aria-label="Find a stay in Hội An"><div class="sheet"><div class="grab"></div><h3>Find a stay in Hội An</h3>
+<div class="badge b-neutral" style="margin-bottom:8px">Check-in 16 Jan · Check-out 18 Jan 2027 · 2 nights</div><div class="row" style="border-bottom:1px solid #ECF2F5"><span class="ic">↗</span><div class="grow"><div class="rt">Agoda</div><div class="sub">Stays · Hội An</div></div><span aria-hidden="true">↗</span></div><div class="row" style="border-bottom:1px solid #ECF2F5"><span class="ic">↗</span><div class="grow"><div class="rt">Booking.com</div><div class="sub">Stays · Hội An</div></div><span aria-hidden="true">↗</span></div><p class="sec">Indicative prices</p><div class="card"><div class="row"><div class="grow"><div class="rt">Sample hotel A</div><div class="sub">from VND 1,250,000/night</div></div></div>
+<p class="small">Retrieved 09:12 today. The partner confirms the final price. Prices are not saved with your trip.</p></div>
+<p class="small">You will leave Gonarra for the partner's site. Gonarra does not book or take payment.</p>
+<button class="btn secondary" >Close</button></div></div></div></div></div></section><section class="state"><h2>Activities from a stop</h2><p class="why">US-030 AC1: opened from a place card or stop.</p><div class="pair"><div><p class="lang">TIẾNG VIỆT (vi-VN)</p><div class="phone" role="group" aria-label="Activities"><div class="sb" aria-hidden="true"><span>9:41</span><span>▮▮▮ ◔ ▭</span></div><div class="appbar"><button class="ib" aria-label="Quay lại">‹</button><h1>Hội An · 2 ngày</h1><span class="ib" aria-hidden="true"></span></div><div class="body"><span class="badge b-ok">Đã lưu</span></div><div class="scrim" role="dialog" aria-modal="true" aria-label="Tìm hoạt động ở Huế"><div class="sheet"><div class="grab"></div><h3>Tìm hoạt động ở Huế</h3>
+<div class="badge b-neutral" style="margin-bottom:8px">Từ điểm dừng: Chùa Thiên Mụ</div><div class="row" style="border-bottom:1px solid #ECF2F5"><span class="ic">↗</span><div class="grow"><div class="rt">Klook</div><div class="sub">Hoạt động, tour · Huế</div></div><span aria-hidden="true">↗</span></div>
+<p class="small">Bạn sẽ rời Gonarra để mở trang đối tác. Gonarra không đặt chỗ hay nhận thanh toán.</p>
+<button class="btn secondary" >Đóng</button></div></div></div></div><div><p class="lang">ENGLISH (en-US)</p><div class="phone" role="group" aria-label="Activities"><div class="sb" aria-hidden="true"><span>9:41</span><span>▮▮▮ ◔ ▭</span></div><div class="appbar"><button class="ib" aria-label="Back">‹</button><h1>Hội An · 2 days</h1><span class="ib" aria-hidden="true"></span></div><div class="body"><span class="badge b-ok">Saved</span></div><div class="scrim" role="dialog" aria-modal="true" aria-label="Find activities in Huế"><div class="sheet"><div class="grab"></div><h3>Find activities in Huế</h3>
+<div class="badge b-neutral" style="margin-bottom:8px">From stop: Thien Mu Pagoda</div><div class="row" style="border-bottom:1px solid #ECF2F5"><span class="ic">↗</span><div class="grow"><div class="rt">Klook</div><div class="sub">Activities, tours · Huế</div></div><span aria-hidden="true">↗</span></div>
+<p class="small">You will leave Gonarra for the partner's site. Gonarra does not book or take payment.</p>
+<button class="btn secondary" >Close</button></div></div></div></div></div></section><section class="state"><h2>Transport</h2><p class="why">US-037 AC1: destination city and start date prefilled.</p><div class="pair"><div><p class="lang">TIẾNG VIỆT (vi-VN)</p><div class="phone" role="group" aria-label="Transport"><div class="sb" aria-hidden="true"><span>9:41</span><span>▮▮▮ ◔ ▭</span></div><div class="appbar"><button class="ib" aria-label="Quay lại">‹</button><h1>Hội An · 2 ngày</h1><span class="ib" aria-hidden="true"></span></div><div class="body"><span class="badge b-ok">Đã lưu</span></div><div class="scrim" role="dialog" aria-modal="true" aria-label="Tìm phương tiện đến Đà Nẵng"><div class="sheet"><div class="grab"></div><h3>Tìm phương tiện đến Đà Nẵng</h3>
+<div class="badge b-neutral" style="margin-bottom:8px">Ngày đi 16/01/2027</div><div class="row" style="border-bottom:1px solid #ECF2F5"><span class="ic">↗</span><div class="grow"><div class="rt">12Go</div><div class="sub">Xe, tàu · Đà Nẵng</div></div><span aria-hidden="true">↗</span></div>
+<p class="small">Bạn sẽ rời Gonarra để mở trang đối tác. Gonarra không đặt chỗ hay nhận thanh toán.</p>
+<button class="btn secondary" >Đóng</button></div></div></div></div><div><p class="lang">ENGLISH (en-US)</p><div class="phone" role="group" aria-label="Transport"><div class="sb" aria-hidden="true"><span>9:41</span><span>▮▮▮ ◔ ▭</span></div><div class="appbar"><button class="ib" aria-label="Back">‹</button><h1>Hội An · 2 days</h1><span class="ib" aria-hidden="true"></span></div><div class="body"><span class="badge b-ok">Saved</span></div><div class="scrim" role="dialog" aria-modal="true" aria-label="Find transport to Đà Nẵng"><div class="sheet"><div class="grab"></div><h3>Find transport to Đà Nẵng</h3>
+<div class="badge b-neutral" style="margin-bottom:8px">Departing 16 Jan 2027</div><div class="row" style="border-bottom:1px solid #ECF2F5"><span class="ic">↗</span><div class="grow"><div class="rt">12Go</div><div class="sub">Bus, train · Đà Nẵng</div></div><span aria-hidden="true">↗</span></div>
+<p class="small">You will leave Gonarra for the partner's site. Gonarra does not book or take payment.</p>
+<button class="btn secondary" >Close</button></div></div></div></div></div></section><section class="state"><h2>No partner available (empty/error)</h2><p class="why">Honest empty state instead of a broken link.</p><div class="pair"><div><p class="lang">TIẾNG VIỆT (vi-VN)</p><div class="phone" role="group" aria-label="No partner"><div class="sb" aria-hidden="true"><span>9:41</span><span>▮▮▮ ◔ ▭</span></div><div class="appbar"><button class="ib" aria-label="Quay lại">‹</button><h1>Hội An · 2 ngày</h1><span class="ib" aria-hidden="true"></span></div><div class="body"><span class="badge b-ok">Đã lưu</span></div><div class="scrim" role="dialog" aria-modal="true"><div class="sheet"><div class="grab"></div><h3>Tìm chỗ ở tại Hội An</h3>
+<div class="banner bn-warn" role="status"><div><b>Chưa có đối tác phù hợp</b> Không đối tác nào nhận được ngày nhận và trả phòng của bạn. Thử lại sau.</div></div><button class="btn secondary" >Đóng</button></div></div></div></div><div><p class="lang">ENGLISH (en-US)</p><div class="phone" role="group" aria-label="No partner"><div class="sb" aria-hidden="true"><span>9:41</span><span>▮▮▮ ◔ ▭</span></div><div class="appbar"><button class="ib" aria-label="Back">‹</button><h1>Hội An · 2 days</h1><span class="ib" aria-hidden="true"></span></div><div class="body"><span class="badge b-ok">Saved</span></div><div class="scrim" role="dialog" aria-modal="true"><div class="sheet"><div class="grab"></div><h3>Find a stay in Hội An</h3>
+<div class="banner bn-warn" role="status"><div><b>No suitable partner right now</b> No partner can accept your check-in and check-out dates. Try again later.</div></div><button class="btn secondary" >Close</button></div></div></div></div></div></section>
+<section class="notes"><h2>Specification notes</h2>
+<h3>Purpose and persona goal</h3><p>Tom looks for a stay for the same city and dates without re-entering his trip (SC-03).</p>
+<h3>Components</h3><p>Built: sheet + handle (home.tsx:221-243), Action (secondary). New: PartnerRow, PrefillBadge, PriceRow.</p>
+<h3>Interaction</h3><p>Tap partner → open external browser with prefilled deep link from GET trips/{id}/handoffs. No in-app booking or payment (DEC-001 Won't).</p>
+<h3>States</h3><table><tr><th>State</th><th>Treatment</th></tr><tr><td>Loading</td><td>Two skeleton partner rows.</td></tr><tr><td>Empty</td><td>As shown.</td></tr><tr><td>Error</td><td>Same as empty with Try again.</td></tr><tr><td>Offline</td><td>Rows disabled: “Cần kết nối / Connection needed”.</td></tr><tr><td>Blocked</td><td>Only for saved trips; on an unsaved draft the entry is hidden.</td></tr></table>
+<h3>Accessibility (WCAG 2.1 AA)</h3><p>External links announced as “mở trang ngoài / opens external site”; prices include currency in words for screen readers; sheet focus management as other sheets.</p>
+<h3>Key copy (vi-VN / en-US)</h3><table><tr><th>Key</th><th>vi-VN</th><th>en-US</th></tr><tr><td>handoff.stay</td><td>Tìm chỗ ở tại {city}</td><td>Find a stay in {city}</td></tr><tr><td>handoff.leave</td><td>Bạn sẽ rời Gonarra…</td><td>You will leave Gonarra…</td></tr><tr><td>price.notice</td><td>Đối tác xác nhận giá cuối cùng</td><td>The partner confirms the final price</td></tr><tr><td>price.retrieved</td><td>Lấy lúc {time}</td><td>Retrieved {time}</td></tr></table></section>
+</main>
+<footer>Low-fidelity wireframe, HTML+CSS only (no scripts, no external resources). Tokens: README §6. States: README §8. Accessibility: README §10.</footer>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Authentication design references
 
-These dated snapshots describe the UI at review time. Use the [repository overview](../README.md) for current Clerk integration and the [documentation index](../docs/README.md) for active contracts.
+These dated snapshots describe the UI at review time. Use the [repository overview](../../../../README.md) for current Clerk integration and the [documentation index](../../../README.md) for active contracts.
 
 ## Historical auth, Profile and Settings preview — 2026-10-29
 
@@ -51,7 +51,7 @@ As requested, blank inputs do not block Next or Sign In. Registration goes throu
 
 Onboarding text nodes (including `236:276` and `242:470`) specify Hanken Grotesk Medium at 37px in the 440px frame. The app now bundles Medium and Bold through `@expo-google-fonts/hanken-grotesk` 0.4.3 and `expo-font` 58.0.10, rather than relying on system fonts. Fonts are loaded at the root before screens mount, following the [Expo font-loading guidance](https://docs.expo.dev/develop/user-interface/fonts/). Font provenance: [Google Fonts Hanken Grotesk](https://github.com/google/fonts/tree/main/ofl/hankengrotesk).
 
-The existing Home tab bar still has Home / Explore / AI guide / Trips. The [product requirements document](../docs/PRD.md) establishes a planner-first bilingual experience and does not include a standalone AI-guide tab in the MVP. This screen predates the 2026-11-02 pivot and must be reconciled during the core-loop prototype rather than treated as the active navigation contract.
+The existing Home tab bar still has Home / Explore / AI guide / Trips. The [product requirements document](../../../03-analysis/PRD.md) establishes a planner-first bilingual experience and does not include a standalone AI-guide tab in the MVP. This screen predates the 2026-11-02 pivot and must be reconciled during the core-loop prototype rather than treated as the active navigation contract.
 
 
 ## Verification of this review

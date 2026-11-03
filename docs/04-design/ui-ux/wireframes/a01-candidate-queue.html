@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SCR-102 / SCR-105 Curator: candidate queue and coverage</title>
+<style>
+:root{
+  /* As-built tokens: apps/mobile/src/theme/colors.ts + AuthUI/AccountUI palettes */
+  --deepOcean:#0B3045;--ink:#07151E;--teal:#28B6B5;--tealDark:#0B8EA8;--audioTeal:#00839C;--sun:#F6A623;
+  --skyWash:#E8F5F7;--mutedDot:#D4E0E5;--white:#FFFFFF;--disabled:#A8A8A8;
+  --canvas:#F5FAFC;--border:#DCE8EE;--cardBorder:#E4EDF2;--mutedBuilt:#71899A;--error:#AF3434;
+  /* Proposed tokens (README §6.2) — contrast-corrected and semantic */
+  --textMuted:#5E7585;--tealText:#00788F;--errorBg:#FDECEA;--warn:#9A6200;--warnBg:#FFF5E4;--ok:#1E7A4C;--okBg:#E9F6EF;
+  --r-action:22px;--r-field:17px;--r-card:24px;--r-icon:14px;--r-chip:10px;
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:22px;--s6:24px;
+  --font:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --phone:390px;--desk:1280px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font);background:#EEF3F6;color:var(--ink);font-size:14px;line-height:1.45}
+a{color:var(--tealText)}
+:focus-visible{outline:3px solid var(--tealText);outline-offset:2px}
+.doc{background:var(--deepOcean);color:#fff;padding:12px 16px;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline}
+.doc b{font-size:16px}.doc span{opacity:.9;font-size:12px}.doc a{color:#BBE9FF}
+.sample{background:var(--warnBg);color:#5B3A00;padding:8px 16px;font-size:12px;border-bottom:1px solid #F0DDB8}
+.vp{position:absolute;opacity:0;pointer-events:none}
+.vpbar{display:flex;gap:8px;align-items:center;padding:10px 16px;background:#fff;border-bottom:1px solid var(--border);flex-wrap:wrap;font-size:12px}
+.vpbar label{border:1.5px solid var(--border);border-radius:999px;padding:6px 12px;cursor:pointer;min-height:32px}
+#vp360:checked~.vpbar label[for=vp360],#vp390:checked~.vpbar label[for=vp390],#vp430:checked~.vpbar label[for=vp430],
+#vp1280:checked~.vpbar label[for=vp1280],#vp1440:checked~.vpbar label[for=vp1440]{background:var(--deepOcean);color:#fff;border-color:var(--deepOcean)}
+#vp360:checked~main{--phone:360px}#vp390:checked~main{--phone:390px}#vp430:checked~main{--phone:430px}
+#vp1280:checked~main{--desk:1280px}#vp1440:checked~main{--desk:1440px}
+main{padding:16px;max-width:1900px}
+.state{margin:0 0 28px}
+.state>h2{font-size:15px;margin:0 0 4px;color:var(--deepOcean)}
+.state>p.why{margin:0 0 10px;color:var(--textMuted);font-size:12px;max-width:900px}
+.pair{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.lang{font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--textMuted);margin:0 0 6px}
+/* phone frame */
+.phone{width:var(--phone);min-height:760px;background:var(--canvas);border:10px solid #1C2A33;border-radius:40px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.phone.light{background:#fff}
+.sb{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-size:12px;font-weight:700;color:var(--ink)}
+.appbar{display:flex;align-items:center;gap:8px;padding:4px 12px 10px}
+.appbar h1{flex:1;text-align:center;font-size:20px;margin:0;color:var(--deepOcean)}
+.ib{width:44px;height:44px;border-radius:14px;border:0;background:transparent;display:inline-flex;align-items:center;justify-content:center;font-size:20px;color:var(--deepOcean);flex:none}
+.ib.round{border-radius:50%;background:#fff;box-shadow:0 1px 4px #0B30451f}
+.body{flex:1;padding:4px 16px 16px;overflow:hidden}
+.title{font-size:28px;line-height:1.21;font-weight:700;color:var(--deepOcean);margin:6px 0}
+.lead{color:var(--textMuted);margin:0 0 14px}
+.sec{font-size:11px;font-weight:700;letter-spacing:1.8px;color:var(--textMuted);margin:14px 4px 8px;text-transform:uppercase}
+.card{background:#fff;border:1px solid var(--cardBorder);border-radius:var(--r-card);padding:14px;margin-bottom:12px}
+.row{display:flex;align-items:center;gap:12px;min-height:56px}
+.ic{width:42px;height:42px;border-radius:var(--r-icon);background:var(--skyWash);display:flex;align-items:center;justify-content:center;flex:none;color:var(--audioTeal);font-weight:700}
+.grow{flex:1;min-width:0}
+.rt{font-weight:700;color:var(--deepOcean)}
+.sub{color:var(--textMuted);font-size:13px}
+.small{font-size:12px;color:var(--textMuted)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;border-radius:var(--r-action);padding:12px 16px;font-weight:700;font-size:16px;border:0;width:100%;margin-top:10px;font-family:inherit;text-align:center}
+.btn.primary{background:linear-gradient(135deg,var(--deepOcean),#105B70);color:#fff} /* AuthUI.tsx:43-45 Action */
+.btn.teal{background:var(--tealText);color:#fff}
+.btn.secondary{background:#fff;color:var(--deepOcean);border:1.5px solid var(--border)}
+.btn.danger{background:var(--error);color:#fff}
+.btn.disabled{background:linear-gradient(135deg,var(--deepOcean),#105B70);color:#fff;opacity:.55} /* AuthUI.tsx:44 disabled = opacity .55 */
+.btn.sm{min-height:44px;font-size:14px;border-radius:14px;width:auto;margin:0}
+.link{color:var(--tealText);font-weight:700;min-height:44px;display:inline-flex;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:46px;padding:0 15px;display:inline-flex;align-items:center;border-radius:16px;border:1.5px solid var(--border);background:#fff;font-weight:700;color:var(--deepOcean);font-size:14px}
+.chip.on{background:var(--tealText);color:#fff;border-color:var(--tealText)} /* TravelPreferences.tsx:50-51 */
+.seg{display:flex;background:#E3ECF1;border-radius:14px;padding:3px;gap:3px}
+.seg span{flex:1;min-height:40px;display:flex;align-items:center;justify-content:center;border-radius:11px;font-weight:700;color:#3F5666;font-size:13px}
+.seg span.on{background:#fff;color:var(--deepOcean);box-shadow:0 1px 3px #0B304526}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:13px;font-weight:600;color:var(--deepOcean);margin-bottom:6px}
+.input{min-height:58px;border:1.5px solid var(--border);border-radius:var(--r-field);background:#fff;padding:14px 16px;color:var(--deepOcean);font-size:16px}
+.input.ph{color:var(--textMuted)}
+.input.err{border-color:var(--error)}
+.input.area{min-height:110px}
+.errt{color:var(--error);font-size:13px;margin-top:6px}
+.badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;white-space:nowrap}
+.b-ok{background:var(--okBg);color:var(--ok)}.b-warn{background:var(--warnBg);color:var(--warn)}.b-block{background:var(--errorBg);color:var(--error)}
+.b-unsaved{background:#fff;color:var(--deepOcean);border:1.5px dashed var(--deepOcean)}.b-neutral{background:var(--skyWash);color:var(--deepOcean)}
+.b-lock{background:var(--deepOcean);color:#fff}
+.banner{border-radius:16px;padding:10px 12px;font-size:13px;margin-bottom:10px;display:flex;gap:8px;align-items:flex-start}
+.banner b{display:block}
+.bn-info{background:var(--skyWash);color:var(--deepOcean)}.bn-warn{background:var(--warnBg);color:#5B3A00}.bn-err{background:var(--errorBg);color:#7A1F1F}.bn-off{background:#E3E8EB;color:var(--ink)}
+.stop{display:flex;gap:10px;background:#fff;border:1px solid var(--cardBorder);border-radius:18px;padding:12px;min-height:72px}
+.stop.sel{border:2px solid var(--tealText)}
+.stop.blocked{border-left:5px solid var(--error)}.stop.warn{border-left:5px solid var(--warn)}
+.num{width:28px;height:28px;border-radius:50%;background:var(--deepOcean);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none}
+.time{font-weight:700;color:var(--deepOcean);font-size:13px}
+.nm{font-weight:700;color:var(--deepOcean)}
+.alt{color:var(--textMuted);font-size:12px}
+.leg{margin:2px 0 2px 24px;padding:6px 0 6px 18px;border-left:2px dotted var(--textMuted);font-size:12px;color:var(--textMuted);min-height:34px;display:flex;align-items:center;gap:6px}
+.leg.na{border-left-style:dashed;border-left-color:var(--error);color:var(--error)}
+.tabbar{display:flex;justify-content:space-around;padding:6px;background:rgba(211,220,225,.88);border-radius:40px;margin:0 40px 14px} /* HomeTabBar.tsx:108,130,149 */
+.searchpill{display:flex;align-items:center;gap:10px;min-height:52px;border-radius:26px;border:1px solid #A9D6DE;background:#fff;padding:5px 5px 5px 14px;box-shadow:0 2px 8px #07151E12;color:var(--ink)} /* home.tsx:150-183,330 */
+.searchpill .ph{flex:1;color:var(--textMuted)}
+.mic{width:40px;height:40px;border-radius:20px;background:var(--skyWash);display:flex;align-items:center;justify-content:center;color:var(--audioTeal);font-weight:700;flex:none}
+.dots{display:flex;gap:4px;justify-content:center}.dots i{width:8px;height:8px;border-radius:4px;background:var(--mutedDot)}.dots i.on{width:28px;background:var(--deepOcean)}
+.tab{display:flex;flex-direction:column;align-items:center;font-size:11px;font-weight:700;color:#292D32;min-width:60px;min-height:52px;justify-content:center;border-radius:30px}
+.tab.on{background:rgba(187,233,255,.72);color:var(--deepOcean)}
+.tab i{font-style:normal;font-size:18px}
+.sticky{padding:10px 16px 18px;background:#fff;border-top:1px solid var(--cardBorder)}
+.scrim{position:absolute;inset:0;background:#07151E66;display:flex;align-items:flex-end}
+.sheet{background:#fff;border-radius:40px 40px 0 0;box-shadow:0 -4px 14px #07151E0f;padding:10px 16px 22px;width:100%;max-height:92%;overflow:hidden}
+.grab{width:68px;height:4px;border-radius:2px;background:#C9C9C9;margin:0 auto 10px}
+.sheet h3{margin:4px 0 8px;font-size:20px;color:var(--deepOcean)}
+.dialog{background:#fff;border-radius:22px;margin:auto 22px;padding:18px;align-self:center;width:100%}
+.scrim.center{align-items:center}
+.map{position:relative;background:linear-gradient(135deg,#DDEFF3,#EAF4E6 60%,#E9F1F6);overflow:hidden}
+.map svg{position:absolute;inset:0;width:100%;height:100%}
+.pin{position:absolute;width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--deepOcean);display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+.pin span{transform:rotate(45deg);color:#fff;font-weight:700;font-size:12px}
+.pin.sel{background:var(--tealText);width:38px;height:38px}
+.pin.bad{background:var(--error)}
+.attr{position:absolute;right:8px;bottom:6px;font-size:10px;background:#ffffffcc;padding:2px 6px;border-radius:6px;color:var(--ink)}
+.skel{background:linear-gradient(90deg,#E3ECF1,#F1F6F9,#E3ECF1);border-radius:10px;height:14px;margin:8px 0}
+.bubble{max-width:86%;border-radius:18px;padding:10px 12px;margin:6px 0;font-size:14px}
+.me{margin-left:auto;background:var(--deepOcean);color:#fff;border-bottom-right-radius:6px}
+.bot{background:#fff;border:1px solid var(--cardBorder);color:var(--ink);border-bottom-left-radius:6px}
+.srcs{margin-top:8px;border-top:1px solid var(--cardBorder);padding-top:6px;font-size:12px;color:var(--textMuted)}
+.src{display:flex;gap:6px;align-items:center;min-height:32px}
+.fact{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #ECF2F5}
+.fact .k{width:38%;font-size:12px;color:var(--textMuted);font-weight:700}
+.fact .v{flex:1;color:var(--deepOcean)}
+.composer{display:flex;gap:8px;align-items:center;padding:8px 12px 16px;background:#fff;border-top:1px solid var(--cardBorder)}
+.composer .input{flex:1;min-height:48px;padding:12px 14px;font-size:14px}
+.wave{display:flex;gap:4px;align-items:center;justify-content:center;height:60px}
+.wave i{display:block;width:6px;border-radius:3px;background:var(--tealText)}
+.check{display:flex;gap:10px;align-items:flex-start;min-height:44px}
+.box{width:22px;height:22px;border:2px solid var(--deepOcean);border-radius:6px;flex:none;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff}
+.box.on{background:var(--deepOcean)}
+.steps li{margin:6px 0}
+.focusring{outline:3px solid var(--tealText);outline-offset:2px}
+.notes{background:#fff;border:1px solid var(--border);border-radius:16px;padding:14px 16px;max-width:1100px;margin:8px 0 28px;font-size:13px}
+.notes h2{font-size:15px;margin:0 0 8px;color:var(--deepOcean)}
+.notes h3{font-size:13px;margin:12px 0 4px;color:var(--deepOcean)}
+.notes table{border-collapse:collapse;width:100%;font-size:12px}
+.notes th,.notes td{border:1px solid var(--border);padding:5px 7px;text-align:left;vertical-align:top}
+.notes th{background:var(--canvas)}
+footer{padding:16px;font-size:12px;color:var(--textMuted)}
+/* desktop admin */
+.desk{position:relative;width:var(--desk);min-height:780px;background:var(--canvas);border:1px solid #C9D6DD;border-radius:10px;display:flex;overflow:hidden}
+.scrollx{max-width:100%;overflow-x:auto;padding-bottom:6px}
+.side{width:220px;background:var(--deepOcean);color:#fff;padding:18px 12px;flex:none}
+.side .logo{font-weight:700;font-size:20px;margin:0 8px 18px}
+.side .nav{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:12px;color:#DCEBF2;font-weight:600}
+.side .nav.on{background:#ffffff1f;color:#fff}
+.dmain{flex:1;display:flex;flex-direction:column;min-width:0}
+.top{display:flex;align-items:center;gap:12px;padding:14px 22px;background:#fff;border-bottom:1px solid var(--cardBorder)}
+.top h1{margin:0;font-size:20px;color:var(--deepOcean);flex:1}
+.dbody{padding:18px 22px;display:flex;gap:18px;align-items:flex-start}
+.tbl{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--cardBorder);border-radius:14px;overflow:hidden;font-size:13px}
+.tbl th{background:#EDF4F7;text-align:left;padding:10px;color:var(--deepOcean);font-size:12px;border-bottom:1px solid var(--cardBorder)}
+.tbl td{padding:10px;border-bottom:1px solid #ECF2F5;vertical-align:top;color:var(--ink)}
+.tbl tr.sel td{background:#EAF6F8}
+.kpis{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.kpi{background:#fff;border:1px solid var(--cardBorder);border-radius:14px;padding:10px 14px;min-width:150px}
+.kpi b{font-size:20px;color:var(--deepOcean);display:block}
+.meter{height:8px;background:#E3ECF1;border-radius:4px;overflow:hidden;margin-top:6px}.meter i{display:block;height:100%;background:var(--tealText)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.sel{min-height:40px;border:1.5px solid var(--border);border-radius:12px;padding:8px 12px;background:#fff;font-size:13px;color:var(--deepOcean)}
+.dbody>.grow{min-width:0;overflow-x:auto}
+.panel{background:#fff;border:1px solid var(--cardBorder);border-radius:16px;padding:14px;width:340px;flex:none}
+code{background:#EDF4F7;padding:1px 5px;border-radius:5px;font-size:12px}
+@media (max-width:760px){.pair{flex-direction:column}.phone{width:min(var(--phone),100%)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<input class="vp" type="radio" name="vp" id="vp1280" checked><input class="vp" type="radio" name="vp" id="vp1440">
+<header class="doc"><b>SCR-102 / SCR-105 — Curator: candidate queue and coverage</b><span>Gonarra UI/UX wireframe · GONARRA-UIUX · v0.1 Draft · 2026-11-04 · owner Lê Ngọc Tấn Hiền · approver trantrongminh [Pending]</span><span>Traces: US-004 (AC1), US-007 (AC2), US-008, US-009 (AC1) · FR-009, FR-010, FR-017, FR-018, FR-019 · NFR-015, NFR-029</span><span>Prompt: design/UI-UX-Design_prompt.md v2.0 · <a href="../README.md">Specification (README.md)</a></span></header>
+<div class="sample" role="note">Sample content. Place names are real places; every hour, address, distance, duration, date, price, count and source shown is an illustrative placeholder, not verified data. People are personas (Tom, Linh) from BRD SC-01..03.</div>
+<div class="vpbar"><b>Viewport</b><label for="vp1280">1280 px</label><label for="vp1440">1440 px</label><span>Curator admin: desktop browser (NFR-029).</span></div>
+<main>
+<section class="state"><h2>Default (with coverage strip SCR-105)</h2><p class="why">Coverage per city against the 30-place target (US-008). Candidates tagged with provider release (US-004 AC1); AI-draft marker (US-009 AC1).</p><div class=""><div class="scrollx"><div><p class="lang">TIẾNG VIỆT (vi-VN)</p><div class="desk" role="group" aria-label="Hàng chờ ứng viên"><aside class="side"><div class="logo">gonarra<span style="color:var(--sun)">.</span> <span style="font-size:12px;opacity:.8">Biên tập</span></div><nav aria-label="Điều hướng biên tập"><span class="nav on" role="link" aria-current="page">Ứng viên</span><span class="nav" role="link" aria-current="false">Địa điểm</span><span class="nav" role="link" aria-current="false">Lượt nhập</span><span class="nav" role="link" aria-current="false">Độ phủ</span></nav>
+<div style="position:absolute;bottom:18px;font-size:12px;opacity:.85"></div></aside>
+<div class="dmain"><div class="top"><h1>Hàng chờ ứng viên</h1><span class="sel">Ngôn ngữ: Tiếng Việt</span><span class="badge b-neutral">Biên tập viên</span></div><div style="padding:18px 22px"><div class="kpis" aria-label="Độ phủ theo thành phố"><div class="kpi"><span class="small">Hà Nội</span><b>12 / 30</b><div class="meter"><i style="width:40%"></i></div><span class="small">đã xuất bản</span></div><div class="kpi"><span class="small">TP.HCM</span><b>8 / 30</b><div class="meter"><i style="width:26%"></i></div><span class="small">đã xuất bản</span></div><div class="kpi"><span class="small">Đà Nẵng</span><b>30 / 30</b><div class="meter"><i style="width:100%"></i></div><span class="small">đã xuất bản</span></div><div class="kpi"><span class="small">Hội An</span><b>21 / 30</b><div class="meter"><i style="width:70%"></i></div><span class="small">đã xuất bản</span></div><div class="kpi"><span class="small">Huế</span><b>17 / 30</b><div class="meter"><i style="width:56%"></i></div><span class="small">đã xuất bản</span></div></div><div class="filters"><span class="sel">Thành phố: Huế ▾</span><span class="sel">Trạng thái: tất cả ▾</span><span class="sel">Nguồn: tất cả ▾</span><span class="sel">☐ Chỉ có bản nháp AI</span><span class="sel" style="flex:1;min-width:200px">⌕ Tìm theo tên</span></div><table class="tbl"><caption class="small" style="text-align:left;padding:6px 0">4 ứng viên · Huế · sắp xếp theo cập nhật</caption>
+<thead><tr><th scope="col">Tên (VI / EN)</th><th scope="col">Thành phố</th><th scope="col">Nguồn / bản phát hành</th><th scope="col">Trạng thái</th><th scope="col">Đầy đủ</th><th scope="col">Cập nhật</th></tr></thead><tbody><tr class="sel"><td><b>Chùa Thiên Mụ</b><br><span class="small">Thien Mu Pagoda</span></td><td>Huế</td><td>Overture 2026-10 (mẫu)</td><td><span class="badge b-warn">Duyệt nội dung</span> <span class="badge b-warn">Có bản nháp AI</span></td><td>8/9<div class="meter" style="width:80px"><i style="width:88%"></i></div></td><td>2 giờ trước</td></tr><tr class=""><td><b>Lăng Tự Đức</b><br><span class="small">Tomb of Tu Duc</span></td><td>Huế</td><td>Overture 2026-10 (mẫu)</td><td><span class="badge b-neutral">Duyệt trùng khớp</span></td><td>4/9<div class="meter" style="width:80px"><i style="width:44%"></i></div></td><td>2 giờ trước</td></tr><tr class=""><td><b>Cầu Trường Tiền</b><br><span class="small">Thiếu tên tiếng Anh</span></td><td>Huế</td><td>Foursquare OS (mẫu)</td><td><span class="badge b-neutral">Đã chuẩn hoá</span></td><td>2/9<div class="meter" style="width:80px"><i style="width:22%"></i></div></td><td>2 giờ trước</td></tr><tr class=""><td><b>Chợ Đông Ba</b><br><span class="small">Dong Ba Market</span></td><td>Huế</td><td>Wikidata (mẫu)</td><td><span class="badge b-ok">Sẵn sàng xuất bản</span></td><td>9/9<div class="meter" style="width:80px"><i style="width:100%"></i></div></td><td>2 giờ trước</td></tr></tbody></table></div></div></div></div></div><div class="scrollx"><div><p class="lang">ENGLISH (en-US)</p><div class="desk" role="group" aria-label="Candidate queue"><aside class="side"><div class="logo">gonarra<span style="color:var(--sun)">.</span> <span style="font-size:12px;opacity:.8">Curator</span></div><nav aria-label="Curator navigation"><span class="nav on" role="link" aria-current="page">Candidates</span><span class="nav" role="link" aria-current="false">Places</span><span class="nav" role="link" aria-current="false">Import runs</span><span class="nav" role="link" aria-current="false">Coverage</span></nav>
+<div style="position:absolute;bottom:18px;font-size:12px;opacity:.85"></div></aside>
+<div class="dmain"><div class="top"><h1>Candidate queue</h1><span class="sel">Language: English</span><span class="badge b-neutral">Curator</span></div><div style="padding:18px 22px"><div class="kpis" aria-label="Coverage per city"><div class="kpi"><span class="small">Hà Nội</span><b>12 / 30</b><div class="meter"><i style="width:40%"></i></div><span class="small">published</span></div><div class="kpi"><span class="small">TP.HCM</span><b>8 / 30</b><div class="meter"><i style="width:26%"></i></div><span class="small">published</span></div><div class="kpi"><span class="small">Đà Nẵng</span><b>30 / 30</b><div class="meter"><i style="width:100%"></i></div><span class="small">published</span></div><div class="kpi"><span class="small">Hội An</span><b>21 / 30</b><div class="meter"><i style="width:70%"></i></div><span class="small">published</span></div><div class="kpi"><span class="small">Huế</span><b>17 / 30</b><div class="meter"><i style="width:56%"></i></div><span class="small">published</span></div></div><div class="filters"><span class="sel">City: Huế ▾</span><span class="sel">Status: all ▾</span><span class="sel">Provider: all ▾</span><span class="sel">☐ AI drafts only</span><span class="sel" style="flex:1;min-width:200px">⌕ Search by name</span></div><table class="tbl"><caption class="small" style="text-align:left;padding:6px 0">4 candidates · Huế · sorted by last update</caption>
+<thead><tr><th scope="col">Name (VI / EN)</th><th scope="col">City</th><th scope="col">Provider / release</th><th scope="col">Status</th><th scope="col">Complete</th><th scope="col">Updated</th></tr></thead><tbody><tr class="sel"><td><b>Chùa Thiên Mụ</b><br><span class="small">Thien Mu Pagoda</span></td><td>Huế</td><td>Overture 2026-10 (mẫu)</td><td><span class="badge b-warn">Content review</span> <span class="badge b-warn">AI draft</span></td><td>8/9<div class="meter" style="width:80px"><i style="width:88%"></i></div></td><td>2 h ago</td></tr><tr class=""><td><b>Lăng Tự Đức</b><br><span class="small">Tomb of Tu Duc</span></td><td>Huế</td><td>Overture 2026-10 (mẫu)</td><td><span class="badge b-neutral">Match review</span></td><td>4/9<div class="meter" style="width:80px"><i style="width:44%"></i></div></td><td>2 h ago</td></tr><tr class=""><td><b>Cầu Trường Tiền</b><br><span class="small">English name missing</span></td><td>Huế</td><td>Foursquare OS (mẫu)</td><td><span class="badge b-neutral">Normalized</span></td><td>2/9<div class="meter" style="width:80px"><i style="width:22%"></i></div></td><td>2 h ago</td></tr><tr class=""><td><b>Chợ Đông Ba</b><br><span class="small">Dong Ba Market</span></td><td>Huế</td><td>Wikidata (mẫu)</td><td><span class="badge b-ok">Ready to publish</span></td><td>9/9<div class="meter" style="width:80px"><i style="width:100%"></i></div></td><td>2 h ago</td></tr></tbody></table></div></div></div></div></div></div></section><section class="state"><h2>Empty</h2><p class="why">Instructs the next step: import runs from the CLI (DEC-009).</p><div class=""><div class="scrollx"><div><p class="lang">TIẾNG VIỆT (vi-VN)</p><div class="desk" role="group" aria-label="Hàng chờ ứng viên"><aside class="side"><div class="logo">gonarra<span style="color:var(--sun)">.</span> <span style="font-size:12px;opacity:.8">Biên tập</span></div><nav aria-label="Điều hướng biên tập"><span class="nav on" role="link" aria-current="page">Ứng viên</span><span class="nav" role="link" aria-current="false">Địa điểm</span><span class="nav" role="link" aria-current="false">Lượt nhập</span><span class="nav" role="link" aria-current="false">Độ phủ</span></nav>
+<div style="position:absolute;bottom:18px;font-size:12px;opacity:.85"></div></aside>
+<div class="dmain"><div class="top"><h1>Hàng chờ ứng viên</h1><span class="sel">Ngôn ngữ: Tiếng Việt</span><span class="badge b-neutral">Biên tập viên</span></div><div style="padding:18px 22px"><div class="kpis" aria-label="Độ phủ theo thành phố"><div class="kpi"><span class="small">Hà Nội</span><b>12 / 30</b><div class="meter"><i style="width:40%"></i></div><span class="small">đã xuất bản</span></div><div class="kpi"><span class="small">TP.HCM</span><b>8 / 30</b><div class="meter"><i style="width:26%"></i></div><span class="small">đã xuất bản</span></div><div class="kpi"><span class="small">Đà Nẵng</span><b>30 / 30</b><div class="meter"><i style="width:100%"></i></div><span class="small">đã xuất bản</span></div><div class="kpi"><span class="small">Hội An</span><b>21 / 30</b><div class="meter"><i style="width:70%"></i></div><span class="small">đã xuất bản</span></div><div class="kpi"><span class="small">Huế</span><b>17 / 30</b><div class="meter"><i style="width:56%"></i></div><span class="small">đã xuất bản</span></div></div><div class="filters"><span class="sel">Thành phố: Huế ▾</span><span class="sel">Trạng thái: tất cả ▾</span><span class="sel">Nguồn: tất cả ▾</span><span class="sel">☐ Chỉ có bản nháp AI</span><span class="sel" style="flex:1;min-width:200px">⌕ Tìm theo tên</span></div><div class="card" style="text-align:center;padding:40px"><div class="rt">Không có ứng viên ở Hội An</div><p class="sub">Nhập dữ liệu bằng CLI rồi tải lại trang: <code>cli import overture --city hoi-an --release &lt;release&gt;</code></p></div></div></div></div></div></div><div class="scrollx"><div><p class="lang">ENGLISH (en-US)</p><div class="desk" role="group" aria-label="Candidate queue"><aside class="side"><div class="logo">gonarra<span style="color:var(--sun)">.</span> <span style="font-size:12px;opacity:.8">Curator</span></div><nav aria-label="Curator navigation"><span class="nav on" role="link" aria-current="page">Candidates</span><span class="nav" role="link" aria-current="false">Places</span><span class="nav" role="link" aria-current="false">Import runs</span><span class="nav" role="link" aria-current="false">Coverage</span></nav>
+<div style="position:absolute;bottom:18px;font-size:12px;opacity:.85"></div></aside>
+<div class="dmain"><div class="top"><h1>Candidate queue</h1><span class="sel">Language: English</span><span class="badge b-neutral">Curator</span></div><div style="padding:18px 22px"><div class="kpis" aria-label="Coverage per city"><div class="kpi"><span class="small">Hà Nội</span><b>12 / 30</b><div class="meter"><i style="width:40%"></i></div><span class="small">published</span></div><div class="kpi"><span class="small">TP.HCM</span><b>8 / 30</b><div class="meter"><i style="width:26%"></i></div><span class="small">published</span></div><div class="kpi"><span class="small">Đà Nẵng</span><b>30 / 30</b><div class="meter"><i style="width:100%"></i></div><span class="small">published</span></div><div class="kpi"><span class="small">Hội An</span><b>21 / 30</b><div class="meter"><i style="width:70%"></i></div><span class="small">published</span></div><div class="kpi"><span class="small">Huế</span><b>17 / 30</b><div class="meter"><i style="width:56%"></i></div><span class="small">published</span></div></div><div class="filters"><span class="sel">City: Huế ▾</span><span class="sel">Status: all ▾</span><span class="sel">Provider: all ▾</span><span class="sel">☐ AI drafts only</span><span class="sel" style="flex:1;min-width:200px">⌕ Search by name</span></div><div class="card" style="text-align:center;padding:40px"><div class="rt">No candidates in Hội An</div><p class="sub">Import with the CLI, then reload: <code>cli import overture --city hoi-an --release &lt;release&gt;</code></p></div></div></div></div></div></div></div></section><section class="state"><h2>Loading</h2><p class="why">Skeleton rows; status announced.</p><div class=""><div class="scrollx"><div><p class="lang">TIẾNG VIỆT (vi-VN)</p><div class="desk" role="group" aria-label="Hàng chờ ứng viên"><aside class="side"><div class="logo">gonarra<span style="color:var(--sun)">.</span> <span style="font-size:12px;opacity:.8">Biên tập</span></div><nav aria-label="Điều hướng biên tập"><span class="nav on" role="link" aria-current="page">Ứng viên</span><span class="nav" role="link" aria-current="false">Địa điểm</span><span class="nav" role="link" aria-current="false">Lượt nhập</span><span class="nav" role="link" aria-current="false">Độ phủ</span></nav>
+<div style="position:absolute;bottom:18px;font-size:12px;opacity:.85"></div></aside>
+<div class="dmain"><div class="top"><h1>Hàng chờ ứng viên</h1><span class="sel">Ngôn ngữ: Tiếng Việt</span><span class="badge b-neutral">Biên tập viên</span></div><div style="padding:18px 22px" aria-busy="true"><p class="small" role="status">Đang tải…</p><div class="skel" style="height:34px"></div><div class="skel" style="height:34px"></div><div class="skel" style="height:34px"></div><div class="skel" style="height:34px"></div><div class="skel" style="height:34px"></div></div></div></div></div></div><div class="scrollx"><div><p class="lang">ENGLISH (en-US)</p><div class="desk" role="group" aria-label="Candidate queue"><aside class="side"><div class="logo">gonarra<span style="color:var(--sun)">.</span> <span style="font-size:12px;opacity:.8">Curator</span></div><nav aria-label="Curator navigation"><span class="nav on" role="link" aria-current="page">Candidates</span><span class="nav" role="link" aria-current="false">Places</span><span class="nav" role="link" aria-current="false">Import runs</span><span class="nav" role="link" aria-current="false">Coverage</span></nav>
+<div style="position:absolute;bottom:18px;font-size:12px;opacity:.85"></div></aside>
+<div class="dmain"><div class="top"><h1>Candidate queue</h1><span class="sel">Language: English</span><span class="badge b-neutral">Curator</span></div><div style="padding:18px 22px" aria-busy="true"><p class="small" role="status">Loading…</p><div class="skel" style="height:34px"></div><div class="skel" style="height:34px"></div><div class="skel" style="height:34px"></div><div class="skel" style="height:34px"></div><div class="skel" style="height:34px"></div></div></div></div></div></div></div></section><section class="state"><h2>Error</h2><p class="why">Typed error code and request ID, never raw stack text.</p><div class=""><div class="scrollx"><div><p class="lang">TIẾNG VIỆT (vi-VN)</p><div class="desk" role="group" aria-label="Hàng chờ ứng viên"><aside class="side"><div class="logo">gonarra<span style="color:var(--sun)">.</span> <span style="font-size:12px;opacity:.8">Biên tập</span></div><nav aria-label="Điều hướng biên tập"><span class="nav on" role="link" aria-current="page">Ứng viên</span><span class="nav" role="link" aria-current="false">Địa điểm</span><span class="nav" role="link" aria-current="false">Lượt nhập</span><span class="nav" role="link" aria-current="false">Độ phủ</span></nav>
+<div style="position:absolute;bottom:18px;font-size:12px;opacity:.85"></div></aside>
+<div class="dmain"><div class="top"><h1>Hàng chờ ứng viên</h1><span class="sel">Ngôn ngữ: Tiếng Việt</span><span class="badge b-neutral">Biên tập viên</span></div><div style="padding:18px 22px"><div class="banner bn-err" role="alert"><div><b>Không tải được danh sách</b> Mã lỗi: INTERNAL · X-Request-ID 7f3c… (mẫu). Thử lại.</div></div></div></div></div></div></div><div class="scrollx"><div><p class="lang">ENGLISH (en-US)</p><div class="desk" role="group" aria-label="Candidate queue"><aside class="side"><div class="logo">gonarra<span style="color:var(--sun)">.</span> <span style="font-size:12px;opacity:.8">Curator</span></div><nav aria-label="Curator navigation"><span class="nav on" role="link" aria-current="page">Candidates</span><span class="nav" role="link" aria-current="false">Places</span><span class="nav" role="link" aria-current="false">Import runs</span><span class="nav" role="link" aria-current="false">Coverage</span></nav>
+<div style="position:absolute;bottom:18px;font-size:12px;opacity:.85"></div></aside>
+<div class="dmain"><div class="top"><h1>Candidate queue</h1><span class="sel">Language: English</span><span class="badge b-neutral">Curator</span></div><div style="padding:18px 22px"><div class="banner bn-err" role="alert"><div><b>Could not load candidates</b> Error code: INTERNAL · X-Request-ID 7f3c… (sample). Try again.</div></div></div></div></div></div></div></div></section><section class="state"><h2>Permission denied (non-curator)</h2><p class="why">NFR-015: only the curator role can curate.</p><div class=""><div class="scrollx"><div><p class="lang">TIẾNG VIỆT (vi-VN)</p><div class="desk" role="group" aria-label="Không có quyền"><aside class="side"><div class="logo">gonarra<span style="color:var(--sun)">.</span> <span style="font-size:12px;opacity:.8">Biên tập</span></div><nav aria-label="Điều hướng biên tập"><span class="nav on" role="link" aria-current="page">Ứng viên</span><span class="nav" role="link" aria-current="false">Địa điểm</span><span class="nav" role="link" aria-current="false">Lượt nhập</span><span class="nav" role="link" aria-current="false">Độ phủ</span></nav>
+<div style="position:absolute;bottom:18px;font-size:12px;opacity:.85"></div></aside>
+<div class="dmain"><div class="top"><h1>Không có quyền</h1><span class="sel">Ngôn ngữ: Tiếng Việt</span><span class="badge b-neutral">Biên tập viên</span></div><div style="padding:18px 22px"><div class="banner bn-err" role="alert"><div><b>Tài khoản này không có vai trò biên tập viên</b> Mọi thao tác nhập, sửa và xuất bản đều bị chặn. Đăng xuất để dùng tài khoản khác.</div></div><button class="btn secondary sm">Đăng xuất</button></div></div></div></div></div><div class="scrollx"><div><p class="lang">ENGLISH (en-US)</p><div class="desk" role="group" aria-label="Access denied"><aside class="side"><div class="logo">gonarra<span style="color:var(--sun)">.</span> <span style="font-size:12px;opacity:.8">Curator</span></div><nav aria-label="Curator navigation"><span class="nav on" role="link" aria-current="page">Candidates</span><span class="nav" role="link" aria-current="false">Places</span><span class="nav" role="link" aria-current="false">Import runs</span><span class="nav" role="link" aria-current="false">Coverage</span></nav>
+<div style="position:absolute;bottom:18px;font-size:12px;opacity:.85"></div></aside>
+<div class="dmain"><div class="top"><h1>Access denied</h1><span class="sel">Language: English</span><span class="badge b-neutral">Curator</span></div><div style="padding:18px 22px"><div class="banner bn-err" role="alert"><div><b>This account does not have the curator role</b> Import, edit and publish are blocked. Sign out to use another account.</div></div><button class="btn secondary sm">Sign out</button></div></div></div></div></div></div></section>
+<section class="notes"><h2>Specification notes</h2>
+<h3>Purpose and persona goal</h3><p>The curator (owner) finds the next candidate to review and tracks progress to 30 places per city.</p>
+<h3>Components</h3><p>Admin SPA (React + Vite) reusing mobile tokens as CSS variables (README §6). New: AdminShell (sidebar, top bar), DataTable, FilterBar, KpiTile with meter, Badge.</p>
+<h3>Interaction</h3><p>Row click → SCR-103. Filters update the URL query (shareable, back-button safe). Coverage tile click → filter by city.</p>
+<h3>States</h3><table><tr><th>State</th><th>Treatment</th></tr><tr><td>Loading</td><td>As shown.</td></tr><tr><td>Empty</td><td>As shown.</td></tr><tr><td>Error</td><td>As shown.</td></tr><tr><td>Permission</td><td>As shown.</td></tr><tr><td>Long content</td><td>Names wrap; table scrolls horizontally below 1280 px (not a supported width).</td></tr></table>
+<h3>Accessibility (WCAG 2.1 AA)</h3><p>Table has caption and scoped headers; sidebar is a nav landmark with aria-current; every control reachable by Tab with visible focus ring (3 px --tealText); status badges carry text.</p>
+<h3>Key copy (vi-VN / en-US)</h3><table><tr><th>Key</th><th>vi-VN</th><th>en-US</th></tr><tr><td>admin.queue</td><td>Hàng chờ ứng viên</td><td>Candidate queue</td></tr><tr><td>admin.coverage</td><td>Độ phủ theo thành phố</td><td>Coverage per city</td></tr><tr><td>admin.aiDraft</td><td>Có bản nháp AI</td><td>AI draft</td></tr><tr><td>admin.forbidden</td><td>Tài khoản này không có vai trò biên tập viên</td><td>This account does not have the curator role</td></tr></table></section>
+</main>
+<footer>Low-fidelity wireframe, HTML+CSS only (no scripts, no external resources). Tokens: README §6. States: README §8. Accessibility: README §10.</footer>
+</body>
+</html>
