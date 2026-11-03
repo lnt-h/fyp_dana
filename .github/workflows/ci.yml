@@ -32,7 +32,10 @@ jobs:
       - run: uv run alembic upgrade head
       - run: uv run pytest -m integration
       - run: uv run alembic downgrade base && uv run alembic upgrade head
-      - run: docker build .
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build API image for production architecture (EC2 t4g, arm64) and amd64
+        run: docker buildx build --platform linux/arm64,linux/amd64 .
 
   mobile:
     runs-on: ubuntu-latest
