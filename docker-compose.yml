@@ -1,7 +1,8 @@
 services:
   db:
     # The official PostGIS image currently publishes amd64 images only.
-    # Docker Desktop uses emulation on Apple Silicon; Cloud SQL remains native.
+    # Docker Desktop uses emulation on Apple Silicon. Production uses AWS RDS
+    # PostgreSQL 16 with the PostGIS and pgvector extensions (ADR, DEC-005).
     platform: linux/amd64
     build:
       context: ./infra/postgres

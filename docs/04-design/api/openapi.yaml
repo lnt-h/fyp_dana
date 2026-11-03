@@ -1,0 +1,3338 @@
+openapi: 3.1.0
+info:
+  title: Gonarra API
+  version: 0.2.0
+  summary: Gonarra /v1 contract (REST + SSE) for the traveler app and the curator SPA.
+  description: |
+    Document ID GONARRA-API, version 0.2, status Draft. Owner Lê Ngọc Tấn Hiền; approver trantrongminh
+    (pending). Date 2026-11-04. Produced with `design/apiDesign_prompt.md` v2.0 (kit commit `6996dae`, adapted copy
+    `docs/00-governance/prompt-templates/design/apiDesign_prompt.md`). Narrative, rules and traceability: `docs/04-design/api/api-contract.md`.
+
+    This contract is a superset of the generated `apps/api/openapi.json` (info.version 0.1.0): `/health`, `/ready`
+    and `/v1/me` and their four schemas are kept unchanged apart from added `x-` extensions. Everything else is
+    design, not implementation (SRC-100 A-020).
+
+    Conventions: JSON field names are snake_case and match `docs/04-design/data/schema.sql` where they overlap.
+    Every response carries `X-Request-ID`. Errors use the `ErrorResponse` envelope. Private resources owned by
+    another account answer 404 `not_found`. Mutating planning and curation calls take `Idempotency-Key`.
+
+    History: 0.2 (2026-11-04) DA-GONARRA-01 fixes F-02, F-05 (deletion-status 401 semantics; booking partner enum).
+servers:
+  - url: https://api.example.invalid
+    description: Placeholder; hostname pending OQ-039.
+tags:
+  - name: operations
+    description: Liveness and readiness (CMP-014).
+  - name: identity
+    description: Account, preferences and deletion (CMP-004).
+  - name: catalog
+    description: Cities and published places (CMP-005).
+  - name: trips
+    description: Trips, saved itineraries and place cards (CMP-007, CMP-005).
+  - name: planning
+    description: Plan previews, edits, day regeneration and Save (CMP-008, CMP-007).
+  - name: guide
+    description: Grounded Guide sessions and photo identification (CMP-010, CMP-012).
+  - name: stays
+    description: Booking handoff and indicative stay prices (CMP-011, CMP-013).
+  - name: study
+    description: Pseudonymous study timing events (CMP-014, FR-077).
+  - name: admin
+    description: Curator-only endpoints (CMP-006); require the curator role claim.
+
+paths:
+  /health:
+    get:
+      operationId: health_health_get
+      x-api-id: API-001
+      x-fr: []
+      x-nfr: [NFR-008]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceStatus'
+          description: Successful Response
+      summary: Health
+      tags:
+        - operations
+  /ready:
+    get:
+      operationId: readiness_ready_get
+      x-api-id: API-002
+      x-fr: []
+      x-nfr: [NFR-008]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceStatus'
+          description: Successful Response
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+      summary: Readiness
+      tags:
+        - operations
+  /v1/me:
+    get:
+      operationId: read_identity_v1_me_get
+      x-api-id: API-003
+      x-fr: [FR-068, FR-069]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityResponse'
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+      security:
+        - HTTPBearer: []
+      summary: Read Identity
+      tags:
+        - identity
+
+  /v1/me/preferences:
+    get:
+      operationId: getPreferences
+      x-api-id: API-004
+      x-fr: [FR-073, FR-074, FR-075]
+      summary: Read the traveler's saved preferences
+      tags: [identity]
+      security:
+        - HTTPBearer: []
+      responses:
+        '200':
+          description: Saved preferences, or defaults when none were saved.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    put:
+      operationId: putPreferences
+      x-api-id: API-005
+      x-fr: [FR-073, FR-074, FR-075]
+      summary: Save preferences explicitly (full replace; naturally idempotent)
+      description: Also records acknowledgement of the AI notice (FR-074) when `ai_notice_acknowledged` is true.
+      tags: [identity]
+      security:
+        - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreferencesWrite'
+      responses:
+        '200':
+          description: Preferences stored.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/me/deletion:
+    post:
+      operationId: requestAccountDeletion
+      x-api-id: API-006
+      x-fr: [FR-071, FR-072]
+      summary: Confirm account deletion and start the deletion job
+      description: |
+        Repeating the call while a job is REQUESTED or IN_PROGRESS returns the same job (idempotent by state).
+        Private data is deleted within 24 h (ASM-010); a FAILED job is retried by the jobs runner.
+      tags: [identity]
+      security:
+        - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountDeletionRequest'
+      responses:
+        '202':
+          description: Deletion accepted; poll the status resource.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+            Location:
+              description: /v1/me/deletion
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDeletionStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    get:
+      operationId: getAccountDeletionStatus
+      x-api-id: API-007
+      x-fr: [FR-072]
+      summary: Read the deletion status resource
+      tags: [identity]
+      security:
+        - HTTPBearer: []
+      responses:
+        '200':
+          description: Current deletion status.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDeletionStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: After the Clerk user is deleted (last step), the token is rejected; a client that has observed IN_PROGRESS treats this 401 as COMPLETED (OQ-073).
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/cities:
+    get:
+      operationId: listCities
+      x-api-id: API-008
+      x-fr: [FR-001, FR-075]
+      summary: List the enabled launch cities
+      tags: [catalog]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/Locale'
+      responses:
+        '200':
+          description: Enabled cities (five at launch; not paginated).
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CityList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/categories:
+    get:
+      operationId: listCategories
+      x-api-id: API-009
+      x-fr: [FR-003, FR-021]
+      summary: List place categories (interests in the preference form)
+      tags: [catalog]
+      security:
+        - HTTPBearer: []
+      responses:
+        '200':
+          description: Categories ordered by sort_order.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/places:
+    get:
+      operationId: searchPlaces
+      x-api-id: API-010
+      x-fr: [FR-002, FR-004, FR-076]
+      x-nfr: [NFR-001]
+      summary: Search published places of a city
+      description: |
+        Matches Vietnamese name, English name or reviewed alias ignoring case and diacritics. Only places with a
+        PUBLISHED catalog publication are returned (FR-004).
+      tags: [catalog]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: city_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          description: Search text; omitted lists the city's places.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+        - name: category_code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [relevance, name]
+            default: relevance
+        - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of matching places.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceSummaryPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/places/{place_id}:
+    get:
+      operationId: getPlace
+      x-api-id: API-011
+      x-fr: [FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-076]
+      summary: Read one published place with facts, freshness and attribution
+      tags: [catalog]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PlaceId'
+        - $ref: '#/components/parameters/Locale'
+      responses:
+        '200':
+          description: Current publication of the place.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/trips:
+    post:
+      operationId: createTrip
+      x-api-id: API-012
+      x-fr: [FR-021, FR-023, FR-068]
+      summary: Create a private draft trip (one city, 1–3 days)
+      tags: [trips]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TripCreate'
+      responses:
+        '201':
+          description: Draft trip created.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+            Location:
+              description: URL of the new trip.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trip'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    get:
+      operationId: listTrips
+      x-api-id: API-013
+      x-fr: [FR-045, FR-068, FR-069]
+      summary: List the caller's trips
+      tags: [trips]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TripStatus'
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [-updated_at, start_date]
+            default: -updated_at
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of the caller's trips.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/trips/{trip_id}:
+    get:
+      operationId: getTrip
+      x-api-id: API-014
+      x-fr: [FR-045, FR-055, FR-069]
+      x-nfr: [NFR-011]
+      summary: Read a trip with its last saved itinerary
+      tags: [trips]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - $ref: '#/components/parameters/Locale'
+      responses:
+        '200':
+          description: Trip, saved days/stops/legs and the active preview ID if any.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    patch:
+      operationId: updateTrip
+      x-api-id: API-015
+      x-fr: [FR-042, FR-069]
+      summary: Update trip metadata (title) against an expected revision
+      description: Itinerary content changes only through plan previews and Save (API-022).
+      tags: [trips]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TripUpdate'
+      responses:
+        '200':
+          description: Updated trip.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trip'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      operationId: deleteTrip
+      x-api-id: API-016
+      x-fr: [FR-046, FR-069]
+      summary: Delete a trip (after client-side confirmation)
+      description: Idempotent; deleting an already deleted trip answers 404, which clients treat as done.
+      tags: [trips]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - name: expected_revision
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '204':
+          description: Trip, previews and stops deleted.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/trips/{trip_id}/stops/{stop_id}/place-card:
+    get:
+      operationId: getPlaceCard
+      x-api-id: API-017
+      x-fr: [FR-051, FR-052, FR-053, FR-054, FR-005, FR-008]
+      x-nfr: [NFR-011]
+      summary: Place card for a stop of a saved itinerary
+      description: |
+        Combines the stop's pinned publication (names, Vietnamese address, entrance) with optional runtime live
+        hours from Google Places (ADR-006). If the runtime provider fails, `live_status` is omitted and the card
+        still answers 200 (NFR-011).
+      tags: [trips]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - $ref: '#/components/parameters/StopId'
+        - $ref: '#/components/parameters/Locale'
+      responses:
+        '200':
+          description: Place card.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceCard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/trips/{trip_id}/plan-previews:
+    post:
+      operationId: createPlanPreview
+      x-api-id: API-018
+      x-fr: [FR-020, FR-021, FR-022, FR-023, FR-024, FR-025, FR-026, FR-027, FR-029, FR-030, FR-031, FR-043, FR-044, FR-069, FR-070]
+      x-nfr: [NFR-002, NFR-003, NFR-036]
+      summary: Generate a proposal, or open an edit preview of the saved itinerary
+      description: |
+        `source: GENERATE` runs candidate selection (Gemini), validation, routing (Google Routes) and scheduling
+        (OR-Tools). `source: SAVED_ITINERARY` copies the saved itinerary into a new preview without any AI call.
+        With `Accept: text/event-stream` progress is streamed (PlanningStreamEvent); otherwise one JSON body is
+        returned. The result is persisted, so a dropped stream is resumed with API-019, not repeated.
+        Owner, scope (≤ 3 days, one launch city) and quota are checked before any external call (FR-023, FR-069).
+      tags: [planning]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanPreviewCreate'
+            examples:
+              ha02:
+                summary: HA-02 two days in Hội An (synthetic)
+                value:
+                  source: GENERATE
+                  expected_trip_revision: 0
+                  locale: vi
+                  request_text: Hai ngày ở Hội An, đi bộ là chính, thích di tích.
+                  preferences:
+                    pace: BALANCED
+                    interest_category_codes: [heritage]
+                    allowed_modes: [WALK, DRIVE]
+                    day_start_time: '08:00'
+                    day_end_time: '18:00'
+                    must_see_place_ids: []
+      responses:
+        '200':
+          description: Clarification needed (FR-022); no preview was created and no AI call was made for generation.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClarificationRequired'
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/PlanningStreamEvent'
+        '201':
+          description: Preview created (JSON mode).
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+            Location:
+              description: /v1/plan-previews/{preview_id}
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanPreview'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/plan-previews/{preview_id}:
+    get:
+      operationId: getPlanPreview
+      x-api-id: API-019
+      x-fr: [FR-027, FR-028, FR-029, FR-030, FR-031, FR-040, FR-044, FR-069]
+      summary: Read a preview at its head revision or a named revision
+      tags: [planning]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PreviewId'
+        - name: revision
+          in: query
+          required: false
+          description: Preview revision to read; default head_revision.
+          schema:
+            type: integer
+            minimum: 1
+        - $ref: '#/components/parameters/Locale'
+      responses:
+        '200':
+          description: Preview revision (timeline and map read the same revision, FR-028).
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanPreview'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    patch:
+      operationId: editPlanPreview
+      x-api-id: API-020
+      x-fr: [FR-033, FR-034, FR-035, FR-036, FR-037, FR-038, FR-039, FR-047, FR-044, FR-069]
+      x-nfr: [NFR-004]
+      summary: Apply edits and append a recalculated preview revision
+      description: |
+        Edits are applied in order to `expected_revision`; affected legs are re-routed and the day re-scheduled,
+        then Plan Health is recomputed. No AI call. A stale `expected_revision` answers 409 `revision_conflict`.
+      tags: [planning]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PreviewId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanPreviewEdit'
+      responses:
+        '200':
+          description: New head revision.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanPreview'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      operationId: discardPlanPreview
+      x-api-id: API-023
+      x-fr: [FR-040, FR-069]
+      summary: Discard an unsaved preview (status DISCARDED)
+      description: Idempotent; the saved itinerary is not touched.
+      tags: [planning]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PreviewId'
+      responses:
+        '204':
+          description: Discarded.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/plan-previews/{preview_id}/regenerate:
+    post:
+      operationId: regeneratePlanDay
+      x-api-id: API-021
+      x-fr: [FR-047, FR-048, FR-049, FR-050, FR-043, FR-044, FR-069, FR-070]
+      x-nfr: [NFR-002, NFR-036]
+      summary: Regenerate one day, keeping other days and locked stops
+      description: |
+        Locked stops keep place, day and visit duration (solver constraints, ADR-011); all other days are copied
+        unchanged. Appends a DAY_REGENERATED revision. Streams like API-018 with `Accept: text/event-stream`.
+      tags: [planning]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PreviewId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegenerateDayRequest'
+      responses:
+        '201':
+          description: New head revision (JSON mode).
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanPreview'
+        '200':
+          description: Stream mode.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/PlanningStreamEvent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/plan-previews/{preview_id}/accept:
+    post:
+      operationId: acceptPlanPreview
+      x-api-id: API-022
+      x-fr: [FR-032, FR-040, FR-041, FR-042, FR-043, FR-050, FR-069]
+      summary: Save — promote one preview revision to the trip's saved itinerary
+      description: |
+        Checks owner, expiry, Plan Health not BLOCKED, publication eligibility, `expected_preview_revision` and
+        `expected_trip_revision`, then in one transaction replaces the saved days/stops/legs and increments the trip
+        revision (ADR-009). Replaying the same Idempotency-Key and body returns the original 200 response, so a
+        repeated Save yields exactly one saved version (FR-041).
+      tags: [planning]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PreviewId'
+        - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptPreviewRequest'
+            examples:
+              save:
+                value:
+                  expected_preview_revision: 4
+                  expected_trip_revision: 1
+      responses:
+        '200':
+          description: Saved; returns the trip at its new revision.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+            Idempotent-Replayed:
+              $ref: '#/components/headers/IdempotentReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/ai/sessions:
+    post:
+      operationId: createGuideSession
+      x-api-id: API-024
+      x-fr: [FR-056, FR-069, FR-074]
+      summary: Open a Guide session scoped to one published place (and optionally a trip)
+      tags: [guide]
+      security:
+        - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuideSessionCreate'
+      responses:
+        '201':
+          description: Session created.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuideSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/ai/sessions/{session_id}:
+    get:
+      operationId: getGuideSession
+      x-api-id: API-025
+      x-fr: [FR-056, FR-069]
+      summary: Read a Guide session
+      tags: [guide]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Session.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuideSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      operationId: deleteGuideSession
+      x-api-id: API-026
+      x-fr: [FR-069, FR-071]
+      summary: Delete a Guide session and its messages
+      tags: [guide]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '204':
+          description: Deleted.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/ai/sessions/{session_id}/messages:
+    get:
+      operationId: listGuideMessages
+      x-api-id: API-027
+      x-fr: [FR-056, FR-078, FR-069]
+      summary: List a session's messages with citations (resume after a dropped stream)
+      tags: [guide]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Messages ordered by seq.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuideMessagePage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      operationId: askGuide
+      x-api-id: API-028
+      x-fr: [FR-056, FR-057, FR-058, FR-059, FR-078, FR-069, FR-070]
+      x-nfr: [NFR-005, NFR-006, NFR-036]
+      summary: Ask a question; the answer streams over SSE
+      description: |
+        Text or an on-device voice transcript (`input_mode: VOICE_TRANSCRIPT`, FR-059). Only the question text,
+        the place's reviewed facts and retrieved reviewed chunks go to Gemini; no account ID or location (BR-046).
+        Events: `progress`, `text`, `result` (ANSWERED with ≥ 1 citation, or INSUFFICIENT_EVIDENCE), `error`.
+        The traveler message and the final answer are stored; a dropped stream is resumed with API-027.
+      tags: [guide]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuideQuestion'
+      responses:
+        '200':
+          description: Answer stream (text/event-stream) or, with Accept application/json, the completed answer.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/GuideStreamEvent'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuideMessage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/ai/photo-identifications:
+    post:
+      operationId: identifyPlaceFromPhoto
+      x-api-id: API-029
+      x-fr: [FR-061, FR-062, FR-004, FR-070]
+      x-nfr: [NFR-017, NFR-036]
+      summary: Identify a published place within 300 m from a photo
+      description: |
+        Multipart upload of one image plus one coarse foreground location fix. The location is used only for the
+        PostGIS 300 m filter (ASM-009, ADR-008); it is never stored, logged or sent to AI. The photo is processed
+        in memory and not stored. With no published place within 300 m the API answers NOT_RECOGNISED without
+        any AI call (FR-062).
+      tags: [guide]
+      security:
+        - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PhotoIdentificationUpload'
+            encoding:
+              image:
+                contentType: image/jpeg, image/png, image/webp
+      responses:
+        '200':
+          description: Identification outcome.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhotoIdentificationResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/trips/{trip_id}/handoff-links:
+    get:
+      operationId: getHandoffLink
+      x-api-id: API-030
+      x-fr: [FR-064, FR-065, FR-079, FR-069]
+      summary: Build a booking-partner deep link for stays, activities or transport
+      description: Read-only; no booking or payment happens in Gonarra. Requires a SAVED trip.
+      tags: [stays]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - name: kind
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/HandoffKind'
+        - name: stop_id
+          in: query
+          required: false
+          description: Required when kind is ACTIVITY.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Locale'
+      responses:
+        '200':
+          description: Partner URL to open on the device.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandoffLink'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/trips/{trip_id}/stay-prices:
+    get:
+      operationId: getIndicativeStayPrices
+      x-api-id: API-031
+      x-fr: [FR-066, FR-067, FR-080, FR-081, FR-069]
+      x-nfr: [NFR-036]
+      x-priority: Could
+      summary: Indicative stay prices for the trip's city and dates (runtime only, never stored)
+      description: |
+        Calls LiteAPI at request time (fallback Hotelbeds pending evaluation). Responses carry `Cache-Control:
+        no-store`; prices are not persisted with the trip (FR-081). Behind a feature flag (cut first, DEC-003);
+        when disabled the API answers 503 `feature_disabled` with retryable false.
+      tags: [stays]
+      security:
+        - HTTPBearer: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of indicative offers.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+            Cache-Control:
+              description: Always `no-store`.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StayPricePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/study/timing-events:
+    post:
+      operationId: recordStudyTimingEvent
+      x-api-id: API-032
+      x-fr: [FR-077]
+      summary: Record a pseudonymous study timing event
+      description: |
+        Only for accounts enrolled in `study_participants`; others get 403 `not_study_participant`. Stored against
+        the participant code, never with question or request text. Idempotent by `client_event_id`.
+      tags: [study]
+      security:
+        - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudyTimingEvent'
+      responses:
+        '202':
+          description: Recorded (or already recorded).
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudySessionLog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/admin/candidates:
+    get:
+      operationId: adminListCandidates
+      x-api-id: API-033
+      x-fr: [FR-009, FR-011, FR-012]
+      x-nfr: [NFR-015]
+      summary: List candidate places for review
+      tags: [admin]
+      security:
+        - HTTPBearer: [curator]
+      parameters:
+        - name: city_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: workflow_state
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/WorkflowState'
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 120
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [-updated_at, name]
+            default: -updated_at
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of candidates.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidatePage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/admin/candidates/{place_id}:
+    get:
+      operationId: adminGetCandidate
+      x-api-id: API-034
+      x-fr: [FR-011, FR-012, FR-015, FR-019]
+      x-nfr: [NFR-015]
+      summary: Read a candidate with localizations, facts, evidence and publication history
+      tags: [admin]
+      security:
+        - HTTPBearer: [curator]
+      parameters:
+        - $ref: '#/components/parameters/PlaceId'
+      responses:
+        '200':
+          description: Candidate detail.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    patch:
+      operationId: adminReviewCandidate
+      x-api-id: API-035
+      x-fr: [FR-011, FR-012, FR-019]
+      x-nfr: [NFR-015]
+      summary: Review a candidate — bilingual content, sourced facts, AI-draft confirmation
+      description: Partial update against `expected_content_revision`; increments places.content_revision.
+      tags: [admin]
+      security:
+        - HTTPBearer: [curator]
+      parameters:
+        - $ref: '#/components/parameters/PlaceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateReview'
+      responses:
+        '200':
+          description: Updated candidate.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/admin/candidates/{place_id}/publish:
+    post:
+      operationId: adminPublishCandidate
+      x-api-id: API-036
+      x-fr: [FR-013, FR-014, FR-015, FR-016, FR-019]
+      x-nfr: [NFR-015]
+      summary: Publish a complete candidate as a new catalog publication
+      description: |
+        Refuses with 422 `publication_incomplete` naming missing VI/EN content, fact sources, attribution entries
+        or unconfirmed AI drafts (`context.missing`). Records reviewer and time (FR-015). Embedding of reviewed
+        chunks runs afterwards in the CLI (ADR-012).
+      tags: [admin]
+      security:
+        - HTTPBearer: [curator]
+      parameters:
+        - $ref: '#/components/parameters/PlaceId'
+        - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishRequest'
+      responses:
+        '201':
+          description: Published.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+            Idempotent-Replayed:
+              $ref: '#/components/headers/IdempotentReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogPublication'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/admin/places/{place_id}/unpublish:
+    post:
+      operationId: adminUnpublishPlace
+      x-api-id: API-037
+      x-fr: [FR-017, FR-015]
+      x-nfr: [NFR-015]
+      summary: Withdraw a published place, returning it to the candidate set
+      description: Saved trips keep their pinned publication; new previews exclude the place.
+      tags: [admin]
+      security:
+        - HTTPBearer: [curator]
+      parameters:
+        - $ref: '#/components/parameters/PlaceId'
+        - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnpublishRequest'
+      responses:
+        '200':
+          description: Publication state WITHDRAWN.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogPublication'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/admin/imports:
+    get:
+      operationId: adminListImportRuns
+      x-api-id: API-038
+      x-fr: [FR-009, FR-010]
+      x-nfr: [NFR-015]
+      summary: List catalog import runs
+      description: Imports are executed by the Typer CLI (ADR-012); the admin SPA reads their outcome (OQ-070).
+      tags: [admin]
+      security:
+        - HTTPBearer: [curator]
+      parameters:
+        - name: city_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of import runs, newest first.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportRunPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/admin/imports/{import_run_id}:
+    get:
+      operationId: adminGetImportRun
+      x-api-id: API-039
+      x-fr: [FR-009, FR-010]
+      x-nfr: [NFR-015]
+      summary: Read one import run with counts
+      tags: [admin]
+      security:
+        - HTTPBearer: [curator]
+      parameters:
+        - name: import_run_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Import run.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportRun'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/admin/sources:
+    get:
+      operationId: adminListSources
+      x-api-id: API-040
+      x-fr: [FR-016, FR-012]
+      x-nfr: [NFR-015]
+      summary: List evidence sources with licence and attribution
+      tags: [admin]
+      security:
+        - HTTPBearer: [curator]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of sources.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourcePage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      operationId: adminCreateSource
+      x-api-id: API-041
+      x-fr: [FR-016, FR-012]
+      x-nfr: [NFR-015]
+      summary: Register a source with licence and attribution text
+      tags: [admin]
+      security:
+        - HTTPBearer: [curator]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SourceCreate'
+      responses:
+        '201':
+          description: Source created.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /v1/admin/cities/summary:
+    get:
+      operationId: adminGetCitySummary
+      x-api-id: API-042
+      x-fr: [FR-018]
+      x-nfr: [NFR-015]
+      summary: Count published places and candidates per launch city
+      tags: [admin]
+      security:
+        - HTTPBearer: [curator]
+      responses:
+        '200':
+          description: Counts per city.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CitySummaryList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+components:
+  securitySchemes:
+    HTTPBearer:
+      scheme: bearer
+      type: http
+
+  headers:
+    XRequestID:
+      description: Request correlation ID; echoes a client-supplied X-Request-ID or a server-generated one.
+      schema:
+        type: string
+        maxLength: 64
+    RetryAfter:
+      description: Seconds until the quota window resets or the provider may be retried.
+      schema:
+        type: integer
+        minimum: 1
+    IdempotentReplayed:
+      description: '"true" when the response is a stored replay of an earlier request with the same Idempotency-Key.'
+      schema:
+        type: string
+        enum: ['true', 'false']
+
+  parameters:
+    TripId:
+      name: trip_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    StopId:
+      name: stop_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PreviewId:
+      name: preview_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PlaceId:
+      name: place_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SessionId:
+      name: session_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Locale:
+      name: locale
+      in: query
+      required: false
+      description: Content language; defaults to the account preference, then vi. Vietnamese names are always returned (FR-076).
+      schema:
+        $ref: '#/components/schemas/Locale'
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from a previous page's next_cursor.
+      schema:
+        type: string
+        maxLength: 512
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Client-generated UUID; scoped by account and operation; retained 24 h (ASM-071).
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKeyRequired:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated UUID; scoped by account and operation; retained 24 h (ASM-071).
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Malformed request or invalid cursor (`bad_request`, `invalid_cursor`).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Missing, invalid, expired or foreign-issuer token (`unauthenticated`).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            unauthenticated:
+              value:
+                error:
+                  code: unauthenticated
+                  message: Sign in again.
+                  retryable: false
+                  request_id: req_example_0001
+                  context: {}
+    Forbidden:
+      description: Authenticated but not allowed (`curator_role_required`, `not_study_participant`).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource absent or owned by another account (`not_found`); ownership is not disclosed.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: |
+        `revision_conflict` (context.current_revision), `idempotency_key_reused` (same key, different body),
+        `idempotency_in_progress`, `plan_blocked` (context.reasons), `trip_not_saved`, `deletion_in_progress`.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            revisionConflict:
+              value:
+                error:
+                  code: revision_conflict
+                  message: The trip changed since this preview was opened.
+                  retryable: false
+                  request_id: req_example_0002
+                  context:
+                    expected_trip_revision: 1
+                    current_revision: 2
+    Gone:
+      description: Preview EXPIRED, DISCARDED or already SAVED (`preview_expired`, `preview_closed`).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationFailed:
+      description: |
+        Body or parameter invalid (`validation_failed`, context.fields), out of scope (`unsupported_request`:
+        > 3 days, several cities, city not launched — FR-023), `place_not_in_city`, `publication_incomplete`
+        (context.missing).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            unsupported:
+              value:
+                error:
+                  code: unsupported_request
+                  message: Gonarra plans 1 to 3 days in one launch city.
+                  retryable: false
+                  request_id: req_example_0003
+                  context:
+                    day_count: 5
+                    max_day_count: 3
+    PayloadTooLarge:
+      description: Image larger than the upload limit (`payload_too_large`).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnsupportedMediaType:
+      description: Image type not JPEG/PNG/WebP (`unsupported_media_type`).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: Per-owner quota exhausted (`quota_exceeded`, context.quota and context.resets_at).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServiceUnavailable:
+      description: |
+        Dependency unavailable (`ai_unavailable`, `route_unavailable`, `runtime_place_unavailable`,
+        `price_provider_unavailable`, `database_unavailable`, `feature_disabled`); retryable flag set accordingly.
+        Saved itinerary and the last preview are unchanged (FR-043, FR-044).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    # ---- Unchanged from apps/api/openapi.json ----
+    ErrorDetail:
+      properties:
+        code:
+          title: Code
+          type: string
+        context:
+          additionalProperties: true
+          title: Context
+          type: object
+        message:
+          title: Message
+          type: string
+        request_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Request Id
+        retryable:
+          default: false
+          title: Retryable
+          type: boolean
+      required:
+        - code
+        - message
+      title: ErrorDetail
+      type: object
+    ErrorResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+      required:
+        - error
+      title: ErrorResponse
+      type: object
+    IdentityResponse:
+      properties:
+        account_id:
+          format: uuid
+          title: Account Id
+          type: string
+        session_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Session Id
+        subject:
+          title: Subject
+          type: string
+      required:
+        - account_id
+        - subject
+      title: IdentityResponse
+      type: object
+    ServiceStatus:
+      properties:
+        service:
+          default: gonarra-api
+          title: Service
+          type: string
+        status:
+          title: Status
+          type: string
+      required:
+        - status
+      title: ServiceStatus
+      type: object
+
+    # ---- Shared value types ----
+    Locale:
+      type: string
+      enum: [vi, en]
+    TravelMode:
+      type: string
+      enum: [WALK, DRIVE]
+    Pace:
+      type: string
+      enum: [RELAXED, BALANCED, PACKED]
+    TripStatus:
+      type: string
+      enum: [DRAFT, SAVED]
+    PlanHealth:
+      type: string
+      enum: [GOOD, WARNING, BLOCKED]
+    KnowledgeState:
+      type: string
+      enum: [KNOWN, UNKNOWN, NOT_APPLICABLE]
+    Freshness:
+      type: string
+      description: STALE when verified_at is more than stale_after_days (180, ASM-008) before today.
+      enum: [CURRENT, STALE]
+    WorkflowState:
+      type: string
+      enum: [IMPORTED, MATCH_REVIEW, CONTENT_REVIEW, READY_TO_PUBLISH, PUBLISHED, RETIRED]
+    GeoPoint:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+    LocalTime:
+      type: string
+      pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+      examples: ['08:00']
+    Attribution:
+      type: object
+      required: [publisher, attribution_text]
+      properties:
+        publisher:
+          type: string
+        attribution_text:
+          type: string
+        license_code:
+          type: [string, 'null']
+        homepage_url:
+          type: [string, 'null']
+          format: uri
+    Citation:
+      type: object
+      required: [source_revision_id, publisher, verified_at]
+      properties:
+        source_revision_id:
+          type: string
+          format: uuid
+        knowledge_chunk_id:
+          type: [string, 'null']
+          format: uuid
+        place_fact_id:
+          type: [string, 'null']
+          format: uuid
+        publisher:
+          type: string
+        title:
+          type: [string, 'null']
+        locator:
+          type: [string, 'null']
+        verified_at:
+          type: string
+          format: date
+    PageInfo:
+      type: object
+      required: [next_cursor]
+      properties:
+        next_cursor:
+          type: [string, 'null']
+          description: Null on the last page.
+
+    # ---- Identity ----
+    Preferences:
+      type: object
+      required: [locale, allowed_modes, interest_category_codes]
+      properties:
+        locale:
+          $ref: '#/components/schemas/Locale'
+        pace:
+          oneOf:
+            - $ref: '#/components/schemas/Pace'
+            - type: 'null'
+        interest_category_codes:
+          type: array
+          items:
+            type: string
+        allowed_modes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TravelMode'
+        day_start_time:
+          oneOf:
+            - $ref: '#/components/schemas/LocalTime'
+            - type: 'null'
+        day_end_time:
+          oneOf:
+            - $ref: '#/components/schemas/LocalTime'
+            - type: 'null'
+        ai_notice_acknowledged_at:
+          type: [string, 'null']
+          format: date-time
+        updated_at:
+          type: [string, 'null']
+          format: date-time
+    PreferencesWrite:
+      type: object
+      additionalProperties: false
+      required: [locale, allowed_modes, interest_category_codes]
+      properties:
+        locale:
+          $ref: '#/components/schemas/Locale'
+        pace:
+          oneOf:
+            - $ref: '#/components/schemas/Pace'
+            - type: 'null'
+        interest_category_codes:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+        allowed_modes:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/TravelMode'
+        day_start_time:
+          oneOf:
+            - $ref: '#/components/schemas/LocalTime'
+            - type: 'null'
+        day_end_time:
+          oneOf:
+            - $ref: '#/components/schemas/LocalTime'
+            - type: 'null'
+        ai_notice_acknowledged:
+          type: boolean
+          description: Set true once the FR-074 notice is shown; the server stamps ai_notice_acknowledged_at.
+    AccountDeletionRequest:
+      type: object
+      additionalProperties: false
+      required: [confirm]
+      properties:
+        confirm:
+          type: boolean
+          const: true
+    AccountDeletionStatus:
+      type: object
+      required: [id, status, requested_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [REQUESTED, IN_PROGRESS, COMPLETED, FAILED]
+        attempt_count:
+          type: integer
+          minimum: 0
+        failure_reason:
+          type: [string, 'null']
+        requested_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: [string, 'null']
+          format: date-time
+
+    # ---- Catalog ----
+    City:
+      type: object
+      required: [id, code, name_vi, name_en, time_zone]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name_vi:
+          type: string
+        name_en:
+          type: string
+        time_zone:
+          type: string
+          examples: [Asia/Ho_Chi_Minh]
+    CityList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/City'
+    Category:
+      type: object
+      required: [code, name_vi, name_en, sort_order]
+      properties:
+        code:
+          type: string
+        name_vi:
+          type: string
+        name_en:
+          type: string
+        sort_order:
+          type: integer
+    CategoryList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+    PlaceSummary:
+      type: object
+      required: [id, city_id, slug, category_code, name_vi, name, location, catalog_publication_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        city_id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        category_code:
+          type: string
+        name_vi:
+          type: string
+          description: Vietnamese name, always present (FR-076).
+        name:
+          type: string
+          description: Name in the requested locale.
+        short_description:
+          type: [string, 'null']
+        location:
+          $ref: '#/components/schemas/GeoPoint'
+        visit_minutes_suggested:
+          type: [integer, 'null']
+        catalog_publication_id:
+          type: string
+          format: uuid
+        thumbnail:
+          oneOf:
+            - $ref: '#/components/schemas/Media'
+            - type: 'null'
+    PlaceSummaryPage:
+      allOf:
+        - $ref: '#/components/schemas/PageInfo'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/PlaceSummary'
+    Media:
+      type: object
+      required: [media_asset_id, url, attribution_text]
+      properties:
+        media_asset_id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        width_px:
+          type: [integer, 'null']
+        height_px:
+          type: [integer, 'null']
+        alt_text:
+          type: [string, 'null']
+        creator:
+          type: [string, 'null']
+        license_code:
+          type: string
+        attribution_text:
+          type: string
+    PlaceFact:
+      type: object
+      description: One operational fact. UNKNOWN is never collapsed into an empty value (FR-006).
+      required: [field_code, knowledge_state, freshness, sources]
+      properties:
+        place_fact_id:
+          type: string
+          format: uuid
+        field_code:
+          type: string
+          examples: [opening_hours]
+        knowledge_state:
+          $ref: '#/components/schemas/KnowledgeState'
+        value:
+          description: Present only when knowledge_state is KNOWN; shape depends on fact_fields.value_kind.
+          type: [object, string, 'null']
+        verified_at:
+          type: [string, 'null']
+          format: date
+        valid_until:
+          type: [string, 'null']
+          format: date
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/Citation'
+    PlaceDetail:
+      allOf:
+        - $ref: '#/components/schemas/PlaceSummary'
+        - type: object
+          required: [name_en, facts, attributions, publication_revision]
+          properties:
+            name_en:
+              type: string
+            description:
+              type: [string, 'null']
+            visit_minutes_min:
+              type: [integer, 'null']
+            visit_minutes_max:
+              type: [integer, 'null']
+            entrance_location:
+              oneOf:
+                - $ref: '#/components/schemas/GeoPoint'
+                - type: 'null'
+            publication_revision:
+              type: integer
+            published_at:
+              type: string
+              format: date-time
+            facts:
+              type: array
+              items:
+                $ref: '#/components/schemas/PlaceFact'
+            media:
+              type: array
+              items:
+                $ref: '#/components/schemas/Media'
+            attributions:
+              type: array
+              description: Every source whose data is shown (FR-008).
+              items:
+                $ref: '#/components/schemas/Attribution'
+
+    # ---- Trips ----
+    TripCreate:
+      type: object
+      additionalProperties: false
+      required: [city_id, start_date, day_count]
+      properties:
+        city_id:
+          type: string
+          format: uuid
+        title:
+          type: [string, 'null']
+          maxLength: 120
+        start_date:
+          type: string
+          format: date
+        day_count:
+          type: integer
+          minimum: 1
+          maximum: 3
+    TripUpdate:
+      type: object
+      additionalProperties: false
+      required: [expected_revision]
+      properties:
+        expected_revision:
+          type: integer
+          minimum: 0
+        title:
+          type: [string, 'null']
+          maxLength: 120
+    Trip:
+      type: object
+      required: [id, city_id, start_date, day_count, status, revision, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        city_id:
+          type: string
+          format: uuid
+        title:
+          type: [string, 'null']
+        start_date:
+          type: string
+          format: date
+        day_count:
+          type: integer
+          minimum: 1
+          maximum: 3
+        status:
+          $ref: '#/components/schemas/TripStatus'
+        revision:
+          type: integer
+          minimum: 0
+        saved_at:
+          type: [string, 'null']
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    TripPage:
+      allOf:
+        - $ref: '#/components/schemas/PageInfo'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Trip'
+    TripDetail:
+      allOf:
+        - $ref: '#/components/schemas/Trip'
+        - type: object
+          required: [days]
+          properties:
+            planning_preferences:
+              oneOf:
+                - $ref: '#/components/schemas/PlanningPreferences'
+                - type: 'null'
+            days:
+              type: array
+              description: Saved itinerary; empty for a DRAFT trip.
+              items:
+                $ref: '#/components/schemas/ItineraryDay'
+            active_preview_id:
+              type: [string, 'null']
+              format: uuid
+    ItineraryDay:
+      type: object
+      required: [day_index, stops, legs]
+      properties:
+        trip_day_id:
+          type: [string, 'null']
+          format: uuid
+          description: Null inside a preview snapshot.
+        day_index:
+          type: integer
+          minimum: 1
+          maximum: 3
+        day_window_start:
+          $ref: '#/components/schemas/LocalTime'
+        day_window_end:
+          $ref: '#/components/schemas/LocalTime'
+        stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/Stop'
+        legs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Leg'
+    Stop:
+      type: object
+      required: [id, place_id, catalog_publication_id, ordinal, visit_minutes, is_locked, name_vi, name, location]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stable across preview revisions and into the saved trip_stops row.
+        place_id:
+          type: string
+          format: uuid
+        catalog_publication_id:
+          type: string
+          format: uuid
+        ordinal:
+          type: integer
+          minimum: 1
+        planned_arrival:
+          type: [string, 'null']
+          format: date-time
+        planned_departure:
+          type: [string, 'null']
+          format: date-time
+        visit_minutes:
+          type: integer
+          minimum: 5
+        is_locked:
+          type: boolean
+        name_vi:
+          type: string
+        name:
+          type: string
+        location:
+          $ref: '#/components/schemas/GeoPoint'
+        rationale:
+          type: [string, 'null']
+          description: AI-written reason for the selection (preview only).
+        conflicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conflict'
+    Leg:
+      type: object
+      required: [from_stop_id, to_stop_id, travel_mode, availability]
+      properties:
+        from_stop_id:
+          type: string
+          format: uuid
+        to_stop_id:
+          type: string
+          format: uuid
+        travel_mode:
+          $ref: '#/components/schemas/TravelMode'
+        availability:
+          type: string
+          enum: [AVAILABLE, UNAVAILABLE, EXPIRED]
+        distance_m:
+          type: [integer, 'null']
+        duration_s:
+          type: [integer, 'null']
+        measured_at:
+          type: [string, 'null']
+          format: date-time
+        conflicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conflict'
+    Conflict:
+      type: object
+      required: [type, severity]
+      properties:
+        type:
+          type: string
+          enum: [CLOSED_AT_PLANNED_TIME, LEG_UNAVAILABLE, DAY_WINDOW_EXCEEDED, OPENING_HOURS_UNKNOWN, FACT_STALE, MUST_SEE_NOT_INCLUDED]
+        severity:
+          type: string
+          enum: [BLOCKING, WARNING]
+        message:
+          type: string
+    PlaceCard:
+      type: object
+      required: [stop_id, place_id, name_vi, name_en, address_vi, entrance, directions]
+      properties:
+        stop_id:
+          type: string
+          format: uuid
+        place_id:
+          type: string
+          format: uuid
+        catalog_publication_id:
+          type: string
+          format: uuid
+        name_vi:
+          type: string
+        name_en:
+          type: string
+        address_vi:
+          description: Vietnamese address for a driver, or UNKNOWN (FR-052).
+          $ref: '#/components/schemas/PlaceFact'
+        entrance:
+          description: Verified entrance location, or UNKNOWN (FR-053).
+          $ref: '#/components/schemas/PlaceFact'
+        directions:
+          type: object
+          required: [target, google_maps_url, apple_maps_url]
+          properties:
+            target:
+              type: string
+              enum: [ENTRANCE, PLACE_POSITION]
+            google_maps_url:
+              type: string
+              format: uri
+            apple_maps_url:
+              type: string
+              format: uri
+        live_status:
+          description: Runtime-only Google Places data; omitted when unavailable (ADR-006).
+          type: object
+          required: [retrieved_at, attribution_text]
+          properties:
+            open_now:
+              type: [boolean, 'null']
+            retrieved_at:
+              type: string
+              format: date-time
+            attribution_text:
+              type: string
+        attributions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attribution'
+
+    # ---- Planning ----
+    PlanningPreferences:
+      type: object
+      additionalProperties: false
+      properties:
+        pace:
+          $ref: '#/components/schemas/Pace'
+        interest_category_codes:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+        allowed_modes:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/TravelMode'
+        day_start_time:
+          $ref: '#/components/schemas/LocalTime'
+        day_end_time:
+          $ref: '#/components/schemas/LocalTime'
+        must_see_place_ids:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uuid
+    PlanPreviewCreate:
+      type: object
+      additionalProperties: false
+      required: [source, expected_trip_revision, locale]
+      properties:
+        source:
+          type: string
+          enum: [GENERATE, SAVED_ITINERARY]
+        expected_trip_revision:
+          type: integer
+          minimum: 0
+        locale:
+          $ref: '#/components/schemas/Locale'
+        request_text:
+          type: [string, 'null']
+          maxLength: 1000
+          description: Free-text request (FR-020); sent to Gemini without identifiers.
+        preferences:
+          $ref: '#/components/schemas/PlanningPreferences'
+    ClarificationRequired:
+      type: object
+      required: [outcome, missing_fields, message]
+      properties:
+        outcome:
+          type: string
+          const: CLARIFICATION_REQUIRED
+        missing_fields:
+          type: array
+          items:
+            type: string
+            enum: [city, start_date, day_count]
+        message:
+          type: string
+    PlanPreview:
+      type: object
+      required: [id, trip_id, base_trip_revision, head_revision, preview_revision, status, origin, plan_health, expires_at, days]
+      properties:
+        id:
+          type: string
+          format: uuid
+        trip_id:
+          type: string
+          format: uuid
+        base_trip_revision:
+          type: integer
+        head_revision:
+          type: integer
+        preview_revision:
+          type: integer
+          description: Revision represented by this body.
+        parent_revision:
+          type: [integer, 'null']
+        status:
+          type: string
+          enum: [ACTIVE, SAVED, DISCARDED, EXPIRED]
+        origin:
+          type: string
+          enum: [GENERATED, MANUAL_EDIT, DAY_REGENERATED, REPAIRED]
+        plan_health:
+          $ref: '#/components/schemas/PlanHealth'
+        health_reasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conflict'
+        expires_at:
+          type: string
+          format: date-time
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItineraryDay'
+        assumptions:
+          type: array
+          items:
+            type: string
+        model_version:
+          type: [string, 'null']
+        prompt_version:
+          type: [string, 'null']
+        corpus_revision:
+          type: [integer, 'null']
+        created_at:
+          type: string
+          format: date-time
+    PreviewEditOperation:
+      type: object
+      additionalProperties: false
+      required: [op]
+      properties:
+        op:
+          type: string
+          enum: [MOVE_STOP, ADD_STOP, REMOVE_STOP, REPLACE_STOP, SET_VISIT_MINUTES, SET_LEG_MODE, LOCK_STOP, UNLOCK_STOP]
+        stop_id:
+          type: string
+          format: uuid
+        day_index:
+          type: integer
+          minimum: 1
+          maximum: 3
+        to_ordinal:
+          type: integer
+          minimum: 1
+        place_id:
+          type: string
+          format: uuid
+          description: ADD_STOP / REPLACE_STOP; must be published in the trip's city.
+        visit_minutes:
+          type: integer
+          minimum: 5
+          maximum: 600
+        from_stop_id:
+          type: string
+          format: uuid
+        to_stop_id:
+          type: string
+          format: uuid
+        travel_mode:
+          $ref: '#/components/schemas/TravelMode'
+    PlanPreviewEdit:
+      type: object
+      additionalProperties: false
+      required: [expected_revision, edits]
+      properties:
+        expected_revision:
+          type: integer
+          minimum: 1
+        edits:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/PreviewEditOperation'
+    RegenerateDayRequest:
+      type: object
+      additionalProperties: false
+      required: [expected_revision, day_index]
+      properties:
+        expected_revision:
+          type: integer
+          minimum: 1
+        day_index:
+          type: integer
+          minimum: 1
+          maximum: 3
+        locked_stop_ids:
+          type: array
+          description: Stops to keep; merged with stops already is_locked in the revision.
+          items:
+            type: string
+            format: uuid
+        instruction:
+          type: [string, 'null']
+          maxLength: 500
+        locale:
+          $ref: '#/components/schemas/Locale'
+    AcceptPreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [expected_preview_revision, expected_trip_revision]
+      properties:
+        expected_preview_revision:
+          type: integer
+          minimum: 1
+        expected_trip_revision:
+          type: integer
+          minimum: 0
+    PlanningStreamEvent:
+      type: object
+      description: |
+        One SSE `data:` payload; the SSE `event:` name equals `type`. Terminal events are preview_ready,
+        clarification_required and error.
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [progress, clarification_required, preview_ready, error]
+        stage:
+          type: string
+          enum: [VALIDATING_REQUEST, SELECTING_PLACES, ROUTING, SCHEDULING, CHECKING_HEALTH]
+        preview_id:
+          type: string
+          format: uuid
+        preview_revision:
+          type: integer
+        plan_health:
+          $ref: '#/components/schemas/PlanHealth'
+        clarification:
+          $ref: '#/components/schemas/ClarificationRequired'
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+
+    # ---- Guide ----
+    GuideSessionCreate:
+      type: object
+      additionalProperties: false
+      required: [place_id, locale]
+      properties:
+        place_id:
+          type: string
+          format: uuid
+        trip_id:
+          type: [string, 'null']
+          format: uuid
+        locale:
+          $ref: '#/components/schemas/Locale'
+    GuideSession:
+      type: object
+      required: [id, place_id, locale, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        trip_id:
+          type: [string, 'null']
+          format: uuid
+        place_id:
+          type: string
+          format: uuid
+        locale:
+          $ref: '#/components/schemas/Locale'
+        expires_at:
+          type: [string, 'null']
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+    GuideQuestion:
+      type: object
+      additionalProperties: false
+      required: [content, input_mode]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        input_mode:
+          type: string
+          enum: [TEXT, VOICE_TRANSCRIPT]
+    GuideMessage:
+      type: object
+      required: [id, seq, role, content, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        seq:
+          type: integer
+          minimum: 1
+        role:
+          type: string
+          enum: [TRAVELER, ASSISTANT]
+        input_mode:
+          type: [string, 'null']
+          enum: [TEXT, VOICE_TRANSCRIPT, PHOTO, null]
+        content:
+          type: string
+        answer_status:
+          type: [string, 'null']
+          enum: [ANSWERED, INSUFFICIENT_EVIDENCE, NOT_RECOGNISED, null]
+        citations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Citation'
+        created_at:
+          type: string
+          format: date-time
+    GuideMessagePage:
+      allOf:
+        - $ref: '#/components/schemas/PageInfo'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/GuideMessage'
+    GuideStreamEvent:
+      type: object
+      description: |
+        One SSE `data:` payload; `event:` equals `type`. `text` carries an incremental delta; `result` is terminal
+        and carries the stored assistant message; `error` is terminal.
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [progress, text, result, error]
+        stage:
+          type: string
+          enum: [RETRIEVING, ANSWERING]
+        delta:
+          type: string
+        message:
+          $ref: '#/components/schemas/GuideMessage'
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+    PhotoIdentificationUpload:
+      type: object
+      required: [image, latitude, longitude, locale]
+      properties:
+        image:
+          type: string
+          contentMediaType: image/jpeg
+          description: JPEG, PNG or WebP with metadata stripped on device; size limit per ASM-070.
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        accuracy_m:
+          type: number
+          minimum: 0
+        locale:
+          $ref: '#/components/schemas/Locale'
+        session_id:
+          type: string
+          format: uuid
+          description: Optional Guide session; the outcome is stored as a PHOTO message without image or coordinates.
+    PhotoIdentificationResult:
+      type: object
+      required: [outcome, radius_m]
+      properties:
+        outcome:
+          type: string
+          enum: [IDENTIFIED, NOT_RECOGNISED]
+        radius_m:
+          type: integer
+          const: 300
+        place:
+          oneOf:
+            - $ref: '#/components/schemas/PlaceSummary'
+            - type: 'null'
+
+    # ---- Stays ----
+    HandoffKind:
+      type: string
+      enum: [STAY, ACTIVITY, TRANSPORT]
+    HandoffLink:
+      type: object
+      required: [kind, partner_key, partner_display_name, url]
+      properties:
+        kind:
+          $ref: '#/components/schemas/HandoffKind'
+        partner_key:
+          type: string
+          enum: [agoda, booking_com, klook, twelve_go]
+          description: 'STAY: agoda | booking_com; ACTIVITY: klook; TRANSPORT: twelve_go (BRD §14). Partners: Agoda, Booking.com, Klook, 12Go.'
+        partner_display_name:
+          type: string
+        url:
+          type: string
+          format: uri
+        city_id:
+          type: string
+          format: uuid
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          pattern: '^[0-9]+(\.[0-9]{1,2})?$'
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+    StayPrice:
+      type: object
+      required: [name, price, retrieved_at, provider_key]
+      properties:
+        name:
+          type: string
+        price:
+          $ref: '#/components/schemas/Money'
+        price_basis:
+          type: string
+          enum: [PER_NIGHT, TOTAL_STAY]
+        provider_key:
+          type: string
+        handoff_url:
+          type: [string, 'null']
+          format: uri
+        retrieved_at:
+          type: string
+          format: date-time
+    StayPricePage:
+      allOf:
+        - $ref: '#/components/schemas/PageInfo'
+        - type: object
+          required: [items, notice, attribution_text, retrieved_at]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/StayPrice'
+            notice:
+              type: string
+              description: Partner confirms the final price (FR-080).
+            attribution_text:
+              type: string
+            retrieved_at:
+              type: string
+              format: date-time
+
+    # ---- Study ----
+    StudyTimingEvent:
+      type: object
+      additionalProperties: false
+      required: [client_event_id, event, occurred_at, interface_locale]
+      properties:
+        client_event_id:
+          type: string
+          format: uuid
+        session_log_id:
+          type: [string, 'null']
+          format: uuid
+          description: Omitted on REQUEST_SUBMITTED (opens a log); required afterwards.
+        event:
+          type: string
+          enum: [REQUEST_SUBMITTED, FIRST_PROPOSAL_DISPLAYED, SAVE_OUTCOME]
+        occurred_at:
+          type: string
+          format: date-time
+        interface_locale:
+          $ref: '#/components/schemas/Locale'
+        save_outcome:
+          type: string
+          enum: [SAVED, NOT_SAVED, SAVE_REFUSED]
+    StudySessionLog:
+      type: object
+      required: [id, interface_locale]
+      properties:
+        id:
+          type: string
+          format: uuid
+        interface_locale:
+          $ref: '#/components/schemas/Locale'
+        request_submitted_at:
+          type: [string, 'null']
+          format: date-time
+        first_proposal_displayed_at:
+          type: [string, 'null']
+          format: date-time
+        save_outcome:
+          type: [string, 'null']
+          enum: [SAVED, NOT_SAVED, SAVE_REFUSED, null]
+
+    # ---- Admin ----
+    CandidateSummary:
+      type: object
+      required: [id, city_id, slug, category_code, workflow_state, content_revision, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        city_id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        category_code:
+          type: string
+        workflow_state:
+          $ref: '#/components/schemas/WorkflowState'
+        name_vi:
+          type: [string, 'null']
+        name_en:
+          type: [string, 'null']
+        content_revision:
+          type: integer
+        has_ai_draft:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+    CandidatePage:
+      allOf:
+        - $ref: '#/components/schemas/PageInfo'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/CandidateSummary'
+    Localization:
+      type: object
+      required: [locale, name, translation_origin, review_state]
+      properties:
+        id:
+          type: string
+          format: uuid
+        locale:
+          $ref: '#/components/schemas/Locale'
+        name:
+          type: string
+          maxLength: 200
+        short_description:
+          type: [string, 'null']
+          maxLength: 300
+        description:
+          type: [string, 'null']
+          maxLength: 4000
+        translation_origin:
+          type: string
+          enum: [ORIGINAL, HUMAN_TRANSLATION, AI_DRAFT]
+        review_state:
+          type: string
+          enum: [DRAFT, APPROVED, REJECTED, SUPERSEDED]
+        reviewed_at:
+          type: [string, 'null']
+          format: date-time
+    CandidateFact:
+      type: object
+      required: [field_code, knowledge_state, review_state, source_revision_ids]
+      properties:
+        id:
+          type: string
+          format: uuid
+        field_code:
+          type: string
+        knowledge_state:
+          $ref: '#/components/schemas/KnowledgeState'
+        value:
+          type: [object, string, 'null']
+        verified_at:
+          type: [string, 'null']
+          format: date
+        review_state:
+          type: string
+          enum: [DRAFT, APPROVED, REJECTED, SUPERSEDED]
+        conflict_state:
+          type: string
+          enum: [NONE, OPEN, RESOLVED]
+        source_revision_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    CandidateDetail:
+      allOf:
+        - $ref: '#/components/schemas/CandidateSummary'
+        - type: object
+          required: [localizations, facts, publications]
+          properties:
+            location:
+              $ref: '#/components/schemas/GeoPoint'
+            visit_minutes_min:
+              type: [integer, 'null']
+            visit_minutes_suggested:
+              type: [integer, 'null']
+            visit_minutes_max:
+              type: [integer, 'null']
+            localizations:
+              type: array
+              items:
+                $ref: '#/components/schemas/Localization'
+            aliases:
+              type: array
+              items:
+                type: object
+                required: [locale, alias]
+                properties:
+                  locale:
+                    $ref: '#/components/schemas/Locale'
+                  alias:
+                    type: string
+                  review_state:
+                    type: string
+                    enum: [DRAFT, APPROVED, REJECTED]
+            facts:
+              type: array
+              items:
+                $ref: '#/components/schemas/CandidateFact'
+            publications:
+              type: array
+              items:
+                $ref: '#/components/schemas/CatalogPublication'
+    CandidateReview:
+      type: object
+      additionalProperties: false
+      required: [expected_content_revision]
+      properties:
+        expected_content_revision:
+          type: integer
+          minimum: 0
+        category_code:
+          type: string
+        visit_minutes_min:
+          type: integer
+          minimum: 5
+        visit_minutes_suggested:
+          type: integer
+          minimum: 5
+        visit_minutes_max:
+          type: integer
+          minimum: 5
+        localizations:
+          type: array
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/Localization'
+        facts:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateFact'
+        confirm_ai_draft_locales:
+          type: array
+          description: Locales whose AI_DRAFT content the curator confirms field by field (FR-019).
+          items:
+            $ref: '#/components/schemas/Locale'
+    PublishRequest:
+      type: object
+      additionalProperties: false
+      required: [expected_content_revision]
+      properties:
+        expected_content_revision:
+          type: integer
+          minimum: 0
+    UnpublishRequest:
+      type: object
+      additionalProperties: false
+      required: [state_reason]
+      properties:
+        state_reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+    CatalogPublication:
+      type: object
+      required: [id, place_id, city_id, publication_revision, state, published_by_account_id, published_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        place_id:
+          type: string
+          format: uuid
+        city_id:
+          type: string
+          format: uuid
+        publication_revision:
+          type: integer
+        state:
+          type: string
+          enum: [PUBLISHED, SUPERSEDED, WITHDRAWN]
+        published_by_account_id:
+          type: string
+          format: uuid
+        published_at:
+          type: string
+          format: date-time
+        state_changed_at:
+          type: [string, 'null']
+          format: date-time
+        state_reason:
+          type: [string, 'null']
+    ImportRun:
+      type: object
+      required: [id, data_provider_id, city_id, release_id, importer_version, status, started_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        data_provider_id:
+          type: string
+          format: uuid
+        provider_policy_id:
+          type: string
+          format: uuid
+        city_id:
+          type: string
+          format: uuid
+        release_id:
+          type: string
+        importer_version:
+          type: string
+        status:
+          type: string
+          enum: [RUNNING, SUCCEEDED, FAILED]
+        record_count:
+          type: [integer, 'null']
+        accepted_count:
+          type: [integer, 'null']
+        rejected_count:
+          type: [integer, 'null']
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: [string, 'null']
+          format: date-time
+    ImportRunPage:
+      allOf:
+        - $ref: '#/components/schemas/PageInfo'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ImportRun'
+    SourceCreate:
+      type: object
+      additionalProperties: false
+      required: [publisher, source_kind, attribution_text]
+      properties:
+        data_provider_id:
+          type: [string, 'null']
+          format: uuid
+        publisher:
+          type: string
+          maxLength: 200
+        source_kind:
+          type: string
+          enum: [OFFICIAL, OPEN_DATA, REFERENCE, OWN_OBSERVATION]
+        homepage_url:
+          type: [string, 'null']
+          format: uri
+        license_code:
+          type: [string, 'null']
+        attribution_text:
+          type: string
+          minLength: 1
+          maxLength: 500
+    Source:
+      type: object
+      required: [id, publisher, source_kind, attribution_text, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        data_provider_id:
+          type: [string, 'null']
+          format: uuid
+        publisher:
+          type: string
+        source_kind:
+          type: string
+          enum: [OFFICIAL, OPEN_DATA, REFERENCE, OWN_OBSERVATION]
+        homepage_url:
+          type: [string, 'null']
+          format: uri
+        license_code:
+          type: [string, 'null']
+        attribution_text:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    SourcePage:
+      allOf:
+        - $ref: '#/components/schemas/PageInfo'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Source'
+    CitySummary:
+      type: object
+      required: [city_id, code, published_count, candidate_count]
+      properties:
+        city_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        published_count:
+          type: integer
+          minimum: 0
+        candidate_count:
+          type: integer
+          minimum: 0
+    CitySummaryList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CitySummary'

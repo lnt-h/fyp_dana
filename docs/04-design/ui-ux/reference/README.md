@@ -1,0 +1,72 @@
+# Authentication design references
+
+These dated snapshots describe the UI at review time. Use the [repository overview](../../../../README.md) for current Clerk integration and the [documentation index](../../../README.md) for active contracts.
+
+## Historical auth, Profile and Settings preview — 2026-10-29
+
+- Welcome keeps its landscape composition and includes Email, Google and Apple icons/buttons. Guest entry is labeled “Explore without an account”. Social buttons explain provider unavailability instead of pretending to authenticate.
+- Registration has labeled fields with caller-provided placeholders, optional preferences, retained selections when skipping/backtracking, and a completion screen. Blank inputs remain allowed for UI review. Preferences selected as a guest seed the registration choices.
+- Finishing registration copies name, email and travel preferences into a shared in-memory preview profile. Login starts a preview profile without authenticating. Passwords remain local to the form and are cleared on completion.
+- Home’s avatar opens `/profile`. `/edit-profile` and `/travel-preferences` support Save and Cancel. `/settings` includes a working reduced-motion override, expandable data/legal/about information and a confirmation before clearing the preview session.
+- The reduced-motion preference applies to navigation and onboarding, alongside the operating system setting. Profile data and preferences do not persist after an application restart. Real authentication, server storage, account deletion and published legal pages remain unimplemented.
+- Checked TypeScript, iOS bundle export and browser flows for registration → Home → Profile, profile editing, preference editing, Skip/back retention and the reduced-motion switch. Native simulator reload timed out during this pass; this is not a claim of native visual verification.
+
+The dated notes below document earlier review passes; this section supersedes older behavior descriptions where they differ.
+
+- `01-welcome.png`: welcome and entry choices.
+- `02-login.png`: email sign-in.
+- `03-register-account.png`: account form.
+- `04-register-preferences.png`: travel preferences.
+- `05-register-complete.png`: completion illustration.
+
+The implementation uses native React Native components and Expo Router. Current routes are `/welcome`, `/login`, and `/register`; registration contains three in-memory steps. Existing onboarding now ends at Welcome.
+
+Intentional differences from the references:
+
+- Social sign-in buttons and their provider icons are present; tapping them explains that provider sign-in is not connected yet.
+- Preferences use the four planned categories: Culture, Beach, Food, Nature.
+- Authentication is an explicitly labeled UI preview. No network authentication, durable preferences, password recovery, or legal consent collection is implemented.
+- Completion opens the existing Home screen as a guest and does not claim an account was created.
+- Native status bars and safe areas replace decorative phone chrome.
+
+Form values exist only in component memory. Leaving registration discards them; returning between its steps preserves them. Validation is currently bypassed for UI review; no production password policy has been selected.
+
+## Local `.fig` audit — 2026-10-28
+
+Read the supplied `Tourguide app UI.fig` locally after Figma MCP reached its account tool limit. Its embedded Kiwi schema decodes to 1,058 layer records and 60 image files. No named Welcome/Login/Register screens or corresponding auth copy were found; auth PNG references remain a separate design source.
+
+- Discovery screen: `64:1123` (named Onboarding 2 in Figma; first content slide in the app).
+- Discovery lower fade: `230:580`, y=330, height=626 on a 440×956 frame. White alpha stops: 0 at 0, .25 at .12545185, .5 at .27795538, 1 at .5940541. Previous code incorrectly multiplied these by .58.
+- Planning lower fade: `242:454`, y=450, height=506. Previous code used y=463.
+- Personalized lower fade: `242:461`, y=330, height=626. Same full-white gradient stops.
+- Native Expo gradients now render these lower veils without relying on SVG Gaussian filters on mobile. This matches the observed fade stops; it is not an exact reproduction of Figma's 20px layer-blur renderer.
+- Existing onboarding copy matches Figma wording. Auth preview explanations were repetitive; reduced to a short UI-preview marker. Welcome supporting copy is shortened.
+- Welcome uses a landscape Dragon Bridge hero with a smaller cathedral photo overlapping its corner, instead of the capsule columns used by onboarding. Both photos are dedicated embedded assets. It is not claimed as an exact recreation of the five-photo Welcome PNG, whose individual source photos are absent from this local `.fig`.
+
+### October 2026 preview behavior (supersedes earlier validation notes)
+
+As requested, blank inputs do not block Next or Sign In. Registration goes through all three steps without email, password, or terms validation. Sign In opens Home as a UI preview only; no authentication request occurs. Back, Skip, selection, and show/hide password remain interactive. Production validation and real authentication must be reinstated when a backend is connected.
+
+### Typography and remaining review findings
+
+Onboarding text nodes (including `236:276` and `242:470`) specify Hanken Grotesk Medium at 37px in the 440px frame. The app now bundles Medium and Bold through `@expo-google-fonts/hanken-grotesk` 0.4.3 and `expo-font` 58.0.10, rather than relying on system fonts. Fonts are loaded at the root before screens mount, following the [Expo font-loading guidance](https://docs.expo.dev/develop/user-interface/fonts/). Font provenance: [Google Fonts Hanken Grotesk](https://github.com/google/fonts/tree/main/ofl/hankengrotesk).
+
+The existing Home tab bar still has Home / Explore / AI guide / Trips. The [product requirements document](../../../03-analysis/PRD.md) establishes a planner-first bilingual experience and does not include a standalone AI-guide tab in the MVP. This screen predates the 2026-11-02 pivot and must be reconciled during the core-loop prototype rather than treated as the active navigation contract.
+
+
+## Verification of this review
+
+- TypeScript and Expo exports for Web, iOS, and Android passed.
+- In Safari, inspected Welcome/registration at a 390×844 web viewport and onboarding at 360×740.
+- Clicked through all three onboarding slides into Welcome.
+- Clicked through registration with empty fields and no accepted terms or preferences into Home.
+- Corrected compact-screen onboarding title positioning from a fixed bottom offset to the Figma reference baseline (title ends at y=762 of 956).
+- Added web accessibility hiding for inactive onboarding slides; only the current slide's copy appears in the accessibility tree.
+- Added consistent SVG field icons and a labeled password-visibility icon; removed repeated field labels and repeated legal-link rows.
+- Browser viewport checks do not establish native keyboard, safe-area, or physical-device rendering correctness. Those remain device checks.
+
+### Welcome and registration layout fix — 2026-10-28
+
+- Welcome now uses a landscape destination card and inset photo, visually distinct from onboarding 1. Entry actions are unchanged.
+- Registration step 2 constrains each interest photo inside an aspect-ratio frame with an absolutely positioned cover image. Native image dimensions no longer expand the grid or overlap adjacent tiles.
+- Verified on the running iPhone 18 Pro simulator: two-column grid, selection indicators, Next to step 3, and preserved selections when returning. Inspected the updated Welcome layout. TypeScript check passed.
