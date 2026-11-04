@@ -5,8 +5,8 @@
 | Field | Value |
 |---|---|
 | Document ID | GONARRA-API |
-| API version | v1 (contract `info.version` 0.3.0) |
-| Document version | 0.3 |
+| API version | v1 (contract `info.version` 0.4.0) |
+| Document version | 0.4 |
 | Status | Draft |
 | Owner | Lê Ngọc Tấn Hiền, student author, product owner and engineer |
 | Contributors | Claude Code (drafting agent; no approval authority) |
@@ -22,6 +22,7 @@
 | 0.1 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | First kit-based API design. Replaces the pre-rebuild `docs/API.md` (SRC-007) and extends the generated `apps/api/openapi.json` |
 | 0.2 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | DA-GONARRA-01 fixes F-02, F-05, F-10: API-007 401 semantics after the Clerk user is deleted; booking partners named (Agoda, Booking.com, Klook, 12Go); OQ-070..073 closed (A-024) |
 | 0.3 | 2026-11-05 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | AI design alignment (SRC-100 A-028): API-035 accepts `chunks[]` (sectioned, embedded on write, `embedding_state`, `warnings[]`); `Citation.section`; API-028 and API-036 descriptions follow ADR-010 0.3 / ADR-012 0.3; new schemas `ChunkSection`, `ChunkInput`, `KnowledgeChunk` (additive) |
+| 0.4 | 2026-11-05 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | Screen-spec open points (SRC-100 A-029): `City.centre` (OQ-109); `CandidateSummary.provider_release`, `gate_missing_count`; `ImportRun.duplicate_count`, `failure_code`; API-033 `import_run_id` filter (OQ-112). All additive |
 
 **Implementation status.** Only `/health`, `/ready` and `/v1/me` exist in code, and that backend foundation is
 unverified (SRC-100 A-020). Every other operation in this document is design. The contract keeps those three
@@ -305,7 +306,7 @@ left with no valid citation becomes INSUFFICIENT_EVIDENCE (ADR-010, FR-057, FR-0
 List operations (API-010, API-013, API-027, API-031, API-033, API-038, API-040) take `cursor` (opaque, ≤ 512
 chars) and `limit` (1–50, default 20). They return `{ "items": [...], "next_cursor": string|null }`, and an
 invalid cursor answers 400 `invalid_cursor`. Filters: API-010 `city_id` (required), `q`, `category_code`;
-API-013 `status`; API-033 `city_id`, `workflow_state`, `q`; API-038 `city_id`. Sorting uses an enumerated `sort`
+API-013 `status`; API-033 `city_id`, `workflow_state`, `import_run_id`, `q`; API-038 `city_id`. Sorting uses an enumerated `sort`
 parameter where order matters (API-010 `relevance|name`, API-013 `-updated_at|start_date`, API-033
 `-updated_at|name`). Cities, categories and the city summary are small fixed lists and are not paginated.
 
@@ -353,7 +354,7 @@ the values: they are fixed once OQ-032 and OQ-030 are answered and must leave st
   of a status code) require `/v2` and a new ADR. v1 then remains available until the study ends.
 - A deprecated operation or field is marked `deprecated: true` in OpenAPI, and responses send `Deprecation`
   (RFC 9745) and `Sunset` (RFC 8594) headers at least one release before removal.
-- `info.version` follows SemVer for the document (0.3.0 now; 0.3.0 is additive over 0.2.0). The committed `api/openapi.yaml` is the target, and CI
+- `info.version` follows SemVer for the document (0.4.0 now; 0.3.0 and 0.4.0 are additive over 0.2.0). The committed `api/openapi.yaml` is the target, and CI
   compares it with the FastAPI-generated `apps/api/openapi.json` as operations are implemented (NFR-030).
 
 ### 3.11 Operation table

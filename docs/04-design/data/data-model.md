@@ -5,7 +5,7 @@
 | Field | Value |
 |---|---|
 | Document ID | GONARRA-DATA |
-| Version | 0.3 |
+| Version | 0.4 |
 | Status | Draft |
 | DBMS and version | PostgreSQL 16 with PostGIS, pgvector, pgcrypto and pg_trgm. Production: AWS RDS db.t4g.micro, ap-southeast-1 (DEC-005, ADR-002, ADR-003). Local: `postgis/postgis:16-3.6` with `postgresql-16-pgvector` (`infra/postgres/Dockerfile`) |
 | Owner | Lê Ngọc Tấn Hiền, student author, product owner and data architect |
@@ -22,6 +22,7 @@
 | 0.1 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | First kit-based data design. Replaces pre-rebuild `docs/DATA.md` and `docs/DATABASE-DESIGN.md` |
 | 0.2 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | DA-GONARRA-01 fixes F-01, F-02, F-10: embed and approve chunks before publication; Clerk user deleted last; OQ-016..020 closed (A-023) |
 | 0.3 | 2026-11-05 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | AI design alignment (SRC-100 A-028): `knowledge_chunks.section` (one chunk per section per locale), trigram index for Tier 2 lexical retrieval, embeddings computed on write by the curation API (ADR-012 0.3), Tier 1 retrieval without ANN (ADR-010 0.3) |
+| 0.4 | 2026-11-05 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | Screen-spec open points (SRC-100 A-029, OQ-112): `import_runs.duplicate_count`, `failure_code` (required iff FAILED); `City.centre` is computed from `cities.boundary` (no column) |
 
 **Inputs.** IN-1 `docs/03-analysis/PRD.md` (FR-001..FR-081, NFR-001..NFR-036); IN-2 `docs/04-design/architecture/SAD.md`
 (GONARRA-SAD 0.1); IN-3 `docs/04-design/architecture/blueprint.md`; IN-4 ADR-003 (single store), ADR-005 (Clerk mapping), ADR-006
@@ -177,7 +178,7 @@ constraint. Abbreviations: **C** = cascade, **R** = restrict, **N** = set null.
 | Table | Purpose | Keys and FKs | Constraints | Indexes |
 |---|---|---|---|---|
 | `accounts` **(EXISTS)** | Maps a Clerk subject to an internal account UUID (ADR-005). No profile data | PK `accounts_pkey (id)`; unique `accounts_clerk_user_id_key (clerk_user_id)` | `clerk_user_id varchar(255) NOT NULL` | `ix_accounts_clerk_user_id` unique (redundant, OQ-020) |
-| `cities` | The five launch cities (BRU-007). `boundary` optional; when present it gates publication (`OUTSIDE_CITY`) | PK; `uq_cities_code` | `ck_cities_code_format` (kebab case), `ck_cities_time_zone` = `Asia/Ho_Chi_Minh` | via unique (5 rows) |
+| `cities` | The five launch cities (BRU-007). `boundary` optional; when present it gates publication (`OUTSIDE_CITY`) and its centroid is the API `City.centre` (OQ-109) | PK; `uq_cities_code` | `ck_cities_code_format` (kebab case), `ck_cities_time_zone` = `Asia/Ho_Chi_Minh` | via unique (5 rows) |
 | `categories` | Curator taxonomy for details and interest matching (FR-003, FR-021) | PK `code` (natural, `^[A-Z][A-Z0-9_]*$`) | `ck_categories_code_format` | PK |
 | `fact_fields` | Fact vocabulary: operational or not, required for publication, value kind, staleness (BR-004, BR-025, ASM-008) | PK `code` | `ck_fact_fields_value_kind` (HOURS, MONEY, TEXT, LOCATION); `stale_after_days > 0`; operational ⇒ staleness set | PK |
 
@@ -189,7 +190,7 @@ constraint. Abbreviations: **C** = cascade, **R** = restrict, **N** = set null.
 | `provider_policies` | Policy revision: terms version and URL, purpose, attribution, review date | PK; FK provider (R); unique `(data_provider_id, policy_revision)` | revision > 0; status ∈ DRAFT, ACTIVE, RETIRED; ACTIVE ⇒ `approved_at` | partial unique one ACTIVE per provider |
 | `provider_field_rules` | Field allowlist of a policy; **missing row = DENY** | PK `(provider_policy_id, field_name)`; FK policy (C) | class ∈ ALLOW_CANONICAL, ALLOW_EPHEMERAL, ALLOW_IDENTIFIER_ONLY, DENY; EPHEMERAL ⇒ `max_retention` | PK |
 | `places` | Stable place identity; candidate until published. `location` for map and routing fallback (FR-003, FR-054) | PK; FK city (R), category (R); `uq_places_city_id_slug`; `uq_places_id_city_id` (target of composite FKs) | slug kebab; workflow_state ∈ IMPORTED, MATCH_REVIEW, CONTENT_REVIEW, READY_TO_PUBLISH, PUBLISHED, RETIRED; visit minutes 0 < min ≤ suggested ≤ max ≤ 600; READY/PUBLISHED ⇒ category and all visit minutes; `content_revision > 0` | `ix_places_location_gist` (Q-I4); `ix_places_category_code` |
-| `import_runs` | One bounded open-data import for one city and release (FR-009) | PK; FK provider, policy, city (all R) | checksum hex 64; status ∈ RUNNING, SUCCEEDED, FAILED; RUNNING ⇔ `completed_at` NULL; counts ≥ 0 | `uq_import_runs_succeeded_release` partial (Q-I1, FR-010); policy; city |
+| `import_runs` | One bounded open-data import for one city and release (FR-009) | PK; FK provider, policy, city (all R) | checksum hex 64; status ∈ RUNNING, SUCCEEDED, FAILED; RUNNING ⇔ `completed_at` NULL; counts (incl. `duplicate_count`) ≥ 0; FAILED ⇔ `failure_code` set | `uq_import_runs_succeeded_release` partial (Q-I1, FR-010); policy; city |
 | `import_records` | Staging rows; `allowed_payload` holds only allowlisted fields of the run policy | PK; FK run (C), place (N); unique `(import_run_id, upstream_id)` | payload is object; validation ∈ ACCEPTED, REJECTED with REJECTED ⇔ reason; match ∈ UNMATCHED, MATCHED, AMBIGUOUS, NEW_CANDIDATE; `normalized_name` lower case | place; `ix_import_records_location_gist` (Q-I3) |
 | `external_place_identities` | Upstream IDs (Overture, Foursquare OS, Wikidata; Google `place_id` as identifier only) to prevent duplicates (FR-010) | PK; FK place (C), provider (R); `uq_..._data_provider_id_upstream_id` | method ∈ EXACT_ID, NAME_AND_DISTANCE, MANUAL; confidence 0..1; review ∈ PENDING, APPROVED, REJECTED; reviewed ⇒ `reviewed_at` | place |
 
