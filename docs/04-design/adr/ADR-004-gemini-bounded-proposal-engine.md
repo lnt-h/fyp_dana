@@ -3,11 +3,12 @@
 | Field | Value |
 |---|---|
 | Status | Proposed (pending mentor approval at the design gate) |
-| Date | 2026-11-04 |
+| Date | 2026-11-04 (0.2: 2026-11-05) |
+| Version | 0.2 (0.1 → 0.2: DEC-011 — the model ranks one pool for the trip; day assignment moves to the solver, ADR-011) |
 | Owner / decider | Lê Ngọc Tấn Hiền |
 | Approver | trantrongminh, FYP mentor ([Pending]) |
 | Parent | GONARRA-SAD 0.1 §4.0; prompt `design/SAD_prompt.md` v2.0 |
-| Decision source | Agent brief (AI), plan.md §7, BRU-002, BRU-006; narrowed by DEC-008 (ADR-011) |
+| Decision source | Agent brief (AI), plan.md §7, BRU-002, BRU-006; narrowed by DEC-008 and DEC-011 (ADR-011) |
 
 ## Context
 
@@ -35,11 +36,14 @@ BRU-002, BRU-006, BR-005, BR-006, BR-008, BR-046, MET-004, MET-007, RSK-002, RSK
 - Gemini is called only by the AI gateway (CMP-012) through the Google GenAI SDK with schema-constrained output.
 - Planning input: a bounded DTO of published place IDs and approved attributes for one city, the traveler's
   preferences and locale — never account IDs, contact details or coordinates of the traveler.
-- Planning output: selected place IDs per day with ranks and a rationale. Unknown, unpublished, cross-city or
-  duplicate IDs are validation failures; one bounded repair attempt, then a typed recoverable error.
-- Order, times, legs and Plan Health are computed deterministically (ADR-011, BRU-006).
+- Planning output: one ranked pool of place IDs for the whole trip (size capped by configuration), a rationale per
+  pick and optional advisory day hints. Unknown, unpublished, cross-city or duplicate IDs are validation failures;
+  one bounded repair attempt, then a typed recoverable error. The model does not assign days, order stops or set
+  times (DEC-011).
+- Day assignment, order, times, legs and Plan Health are computed deterministically (ADR-011, BRU-006).
 - Model ID, prompt version and corpus/manifest revision are recorded with each preview revision.
-- The same gateway serves embeddings (ADR-010) and vision (ADR-008) with the same redaction rule.
+- The same gateway serves embeddings (ADR-010, computed on write per ADR-012) and vision (ADR-008) with the same
+  redaction rule.
 
 ## Consequences
 

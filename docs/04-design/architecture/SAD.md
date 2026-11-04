@@ -5,7 +5,7 @@
 | Field | Value |
 |---|---|
 | Document ID | GONARRA-SAD |
-| Version | 0.2 |
+| Version | 0.3 |
 | Status | Draft |
 | Owner | Lê Ngọc Tấn Hiền, student author, product owner and engineer |
 | Contributors | Claude Code (drafting agent; no approval authority) |
@@ -20,6 +20,7 @@
 |---|---|---|---|
 | 0.1 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | First kit-based SAD. Replaces pre-rebuild `docs/ARCHITECTURE.md` and `docs/SECURITY.md` (SRC-007) and the Cloud Run deployment target of `plan.md` §6 (superseded by DEC-005 / ADR-002) |
 | 0.2 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | DA-GONARRA-01 fixes F-01, F-02, F-03, F-04, F-06: embedding before publication; deletion states and Clerk-last order; domain model and state names follow `schema.sql`; partner sites, EAS Build and local development in the physical view; travel modes in preferences |
+| 0.3 | 2026-11-05 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | AI design alignment (SRC-100 A-028): DEC-010 two-tier Guide retrieval (place-scoped evidence without threshold), DEC-011 one multi-day OR-Tools model (days as vehicles; Gemini ranks a pool), DEC-012 chunk embeddings on write; sectioned chunks; difference D-6 |
 
 **Traceability note.** The PRD was written in parallel. This SAD was drafted against BRD 0.2 and then aligned to
 BRD 0.4 and PRD 0.1 (`docs/03-analysis/PRD.md`, `traceability.md` GONARRA-TRACE 0.1) when they appeared. Design
@@ -113,7 +114,7 @@ PostgreSQL 16 with PostGIS and pgvector [ADR-003].
 
 **Design approach.** Domain modules with explicit interfaces; anti-corruption adapters for every external provider
 [ADR-006]; AI as a bounded proposal engine whose output is validated and scheduled by deterministic code
-[ADR-004] and orders/times stops with a constraint solver (Google OR-Tools) over a Google Routes matrix [ADR-011]; catalog ingestion as CLI commands inside `apps/api` [ADR-012]; server-held revisioned previews and explicit Save [ADR-009]; privacy by data minimization at the AI
+[ADR-004] and assigns days, orders and times stops with one multi-day constraint-solver model (Google OR-Tools) over a Google Routes matrix [ADR-011]; catalog ingestion as CLI commands inside `apps/api` [ADR-012]; server-held revisioned previews and explicit Save [ADR-009]; privacy by data minimization at the AI
 boundary (BR-046).
 
 **System context.**
@@ -277,11 +278,11 @@ derived from GONARRA-TRACE 0.1.
 | CMP-003 | Gonarra API (`apps/api`) | Deployable (FastAPI container) | Hosts all domain modules behind `/v1` REST + SSE; OpenAPI source | CON-004 (all BRs served via API) | — (enabler; see §6.2) |
 | CMP-004 | Identity module | API module | Verify Clerk JWT, map subject → account UUID, curator role, preferences, account deletion workflow | BR-020, BR-021, BR-044 | FR-068, FR-069, FR-071, FR-072, NFR-012..NFR-014, NFR-016 |
 | CMP-005 | Catalog module | API module | Cities, published places, bilingual search with aliases, place card read model, facts with source/verification date, freshness (stale > 180 d), attribution | BR-001, BR-002, BR-003, BR-006, BR-014, BR-024, BR-025, BR-036, BR-037, BR-047 | FR-001..FR-008, FR-016, FR-017, FR-025, FR-051..FR-055, NFR-001 |
-| CMP-006 | Curation module | API module | Provider policies, candidate staging, review, publication gates, immutable manifests, curator audit trail | BR-004, BR-002, BRU-003, BRU-004 | FR-004, FR-009..FR-015, FR-017..FR-019, NFR-015, NFR-029 |
+| CMP-006 | Curation module | API module | Provider policies, candidate staging, review (bilingual content, facts, sectioned chunks embedded on write via CMP-012, ADR-012), publication gates, immutable manifests, curator audit trail | BR-004, BR-002, BRU-003, BRU-004 | FR-004, FR-009..FR-015, FR-017..FR-019, NFR-015, NFR-029 |
 | CMP-007 | Trips module | API module | Trips, saved itinerary revisions, Save (accept preview) with optimistic revision + idempotency, trip list/delete | BR-011, BR-012, BR-009, BR-020 | FR-032, FR-040..FR-043, FR-045, FR-046, FR-068, FR-069, NFR-009..NFR-014, NFR-016 |
-| CMP-008 | Planning module | API module | Preferences validation, candidate set, Gemini selection/ranking orchestration, deterministic validator, OR-Tools scheduler (time windows, locks as constraints), Plan Health, previews, edits, day regeneration | BR-005..BR-010, BR-013, BR-026..BR-035 | FR-020..FR-039, FR-044, FR-047..FR-050, FR-073, NFR-002..NFR-004, NFR-019..NFR-021, NFR-023..NFR-025 |
+| CMP-008 | Planning module | API module | Preferences validation, candidate set, Gemini pool selection/ranking orchestration, deterministic validator, OR-Tools multi-day scheduler (days as vehicles, time windows per date, locks as constraints; ADR-011), Plan Health, previews, edits, day regeneration | BR-005..BR-010, BR-013, BR-026..BR-035 | FR-020..FR-039, FR-044, FR-047..FR-050, FR-073, NFR-002..NFR-004, NFR-019..NFR-021, NFR-023..NFR-025 |
 | CMP-009 | Routing module | API module | Google Routes Compute Route Matrix (WALK/DRIVE) for the selected candidate set and Compute Routes for single edited legs; leg availability; reuse within provider terms (OQ-031) | BR-026, BR-031, BRU-006 | FR-029, FR-038 |
-| CMP-010 | Guide module | API module | Grounded Q&A (structured facts + pgvector RAG), citations with verification date, insufficient evidence, SSE streaming; photo identification within 300 m | BR-015, BR-016 (server side), BR-017, BR-038, BR-040, BR-048 | FR-056..FR-059, FR-061..FR-063, NFR-005, NFR-006 |
+| CMP-010 | Guide module | API module | Grounded Q&A (structured facts + all approved chunks of the place, Tier 1; pgvector hybrid retrieval reserved for city-scoped Tier 2, ADR-010), citations with verification date, insufficient evidence, SSE streaming; photo identification within 300 m | BR-015, BR-016 (server side), BR-017, BR-038, BR-040, BR-048 | FR-056..FR-059, FR-061..FR-063, NFR-005, NFR-006 |
 | CMP-011 | Stays module | API module | Booking handoff link building (stay, activity and transport partners), indicative prices with retrieval time and notice, never stored | BR-018, BR-019, BR-041, BR-042, BR-043, BR-049 | FR-064..FR-067, FR-081 |
 | CMP-012 | AI gateway | API shared component | Only path to Gemini: schema-constrained generation, embeddings, vision; payload redaction (BR-046); model/prompt version recording; quota guard | BR-046, BRU-002, RSK-002, RSK-003 | FR-070, FR-074, NFR-017 |
 | CMP-013 | Provider policy registry and runtime adapters | API shared component | Default-deny persistence classifier; Google Places live-hours adapter; LiteAPI/Hotelbeds adapter; typed DTOs, attribution | BRU-004, BRU-005, BR-047, BR-043 | FR-008, FR-016, FR-067, FR-081 |
@@ -289,7 +290,7 @@ derived from GONARRA-TRACE 0.1.
 | CMP-015 | Edge proxy (Caddy) | Infrastructure container | TLS termination (ACME), reverse proxy to API, SSE pass-through, static admin SPA delivery (OQ-035) | CON-004, BRD §11 security policy | — (enabler; see §6.2) |
 | CMP-016 | PostgreSQL database (RDS) | Data store | Catalog, private data, previews, embeddings (pgvector), spatial queries (PostGIS) | ADR-003; all persisted BRs | — (enabler; see §6.2) |
 | CMP-017 | Object storage (S3) | Data store | Licensed media with rights metadata; admin SPA build artifact; import files | BR-047, BR-004 | FR-008..FR-016, FR-018, FR-019, NFR-015, NFR-029 |
-| CMP-018 | CLI and jobs runner | `apps/api` Typer CLI, run with `docker compose run --rm` (manually or by systemd timer) | Catalog import (DuckDB over Overture/Foursquare GeoParquet bounded by city bounding box; Wikidata SPARQL query/dump), post-publication embedding of reviewed chunks, deletion completion/retry, preview expiry, freshness recompute (ADR-012) | BR-021, BR-025, BR-004, BR-015, ASM-010 | FR-007, FR-009..FR-015, FR-018, FR-019, FR-056, FR-058, FR-071, NFR-005, NFR-006, NFR-015, NFR-029 |
+| CMP-018 | CLI and jobs runner | `apps/api` Typer CLI, run with `docker compose run --rm` (manually or by systemd timer) | Catalog import (DuckDB over Overture/Foursquare GeoParquet bounded by city bounding box; Wikidata SPARQL query/dump; CSV research sheet), chunk embedding backfill and re-embed (`embed --pending`, `--reembed-all`; embeddings are normally computed on write by CMP-006, ADR-012), deletion completion/retry, preview expiry, freshness recompute | BR-021, BR-025, BR-004, BR-015, ASM-010 | FR-007, FR-009..FR-015, FR-018, FR-019, FR-056, FR-058, FR-071, NFR-005, NFR-006, NFR-015, NFR-029 |
 | CMP-019 | Mobile API client | Mobile component | Generated OpenAPI types, TanStack Query cache, SSE client, Clerk token injection | CON-004, BR-020 | FR-068, FR-069, NFR-012..NFR-014, NFR-016 |
 | CMP-020 | Mobile draft store | Mobile component | Zustand store of the open preview and not-yet-acknowledged edits; survives request failure | BR-033, BR-011 | FR-040, FR-041, FR-044..FR-046 |
 | CMP-021 | Mobile voice I/O | Mobile component | On-device STT with transcript preview/edit and explicit Send; on-device TTS of completed text | BR-016, BR-039 | FR-059, FR-060, FR-063 |
@@ -543,11 +544,11 @@ flowchart LR
     required -->|"Yes"| quota{"Quota available? (CMP-014)"}
     quota -->|"No"| recover
     quota -->|"Yes"| manifest["Pin city manifest (CMP-005)"] --> candidates["Build eligible published candidate set"]
-    candidates --> proposal["Gemini selects + ranks published IDs per day, rationale (CMP-012)"] --> validate{"Deterministic validation"}
+    candidates --> proposal["Gemini ranks one pool of published IDs for the trip, rationale (CMP-012)"] --> validate{"Deterministic validation"}
     validate -->|"Repairable, first time"| repair["One bounded repair"] --> validate
     validate -->|"Rejected"| recover
     validate -->|"Valid"| routes["Route matrix WALK/DRIVE (CMP-009)"]
-    routes --> schedule["OR-Tools: order + times with time windows and locks"] --> health["Deterministic validation + Plan Health (CMP-008)"] --> preview[("Preview revision")]
+    routes --> schedule["OR-Tools multi-day model: days = vehicles; day assignment, order, times; time windows per date, locks (ADR-011)"] --> health["Deterministic validation + Plan Health (CMP-008)"] --> preview[("Preview revision")]
     routes -.->|"Pair unavailable"| schedule
     preview --> action{Traveler action}
     action -->|"Edit"| manual["Apply edit; invalidate affected legs"] --> routes
@@ -584,13 +585,13 @@ sequenceDiagram
     CAT->>DB: read published places + facts
     PL->>AI: select_and_rank(candidate DTOs, preferences without identifiers)
     AI->>G: schema-constrained request
-    G-->>AI: JSON: selected place IDs per day, ranks, rationales
+    G-->>AI: JSON: ranked pool of place IDs, rationales, advisory day hints
     AI-->>PL: parsed selection
-    PL->>PL: validate IDs ∈ candidate set, city, day count, duplicates (repair once)
-    PL->>RT: matrix(selected places, modes)
+    PL->>PL: validate IDs ∈ candidate set, city, pool size, duplicates (repair once)
+    PL->>RT: matrix(pool + day start points, modes)
     RT->>R: computeRouteMatrix WALK/DRIVE (outside DB transaction)
     R-->>RT: distance/duration per pair or unavailable
-    PL->>PL: OR-Tools routing with time windows (opening hours, day window), locks as constraints
+    PL->>PL: OR-Tools multi-day routing: days as vehicles, (place, day) nodes with that date's opening window ∩ day window, drop penalties by rank, locks mandatory
     PL->>PL: deterministic validation, Plan Health
     PL->>DB: append preview revision if base revision unchanged
     API-->>App: SSE progress … preview_ready(previewId, revision)
@@ -607,9 +608,8 @@ sequenceDiagram
     participant DB as PostgreSQL+pgvector
     App->>GD: POST /v1/ai/sessions/{id}/messages {placeId, locale, text}
     GD->>CAT: structured facts of the place (source, verifiedAt, freshness)
-    GD->>AI: embed(question text)
-    GD->>DB: top-k reviewed chunks for placeId and locale (similarity threshold)
-    alt no evidence above threshold
+    GD->>DB: all approved chunks of the corpus revision pinned by the current publication, for placeId and locale (Tier 1: no embedding, no threshold; ADR-010)
+    alt no facts and no chunks
         GD-->>App: SSE result insufficient_evidence
     else evidence found
         GD->>AI: answer(question, facts, chunks) with citation IDs
@@ -709,10 +709,10 @@ flowchart LR
 |---|---|---|
 | EC2 memory 2 GiB | API container (bounded worker count), Caddy, Docker; jobs run one at a time | Load test at 15 concurrent users (ASM-030) before the study; RSK-030 |
 | RDS 1 GiB | ~250 places, their facts, chunks + embeddings, ≤ 15 travelers' private data | Small dataset; monitor memory/IOPS alarms (RSK-035) |
-| Gemini free-tier quota | Per-traveler and global request quotas in CMP-014; proposal ≤ 1 call + 1 repair; Guide 1 embed + ≤ 1 generation; photo ≤ 1 vision call, none if no nearby candidate | RSK-003; quota values in OQ-032 |
-| Google Routes free monthly calls | One route matrix per proposal/regeneration over the selected places only (not the whole catalog); single legs for edits; reuse within provider terms | RSK-003, DEP-001; matrix element counts are a function of selected stops and counted against the free SKU quota (OQ-032/OQ-033) |
+| Gemini free-tier quota | Per-traveler and global request quotas in CMP-014; proposal ≤ 1 call + 1 repair; Guide ≤ 1 generation (no embed call for place-scoped questions, ADR-010); photo ≤ 1 vision call, none if no nearby candidate; curation: 1 embed call per new or changed chunk (ADR-012) | RSK-003; quota values in OQ-032 |
+| Google Routes free monthly calls | One route matrix per proposal over the ranked pool plus day start points (not the whole catalog), one per regenerated day; single legs for edits; reuse within provider terms | RSK-003, DEP-001; matrix element counts are a function of selected stops and counted against the free SKU quota (OQ-032/OQ-033) |
 | Google Places | Only on place-card view, only live hours/status fields | ADR-006 |
-| EC2 CPU for OR-Tools | Solver runs in a thread pool off the event loop with a configured time limit per solve; problem size is one city's selected stops for ≤ 3 days | ADR-011; time limit set with OQ-030 |
+| EC2 CPU for OR-Tools | Solver runs in a thread pool off the event loop with a configured time limit per solve; one multi-day model per proposal with pool × days nodes (≤ 72 at the configured caps, ADR-011) | ADR-011; time limit set with OQ-030 |
 | Import memory (DuckDB) | Imports run one at a time; DuckDB memory limit set below the host's free memory; bounding-box reads only; heavy extracts may run on the owner's machine against a tunnelled DB | ADR-012 |
 
 ### 3.5 Scenarios view (+1)
@@ -805,9 +805,10 @@ flowchart LR
   stg --> cur --> gate{"Publication gates"}
   gate -->|"pass"| man[("Immutable manifest + facts")]
   gate -->|"fail"| q["Quarantine; previous manifest stays"]
-  man --> emb["CMP-018 embed CLI via CMP-012 (before publication)"] --> vec[("pgvector chunks")]
+  cur --> emb["CMP-006 embeds each saved chunk via CMP-012 (ADR-012); CMP-018 backfill/re-embed"] --> vec[("pgvector chunks")]
   man --> srch["Search / place card"] & plan["Planning candidates"]
-  vec --> guide["Guide retrieval"]
+  man --> guide["Guide evidence: pinned facts + approved chunks (Tier 1)"]
+  vec -. "Tier 2 (roadmap)" .-> guide
   plc[/"Google Places (runtime)"/] -. "display only" .-> card["Place card live hours"]
   rts[/"Google Routes"/] --> plan
   lite[/"LiteAPI (runtime)"/] -. "display only" .-> stays["Stays panel"]
@@ -820,7 +821,7 @@ flowchart LR
   subgraph trusted["Gonarra deterministic core"]
     dto["Bounded DTO: published place IDs + approved attributes, preferences, locale"]
     val["Validator: schema, IDs ∈ candidate set, city, days, duration bounds, modes, locks, citations ∈ evidence"]
-    sch["OR-Tools scheduler + Plan Health (Routes values only)"]
+    sch["OR-Tools multi-day scheduler + Plan Health (Routes values only)"]
   end
   subgraph ai["Gemini (untrusted output)"]
     gen["Proposal / answer / photo match"]
@@ -830,8 +831,8 @@ flowchart LR
   val -->|"invalid → one repair, then typed error"| dto
 ```
 
-The model may select and rank supplied place IDs per day and write a rationale; it does **not** order stops or set
-times — OR-Tools does (ADR-011). Visit durations come from the catalog's reviewed bounds and the traveler's edits;
+The model may rank a pool of supplied place IDs and write a rationale; it does **not** assign days, order stops or
+set times — OR-Tools does (ADR-011). Visit durations come from the catalog's reviewed bounds and the traveler's edits;
 modes come from the traveler's allowed modes. The model may also compose an answer from supplied evidence, or pick one of the supplied nearby candidates for a photo.
 It may not introduce a place, fact, coordinate, address, hour, price, rating, route value or provider status
 (BRU-002) [plan.md §7.1; DATA.md AI data boundary].
@@ -888,9 +889,9 @@ ap-southeast-1 before the first deployment (OQ-033). The view lists every cost d
 | [ADR-007](../adr/ADR-007-on-device-speech.md) | On-device STT/TTS for voice | Proposed | BR-016, BR-039, BR-046, CON-001 |
 | [ADR-008](../adr/ADR-008-photo-identification-300m.md) | Photo identification restricted to published places within 300 m | Proposed | BR-017, BR-040, BR-046, ASM-009 |
 | [ADR-009](../adr/ADR-009-revisioned-previews-explicit-save.md) | Server-held revisioned previews, explicit Save, optimistic revisions and idempotency | Proposed | BR-011, BR-012, BR-033, MET-006 |
-| [ADR-010](../adr/ADR-010-grounded-guide-retrieval.md) | Grounded Guide: structured facts + pgvector retrieval with citation validation, streamed by SSE | Proposed | BR-015, BR-038, MET-007, MET-008 |
-| [ADR-011](../adr/ADR-011-or-tools-scheduling.md) | Deterministic scheduling with Google OR-Tools over a Routes matrix; Gemini only selects and ranks (DEC-008) | Accepted (owner, SRC-100 A-021) | BR-007, BR-008, BR-035, BRU-006, MET-004, MET-005 |
-| [ADR-012](../adr/ADR-012-cli-ingestion-embedding.md) | Catalog ingestion and embedding as Typer CLI commands in `apps/api` with DuckDB and Wikidata SPARQL; no worker, queue or Redis (DEC-009) | Accepted (owner, SRC-100 A-021) | CON-002, DC-002, BR-004, DEP-004 |
+| [ADR-010](../adr/ADR-010-grounded-guide-retrieval.md) | Grounded Guide: structured facts + place-scoped approved chunks (Tier 1), hybrid pgvector retrieval reserved for Tier 2, citation validation, streamed by SSE (DEC-010, DEC-012) | Proposed | BR-015, BR-038, MET-007, MET-008 |
+| [ADR-011](../adr/ADR-011-or-tools-scheduling.md) | Deterministic multi-day scheduling with Google OR-Tools (days as vehicles) over a Routes matrix; Gemini only ranks a pool (DEC-008, DEC-011) | Accepted (owner, SRC-100 A-021, A-028) | BR-007, BR-008, BR-035, BRU-006, MET-004, MET-005 |
+| [ADR-012](../adr/ADR-012-cli-ingestion-embedding.md) | Catalog ingestion as Typer CLI commands in `apps/api` with DuckDB and Wikidata SPARQL; chunk embeddings on write in the curation API, CLI backfill/re-embed; no worker, queue or Redis (DEC-009, DEC-012) | Accepted (owner, SRC-100 A-021, A-028) | CON-002, DC-002, BR-004, DEP-004 |
 
 ADR-001..ADR-010 are **Proposed** until the mentor approves the design gate; ADR-011 and ADR-012 record owner-accepted decisions (SRC-100 A-021) and still pass the mentor's design-gate review. Agents do not approve.
 
@@ -959,10 +960,10 @@ Coverage check: every BR in BRD 0.4 §7 (BR-001..BR-050) appears above; every CM
 | NFR | Short title | Where realized | QAS |
 |---|---|---|---|
 | NFR-001 | Search ≤ 2 s p95 | CMP-005 search on normalized aliases with indexes (blueprint §3.8.6) | — |
-| NFR-002 | Proposal ≤ 60 s p95 | CMP-008 pipeline: 1 selection call (+1 repair), 1 route matrix per day, bounded solver time; external calls outside DB transactions | QAS-07 |
+| NFR-002 | Proposal ≤ 60 s p95 | CMP-008 pipeline: 1 selection call (+1 repair), 1 route matrix over the pool, one bounded multi-day solve; external calls outside DB transactions | QAS-07 |
 | NFR-003 | Progress ≤ 2 s p95 | SSE `progress` event emitted before external calls (§3.3.1) | QAS-07 |
 | NFR-004 | Edit recalculation ≤ 5 s p95 | Retimer + single-leg measurement of changed pairs only (ADR-011) | QAS-01 |
-| NFR-005, NFR-006 | Guide first text ≤ 5 s, complete ≤ 20 s p95 | CMP-010 SSE streaming; 1 embed + 1 generation (ADR-010) | QAS-06 |
+| NFR-005, NFR-006 | Guide first text ≤ 5 s, complete ≤ 20 s p95 | CMP-010 SSE streaming; 1 generation, no embed call (ADR-010 Tier 1) | QAS-06 |
 | NFR-007 | Study concurrent load | Single instance sized for ASM-030 (15) ⊇ PRD ASM-015 (5); load test (ASM-031) — see difference D-5 | QAS-07 |
 | NFR-008 | ≥ 99% probes per session | `/health`, `/ready`; CloudWatch alarm; restart policy; sessions scheduled | QAS-08 |
 | NFR-009, NFR-010 | RTO 4 h, RPO 24 h | RDS automated backups; host rebuild from script + ECR image (ASM-032) | QAS-08 |
@@ -1010,15 +1011,16 @@ Coverage check: every BR in BRD 0.4 §7 (BR-001..BR-050) appears above; every CM
 | Difference D-2 | `plan.md` §6 and AGENTS.md mention Agno/AgentOS orchestration; by owner-level stack review it is not part of this architecture (ADR-004). `plan.md` §6 wording to be updated with OQ-007 | Lê Ngọc Tấn Hiền | OQ-007 | 2026-11-20 |
 | Difference D-4 | `plan.md` §7.1 lets the model propose order, durations and modes; DEC-008 (ADR-011) narrows the model to selection, ranking and rationale | Lê Ngọc Tấn Hiền | DEC-008 accepted (SRC-100 A-021); `plan.md` update with OQ-007 | 2026-11-20 |
 | Difference D-5 | Load: the adapted prompt's TARGET_SCALE (owner task) is 15 concurrent users (ASM-030); PRD NFR-007/ASM-015 tests 5 concurrent travelers. The design is sized for 15, which covers 5; the load test should use the larger figure or the PRD should be aligned | Lê Ngọc Tấn Hiền | Owner decision | 2026-11-18 |
+| Difference D-6 | SAD 0.2 and blueprint 0.2 let Gemini assign places to days with one solver model per day, and retrieved Guide chunks by vector similarity with a threshold. SAD 0.3 follows DEC-010..DEC-012 (SRC-100 A-028): one multi-day solver model, place-scoped evidence without threshold, embeddings on write | Lê Ngọc Tấn Hiền | ADR-010 0.3, ADR-011 0.2, ADR-012 0.3; blueprint 0.3 | 2026-11-05 (done) |
 | Difference D-3 | AGENTS.md defers voice and forbids location for check-in; this SAD uses on-device voice (Should, after AC-015) and one-shot foreground location for photo ID only, per BRD §5.2 amendment | Lê Ngọc Tấn Hiền | OQ-007 | 2026-11-20 |
 
 ### 7.3 Open questions
 
 | ID | Question | Why it matters | Owner | Needed by | Recommendation |
 |---|---|---|---|---|---|
-| OQ-030 | Remaining design parameters not set by PRD 0.1: preview expiry, OR-Tools time limit per day, DB pool size, global quota values (latency budgets now NFR-001..NFR-006; per-traveler cap ASM-016) | Resource view | Lê Ngọc Tấn Hiền | 2026-11-30 | Set from the first load test |
+| OQ-030 | Remaining design parameters not set by PRD 0.1: preview expiry, OR-Tools time limit per multi-day solve and pool-size caps (ADR-011), DB pool size, global quota values (latency budgets now NFR-001..NFR-006; per-traveler cap ASM-016) | Resource view | Lê Ngọc Tấn Hiền | 2026-11-30 | Set from the first load test |
 | OQ-031 | Google Maps Platform terms: which Routes/Places fields may be retained, for how long; attribution placement | ADR-006, route provenance | Lê Ngọc Tấn Hiền | 2026-11-25 | Read current service-specific terms; default deny until confirmed |
-| OQ-032 | Gemini models to pin (generation, embedding, vision), free-tier quotas, data-use terms | RSK-002, RSK-003, resource view | Lê Ngọc Tấn Hiền | 2026-11-30 | Benchmark on golden set; record versions |
+| OQ-032 | Gemini models to pin (generation, embedding, vision), free-tier quotas, data-use terms; Tier 2 retrieval calibration (Vietnamese lexical configuration, similarity threshold) on the frozen sets | RSK-002, RSK-003, resource view, ADR-010 | Lê Ngọc Tấn Hiền | 2026-11-30 | Run SPK-002 first; benchmark on golden set; record versions |
 | OQ-033 | Monthly AWS cost estimate (Pricing Calculator, ap-southeast-1) for all §3.8 items through 2027-02-15 | CON-001, MET-012 | Lê Ngọc Tấn Hiền | 2026-11-20 | Run before first deployment |
 | OQ-034 | Move `apps/api` from layer packages to module packages now? | Development view | Lê Ngọc Tấn Hiền | 2026-11-18 | Yes, before the catalog module is added |
 | OQ-035 | How the admin SPA is served over HTTPS (S3 alone has no HTTPS website endpoint) | CMP-002, CMP-015 | Lê Ngọc Tấn Hiền | 2026-11-25 | Caddy serves the build synced from S3; no CloudFront |
