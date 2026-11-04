@@ -4,7 +4,7 @@
 |---|---|
 | Document title | Work Breakdown Structure and Task Breakdown |
 | Document ID | GONARRA-WBS |
-| Version / date / status | 0.1 / 2026-11-04 / Draft |
+| Version / date / status | 0.2 / 2026-11-05 / Draft |
 | Source plan | [`Software_Development_Plan.md`](./Software_Development_Plan.md) GONARRA-SDP v0.1 (2026-11-04) |
 | WBS owner | Lê Ngọc Tấn Hiền, student owner and sole developer |
 | Approver | trantrongminh, FYP mentor (full name and title pending, OQ-001) — [Pending] |
@@ -153,9 +153,9 @@ one milestone or a milestone range (§5.5); one leaf can map to several tasks (o
 | 1.4.1.2 | WP-021 | Overture/Foursquare DuckDB bounding-box import | 4 | WBS-041 | work_package | Developer | 1.5 | US-004, FR-009, FR-010, DEP-004 / CMP-018, ADR-012 |
 | 1.4.1.3 | WP-022 | Wikidata enrichment import | 4 | WBS-041 | work_package | Developer | 1.0 | US-004, FR-009 / CMP-018, ADR-012 |
 | 1.4.1.4 | WP-023 | Curation research-sheet template and CSV import | 4 | WBS-041 | work_package | Developer | 1.0 | US-004, US-005, FR-009, FR-011, FR-012 / CMP-018; tables place_localizations, place_facts, sources |
-| 1.4.1.5 | WP-024 | Embedding job for published Guide chunks | 4 | WBS-041 | work_package | Developer | 1.0 | US-025, FR-056 / CMP-018, ADR-010, ADR-012, tables knowledge_chunks/knowledge_chunk_sources |
+| 1.4.1.5 | WP-024 | Chunk embedding backfill and re-embed CLI (`embed --pending`, `--reembed-all`) | 4 | WBS-041 | work_package | Developer | 1.0 | US-025, FR-056 / CMP-018, ADR-010, ADR-012, tables knowledge_chunks/knowledge_chunk_sources |
 | 1.4.2 | WBS-042 | Curation API (CMP-006) | 3 | WBS-04 | deliverable | Developer | 4.0 | — |
-| 1.4.2.1 | WP-025 | Candidate list, detail and review API (API-033..API-035) | 4 | WBS-042 | work_package | Developer | 1.5 | US-005, FR-011, FR-012, FR-016, FR-083, NFR-015 / CMP-006, API-033, API-034, API-035 |
+| 1.4.2.1 | WP-025 | Candidate list, detail and review API with chunks embedded on write (API-033..API-035) | 4 | WBS-042 | work_package | Developer | 1.5 | US-005, FR-011, FR-012, FR-016, FR-056, FR-083, NFR-015 / CMP-006, CMP-012, API-033, API-034, API-035, ADR-012 |
 | 1.4.2.2 | WP-026 | Publish and unpublish API with gates (API-036, API-037) | 4 | WBS-042 | work_package | Developer | 1.5 | US-006, US-007, FR-013..FR-015, FR-017, FR-082 / CMP-006, API-036, API-037, fn_publish_place, fn_withdraw_place |
 | 1.4.2.3 | WP-027 | Imports, sources and city summary API (API-038..API-042) | 4 | WBS-042 | work_package | Developer | 1.0 | US-004, US-008, FR-018 / CMP-006, API-038..API-042 |
 | 1.4.3 | WBS-043 | Curator admin SPA (CMP-002) | 3 | WBS-04 | deliverable | Developer | 4.5 | — |
@@ -172,8 +172,8 @@ one milestone or a milestone range (§5.5); one leaf can map to several tasks (o
 | 1.5.2 | WP-042 | Routing module (Routes matrix, single legs, leg reuse) | 3 | WBS-05 | work_package | Developer | 2.0 | US-014, FR-028, FR-029, FR-088, DEP-001 / CMP-009, table route_legs |
 | 1.5.5 | WP-047 | Explicit Save with optimistic revision and Idempotency-Key (API-022) | 3 | WBS-05 | work_package | Developer | 1.5 | US-018, US-019, FR-040..FR-045, FR-090, MET-006 / CMP-007, API-022, ADR-009, table idempotency_records |
 | 1.5.4 | WBS-054 | Planning engine (CMP-008) | 3 | WBS-05 | deliverable | Developer | 8.0 | — |
-| 1.5.4.1 | WP-043 | Request validation, clarification, candidate set and Gemini selection | 4 | WBS-054 | work_package | Developer | 2.0 | US-010, US-012, US-013, US-038, FR-020..FR-026, FR-085..FR-087 / CMP-008, CMP-012, ADR-004 |
-| 1.5.4.2 | WP-044 | OR-Tools time-window scheduler | 4 | WBS-054 | work_package | Developer | 2.5 | US-013, US-014, FR-027..FR-029 / CMP-008, ADR-011 |
+| 1.5.4.1 | WP-043 | Request validation, clarification, candidate set and Gemini pool ranking | 4 | WBS-054 | work_package | Developer | 2.0 | US-010, US-012, US-013, US-038, FR-020..FR-026, FR-085..FR-087 / CMP-008, CMP-012, ADR-004 |
+| 1.5.4.2 | WP-044 | OR-Tools multi-day `TripSolver` (days as vehicles) | 4 | WBS-054 | work_package | Developer | 2.5 | US-013, US-014, FR-027..FR-029 / CMP-008, ADR-011 |
 | 1.5.4.3 | WP-045 | Plan Health validator | 4 | WBS-054 | work_package | Developer | 1.5 | US-015, FR-030..FR-032, MET-004 / CMP-008 |
 | 1.5.4.4 | WP-046 | Preview API: create, get, edit, discard (API-018..API-020, API-023) | 4 | WBS-054 | work_package | Developer | 2.0 | US-013, US-016, US-017, US-039, US-040, US-041, FR-033..FR-039, FR-089, NFR-004 / CMP-008, API-018, API-019, API-020, API-023, ADR-009 |
 | 1.5.6 | WBS-056 | Mobile planner screens | 3 | WBS-05 | deliverable | Developer | 7.5 | — |
@@ -188,7 +188,7 @@ one milestone or a milestone range (§5.5); one leaf can map to several tasks (o
 | 1.6.4 | WP-059 | Account deletion and status (API-006, API-007, SCR-038) | 3 | WBS-06 | work_package | Developer | 1.5 | US-033, FR-071, FR-072 / CMP-004, API-006, API-007, SCR-038, table account_deletion_jobs |
 | 1.6.5 | WP-060 | AI data disclosure in settings and planner (US-035) | 3 | WBS-06 | work_package | Developer | 0.5 | US-035, FR-070, FR-074 / SCR-010, SCR-022, SCR-034 |
 | 1.6.2 | WBS-062 | Grounded text Guide | 3 | WBS-06 | deliverable | Developer | 4.5 | — |
-| 1.6.2.1 | WP-056 | Guide API: retrieval, citations, insufficient evidence, SSE (API-024..API-028) | 4 | WBS-062 | work_package | Developer | 3.0 | US-025, US-026, FR-056..FR-058, FR-078, NFR-005, NFR-006, MET-007, MET-008 / CMP-010, API-024..API-028, ADR-010 |
+| 1.6.2.1 | WP-056 | Guide API: Tier 1 evidence, citations, insufficient evidence, SSE (API-024..API-028) | 4 | WBS-062 | work_package | Developer | 3.0 | US-025, US-026, FR-056..FR-058, FR-078, NFR-005, NFR-006, MET-007, MET-008 / CMP-010, API-024..API-028, ADR-010 |
 | 1.6.2.2 | WP-057 | Mobile Guide chat (SCR-034) | 4 | WBS-062 | work_package | Developer | 1.5 | US-025, US-026, US-035 / SCR-034 |
 | 1.7 | WBS-07 | Mobile foundation and cross-cutting quality | 2 | WBS-00 | deliverable | Developer | 5.5 | — |
 | 1.7.1 | WP-062 | Mobile API client and wiring (CMP-019) | 3 | WBS-07 | work_package | Developer | 1.5 | US-032, FR-068, FR-069, NFR-012, NFR-030 / CMP-019, API-003, ADR-005 |
@@ -398,8 +398,8 @@ Appendix E). Inclusions are the name and acceptance criteria as a closed list; e
 | WP-021 | Overture/Foursquare DuckDB bounding-box import | M3 | Must | 1.5 | DEL-006 | Hội An bbox import stages candidates with release + licence; re-run is idempotent | T | Publication | WP-020 (FS) | RSK-001 | US-004, FR-009, FR-010, DEP-004 | CMP-018, ADR-012 |
 | WP-022 | Wikidata enrichment import | M3 | Must | 1.0 | DEL-006 | Wikidata IDs and labels staged for matched candidates; idempotent | T | — | WP-020 (FS) | — | US-004, FR-009 | CMP-018, ADR-012 |
 | WP-023 | Curation research-sheet template and CSV import | M1–M2 | Must | 1.0 | DEL-006 | Template exists before 2026-11-16; CSV rows import as candidates with sources and VI/EN text | T | Publishing | template: —; import: WP-020 (FS) | RSK-001 | US-004, US-005, FR-009, FR-011, FR-012 | CMP-018; tables place_localizations, place_facts, sources |
-| WP-024 | Embedding job for published Guide chunks | M4 | Must | 1.0 | DEL-006 | Only published chunks embedded; re-run idempotent | T | Guide API | WP-016 (FS); WP-026 (FS) | — | US-025, FR-056 | CMP-018, ADR-010, ADR-012, tables knowledge_chunks/knowledge_chunk_sources |
-| WP-025 | Candidate list, detail and review API (API-033..API-035) | M3 | Must | 1.5 | DEL-005 | Non-curator gets 403; review persists VI/EN text and sourced facts | T | Publish | WP-011 (FS); WP-015 (FS) | RSK-001 | US-005, FR-011, FR-012, FR-016, FR-083, NFR-015 | CMP-006, API-033, API-034, API-035 |
+| WP-024 | Chunk embedding backfill and re-embed CLI (`embed --pending`, `--reembed-all`) | M4 | Must | 1.0 | DEL-006 | Pending chunks get an embedding; re-embed after a model change rewrites every approved chunk in place and is idempotent; question model mismatch is refused (ADR-010 rule 5) | T | Model change | WP-016 (FS); WP-025 (FS) | — | US-025, FR-056 | CMP-018, ADR-010, ADR-012, tables knowledge_chunks/knowledge_chunk_sources |
+| WP-025 | Candidate list, detail and review API with chunks embedded on write (API-033..API-035) | M3 | Must | 1.5 | DEL-005 | Non-curator gets 403; review persists VI/EN text, sourced facts and sectioned chunks; a new or changed chunk is embedded in the same transaction (`embedding_state` EMBEDDED) or saved PENDING with a warning when the gateway fails | T | Publish | WP-011 (FS); WP-015 (FS); WP-016 (FS) | RSK-001 | US-005, FR-011, FR-012, FR-016, FR-083, NFR-015 | CMP-006, API-033, API-034, API-035 |
 | WP-026 | Publish and unpublish API with gates (API-036, API-037) | M3 | Must | 1.5 | DEL-005 | Incomplete candidate is refused with gate violations; publish writes manifest + audit | T | — | WP-025 (FS) | RSK-001 | US-006, US-007, FR-013..FR-015, FR-017, FR-082 | CMP-006, API-036, API-037, fn_publish_place, fn_withdraw_place |
 | WP-027 | Imports, sources and city summary API (API-038..API-042) | M3 | Must | 1.0 | DEL-005 | Curator sees import runs, sources and per-city published counts | T | — | WP-020 (FS); WP-025 (FS) | — | US-004, US-008, FR-018 | CMP-006, API-038..API-042 |
 | WP-028 | Curator admin scaffold with curator sign-in (SCR-101) | M2 | Must | 1.0 | DEL-007 | `apps/admin` builds in CI; non-curator Clerk user sees an access-denied page | T | Business screens | — | — | NFR-015, NFR-029 | CMP-002, SCR-101, ADR-005 |
@@ -412,8 +412,8 @@ Appendix E). Inclusions are the name and acceptance criteria as a closed list; e
 | WP-035 | Mobile city choice, search and place details (SCR-008, SCR-020, SCR-021) | M3 | Must | 2.0 | DEL-008 | Search across 5 cities in VI and EN on device | T | Place card (WP-055) | WP-062 (FS); WP-032 (FS); WP-033 (FS); WP-034 (FS) | — | US-001, US-002, US-003, FR-001..FR-004 | CMP-001, CMP-019, SCR-008, SCR-020, SCR-021 |
 | WP-040 | Trips API (API-012..API-016) | M3 | Must | 1.5 | DEL-005 | Foreign trip access returns 404; list/delete own trips | T | Previews | WP-012 (FS); WP-015 (FS) | — | US-018, US-020, US-032, FR-041, FR-046, FR-068, FR-069, FR-094, FR-095 | CMP-007, API-012..API-016 |
 | WP-042 | Routing module (Routes matrix, single legs, leg reuse) | M3 | Must | 2.0 | DEL-005 | Matrix for ≤ N candidates per request; recorded fixtures in tests; unavailable leg flagged | T | Transit modes (out of scope) | WP-015 (FS) | RSK-010 | US-014, FR-028, FR-029, FR-088, DEP-001 | CMP-009, table route_legs |
-| WP-043 | Request validation, clarification, candidate set and Gemini selection | M3 | Must | 2.0 | DEL-005 | Only published IDs of the requested city accepted; unknown IDs fail validation | T | Scheduling | WP-016 (FS); WP-032 (FS) | RSK-002, RSK-003 | US-010, US-012, US-013, US-038, FR-020..FR-026, FR-085..FR-087 | CMP-008, CMP-012, ADR-004 |
-| WP-044 | OR-Tools time-window scheduler | M3 | Must | 2.5 | DEL-005 | Deterministic schedule from durations + Routes matrix; locks representable as constraints | T | Lock UI (WP-070) | WP-042 (FS); WP-043 (FS) | RSK-100 | US-013, US-014, FR-027..FR-029 | CMP-008, ADR-011 |
+| WP-043 | Request validation, clarification, candidate set and Gemini pool ranking | M3 | Must | 2.0 | DEL-005 | Only published IDs of the requested city accepted; unknown IDs fail validation; output is one ranked pool (no day assignment, ADR-004 0.2) | T | Scheduling | WP-016 (FS); WP-032 (FS) | RSK-002, RSK-003 | US-010, US-012, US-013, US-038, FR-020..FR-026, FR-085..FR-087 | CMP-008, CMP-012, ADR-004 |
+| WP-044 | OR-Tools multi-day `TripSolver` (days as vehicles) | M3 | Must | 2.5 | DEL-005 | One model per proposal assigns days, order and times from durations + one Routes matrix; per-date opening windows; locks mandatory; same inputs → same plan; single-day mode for regeneration | T | Lock UI (WP-070) | WP-042 (FS); WP-043 (FS) | RSK-100 | US-013, US-014, FR-027..FR-029 | CMP-008, ADR-011 |
 | WP-045 | Plan Health validator | M3 | Must | 1.5 | DEL-005 | 100% of conflict-set scenarios flagged (MET-004) | T | — | WP-044 (FS) | — | US-015, FR-030..FR-032, MET-004 | CMP-008 |
 | WP-046 | Preview API: create, get, edit, discard (API-018..API-020, API-023) | M3 | Must | 2.0 | DEL-005 | Edit recalculates times, legs and health in ≤ 5 s p95 (NFR-004) | T | Regenerate (WP-070) | WP-045 (FS); WP-040 (FS) | — | US-013, US-016, US-017, US-039, US-040, US-041, FR-033..FR-039, FR-089, NFR-004 | CMP-008, API-018, API-019, API-020, API-023, ADR-009 |
 | WP-047 | Explicit Save with optimistic revision and Idempotency-Key (API-022) | M3 | Must | 1.5 | DEL-005 | Stale revision → 409; replay returns same result; failures never overwrite saved trip | T | — | WP-046 (FS) | — | US-018, US-019, FR-040..FR-045, FR-090, MET-006 | CMP-007, API-022, ADR-009, table idempotency_records |
@@ -423,7 +423,7 @@ Appendix E). Inclusions are the name and acceptance criteria as a closed list; e
 | WP-051 | Edit sheet, place picker and draft store (SCR-027, SCR-028, CMP-020) | M3 | Must | 2.0 | DEL-008 | Edits survive request failure; reorder/add/remove/replace/duration/mode | T | Lock (WP-070) | WP-049 (FS) | — | US-016, US-017, US-019, US-039, US-040, US-041, FR-033..FR-039, FR-044 | CMP-020, SCR-027, SCR-028 |
 | WP-052 | Save result and My trips (SCR-029, SCR-031) | M3 | Must | 1.0 | DEL-008 | Explicit Save; conflict message on stale revision; delete own trip | T | — | WP-047 (FS); WP-051 (FS) | — | US-018, US-019, US-020, FR-040..FR-046 | SCR-029, SCR-031 |
 | WP-055 | Place card and directions handoff (API-017, SCR-033) | M4 | Must | 2.0 | DEL-008 | Local-language name/address for drivers; opens Google/Apple Maps | T | In-app navigation | WP-034 (FS); WP-017 (FS); WP-040 (FS) | — | US-022, US-023, FR-051..FR-054 | CMP-005, CMP-024, API-017, SCR-033 |
-| WP-056 | Guide API: retrieval, citations, insufficient evidence, SSE (API-024..API-028) | M4 | Must | 3.0 | DEL-005 | Out-of-catalog question → insufficient_evidence; every answer has citations | T | Voice/photo | WP-016 (FS); WP-024 (FS) | RSK-002 | US-025, US-026, FR-056..FR-058, FR-078, NFR-005, NFR-006, MET-007, MET-008 | CMP-010, API-024..API-028, ADR-010 |
+| WP-056 | Guide API: Tier 1 evidence, citations, insufficient evidence, SSE (API-024..API-028) | M4 | Must | 3.0 | DEL-005 | Evidence = pinned facts + all approved chunks of the place (no embedding call, no threshold); out-of-catalog question → insufficient_evidence; every answer has citations ∈ evidence | T | Voice/photo | WP-016 (FS); WP-026 (FS) | RSK-002 | US-025, US-026, FR-056..FR-058, FR-078, NFR-005, NFR-006, MET-007, MET-008 | CMP-010, API-024..API-028, ADR-010 |
 | WP-057 | Mobile Guide chat (SCR-034) | M4 | Must | 1.5 | DEL-008 | Streams answer; shows sources with verification date | T | Voice input | WP-056 (FS) | — | US-025, US-026, US-035 | SCR-034 |
 | WP-058 | Booking handoff links (API-030, SCR-037) | M4 | Must | 1.5 | DEL-008 | Agoda, Booking.com, Klook, 12Go links built server-side; plain links if no affiliate (DEP-007) | T | Prices (WP-073) | WP-040 (FS) | RSK-008 | US-029, US-030, US-037, FR-064, FR-065, FR-079 | CMP-011, API-030, SCR-037 |
 | WP-059 | Account deletion and status (API-006, API-007, SCR-038) | M4 | Must | 1.5 | DEL-008 | Private data removed within 24 h (ASM-010); status visible | T | Study data deletion (NFR-018) | WP-013 (FS); WP-015 (FS) | — | US-033, FR-071, FR-072 | CMP-004, API-006, API-007, SCR-038, table account_deletion_jobs |
@@ -831,15 +831,15 @@ The dictionary is §4 (one row per work package, all fields). It is not duplicat
 | WP-013 | WP-012 (FS) | WP-014, WP-059, WP-078 | 0.5 | 2.5 | 24.0 | W2 |
 | WP-014 | WP-013 (FS); WP-080 (FS) | — | 0.5 | 3.0 | 25.0 | W3 |
 | WP-015 | WP-012 (FS) | WP-016, WP-017, WP-025, WP-040, WP-042, WP-059 | 2.5 | 4.5 | 0.0 | W3 |
-| WP-016 | WP-006 (FS); WP-015 (FS) | WP-024, WP-043, WP-056, WP-076 | 2.0 | 6.5 | 0.0 | W3 |
+| WP-016 | WP-006 (FS); WP-015 (FS) | WP-024, WP-025, WP-043, WP-056, WP-076 | 2.0 | 6.5 | 0.0 | W3 |
 | WP-017 | WP-015 (FS) | WP-055 | 1.5 | 6.0 | 20.0 | W4 |
 | WP-020 | WP-011 (FS) | WP-021, WP-022, WP-023, WP-027 | 1.0 | 2.5 | 8.5 | W2 |
 | WP-021 | WP-020 (FS) | — | 1.5 | 4.0 | 24.0 | W3 |
 | WP-022 | WP-020 (FS) | — | 1.0 | 3.5 | 24.5 | W3 |
 | WP-023 | template: —; import: WP-020 (FS) | WP-090, WP-091, WP-092, WP-093, WP-094 | 1.0 | 3.5 | 11.5 | W1 |
-| WP-024 | WP-016 (FS); WP-026 (FS) | WP-056 | 1.0 | 8.5 | 4.5 | W4 |
-| WP-025 | WP-011 (FS); WP-015 (FS) | WP-026, WP-027, WP-029 | 1.5 | 6.0 | 4.5 | W3 |
-| WP-026 | WP-025 (FS) | WP-024, WP-030 | 1.5 | 7.5 | 4.5 | W3 |
+| WP-024 | WP-016 (FS); WP-025 (FS) | — | 1.0 | 8.5 | 4.5 | W4 |
+| WP-025 | WP-011 (FS); WP-015 (FS); WP-016 (FS) | WP-024, WP-026, WP-027, WP-029 | 1.5 | 6.0 | 4.5 | W3 |
+| WP-026 | WP-025 (FS) | WP-030, WP-056 | 1.5 | 7.5 | 4.5 | W3 |
 | WP-027 | WP-020 (FS); WP-025 (FS) | WP-029, WP-031 | 1.0 | 7.0 | 5.0 | W3 |
 | WP-028 | — | WP-029, WP-083 | 1.0 | 1.0 | 11.0 | W2 |
 | WP-029 | WP-028 (FS); WP-025 (FS); WP-027 (FS) | WP-030 | 1.0 | 8.0 | 5.0 | W3 |
@@ -862,7 +862,7 @@ The dictionary is §4 (one row per work package, all fields). It is not duplicat
 | WP-051 | WP-049 (FS) | WP-052, WP-070 | 2.0 | 20.5 | 4.5 | W3 |
 | WP-052 | WP-047 (FS); WP-051 (FS) | WP-077 | 1.0 | 21.5 | 6.0 | W3 |
 | WP-055 | WP-034 (FS); WP-017 (FS); WP-040 (FS) | — | 2.0 | 8.0 | 20.0 | W4 |
-| WP-056 | WP-016 (FS); WP-024 (FS) | WP-057, WP-072, WP-100 | 3.0 | 11.5 | 4.5 | W4 |
+| WP-056 | WP-016 (FS); WP-026 (FS) | WP-057, WP-072, WP-100 | 3.0 | 11.5 | 4.5 | W4 |
 | WP-057 | WP-056 (FS) | WP-071 | 1.5 | 13.0 | 12.0 | W4 |
 | WP-058 | WP-040 (FS) | WP-073 | 1.5 | 7.5 | 18.5 | W4 |
 | WP-059 | WP-013 (FS); WP-015 (FS) | — | 1.5 | 6.0 | 22.0 | W4 |
@@ -978,3 +978,4 @@ See [`tasks/README.md`](./tasks/README.md) (19 cards, all NOT STARTED on 2026-11
 | Version | Date | Author | Change | Reason |
 |---|---|---|---|---|
 | 0.1 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | First WBS, dictionary and Sprint 1 / spike task cards | Phase 5 planning |
+| 0.2 | 2026-11-05 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | AI design alignment (SRC-100 A-028, DEC-010..012): WP-024 becomes the embedding backfill/re-embed CLI; WP-025 embeds chunks on write (new predecessor WP-016); WP-043 ranks a pool; WP-044 is the multi-day `TripSolver`; WP-056 uses Tier 1 evidence and no longer depends on WP-024 (now WP-026). Estimates unchanged; float values in Appendix C not recomputed | ADR-004 0.2, ADR-010 0.3, ADR-011 0.2, ADR-012 0.3 |
