@@ -27,6 +27,8 @@ it into `user-stories.md` at the next revision. The kit's §7 ends after "3.1 Fi
 | File | Screens |
 |---|---|
 | `README.md` | This specification |
+| [`screen-specs.md`](./screen-specs.md) | GONARRA-UI-SCREENS: detailed per-screen specifications (layout, data fields with API source, actions, states with VI/EN copy, validation, accessibility, flags) for every SCR below |
+| `wireframes/index.html` | Viewer that frames the 16 wireframe pages (no design content) |
 | `m01-home-city.html` | SCR-008 (to-be), SCR-020, SCR-021, SCR-040 |
 | `m02-planner-input.html` | SCR-022, SCR-023 |
 | `m03-proposal-timeline.html` | SCR-024, SCR-030 |
@@ -166,7 +168,9 @@ flowchart LR
 ## 4. Screen inventory
 
 Status: **existing** = built by owner, documented as-is, not redesigned (only listed additions); **to-be** = built screen
-extended; **new** = design only.
+extended; **new** = design only. The detailed specification of every screen in this table (regions, data fields with
+their API source, actions, states and copy, validation, accessibility, feature flags) is in
+[`screen-specs.md`](./screen-specs.md).
 
 | SCR | Screen | Route / location | Status | Persona | Stories | Requirements | Wireframe |
 |---|---|---|---|---|---|---|---|
