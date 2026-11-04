@@ -5,7 +5,7 @@
 | Field | Value |
 |---|---|
 | Document ID | GONARRA-UC |
-| Version | 0.2 |
+| Version | 0.3 |
 | Status | Draft |
 | Owner | Lê Ngọc Tấn Hiền, student author, product owner and engineer |
 | Contributors | Claude Code (drafting agent; no approval authority) |
@@ -20,6 +20,7 @@
 |---|---|---|---|
 | 0.1 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | First kit-based use case specification. Replaces pre-rebuild `docs/USE-CASES.md` (UC-00..UC-06, HA-02); legacy IDs kept in the Legacy ID column |
 | 0.2 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | DA-GONARRA-01 fixes F-01, F-02, F-06, F-07, F-10: UC-019 embeds before publication; UC-014 follows the deletion job states and Clerk-last order (no receipt); travel modes in UC-016; guests see Home and onboarding only; OQ-081, OQ-083, OQ-084 closed |
+| 0.3 | 2026-11-05 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | AI design alignment (SRC-100 A-028): UC-008 Tier 1 evidence without threshold (ADR-010 0.3); UC-019 chunks embedded on write by the curation API (ADR-012 0.3) |
 
 **Inputs.** PRD 0.1 (`docs/03-analysis/PRD.md`), USER_STORIES (`docs/03-analysis/user-stories.md`),
 GONARRA-TRACE 0.1 (`docs/03-analysis/traceability.md`), GONARRA-SAD 0.1 §3.3, §3.5, §3.6 (`docs/04-design/architecture/SAD.md`),
@@ -328,7 +329,7 @@ Exceptions: E1 (from 6) No maps app: system shows the address to copy. E2 (from 
 Main flow:
 1. Traveler types a question about a place.
 2. System verifies session and ownership of the Guide session.
-3. System reads the place's structured facts and retrieves reviewed knowledge chunks above the similarity threshold for the place and locale (FR-058).
+3. System reads the place's approved facts pinned by its current publication and every approved sectioned chunk of the pinned corpus revision for the session locale (Tier 1: no question embedding, no similarity threshold; ADR-010) (FR-058).
 4. System asks Gemini for an answer citing only supplied evidence; no identifiers sent (FR-070).
 5. System drops any citation not in the supplied evidence and streams the answer over SSE (NFR-005).
 6. System sends the final result with citations and verification dates (FR-078, NFR-006).
@@ -455,15 +456,15 @@ Exceptions: E1 (from 5) Candidate revision changed: 409, reload. E2 (from 1) Non
 | Item | Value |
 |---|---|
 | Description | The curator publishes a complete candidate so it becomes a published place used by search, planning and the Guide. |
-| Primary / secondary actors | Curator / Gemini (embeddings, before publication) |
+| Primary / secondary actors | Curator / Gemini (embeddings on chunk write, before approval and publication) |
 | Trigger | Curator clicks Publish. |
-| Preconditions | Signed in with curator role; candidate reviewed (UC-018); its draft chunks embedded by `cli embed` and approved (ADR-012). |
+| Preconditions | Signed in with curator role; candidate reviewed (UC-018); its sectioned chunks saved through API-035 (embedded on write, ADR-012) and approved. |
 | Postconditions (success) | Place PUBLISHED; reviewer and time recorded (FR-015); the publication pins the approved corpus revision, so the Guide can cite the place from its first publication (FR-058). |
 | Postconditions (failure) | Candidate unchanged; missing items listed (FR-013, FR-016). |
 | Trace | US-006 · FR-013..FR-016 · NFR-015 · CMP-002, CMP-004, CMP-006, CMP-005, CMP-018, CMP-012 · Sequence page 5; Activity page 1 |
 
-Main flow: 1. Before publication, the embed CLI embeds the place's draft chunks and the curator approves them (ADR-012). 2. Curator clicks Publish with expected candidate revision and Idempotency-Key. 3. System verifies curator role. 4. System checks the publication gate: VI content, EN content, a source per fact, attribution per source, no unconfirmed AI draft, media rights, approved chunks embedded. 5. System publishes the place in a new city manifest pinning the approved corpus revision and records reviewer and time.
-Exceptions: E1 (from 4) Gate fails: refused, missing items named. E2 (from 3) Not curator: 403. E3 (from 1) Embedding fails: place stays in READY_TO_PUBLISH; chunks retried on the next run; the publish gate refuses unembedded approved chunks.
+Main flow: 1. Before publication, each chunk saved in review is embedded on write by the curation API (`cli embed --pending` backfills after a gateway failure) and the curator approves it (ADR-012). 2. Curator clicks Publish with expected candidate revision and Idempotency-Key. 3. System verifies curator role. 4. System checks the publication gate: VI content, EN content, a source per fact, attribution per source, no unconfirmed AI draft, media rights, approved chunks embedded. 5. System publishes the place in a new city manifest pinning the approved corpus revision and records reviewer and time.
+Exceptions: E1 (from 4) Gate fails: refused, missing items named. E2 (from 3) Not curator: 403. E3 (from 1) Embedding fails on save: the chunk is stored with `embedding_state: PENDING` and a warning; it cannot be approved until a later save or `cli embed --pending` succeeds, so the publish gate never sees an unembedded approved chunk.
 
 ### 5.20 UC-020 — Unpublish a place
 

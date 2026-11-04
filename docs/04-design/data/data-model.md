@@ -5,7 +5,7 @@
 | Field | Value |
 |---|---|
 | Document ID | GONARRA-DATA |
-| Version | 0.2 |
+| Version | 0.3 |
 | Status | Draft |
 | DBMS and version | PostgreSQL 16 with PostGIS, pgvector, pgcrypto and pg_trgm. Production: AWS RDS db.t4g.micro, ap-southeast-1 (DEC-005, ADR-002, ADR-003). Local: `postgis/postgis:16-3.6` with `postgresql-16-pgvector` (`infra/postgres/Dockerfile`) |
 | Owner | Lê Ngọc Tấn Hiền, student author, product owner and data architect |
@@ -21,6 +21,7 @@
 |---|---|---|---|
 | 0.1 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | First kit-based data design. Replaces pre-rebuild `docs/DATA.md` and `docs/DATABASE-DESIGN.md` |
 | 0.2 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | DA-GONARRA-01 fixes F-01, F-02, F-10: embed and approve chunks before publication; Clerk user deleted last; OQ-016..020 closed (A-023) |
+| 0.3 | 2026-11-05 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | AI design alignment (SRC-100 A-028): `knowledge_chunks.section` (one chunk per section per locale), trigram index for Tier 2 lexical retrieval, embeddings computed on write by the curation API (ADR-012 0.3), Tier 1 retrieval without ANN (ADR-010 0.3) |
 
 **Inputs.** IN-1 `docs/03-analysis/PRD.md` (FR-001..FR-081, NFR-001..NFR-036); IN-2 `docs/04-design/architecture/SAD.md`
 (GONARRA-SAD 0.1); IN-3 `docs/04-design/architecture/blueprint.md`; IN-4 ADR-003 (single store), ADR-005 (Clerk mapping), ADR-006
@@ -204,7 +205,7 @@ constraint. Abbreviations: **C** = cascade, **R** = restrict, **N** = set null.
 | `fact_evidence` | Claim-level link fact revision → source revision (BR-003, FR-005) | PK `(place_fact_id, source_revision_id)`; FK fact (C), source revision (R) | `supported_claim` non-empty | source revision |
 | `media_assets` | S3 object with per-file creator, licence, attribution and rights state | PK; FK source revision (R); unique `object_key`, unique `sha256` | type ∈ jpeg, png, webp; dimensions > 0; rights ∈ PENDING, CLEARED, REVOKED | source revision |
 | `place_media` | Ordered media of a place with VI/EN alt text | PK `(place_id, media_asset_id)`; FK place (C), media (R); unique `(place_id, ordinal)` | ordinal > 0 | media |
-| `knowledge_chunks` | Approved original narrative chunks for Guide RAG (FR-056..FR-058); never a source of operational facts | PK; FK place (C); unique `(place_id, locale, corpus_revision, chunk_index)` | locale; revision > 0; index ≥ 0; content 1..4000 chars; hash; review ∈ DRAFT, APPROVED, RETIRED; APPROVED ⇒ embedding and model; RETIRED ⇔ `retired_at` | `ix_knowledge_chunks_embedding_hnsw` partial (Q-G1, §4.3); unique serves Q-G2 |
+| `knowledge_chunks` | Approved original narrative chunks for the Guide (FR-056..FR-058), one per `section` (OVERVIEW, HISTORY, HIGHLIGHTS, VISIT_TIPS, ETIQUETTE, ACCESS) per locale and corpus revision; never a source of operational facts | PK; FK place (C); unique `(place_id, locale, corpus_revision, chunk_index)`; unique `(place_id, locale, corpus_revision, section)` | locale; section enum; revision > 0; index ≥ 0; content 1..4000 chars; hash; review ∈ DRAFT, APPROVED, RETIRED; APPROVED ⇒ embedding and model; RETIRED ⇔ `retired_at` | `ix_knowledge_chunks_embedding_hnsw` partial (Q-G1, §4.3); unique serves Q-G2 |
 | `knowledge_chunk_sources` | Chunk → source revision evidence | PK pair; FK chunk (C), source revision (R) | — | source revision |
 
 ### 2.4 Intentional JSONB documents
@@ -359,7 +360,9 @@ city.
 | HNSW, not IVFFlat | IVFFlat needs representative data before `CREATE INDEX` to train its lists and must be rebuilt as the corpus grows from zero during curation; HNSW has no training step, accepts inserts incrementally and gives better recall at this size. Build cost is negligible for a few thousand chunks |
 | `m = 16, ef_construction = 64` | pgvector defaults; adequate recall at this scale. `hnsw.ef_search` stays at the default 40 unless the retrieval spike shows missed chunks |
 | Partial `WHERE review_state = 'APPROVED'` | Draft and retired chunks are never searchable, and the index stays small |
-| Filtered queries | When the query is scoped to one place (Q-G2: Guide question about a place), the planner uses the unique B-tree `(place_id, locale, corpus_revision, chunk_index)` and scans that place's few chunks exactly; no ANN needed. For city-wide queries the post-filter on locale/city can drop results; pgvector 0.8 iterative scans (`hnsw.iterative_scan = relaxed_order`) are enabled per session if the spike shows short result lists |
+| Tier 1 (v1) needs no ANN | A Guide session is scoped to one place (API-024). Tier 1 evidence (ADR-010 0.3) is every approved chunk of the pinned corpus revision for that place and locale (Q-G2), read through the unique B-tree `(place_id, locale, corpus_revision, chunk_index)`; no question embedding, no threshold |
+| Tier 2 (roadmap) hybrid retrieval | City-wide questions combine `ix_knowledge_chunks_content_trgm` (pg_trgm GIN on NFC-normalised, diacritic-folded content) with the HNSW cosine top-k; the post-filter on locale/city can drop ANN results, so pgvector 0.8 iterative scans (`hnsw.iterative_scan = relaxed_order`) are enabled per session if the calibration shows short result lists (OQ-032) |
+| Embedding on write | `embedding` and `embedding_model` are written by the curation API in the same transaction as a new or changed chunk (ADR-012 0.3); `cli embed --pending` backfills after a gateway failure and `--reembed-all` rewrites embeddings in place after a model change (derived data, no new corpus revision) |
 
 ---
 
@@ -369,7 +372,7 @@ city.
 |---|---|---|
 | `vw_published_places` | Current publication of each place with both localizations (Explore FR-003, search results FR-002, planner candidates Q-P1). Excludes candidates (BR-002, FR-004) | Joins pinned localization revisions, so later drafts never leak |
 | `vw_published_place_facts` | Facts pinned by the current publication with sources (publisher, locator, retrieval date, licence, attribution) and an `is_stale` flag (FR-005..FR-008, BR-025) | `is_stale` = operational and (`verified_at` older than `stale_after_days` (180, ASM-008) or past `valid_until`) |
-| `vw_guide_chunks` | Retrieval corpus: approved chunks of the corpus revision pinned by each current publication (FR-058) | Chunks are embedded and approved before publication, so they are visible from the first publication (§6.1 step 6) |
+| `vw_guide_chunks` | Guide evidence corpus: approved chunks (with `section`) of the corpus revision pinned by each current publication (FR-058) | Chunks are embedded on write and approved before publication, so they are visible from the first publication (§6.1 step 6); Tier 1 reads a place's chunks exactly, Tier 2 searches the whole view |
 
 No materialized views: every view reads a few hundred rows.
 
@@ -395,10 +398,13 @@ module, each with a `catalog_audit_events` row.
    `fact_evidence` rows to captured `source_revisions`. Approved facts are frozen by `trg_place_facts_guard_update_before`
    (only `APPROVED → SUPERSEDED` is allowed). Open conflicts block publication.
 5. **Media.** `media_assets` with licence, creator, attribution and rights state; `place_media` links them.
-6. **Corpus.** Narrative chunks are written and linked to sources during CONTENT_REVIEW; `cli embed` embeds DRAFT
-   chunks of places in CONTENT_REVIEW or READY_TO_PUBLISH; the curator then approves them (an approved chunk must have
-   an embedding). Publication pins the latest approved corpus revision, so the Guide can search the place from its
-   first publication; later corpus changes are picked up by the next publication.
+6. **Corpus.** Narrative chunks are written per section and linked to sources during CONTENT_REVIEW through
+   API-035 (`chunks[]`); the curation API embeds each new or changed chunk (by `content_sha256`) on write and
+   records `embedding_model` (ADR-012 0.3; on a gateway failure the chunk stays DRAFT without an embedding and
+   `cli embed --pending` backfills). The curator then approves the chunk (an approved chunk must have an
+   embedding). Publication pins the latest approved corpus revision, so the Guide uses the place's chunks from its
+   first publication; later corpus changes are picked up by the next publication, and superseded chunks are
+   RETIRED.
 7. **Gate and publish (FR-013, FR-014, FR-016).** `fn_publication_gate_violations(place_id)` returns one row per
    violation: `PLACE_NOT_READY`, `MISSING_LOCALIZATION`, `MISSING_SEARCH_NAME`, `MISSING_REQUIRED_FACT`,
    `FACT_WITHOUT_SOURCE`, `FACT_CONFLICT_OPEN`, `SOURCE_WITHOUT_ATTRIBUTION`, `CHUNK_WITHOUT_SOURCE`,

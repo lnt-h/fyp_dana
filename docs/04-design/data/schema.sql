@@ -488,6 +488,7 @@ CREATE TABLE knowledge_chunks (
     id               uuid        NOT NULL DEFAULT gen_random_uuid(),
     place_id         uuid        NOT NULL,
     locale           text        NOT NULL,
+    section          text        NOT NULL,
     corpus_revision  integer     NOT NULL,
     chunk_index      smallint    NOT NULL,
     content          text        NOT NULL,
@@ -501,7 +502,11 @@ CREATE TABLE knowledge_chunks (
     CONSTRAINT fk_knowledge_chunks_place_id FOREIGN KEY (place_id) REFERENCES places (id) ON DELETE CASCADE,
     CONSTRAINT uq_knowledge_chunks_place_id_locale_corpus_revision_chunk_index
         UNIQUE (place_id, locale, corpus_revision, chunk_index),
+    CONSTRAINT uq_knowledge_chunks_place_id_locale_corpus_revision_section
+        UNIQUE (place_id, locale, corpus_revision, section),
     CONSTRAINT ck_knowledge_chunks_locale CHECK (locale IN ('vi', 'en')),
+    CONSTRAINT ck_knowledge_chunks_section CHECK (
+        section IN ('OVERVIEW', 'HISTORY', 'HIGHLIGHTS', 'VISIT_TIPS', 'ETIQUETTE', 'ACCESS')),
     CONSTRAINT ck_knowledge_chunks_corpus_revision CHECK (corpus_revision > 0),
     CONSTRAINT ck_knowledge_chunks_chunk_index CHECK (chunk_index >= 0),
     CONSTRAINT ck_knowledge_chunks_content_length CHECK (length(content) BETWEEN 1 AND 4000),
@@ -516,7 +521,12 @@ CREATE INDEX ix_knowledge_chunks_embedding_hnsw
     ON knowledge_chunks USING hnsw (embedding vector_cosine_ops)
     WITH (m = 16, ef_construction = 64)
     WHERE review_state = 'APPROVED';
-COMMENT ON TABLE knowledge_chunks IS 'Approved original narrative chunks for Guide RAG (FR-056..FR-058). Never a source of operational facts.';
+-- Tier 2 (roadmap, ADR-010 0.3) lexical leg of hybrid retrieval over NFC-normalised, diacritic-folded content.
+CREATE INDEX ix_knowledge_chunks_content_trgm
+    ON knowledge_chunks USING gin (lower(content) gin_trgm_ops)
+    WHERE review_state = 'APPROVED';
+COMMENT ON TABLE knowledge_chunks IS 'Approved original narrative chunks for the Guide (FR-056..FR-058), one per section per locale and corpus revision; embedded on write by the curation API (ADR-012). Never a source of operational facts.';
+COMMENT ON COLUMN knowledge_chunks.section IS 'Citation unit: OVERVIEW, HISTORY, HIGHLIGHTS, VISIT_TIPS, ETIQUETTE or ACCESS (ADR-010 0.3).';
 
 CREATE TABLE knowledge_chunk_sources (
     knowledge_chunk_id  uuid NOT NULL,
@@ -1267,12 +1277,14 @@ SELECT cp.place_id,
   JOIN fact_fields ff ON ff.code = f.field_code
  WHERE cp.state = 'PUBLISHED';
 
--- Retrieval corpus: approved chunks of the corpus revision pinned by each current publication (FR-058).
+-- Guide evidence corpus: approved chunks of the corpus revision pinned by each current publication (FR-058).
+-- Tier 1 reads one place's chunks exactly; Tier 2 (roadmap) searches the whole view (ADR-010 0.3).
 CREATE VIEW vw_guide_chunks AS
 SELECT kc.id AS knowledge_chunk_id,
        kc.place_id,
        cp.city_id,
        kc.locale,
+       kc.section,
        kc.corpus_revision,
        kc.content,
        kc.embedding,

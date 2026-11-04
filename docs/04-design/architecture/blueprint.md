@@ -6,7 +6,7 @@
 |---|---|
 | System name | Gonarra |
 | Document ID | GONARRA-SDD |
-| SDD version | 0.2 |
+| SDD version | 0.3 |
 | Status | Draft |
 | Document date | 2026-11-04 |
 | Document owner | Lê Ngọc Tấn Hiền, student author, product owner and engineer |
@@ -20,6 +20,7 @@
 |---|---|---|---|
 | 0.1 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | First blueprint derived from GONARRA-SAD 0.1 |
 | 0.2 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | DA-GONARRA-01 fixes F-01, F-02, F-06: embed before publish; deletion job states; schema field names; text tokens |
+| 0.3 | 2026-11-05 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | AI design alignment (SRC-100 A-028): `TripSolver` multi-day model replaces per-day `TripSolver` (ADR-011 0.2); `SelectionResult` is a ranked pool (ADR-004 0.2); Guide Tier 1 evidence without threshold (ADR-010 0.3); chunk embedding on write in `curation` (ADR-012 0.3) |
 
 **Traceability note.** Elements trace to BRD 0.4 IDs and to `CMP-xxx`; the column **"FR/NFR (PRD 0.1)"** is derived
 from GONARRA-TRACE 0.1 (`docs/03-analysis/traceability.md`). NFR realization: SAD §6.2. This document describes
@@ -35,7 +36,7 @@ modules, classes, interfaces and interactions; deployment topology is in SAD §3
 | Attribute | Value |
 |---|---|
 | System name | Gonarra |
-| SDD version | 0.2 |
+| SDD version | 0.3 |
 | Document date | 2026-11-04 |
 | Document owner | Lê Ngọc Tấn Hiền |
 | Revision history | See document control |
@@ -106,12 +107,12 @@ Full six-part scenarios QAS-01..QAS-15 are in SAD §2.4; summary with design rea
 
 | Quality attribute | Scenario (measure) | Realizing design elements |
 |---|---|---|
-| Performance | Proposal p95 ≤ 60 s (NFR-002), first progress p95 ≤ 2 s (NFR-003), edit recalculation p95 ≤ 5 s (NFR-004), search p95 ≤ 2 s (NFR-001), Guide first text ≤ 5 s / complete ≤ 20 s p95 (NFR-005/006) (QAS-07) | `PlanningService.generate`, `RouteMatrixClient`, `DaySolver` time limit |
+| Performance | Proposal p95 ≤ 60 s (NFR-002), first progress p95 ≤ 2 s (NFR-003), edit recalculation p95 ≤ 5 s (NFR-004), search p95 ≤ 2 s (NFR-001), Guide first text ≤ 5 s / complete ≤ 20 s p95 (NFR-005/006) (QAS-07) | `PlanningService.generate`, `RouteMatrixClient`, `TripSolver` time limit |
 | Scalability | ≤ 15 concurrent users on one instance (ASM-030/031; PRD NFR-007 tests 5, SAD difference D-5); no horizontal scaling designed | Async I/O, thread-pool solver, quota guard |
 | Availability | RTO ≤ 4 h, RPO ≤ 24 h (QAS-08) | Stateless API container; state only in RDS |
 | Security | 0 cross-traveler disclosures, 0 external calls on foreign IDs (QAS-04); 0 identifiers to AI (QAS-05) | `OwnershipGuard`, `AiPayloadRedactor` |
 | Maintainability | Dropping a cut-order feature changes 0 files outside its module (QAS-11) | `FeatureFlags`, module boundaries |
-| Testability | Deterministic planning: same inputs → same plan; golden/conflict/regeneration sets runnable offline with recorded provider fixtures | `DaySolver` fixed parameters, adapter interfaces with fakes |
+| Testability | Deterministic planning: same inputs → same plan; golden/conflict/regeneration sets runnable offline with recorded provider fixtures | `TripSolver` fixed parameters, adapter interfaces with fakes |
 | Deployability | Multi-arch image built and drift-checked in CI; deploy by one SSM command (SAD §3.2.3) | CI pipeline |
 | Observability | Every response has `X-Request-ID`; logs JSON with method, path, status, duration and no bodies (BRU-008) | `RequestContextMiddleware` (exists), `RedactingLogger` |
 
@@ -157,7 +158,7 @@ Values are taken from the BRD or a named standard; the UI/UX design (`UI-UX-Desi
 |---|---|---|---|---|
 | `identity` | Python package | CMP-004 | JWT verification (`ClerkTokenVerifier`, exists), account mapping, preferences, deletion workflow | platform |
 | `catalog` | Python package | CMP-005 | City/place read models, search, place card, fact freshness, attribution | platform, providers |
-| `curation` | Python package | CMP-006 | Staging, review commands, publication gates, manifests, audit | catalog, providers, platform |
+| `curation` | Python package | CMP-006 | Staging, review commands (incl. sectioned chunks embedded on write), publication gates, manifests, audit | catalog, providers, ai_gateway, platform |
 | `trips` | Python package | CMP-007 | Trip CRUD, Save (accept), saved revision | catalog, platform |
 | `planning` | Python package | CMP-008 | Preferences, candidate set, selection orchestration, solver, validator, Plan Health, previews, edits, regeneration | catalog, routing, trips, ai_gateway, platform |
 | `routing` | Python package | CMP-009 | Route matrix and single-leg clients, leg availability | providers (policy), platform |
@@ -203,7 +204,7 @@ OQ-034.
 |---|---|---|---|
 | `PlanningPreferences` | cityId, locale (vi/en), startDate, dayCount 1..3, dailyWindows[], startPoints[], pace, interests[], mustSeePlaceIds[], avoidedPlaceIds[], allowedModes (WALK/DRIVE)[], maxWalkingMinutesPerLeg [plan.md §7.3] | planning | BR-005, BRU-007 |
 | `CandidatePlace` | placeId, names vi/en, category, tags, visitMinutesMin/Suggested/Max, hoursForDates (KNOWN/UNKNOWN), freshness | planning | BR-006 |
-| `SelectionResult` | days[] of ranked placeIds, rationale per pick, assumptions; modelVersion, promptVersion | ai_gateway → planning | ADR-004, ADR-011 |
+| `SelectionResult` | ranked pool of placeIds (rank, rationale, optional advisory dayHint per pick), assumptions; modelVersion, promptVersion | ai_gateway → planning | ADR-004, ADR-011 |
 | `RouteMatrix` | origins/destinations (placeIds + start point), mode, per-pair duration/distance or UNAVAILABLE, provider, retrievedAt | routing | BR-026, BRU-006 |
 | `DayPlan` | date, stops[] (stopId, placeId, arrival, departure, visitDuration, locked), legs[] (mode, distance, duration, available) | planning | BR-007, BR-026 |
 | `Conflict` | kind (OUTSIDE_HOURS, LEG_UNAVAILABLE, DAY_OVERRUN), target (stopId or legId), message key | planning | BR-008 |
@@ -235,7 +236,7 @@ classDiagram
       +select(candidates, prefs) SelectionResult
     }
     class GeminiSelectionEngine
-    class DaySolver {
+    class TripSolver {
       +solve(day, stops, matrix, windows, locks, timeLimit) DayPlan
     }
     class Retimer {
@@ -277,7 +278,7 @@ classDiagram
     PlanningService --> CandidateSelector
     PlanningService --> SelectionEngine
     PlanningService --> RoutingService
-    PlanningService --> DaySolver
+    PlanningService --> TripSolver
     PlanningService --> Retimer
     PlanningService --> PlanValidator
     PlanningService --> PlanHealthEvaluator
@@ -347,9 +348,9 @@ On any failure the pending edit stays in the draft store and the last server rev
 #### 3.4.2 Day regeneration with locks
 
 `planning.regenerateDay` copies all other days unchanged, builds candidates excluding places used on other days,
-asks `SelectionEngine` for the target day only (locked stops passed as fixed picks), requests a matrix for the
-day's places, runs `DaySolver` with locked stops as fixed constraints, validates, and appends a revision (BR-013,
-BR-035; AC-013).
+asks `SelectionEngine` for a ranked pool for that day only (locked stops passed as fixed picks), requests a matrix
+for the pool plus the day start point, runs `TripSolver` in single-day mode with locked stops as mandatory nodes,
+validates, and appends a revision (BR-013, BR-035; AC-013).
 
 #### 3.4.3 Photo identification
 
@@ -376,7 +377,8 @@ sequenceDiagram
 
 `cli import overture --city <city> --release <release>` → DuckDB bounding-box read → `ProviderPolicyRegistry`
 filters fields → `curation.stage()` (idempotent on provider/release/checksum/importer version). Curator in CMP-002
-reviews → `cli embed` embeds new draft chunks before publication so the curator can approve them (ADR-012) →
+reviews; every chunk saved through API-035 is embedded on write by `curation` via `ai_gateway` (ADR-012; `cli embed
+--pending` backfills after a gateway failure) → the curator approves the chunk →
 `curation.publish(placeId, expectedRevision, idemKey)` runs gates (BR-004) and writes a publication that pins the
 approved corpus revision, so the place is searchable from its first publication.
 
@@ -482,26 +484,31 @@ FAILED.
    clarification fields (AC-005).
 3. Pin current manifest for the city; `CandidateSelector`: published places in city, minus avoided, plus
    must-sees; attach hours for the trip dates and duration bounds; cap candidate list size by configuration.
-4. `SelectionEngine.select` via AI gateway (redacted DTO) → `SelectionResult`.
-5. Validate: schema; every ID ∈ candidates; no duplicates across days; day count matches. On failure, one repair
-   call with the error list; then typed error, no state change.
-6. `RoutingService.matrix` for each day's selected places + start point, for allowed modes.
-7. `DaySolver.solve` per day (§3.8.2).
+4. `SelectionEngine.select` via AI gateway (redacted DTO) → `SelectionResult` (ranked pool, ADR-004 0.2).
+5. Validate: schema; every ID ∈ candidates; no duplicates; pool size within the configured cap. On failure, one
+   repair call with the error list; then typed error, no state change.
+6. `RoutingService.matrix` once, over the pool plus the day start points, for allowed modes.
+7. `TripSolver.solve` once for the whole trip (§3.8.2).
 8. `PlanValidator` + `PlanHealthEvaluator`; persist preview revision (append-only, parent check).
 
-#### 3.8.2 Day solver (OR-Tools, ADR-011)
+#### 3.8.2 Trip solver (OR-Tools, ADR-011 0.2)
 
-- Nodes: day start point (depot) + selected places. Time dimension: transit time from matrix (chosen mode per
-  pair: WALK if allowed and ≤ `maxWalkingMinutesPerLeg`, else DRIVE if allowed) + service time = visit duration.
-- Time windows: node window = known opening interval on that date ∩ day window; UNKNOWN hours → day window only
-  (and a WARNING later). Depot window = day window.
-- Locked stops: mandatory nodes on their day with fixed duration; relative order among locks kept by precedence
-  constraints.
-- Unlocked stops: optional with drop penalty decreasing with Gemini rank, so must-sees and top-ranked picks are
-  kept first.
+One routing model per proposal (DEC-011); the same class runs in single-day mode for regeneration.
+
+- Vehicles: one per day d, start and end at that day's start point, with time window = day d's window.
+- Nodes: one copy (p, d) per pool place p and day d, allowed only on vehicle d. Time dimension: transit time from
+  the matrix (chosen mode per pair: WALK if allowed and ≤ `maxWalkingMinutesPerLeg`, else DRIVE if allowed) +
+  service time = visit duration (suggested, or the traveler's edited value).
+- Time windows: window of (p, d) = known opening interval of p on date d ∩ day d window; UNKNOWN hours → day window
+  only (and a WARNING later).
+- Disjunctions: the copies of p form one disjunction with max cardinality 1 and a drop penalty decreasing with
+  Gemini rank; must-sees get a prohibitive penalty; locked stops are mandatory on their locked day with their
+  duration, and relative order among locks on a day is kept by precedence constraints. Advisory day hints from the
+  model are not constraints in v1.
 - Unavailable pairs: arc cost prohibitive; if a place cannot be reached at all it is dropped or, if locked,
   scheduled with the leg marked UNAVAILABLE (blocking conflict).
-- Fixed first-solution strategy and search limits with a time limit → deterministic for identical inputs.
+- Fixed first-solution strategy, fixed local-search parameters and a time limit (OQ-030) → deterministic for
+  identical inputs. Model size ≤ pool cap × days (≤ 72 nodes at the defaults).
 
 #### 3.8.3 Retiming after manual edits (`Retimer`)
 
@@ -514,12 +521,15 @@ Blocking conflicts (BRD §14): stop outside known opening hours; leg UNAVAILABLE
 end → BLOCKED. Warnings: UNKNOWN hours, STALE fact (> 180 days), walking leg above preference → WARNING. Otherwise
 GOOD. Save refuses BLOCKED (BR-009).
 
-#### 3.8.5 Guide grounding
+#### 3.8.5 Guide grounding (ADR-010 0.3, Tier 1)
 
-Embed question → top-k chunks for (placeId, locale, published, not retired) with similarity ≥ threshold → add
-structured facts → if evidence empty: INSUFFICIENT_EVIDENCE → else answer with citation IDs → drop answer if any
-citation ∉ supplied set (treated as INSUFFICIENT_EVIDENCE) → stream. Threshold and k tuned once on the frozen sets
-(ASM-011).
+Load the session's place and locale → evidence = approved facts pinned by the current publication (value or
+UNKNOWN, source, `verified_at`, freshness) + all approved chunks of the pinned corpus revision for that locale
+(fallback: the other locale's chunks), ordered by section → if evidence empty: INSUFFICIENT_EVIDENCE without a model
+call → else one generation with the evidence IDs → strip citations ∉ supplied set; an answer left without a valid
+citation becomes INSUFFICIENT_EVIDENCE → stream and store. No question embedding and no similarity threshold in
+Tier 1. Tier 2 (city-scoped, roadmap) adds hybrid lexical + pgvector candidate retrieval with a threshold tuned on
+the frozen sets (ASM-011, OQ-032).
 
 #### 3.8.6 Search
 
@@ -543,10 +553,10 @@ mobile elements CMP-019..CMP-024; admin pages CMP-002. No element exists outside
 | Resource | Element | Allocation |
 |---|---|---|
 | Event loop (Uvicorn async) | All routers/services | All I/O awaits; no blocking calls on the loop |
-| Thread pool | `DaySolver`, CPU-bound parsing | Bounded pool; solver time limit per day (value OQ-030) |
+| Thread pool | `TripSolver`, CPU-bound parsing | Bounded pool; solver time limit per proposal (value OQ-030) |
 | DB connection pool | repositories | Pool size below RDS db.t4g.micro connection capacity; one pool per process |
-| Gemini quota | `ai_gateway` | Per-traveler and global counters; selection ≤ 1 + 1 repair; Guide ≤ 1 embed + 1 answer; photo ≤ 1 vision call |
-| Routes quota | `routing` | One matrix per day per generate/regenerate; single legs for edits |
+| Gemini quota | `ai_gateway` | Per-traveler and global counters; selection ≤ 1 + 1 repair; Guide ≤ 1 answer (no embed in Tier 1); photo ≤ 1 vision call; curation 1 embed per changed chunk |
+| Routes quota | `routing` | One matrix per generate (pool + day start points), one per regenerated day; single legs for edits |
 | Memory (2 GiB host) | API workers, `cli` (DuckDB memory limit) | One CLI job at a time |
 | Device | Mobile | Speech on-device; photo compressed before upload |
 
@@ -563,10 +573,12 @@ this document, within those ADRs:
 |---|---|---|
 | Package-by-module with service/repository split | Enforceable boundaries for one developer | ADR-001 |
 | `SelectionEngine` interface with a Gemini implementation | Offline tests with a fake; model swap without touching planning | ADR-004 |
-| Separate `DaySolver` (generation) and `Retimer` (edits) | Edits must not reorder the traveler's choices | ADR-011, BR-010 |
+| Separate `TripSolver` (generation, one multi-day model) and `Retimer` (edits) | Day assignment needs distances the model cannot see; edits must not reorder the traveler's choices | ADR-011, BR-010 |
 | Preview revision payload as JSONB | Immutable snapshots, simple append | ADR-009 |
 | Drop penalties from Gemini ranks | Keep must-sees, drop low-ranked stops that cannot fit | ADR-011 |
 | Photo ID returns NOT_RECOGNISED without AI when no candidates | Saves quota; cannot invent | ADR-008 |
+| Tier 1 Guide evidence = whole place corpus, no threshold | A place has ≤ 6 sectioned chunks per locale; retrieval misses are the main threat to MET-007/008 | ADR-010 |
+| Chunk embedding on write inside `curation` | Removes the manual CLI step between edit and approve | ADR-012 |
 
 ### 5.2 Alternatives considered
 
@@ -590,7 +602,7 @@ t4g.small 2 vCPU / 2 GiB; RDS db.t4g.micro 2 vCPU / 1 GiB.
 
 | Concern | Views | Design elements |
 |---|---|---|
-| C-001 Fast feasible plan | Interaction, Algorithm | `PlanningService.generate`, `DaySolver`, SSE progress |
+| C-001 Fast feasible plan | Interaction, Algorithm | `PlanningService.generate`, `TripSolver`, SSE progress |
 | C-002 No silent change or loss | Interaction, State, Information | `TripService.accept`, preview revisions, draft store, idempotency |
 | C-003 Trust | Logical, Algorithm, Information | `FactValue`, `PlanValidator`, Guide grounding, publication states |
 | C-004 Privacy | Interface, Interaction, Information | `OwnershipGuard`, `AiPayloadRedactor`, deletion state machine, not-persisted list |
@@ -612,7 +624,7 @@ t4g.small 2 vCPU / 2 GiB; RDS db.t4g.micro 2 vCPU / 1 GiB.
 | BR-003, BR-024, BR-025 | `FactValue`, freshness job | CMP-005, CMP-018 | FR-005..FR-007 |
 | BR-004, BR-047 | `curation.publish` gates, attribution fields, admin pages | CMP-006, CMP-002 | FR-008..FR-016, FR-018, FR-019, NFR-015, NFR-029 |
 | BR-005 | `PlanningService.generate` | CMP-008 | FR-020..FR-024, FR-026, FR-073, NFR-002, NFR-003, NFR-019..NFR-021, NFR-023, NFR-024 |
-| BR-007, BR-026 | `DaySolver`, `DayPlan`, `RouteMatrix` | CMP-008, CMP-009 | FR-027..FR-029, NFR-025 |
+| BR-007, BR-026 | `TripSolver`, `DayPlan`, `RouteMatrix` | CMP-008, CMP-009 | FR-027..FR-029, NFR-025 |
 | BR-008, BR-009 | `PlanValidator`, `PlanHealthEvaluator`, `TripService.accept` | CMP-008, CMP-007 | FR-030..FR-032 |
 | BR-010, BR-027..BR-032 | `EditCommand`, `Retimer`, `RoutingService.leg` | CMP-008, CMP-009 | FR-033..FR-039, NFR-004 |
 | BR-011, BR-012, BR-033 | Preview revisions, `accept`, draft store | CMP-007, CMP-008, CMP-020 | FR-040..FR-046, NFR-009..NFR-011 |

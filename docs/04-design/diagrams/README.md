@@ -5,8 +5,8 @@
 | Field | Value |
 |---|---|
 | Document ID | GONARRA-DIAG |
-| Version | 0.2 |
-| History | 0.1 2026-11-04 first issue; 0.2 2026-11-04 DA-GONARRA-01 fixes F-01, F-02 (embed before publish; deletion without receipt, Clerk user deleted last) |
+| Version | 0.3 |
+| History | 0.1 2026-11-04 first issue; 0.2 2026-11-04 DA-GONARRA-01 fixes F-01, F-02 (embed before publish; deletion without receipt, Clerk user deleted last); 0.3 2026-11-05 AI design alignment (SRC-100 A-028): labels updated for the ranked pool + multi-day OR-Tools model (ADR-011 0.2), Guide Tier 1 evidence without embedding (ADR-010 0.3) and chunk embedding on write (ADR-012 0.3). Label-level edits only; lifelines and geometry of sequence page 3 and activity page 1 are redrawn at the design-gate review |
 | Status | Draft |
 | Owner | Lê Ngọc Tấn Hiền |
 | Contributors | Claude Code (drafting agent; no approval authority) |
@@ -98,11 +98,11 @@ OR-Tools is a library inside CMP-008 and appears as a self-message, not a lifeli
 
 | Page | Flow | Use case | Fragments | Requirements on messages |
 |---|---|---|---|---|
-| 1 | Generate proposal: mobile → API → Gemini selects IDs → Routes matrix → OR-Tools → validation / Plan Health → preview | UC-002 | alt (auth), nested alt (clarify/refuse), break (provider failure), state invariant | FR-020..FR-031, FR-040, FR-043, FR-044, FR-068..FR-070, NFR-002, NFR-003, NFR-014 |
+| 1 | Generate proposal: mobile → API → Gemini ranks a pool of IDs → Routes matrix → one multi-day OR-Tools model → validation / Plan Health → preview | UC-002 | alt (auth), nested alt (clarify/refuse), break (provider failure), state invariant | FR-020..FR-031, FR-040, FR-043, FR-044, FR-068..FR-070, NFR-002, NFR-003, NFR-014 |
 | 2 | Save with Idempotency-Key and revision conflict | UC-004 | alt (key replay / mismatch / new), nested alt (409 conflict / expired / current), nested alt (blocked / saved), break (network), invariant | FR-032, FR-040..FR-044, FR-069 |
-| 3 | Guide question over SSE with citations or `insufficient_evidence` | UC-008 | alt (auth), par (facts ‖ embedding), alt (evidence), loop (SSE deltas), alt (citations), break (Gemini), invariant | FR-004, FR-005, FR-056..FR-058, FR-069, FR-070, FR-078, NFR-005, NFR-006, NFR-017 |
+| 3 | Guide question over SSE with citations or `insufficient_evidence` | UC-008 | alt (auth), par (facts ‖ chunks of the pinned corpus; no embedding in Tier 1), alt (evidence), loop (SSE deltas), alt (citations), break (Gemini), invariant | FR-004, FR-005, FR-056..FR-058, FR-069, FR-070, FR-078, NFR-005, NFR-006, NFR-017 |
 | 4 | Photo identification within 300 m | UC-010 | opt (permission), break (denied), alt (candidates), nested alt (match), break (Gemini), invariant | FR-061..FR-063, FR-068, FR-070, ASM-009, ADR-008 |
-| 5 | Curator publish (+ post-publication embedding) | UC-019 | ref (UC-017 import), alt (role), nested alt (gate / conflict / publish), loop (embedding batches), break (embedding fails) | FR-013..FR-016, FR-019, FR-058, NFR-015, ADR-012 |
+| 5 | Curator publish (chunks embedded on write during review) | UC-019 | ref (UC-017 import), alt (role), nested alt (gate / conflict / publish), loop (chunk saves with embedding), break (embedding fails → PENDING) | FR-013..FR-016, FR-019, FR-058, NFR-015, ADR-012 |
 | 6 | Account deletion | UC-014 | alt (cancel / confirm), nested alt (Clerk result), loop (jobs runner), opt, break, loop (status polling), invariant | FR-068, FR-071, FR-072 |
 
 Preview of page 1 (proposal):
@@ -133,11 +133,11 @@ sequenceDiagram
         CAT->>DB: published places + facts
         PL->>AI: selectAndRank(no identifiers) [FR-070]
         AI->>GEM: schema-constrained request
-        GEM-->>AI: place IDs per day + rationales
+        GEM-->>AI: ranked pool of place IDs + rationales
         PL->>PL: validate IDs, repair once [FR-025]
-        PL->>RT: matrix(WALK/DRIVE) [FR-029]
+        PL->>RT: matrix(pool + day starts, WALK/DRIVE) [FR-029]
         RT->>GR: computeRouteMatrix
-        PL->>PL: OR-Tools schedule [FR-027]
+        PL->>PL: OR-Tools multi-day model: days as vehicles [FR-027]
         PL->>PL: Plan Health [FR-030, FR-031]
         PL->>DB: insert preview revision [FR-040]
         API-)APP: SSE preview_ready [NFR-002]
@@ -184,11 +184,10 @@ sequenceDiagram
     participant DB as db : CMP-016
     APP->>GD: POST /v1/ai/sessions/{id}/messages
     par facts
-        GD->>CAT: facts(placeId)
-    and embedding
-        GD->>AI: embed(question)
+        GD->>CAT: facts(placeId) pinned by current publication
+    and chunks
+        GD->>DB: all approved chunks of pinned corpus revision (placeId, locale) — no embedding in Tier 1
     end
-    GD->>DB: topK reviewed chunks ≥ threshold
     alt no evidence
         GD-)APP: SSE result(insufficient_evidence) [FR-057]
     else evidence
@@ -227,10 +226,12 @@ sequenceDiagram
     participant CUR as curation : CMP-006
     participant CAT as catalog : CMP-005
     participant CLI as cli : CMP-018
-    C->>CLI: cli embed [ADR-012]
-    loop pending chunk batches
-        CLI->>CLI: embed via CMP-012, store vectors
+    loop each chunk saved in review
+        C->>ADM: save chunk(section, locale, content, sources)
+        ADM->>CUR: PATCH /v1/admin/candidates/{id} chunks[]
+        CUR->>CUR: embed via CMP-012 on write, store vector [ADR-012]
     end
+    Note over CLI: cli embed --pending only backfills after a gateway failure
     C->>ADM: publish(candidateId)
     ADM->>CUR: POST /v1/admin/places/{id}/publish (curator role)
     CUR->>CUR: checkGate [FR-013, FR-016, FR-019]
@@ -267,7 +268,7 @@ sequenceDiagram
 
 | Page | Activity | Pre-condition | Post-condition | Partitions | Requirements |
 |---|---|---|---|---|---|
-| 1 | Catalog ingestion → review → publish | Curator has host access (OQ-036) and curator role | Place PUBLISHED in a new manifest, chunks embedded, or run aborted with nothing written | Curator; CLI and jobs runner (CMP-018); Curation (CMP-006); Catalog (CMP-005); «external» Gemini; «external» Open data source | FR-009..FR-019, FR-058, NFR-015 |
+| 1 | Catalog ingestion → review (chunks embedded on write) → publish | Curator has host access (OQ-036) and curator role | Place PUBLISHED in a new manifest pinning approved, embedded chunks, or run aborted with nothing written | Curator; CLI and jobs runner (CMP-018); Curation (CMP-006); Catalog (CMP-005); «external» Gemini; «external» Open data source | FR-009..FR-019, FR-058, NFR-015 |
 | 2 | Planning pipeline with lock and day-2 regeneration (HA-02) | Traveler signed in, owns the trip | Saved itinerary revision, or refusal/recoverable error with saved trip unchanged | Traveler; mobile app (CMP-001); Planning (CMP-008); Catalog (CMP-005); «external» Gemini; «external» Google Routes; Trips (CMP-007) | FR-020..FR-050, NFR-002..NFR-004 |
 | 3 | Failure handling that preserves the saved trip | An active request (generate, edit, regenerate) | Preview shown, or typed error with edits restored and saved itinerary unchanged | Mobile app (CMP-001); draft store (CMP-020); Planning + AI gateway (CMP-008, CMP-012); «external» Gemini / Google Routes; Trips (CMP-007) | FR-029, FR-043, FR-044, FR-069, NFR-011, NFR-036 |
 
@@ -299,10 +300,10 @@ flowchart TD
     d1 -->|"[yes]"| d2{input?}
     d2 -->|"[unsupported]"| ref
     d2 -->|"[missing]"| ask["Ask for missing preference"] --> m0
-    d2 -->|"[complete]"| m1{" "} --> cand["Build candidate set (CMP-005)"] --> sel["Gemini selects + ranks IDs; locks fixed"] --> m2{" "} --> val["Validate IDs"] --> d3{selection}
+    d2 -->|"[complete]"| m1{" "} --> cand["Build candidate set (CMP-005)"] --> sel["Gemini ranks one pool of IDs; locks fixed"] --> m2{" "} --> val["Validate IDs"] --> d3{selection}
     d3 -->|"[repairable, first time]"| rep["Re-select once"] --> m2
     d3 -->|"[rejected]"| err["Typed recoverable error"] --> f2(((end)))
-    d3 -->|"[valid]"| m4{" "} --> rt["Route matrix (Google Routes)"] --> sch["OR-Tools schedule, locks as constraints"] --> ph["Plan Health"] --> show["Show timeline + map, unsaved"] --> m5{" "} --> d4{action}
+    d3 -->|"[valid]"| m4{" "} --> rt["Route matrix over the pool (Google Routes)"] --> sch["OR-Tools multi-day model: days as vehicles, locks as constraints"] --> ph["Plan Health"] --> show["Show timeline + map, unsaved"] --> m5{" "} --> d4{action}
     d4 -->|"[edit]"| ed["Apply edit"] --> m4
     d4 -->|"[lock + regenerate day 2 (HA-02)]"| lk["Lock day-2 stop; keep day 1"] --> m1
     d4 -->|"[save]"| sv["Save (UC-004)"] --> d5{check}
@@ -316,13 +317,13 @@ Preview of pages 1 and 3:
 flowchart TD
     s((start)) --> imp["Run import(city, release)"] --> rd["Read release in bounding box"] --> p{policy?}
     p -->|"[none]"| ab["Abort; write nothing"] --> e0(((end)))
-    p -->|"[exists]"| up["«iterative» keep allowed fields, upsert candidate"] --> rev["Review VI/EN content, facts, sources (AI draft confirmed)"] --> gate{gate}
+    p -->|"[exists]"| up["«iterative» keep allowed fields, upsert candidate"] --> rev["Review VI/EN content, facts, sources, sectioned chunks (AI draft confirmed)"]
+    gate{gate}
     gate -->|"[incomplete]"| rf["Refuse; name missing items"] --> rev
-    gate -->|"[complete]"| pub["Publish into new manifest"] --> fk[fork]
-    fk --> emb["cli embed via Gemini"] --> ok{embedded?}
-    ok -->|"[failed]"| wait["⧗ next scheduled run"] --> emb
-    ok -->|"[ok]"| e1(((end)))
-    fk --> serve["Serve in search, planning, Guide"] --> xf((⊗))
+    rev --> emb["Embed each saved chunk via Gemini (on write)"] --> ok{embedded?}
+    ok -->|"[failed]"| pend["Chunk PENDING; cli embed --pending"] --> emb
+    ok -->|"[ok]"| gate
+    gate -->|"[complete]"| pub["Publish into new manifest pinning approved chunks"] --> serve["Serve in search, planning, Guide"] --> e1(((end)))
 ```
 
 ```mermaid
