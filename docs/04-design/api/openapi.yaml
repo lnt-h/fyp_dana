@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
   title: Gonarra API
-  version: 0.2.0
+  version: 0.3.0
   summary: Gonarra /v1 contract (REST + SSE) for the traveler app and the curator SPA.
   description: |
-    Document ID GONARRA-API, version 0.2, status Draft. Owner Lê Ngọc Tấn Hiền; approver trantrongminh
-    (pending). Date 2026-11-04. Produced with `design/apiDesign_prompt.md` v2.0 (kit commit `6996dae`, adapted copy
+    Document ID GONARRA-API, version 0.3, status Draft. Owner Lê Ngọc Tấn Hiền; approver trantrongminh
+    (pending). Date 2026-11-05 (0.3: curation `chunks[]` embedded on write, Guide Tier 1 evidence; SRC-100 A-028). Produced with `design/apiDesign_prompt.md` v2.0 (kit commit `6996dae`, adapted copy
     `docs/00-governance/prompt-templates/design/apiDesign_prompt.md`). Narrative, rules and traceability: `docs/04-design/api/api-contract.md`.
 
     This contract is a superset of the generated `apps/api/openapi.json` (info.version 0.1.0): `/health`, `/ready`
@@ -997,8 +997,11 @@ paths:
       x-nfr: [NFR-005, NFR-006, NFR-036]
       summary: Ask a question; the answer streams over SSE
       description: |
-        Text or an on-device voice transcript (`input_mode: VOICE_TRANSCRIPT`, FR-059). Only the question text,
-        the place's reviewed facts and retrieved reviewed chunks go to Gemini; no account ID or location (BR-046).
+        Text or an on-device voice transcript (`input_mode: VOICE_TRANSCRIPT`, FR-059). Evidence (ADR-010 Tier 1):
+        every approved fact pinned by the place's current publication and every approved chunk of its pinned corpus
+        revision for the session locale; no question embedding and no similarity threshold. Only the question text
+        and that evidence go to Gemini; no account ID or location (BR-046). An empty evidence set answers
+        INSUFFICIENT_EVIDENCE without a model call.
         Events: `progress`, `text`, `result` (ANSWERED with ≥ 1 citation, or INSUFFICIENT_EVIDENCE), `error`.
         The traveler message and the final answer are stored; a dropped stream is resumed with API-027.
       tags: [guide]
@@ -1302,8 +1305,13 @@ paths:
       x-api-id: API-035
       x-fr: [FR-011, FR-012, FR-019]
       x-nfr: [NFR-015]
-      summary: Review a candidate — bilingual content, sourced facts, AI-draft confirmation
-      description: Partial update against `expected_content_revision`; increments places.content_revision.
+      summary: Review a candidate — bilingual content, sourced facts, sectioned chunks, AI-draft confirmation
+      description: |
+        Partial update against `expected_content_revision`; increments places.content_revision. Each item of
+        `chunks[]` is one narrative section per locale (ADR-010 0.3); a new or changed chunk (by content hash) is
+        embedded synchronously through the AI gateway and stored with `embedding_model` (ADR-012 0.3). If the
+        gateway is unavailable the chunk is still saved with `embedding_state: PENDING` and `warnings[]` names it;
+        it cannot be approved until embedded (`cli embed --pending` or a later save).
       tags: [admin]
       security:
         - HTTPBearer: [curator]
@@ -1348,8 +1356,8 @@ paths:
       summary: Publish a complete candidate as a new catalog publication
       description: |
         Refuses with 422 `publication_incomplete` naming missing VI/EN content, fact sources, attribution entries
-        or unconfirmed AI drafts (`context.missing`). Records reviewer and time (FR-015). Embedding of reviewed
-        chunks runs afterwards in the CLI (ADR-012).
+        or unconfirmed AI drafts (`context.missing`). Records reviewer and time (FR-015). Chunks are already
+        embedded on write (ADR-012 0.3); the publication pins the latest approved corpus revision (ADR-010).
       tags: [admin]
       security:
         - HTTPBearer: [curator]
@@ -1977,6 +1985,10 @@ components:
         knowledge_chunk_id:
           type: [string, 'null']
           format: uuid
+        section:
+          type: [string, 'null']
+          description: Section of the cited chunk (ADR-010 0.3); null for a fact citation.
+          enum: [OVERVIEW, HISTORY, HIGHLIGHTS, VISIT_TIPS, ETIQUETTE, ACCESS, null]
         place_fact_id:
           type: [string, 'null']
           format: uuid
@@ -3127,10 +3139,90 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/CandidateFact'
+            chunks:
+              type: array
+              description: Narrative chunks of the latest corpus revision, one per section and locale (ADR-010 0.3).
+              items:
+                $ref: '#/components/schemas/KnowledgeChunk'
+            warnings:
+              type: array
+              description: Non-blocking review warnings, e.g. CHUNK_EMBEDDING_PENDING with the chunk id (ADR-012 0.3).
+              items:
+                type: object
+                required: [code]
+                properties:
+                  code:
+                    type: string
+                  knowledge_chunk_id:
+                    type: [string, 'null']
+                    format: uuid
             publications:
               type: array
               items:
                 $ref: '#/components/schemas/CatalogPublication'
+    ChunkSection:
+      type: string
+      description: Citation unit of the Guide corpus (ADR-010 0.3).
+      enum: [OVERVIEW, HISTORY, HIGHLIGHTS, VISIT_TIPS, ETIQUETTE, ACCESS]
+    ChunkInput:
+      type: object
+      additionalProperties: false
+      required: [locale, section, content, source_revision_ids]
+      properties:
+        locale:
+          $ref: '#/components/schemas/Locale'
+        section:
+          $ref: '#/components/schemas/ChunkSection'
+        content:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: Original narrative text for this section; never operational facts (hours, prices, addresses).
+        source_revision_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+        review_state:
+          type: string
+          description: DRAFT (default) or APPROVED; approval is refused while the embedding is pending.
+          enum: [DRAFT, APPROVED]
+    KnowledgeChunk:
+      type: object
+      required: [id, locale, section, corpus_revision, content, review_state, embedding_state]
+      properties:
+        id:
+          type: string
+          format: uuid
+        locale:
+          $ref: '#/components/schemas/Locale'
+        section:
+          $ref: '#/components/schemas/ChunkSection'
+        corpus_revision:
+          type: integer
+          minimum: 1
+        content:
+          type: string
+        content_sha256:
+          type: string
+        source_revision_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        review_state:
+          type: string
+          enum: [DRAFT, APPROVED, RETIRED]
+        embedding_state:
+          type: string
+          description: EMBEDDED when `embedding` and `embedding_model` are stored; PENDING after a gateway failure.
+          enum: [EMBEDDED, PENDING]
+        embedding_model:
+          type: [string, 'null']
+        created_at:
+          type: string
+          format: date-time
     CandidateReview:
       type: object
       additionalProperties: false
@@ -3159,6 +3251,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CandidateFact'
+        chunks:
+          type: array
+          maxItems: 12
+          description: One narrative chunk per section and locale; replaces the section's chunk in the next corpus revision and is embedded on write (ADR-012 0.3).
+          items:
+            $ref: '#/components/schemas/ChunkInput'
         confirm_ai_draft_locales:
           type: array
           description: Locales whose AI_DRAFT content the curator confirms field by field (FR-019).

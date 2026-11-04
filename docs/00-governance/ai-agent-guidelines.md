@@ -45,5 +45,11 @@ present anything else as implemented.
 ## Stack review additions (2026-11-04, accepted by owner — SRC-100 A-021)
 
 - DEC-008 Scheduling: Google OR-Tools (time-window routing) orders stops and computes times from visit durations and a cached Google Routes Compute Route Matrix; Gemini only selects/ranks published place IDs and writes rationales; locks are solver constraints; Plan Health is deterministic validation.
-- DEC-009 Ingestion: Typer CLI in `apps/api` using DuckDB over Overture/Foursquare GeoParquet (city bounding box) and Wikidata; no worker/queue/Redis; embeddings computed by CLI after publication.
+- DEC-009 Ingestion: Typer CLI in `apps/api` using DuckDB over Overture/Foursquare GeoParquet (city bounding box) and Wikidata; no worker/queue/Redis. Chunk embeddings are computed on write by the curation API before approval and publication (DEC-012, ADR-012 0.3); the CLI only backfills and re-embeds.
+
+## AI design alignment (2026-11-05, accepted by owner — SRC-100 A-028)
+
+- DEC-010 Guide retrieval in two tiers (ADR-010 0.3): a place-scoped question (v1) uses every approved fact and every approved chunk of the place's pinned corpus revision as evidence, with no question embedding and no similarity threshold; city-scoped questions (roadmap) use hybrid lexical + pgvector retrieval with a calibrated threshold. Chunks are authored per section (OVERVIEW, HISTORY, HIGHLIGHTS, VISIT_TIPS, ETIQUETTE, ACCESS).
+- DEC-011 Scheduling as one multi-day OR-Tools model per proposal (ADR-011 0.2): days are vehicles, (place, day) nodes carry that date's opening window, drop penalties follow Gemini ranks, locks are mandatory nodes. Gemini ranks one pool for the trip and never assigns days, orders stops or sets times (ADR-004 0.2).
+- DEC-012 Chunk embeddings on write (ADR-012 0.3): `PATCH /v1/admin/candidates/{id}` accepts `chunks[]`, embeds new or changed chunks synchronously through the AI gateway and records `embedding_model`; the question embedder (Tier 2) must use the same model; a model change runs `cli embed --reembed-all`.
 - No Agno/AgentOS. Production images built for linux/arm64 (EC2 t4g).
