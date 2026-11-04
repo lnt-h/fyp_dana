@@ -5,7 +5,7 @@
 | Title | Software Development Plan |
 | Project / project ID | Gonarra (working name) / GONARRA |
 | Document ID | GONARRA-SDP |
-| Version / status | 0.1 / Draft |
+| Version / status | 0.2 / Draft |
 | Issue date | 2026-11-04 (time zone Asia/Ho_Chi_Minh, UTC+7, for every date in this plan) |
 | Classification | Internal — FYP |
 | Owner and author | Lê Ngọc Tấn Hiền, student owner and sole developer |
@@ -18,6 +18,7 @@
 | Version | Date | Author | Description | Approver |
 |---|---|---|---|---|
 | 0.1 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | First SDP from BRD 0.4, PRD 0.2, user stories, SAD 0.1, ADR-001..012, plan.md and progress.md | [Pending] |
+| 0.2 | 2026-11-05 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | AI design alignment (SRC-100 A-028): planning summary follows ADR-004 0.2 / ADR-011 0.2 / ADR-010 0.3 / ADR-012 0.3; WBS 0.2 referenced. Owner priority recorded: AI-doc consistency, screen specs and docs completion before schedule work | [Pending] |
 
 ## Table of contents
 
@@ -161,8 +162,10 @@ These are not achievable at the current estimate without OQ-101 (§5.6).
 Three deployables coupled only through the HTTP API `/v1` (REST + SSE): `apps/mobile` (Expo SDK 58 traveler app),
 `apps/admin` (React + Vite curator SPA, planned) and `apps/api` (FastAPI modular monolith with the Typer ingestion
 CLI); PostgreSQL 16 + PostGIS + pgvector [Source: SAD §3.1; ADR-001]. Components CMP-001..CMP-024 [Source: SAD
-§3.1.1]. Planning: Gemini selects and ranks supplied published place IDs, OR-Tools schedules, Google Routes gives
-distances and durations, deterministic code computes Plan Health [Source: ADR-004, ADR-011].
+§3.1.1]. Planning: Gemini ranks one pool of supplied published place IDs, one OR-Tools multi-day model assigns
+days, order and times, Google Routes gives distances and durations, deterministic code computes Plan Health
+[Source: ADR-004 0.2, ADR-011 0.2]. Guide: place-scoped evidence without embedding or threshold; chunk embeddings
+computed on write by the curation API [Source: ADR-010 0.3, ADR-012 0.3].
 
 **Current implementation state** [Source: progress.md "Now"; ai-agent-guidelines "Current implementation status"]:
 done — mobile onboarding and Clerk sign-in (owner); exists but unverified — backend foundation (FastAPI, Clerk JWT
