@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gonarra wireframe viewer</title>
+<!-- Viewer only: it frames the wireframe pages in this folder and adds no design content. -->
+<style>
+:root{--deepOcean:#0B3045;--ink:#07151E;--tealText:#00788F;--border:#DCE8EE;--canvas:#F5FAFC;--muted:#5E7585}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink);background:var(--canvas);display:flex}
+nav{width:260px;flex:none;background:var(--deepOcean);color:#fff;overflow:auto;padding:12px 0}
+nav h1{font-size:15px;margin:0 16px 4px}
+nav p{font-size:11px;opacity:.75;margin:0 16px 10px}
+nav h2{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;opacity:.7;margin:14px 16px 4px}
+nav a{display:block;color:#fff;text-decoration:none;font-size:13px;padding:7px 16px;border-left:3px solid transparent}
+nav a:hover{background:rgba(255,255,255,.08)}
+nav a.on{background:rgba(255,255,255,.14);border-left-color:#28B6B5}
+nav a small{display:block;opacity:.7;font-size:11px}
+main{flex:1;min-width:0;display:flex;flex-direction:column}
+.bar{display:flex;gap:12px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--border);background:#fff;font-size:13px}
+.bar b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar a{color:var(--tealText)}
+#view{flex:1;border:0;width:100%;background:#fff}
+#grid{flex:1;overflow:auto;padding:16px;display:none;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px}
+body.grid #grid{display:grid}
+body.grid #view,body.grid .bar{display:none}
+.tile{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer}
+.tile .cap{padding:8px 10px;font-size:12px;border-bottom:1px solid var(--border)}
+.tile .cap small{display:block;color:var(--muted)}
+.tile .frame{height:300px;overflow:hidden;position:relative}
+.tile iframe{width:1440px;height:1200px;border:0;transform:scale(.25);transform-origin:0 0;pointer-events:none}
+.tile:hover{outline:2px solid var(--tealText)}
+</style>
+</head>
+<body>
+<nav>
+  <h1>Gonarra wireframes</h1>
+  <p>← / → switch screens · G shows all</p>
+  <a href="#all" data-grid>Show all screens</a>
+  <div id="list"></div>
+</nav>
+<main>
+  <div class="bar"><b id="cur"></b><a id="open" target="_blank">Open in new tab ↗</a></div>
+  <iframe id="view" title="Wireframe"></iframe>
+  <div id="grid"></div>
+</main>
+<script>
+const PAGES=[
+  ["Mobile","m01-home-city.html","Home, city choice and search"],
+  ["Mobile","m02-planner-input.html","Planner input and generation progress"],
+  ["Mobile","m03-proposal-timeline.html","Proposal timeline and day regeneration"],
+  ["Mobile","m04-proposal-map.html","Proposal map"],
+  ["Mobile","m05-plan-health.html","Plan Health detail"],
+  ["Mobile","m06-edit-stop.html","Edit stop and place picker"],
+  ["Mobile","m07-save-confirmation.html","Save confirmation"],
+  ["Mobile","m08-place-card.html","Place card"],
+  ["Mobile","m09-guide-chat.html","Guide chat (text)"],
+  ["Mobile","m10-voice-question.html","Voice question and read-aloud"],
+  ["Mobile","m11-photo-identification.html","Photo identification result"],
+  ["Mobile","m12-booking-handoff.html","Booking handoff sheet"],
+  ["Mobile","m13-account-deletion.html","Account deletion"],
+  ["Curator admin","a01-candidate-queue.html","Candidate queue and coverage"],
+  ["Curator admin","a02-place-review.html","Place review and publish"],
+  ["Curator admin","a03-import-runs.html","Import runs"]
+];
+const list=document.getElementById('list'),grid=document.getElementById('grid'),view=document.getElementById('view');
+let group='',idx=0;
+PAGES.forEach(([g,f,t],i)=>{
+  if(g!==group){group=g;const h=document.createElement('h2');h.textContent=g;list.appendChild(h);}
+  const a=document.createElement('a');a.href='#'+f;a.innerHTML=t+'<small>'+f+'</small>';list.appendChild(a);
+  const tile=document.createElement('div');tile.className='tile';
+  tile.innerHTML='<div class="cap">'+t+'<small>'+f+'</small></div><div class="frame"><iframe loading="lazy" tabindex="-1" src="'+f+'"></iframe></div>';
+  tile.onclick=()=>{location.hash=f};grid.appendChild(tile);
+});
+function route(){
+  const h=decodeURIComponent(location.hash.slice(1));
+  const i=PAGES.findIndex(p=>p[1]===h);
+  document.querySelectorAll('nav a').forEach(a=>a.classList.remove('on'));
+  if(i<0){document.body.classList.add('grid');document.querySelector('[data-grid]').classList.add('on');return;}
+  idx=i;document.body.classList.remove('grid');
+  const [,f,t]=PAGES[i];
+  if(!view.src.endsWith(f))view.src=f;
+  document.getElementById('cur').textContent=t+' — '+f;
+  document.getElementById('open').href=f;
+  list.querySelectorAll('a')[i].classList.add('on');
+}
+addEventListener('hashchange',route);
+addEventListener('keydown',e=>{
+  if(e.target.closest&&e.target.closest('input,textarea'))return;
+  if(e.key==='ArrowRight')location.hash=PAGES[(idx+1)%PAGES.length][1];
+  else if(e.key==='ArrowLeft')location.hash=PAGES[(idx-1+PAGES.length)%PAGES.length][1];
+  else if(e.key==='g'||e.key==='G')location.hash='all';
+});
+if(!location.hash)location.hash=PAGES[0][1];else route();
+</script>
+</body>
+</html>
