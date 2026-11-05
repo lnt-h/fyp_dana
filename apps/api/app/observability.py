@@ -92,10 +92,7 @@ def install_observability(application: FastAPI) -> None:
 
     @application.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-        # app.api.errors.ApiError carries an explicit code and context (read duck-typed so this
-        # module never imports the HTTP layer).
-        explicit_code = getattr(exc, "error_code", None)
-        code = explicit_code or {
+        code = {
             401: "authentication_required",
             404: "resource_not_found",
             409: "revision_conflict",
@@ -103,7 +100,6 @@ def install_observability(application: FastAPI) -> None:
             503: "service_unavailable",
         }.get(exc.status_code, "request_failed")
         message = exc.detail if isinstance(exc.detail, str) else "Request failed"
-        context = getattr(exc, "context", None)
         return JSONResponse(
             status_code=exc.status_code,
             content=error_payload(
@@ -111,7 +107,6 @@ def install_observability(application: FastAPI) -> None:
                 message,
                 request.state.request_id,
                 retryable=exc.status_code == 503,
-                context=context if isinstance(context, dict) else None,
             ),
         )
 

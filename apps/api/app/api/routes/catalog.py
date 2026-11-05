@@ -10,7 +10,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.errors import ApiError
 from app.catalog.places import (
     FactRecord,
     MediaRecord,
@@ -23,6 +22,7 @@ from app.catalog.reference import AreaRecord, CityRecord, ReferenceRepository
 from app.catalog.search import BoundingBox, InvalidCursorError, Near, search_catalog
 from app.config import get_settings
 from app.db.session import get_db_session
+from app.errors import AppError
 from app.models.account import Account
 from app.schemas.catalog import (
     Area,
@@ -72,8 +72,8 @@ async def resolve_locale(
 ResolvedLocale = Annotated[str, Depends(resolve_locale)]
 
 
-def _invalid(field: str, message: str) -> ApiError:
-    return ApiError(
+def _invalid(field: str, message: str) -> AppError:
+    return AppError(
         422,
         "validation_error",
         message,
@@ -346,7 +346,7 @@ async def search_places(
             limit=limit,
         )
     except InvalidCursorError as exc:
-        raise ApiError(status.HTTP_400_BAD_REQUEST, "invalid_cursor", str(exc)) from exc
+        raise AppError(status.HTTP_400_BAD_REQUEST, "invalid_cursor", str(exc)) from exc
     return PlaceSummaryPage(
         items=[_summary(item, locale) for item in page.items],
         next_cursor=page.next_cursor,

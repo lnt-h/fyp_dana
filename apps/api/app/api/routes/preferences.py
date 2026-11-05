@@ -6,10 +6,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.errors import ApiError
 from app.catalog.preferences import PreferencesRecord, PreferencesRepository, PreferencesUpdate
 from app.catalog.reference import ReferenceRepository, normalize_category_code
 from app.db.session import get_db_session
+from app.errors import AppError
 from app.models.account import Account
 from app.schemas.common import ErrorResponse
 from app.schemas.preferences import Preferences, PreferencesWrite
@@ -72,7 +72,7 @@ async def put_preferences(
     for code in body.interest_category_codes:
         normalized = normalize_category_code(code)
         if normalized not in known:
-            raise ApiError(
+            raise AppError(
                 422,
                 "validation_error",
                 "Unknown interest category code",
