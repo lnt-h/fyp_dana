@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   check: { position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.audioTeal, borderWidth: 2, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   tick: { color: colors.white, fontSize: 15, fontFamily: fonts.bold },
   types: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.lg },
-  chip: { paddingHorizontal: spacing.md, minHeight: 46, borderRadius: radii.chip, borderWidth: 1.5, borderColor: '#DCE8EE', justifyContent: 'center', backgroundColor: colors.white },
+  chip: { paddingHorizontal: spacing.md, minHeight: 46, borderRadius: radii.chip, borderWidth: 1.5, borderColor: colors.hairline, justifyContent: 'center', backgroundColor: colors.white },
   chipSelected: { backgroundColor: colors.tealText, borderColor: colors.tealText },
   light: { color: colors.white },
 });

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import Constants from 'expo-constants';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { PrimaryButton, SecondaryButton, Skeleton, StatCircle } from '../components/ui';
@@ -30,16 +29,15 @@ export default function ProfileScreen() {
 
   return <AccountShell title={t('account.profile.title')} fallback="/home">
     <View style={[a.card, styles.identity]}>
-      <LinearGradient colors={[colors.deepOcean, colors.tealDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatar}
-        accessible accessibilityRole="image" accessibilityLabel={t('account.profile.avatarLabel', { name })}>
-        {initial ? <Text style={styles.initial}>{initial}</Text> : <AccountIcon name="person" color={colors.white} size={30} />}
-      </LinearGradient>
+      <View style={styles.avatar} accessible accessibilityRole="image" accessibilityLabel={t('account.profile.avatarLabel', { name })}>
+        {initial ? <Text style={styles.initial}>{initial}</Text> : <AccountIcon name="person" color={colors.ink} size={30} />}
+      </View>
       <View style={styles.identityCopy}>
         <Text numberOfLines={1} style={styles.name}>{name}</Text>
         <Text numberOfLines={isSignedIn ? 1 : 3} style={styles.email}>{isSignedIn ? profile.email : t('account.profile.guestBody')}</Text>
       </View>
     </View>
-    {!isSignedIn && <PrimaryButton label={t('account.profile.create')} variant="gradient" onPress={() => router.push('/register')} style={styles.create} />}
+    {!isSignedIn && <PrimaryButton label={t('account.profile.create')} onPress={() => router.push('/register')} style={styles.create} />}
 
     {isSignedIn && <View accessibilityLabel={t('account.profile.statsLabel')} style={[a.card, styles.stats]}>
       {stats.status === 'ready' ? <View accessible accessibilityLabel={t('account.profile.statsA11y', stats.stats)} style={styles.statsRow}>
@@ -65,13 +63,13 @@ export default function ProfileScreen() {
     <GroupCard>
       <AccountRow icon="language" title={t('account.common.language')} value={languageName} onPress={() => router.push('/language')} />
       <AccountRow icon="motion" title={t('account.common.reduceMotion')}
-        trailing={<Switch accessibilityLabel={t('account.common.reduceMotion')} value={reduceMotion} onValueChange={setReduceMotion} trackColor={{ false: '#D7E3EA', true: colors.audioTeal }} />} />
+        trailing={<Switch accessibilityLabel={t('account.common.reduceMotion')} value={reduceMotion} onValueChange={setReduceMotion} trackColor={{ false: colors.hairline, true: colors.audioTeal }} />} />
       <AccountRow icon="settings" title={t('account.profile.settings')} subtitle={t('account.profile.settingsSubtitle')} onPress={() => router.push('/settings')} />
     </GroupCard>
 
     <SectionLabel>{t('account.profile.sectionSupport')}</SectionLabel>
     <GroupCard>
-      <ExpandableRow icon="sparkle" title={t('account.common.aiData')} body={t('account.common.aiDataBody')} />
+      <ExpandableRow icon="info" title={t('account.common.aiData')} body={t('account.common.aiDataBody')} />
       <ExpandableRow icon="doc" title={t('account.common.legal')} badge={t('account.common.legalDraft')} body={t('account.common.legalBody')} />
       <ExpandableRow icon="info" title={t('account.common.about')} subtitle={t('account.common.version', { version })} body={t('account.common.aboutBody')} />
     </GroupCard>
@@ -89,8 +87,8 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
-  avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
-  initial: { fontFamily: fonts.bold, fontSize: 28, color: colors.white },
+  avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sun },
+  initial: { fontFamily: fonts.bold, fontSize: 28, color: colors.ink },
   identityCopy: { flex: 1 },
   name: { ...typography.headline, color: colors.ink },
   email: { ...typography.caption, fontSize: 15, lineHeight: 21, marginTop: 2 },
@@ -98,10 +96,10 @@ const styles = StyleSheet.create({
   stats: { paddingVertical: spacing.lg, paddingHorizontal: spacing.xs },
   statsRow: { flexDirection: 'row', alignItems: 'stretch' },
   stat: { flex: 1 },
-  statRule: { width: StyleSheet.hairlineWidth, backgroundColor: '#D9E5EB', marginVertical: spacing.xs },
+  statRule: { width: StyleSheet.hairlineWidth, backgroundColor: colors.hairline, marginVertical: spacing.xs },
   statSkeleton: { flex: 1, alignItems: 'center', gap: spacing.xs },
   statsError: { marginVertical: 0 },
-  signOut: { height: 56, borderRadius: radii.action, marginTop: spacing.xs, ...elevation.none },
-  delete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, minHeight: MIN_TOUCH + 4, marginTop: spacing.sm, borderRadius: radii.action },
+  signOut: { height: 56, borderRadius: radii.button, marginTop: spacing.xs, ...elevation.none },
+  delete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, minHeight: MIN_TOUCH + 4, marginTop: spacing.sm, borderRadius: radii.button },
   deleteText: { fontFamily: fonts.bold, fontSize: 16, color: errorColor },
 });

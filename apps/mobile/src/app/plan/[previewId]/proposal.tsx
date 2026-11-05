@@ -442,15 +442,15 @@ function Proposal({ data, goBack, onPreview, previewId: routePreviewId }: { data
 }
 
 const st = StyleSheet.create({
-  bookBar: { borderTopColor: '#DCE8EE', borderTopWidth: StyleSheet.hairlineWidth, backgroundColor: colors.white, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  screen: { flex: 1, backgroundColor: colors.white },
+  bookBar: { borderTopColor: colors.hairline, borderTopWidth: StyleSheet.hairlineWidth, backgroundColor: colors.white, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  screen: { flex: 1, backgroundColor: colors.canvas },
   center: { alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   floatingBack: { position: 'absolute', left: spacing.md },
   touch: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   skeletonStats: { flexDirection: 'row', justifyContent: 'space-around', marginTop: spacing.lg },
   skeletonStat: { alignItems: 'center', gap: spacing.xs },
   skeletonBody: { gap: spacing.md, padding: spacing.lg },
-  errorTile: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.skyWash, alignItems: 'center', justifyContent: 'center' },
+  errorTile: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.surfaceTint, alignItems: 'center', justifyContent: 'center' },
   errorTitle: { ...typography.headline, textAlign: 'center', marginTop: spacing.md },
   errorBody: { ...typography.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xxs },
   retry: { marginTop: spacing.xl, alignSelf: 'stretch' },
@@ -462,7 +462,7 @@ const st = StyleSheet.create({
   section: { marginTop: spacing.xxl },
   tabs: { marginBottom: spacing.sm },
   days: { gap: spacing.sm },
-  banner: { position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: spacing.sm, borderRadius: radii.chip, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.audioTeal },
+  banner: { position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: spacing.sm, borderRadius: radii.inset, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.audioTeal },
   bannerIcon: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.tealText, alignItems: 'center', justifyContent: 'center' },
-  bannerText: { flex: 1, fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: colors.deepOcean, paddingVertical: spacing.sm },
+  bannerText: { flex: 1, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.deepOcean, paddingVertical: spacing.sm },
 });

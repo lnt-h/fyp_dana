@@ -6,7 +6,7 @@ const c = (cx: number, cy: number, r: number) => `M${cx - r} ${cy}a${r} ${r} 0 1
 
 type Stroke = { d: string; sw?: number };
 
-/** 24×24 line icons, one stroke style (1.8, round caps and joins). */
+/** 24×24 line icons, one stroke style (1.75, round caps and joins). */
 const ICONS = {
   back: [{ d: 'M15 5l-7 7 7 7' }],
   more: [{ d: 'M5.5 12h.01M12 12h.01M18.5 12h.01', sw: 3.2 }],
@@ -45,13 +45,13 @@ export type IconProps = {
   /** Box size in dp (default 24). */
   size?: number;
   color?: string;
-  /** Stroke width in the 24-unit grid (default 1.8). */
+  /** Stroke width in the 24-unit grid (default 1.75). */
   strokeWidth?: number;
   /** Set for icons that carry meaning on their own; decorative icons stay hidden from screen readers. */
   accessibilityLabel?: string;
 };
 
-export function Icon({ name, size = 24, color = colors.ink, strokeWidth = 1.8, accessibilityLabel }: IconProps) {
+export function Icon({ name, size = 24, color = colors.ink, strokeWidth = 1.75, accessibilityLabel }: IconProps) {
   const strokes: Stroke[] = ICONS[name];
   return (
     <Svg

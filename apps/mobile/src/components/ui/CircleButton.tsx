@@ -10,7 +10,7 @@ export type CircleButtonProps = {
   onPress: () => void;
   /** Diameter 44–48 (default 46). */
   size?: 44 | 46 | 48;
-  /** `light` = white circle for use over photos/maps; `tint` = skyWash circle on white surfaces. */
+  /** `light` = white circle for use over photos/maps; `tint` = surfaceTint circle on white surfaces. */
   tone?: 'light' | 'tint';
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -44,5 +44,5 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.45 },
   light: { backgroundColor: colors.white },
   pressed: { opacity: 0.8, transform: [{ scale: 0.96 }] },
-  tint: { backgroundColor: colors.skyWash },
+  tint: { backgroundColor: colors.surfaceTint },
 });

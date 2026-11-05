@@ -59,7 +59,7 @@
   "directions": "Directions",
   "directionsHint": "Opens your maps app",
   "directionsFailed": "Could not open a maps app",
-  "askGuide": "Ask Guide",
+  "askGuide": "Ask about this place",
   "quick": {
     "hours": "Opening hours",
     "visit": "Visit",

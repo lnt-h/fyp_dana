@@ -17,7 +17,7 @@ import { SignInGate, type GateFeature } from '../../features/auth/SignInGate';
 import { CityButton } from '../../features/home/city/CityButton';
 import { CitySheet } from '../../features/home/city/CitySheet';
 import { useSelectedCity } from '../../features/home/cityStore';
-import { useTabBarClearance } from '../../features/home/components/HomeTabBar';
+import { useTabBarHeight } from '../../features/home/components/HomeTabBar';
 import { HomeMap } from '../../features/home/map/HomeMap';
 import { PlacePreviewCard } from '../../features/home/map/PlacePreviewCard';
 import { cityRegion, framedRegion } from '../../features/home/map/region';
@@ -31,9 +31,12 @@ import { searchPlaces } from '../../lib/api/source';
 import type { Place } from '../../lib/api/types';
 import { colors } from '../../theme/colors';
 import { elevation } from '../../theme/elevation';
+import { radii, spacing } from '../../theme/spacing';
 import { fonts } from '../../theme/typography';
 
 const SNAP_POINTS = ['22%', '52%', '92%'];
+/** Fraction of the screen the sheet covers at HALF (initial map padding before the first snap reports its position). */
+const HALF_FRACTION = 0.52;
 const HALF = 1;
 const FULL = 2;
 const MAX_MARKERS = 20;
@@ -49,7 +52,7 @@ export default function HomeScreen() {
   const aspect = width / height;
   const reduced = useReducedMotion();
   const offline = useIsOffline();
-  const clearance = useTabBarClearance();
+  const tabBarHeight = useTabBarHeight();
   const { isSignedIn, profile } = useAccount();
   const { city } = useSelectedCity();
   const cityName = city ? (i18n.resolvedLanguage === 'vi' ? city.name_vi : city.name_en) : null;
@@ -59,6 +62,8 @@ export default function HomeScreen() {
   const sheetTop = useSharedValue(height);
   const [sheetIndex, setSheetIndex] = useState(HALF);
   const [initialRegion] = useState(() => cityRegion(city?.code, [], aspect));
+  // Map padding follows the sheet's resting height (not FULL, where the map is hidden) so Legal stays above the sheet.
+  const [mapBottom, setMapBottom] = useState(() => Math.round((height - tabBarHeight) * HALF_FRACTION) + tabBarHeight);
 
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [cityPlaces, setCityPlaces] = useState<CityPlaces | null>(null);
@@ -138,6 +143,10 @@ export default function HomeScreen() {
     setRecent(previous => [q, ...previous.filter(item => item.toLowerCase() !== q.toLowerCase())].slice(0, MAX_RECENT));
   }
 
+  function handleSheetAnimate(_from: number, toIndex: number, _fromPosition: number, toPosition: number) {
+    if (toIndex >= 0 && toIndex < FULL) setMapBottom(Math.max(0, Math.round(height - toPosition)));
+  }
+
   function handleSheetChange(index: number) {
     setSheetIndex(index);
     if (index < FULL && searching) closeSearch(false);
@@ -162,6 +171,7 @@ export default function HomeScreen() {
 
       <HomeMap
         accessibilityLabel={t('home.map.label', { city: cityName ?? '' })}
+        bottomPadding={mapBottom}
         initialRegion={initialRegion}
         mapRef={mapRef}
         onSelect={setSelectedId}
@@ -171,7 +181,7 @@ export default function HomeScreen() {
       />
 
       <LinearGradient
-        colors={['rgba(255,255,255,0.96)', 'rgba(255,255,255,0.7)', 'rgba(255,255,255,0)']}
+        colors={['rgba(251,247,240,0.96)', 'rgba(251,247,240,0.7)', 'rgba(251,247,240,0)']}
         pointerEvents="none"
         style={[styles.scrim, { height: insets.top + 200 }]}
       />
@@ -180,7 +190,6 @@ export default function HomeScreen() {
         <View pointerEvents="box-none" style={styles.topRow}>
           <Wordmark width={128} />
           <Pressable accessibilityLabel={t('home.profile')} accessibilityRole="button" onPress={() => router.push('/profile')} style={styles.avatar}>
-            <LinearGradient colors={['#BDEBFF', '#75C8DD']} style={StyleSheet.absoluteFill} />
             {initial ? <Text style={styles.avatarText}>{initial}</Text> : <AccountIcon name="person" />}
           </Pressable>
         </View>
@@ -212,11 +221,13 @@ export default function HomeScreen() {
         animatedPosition={sheetTop}
         animateOnMount={!reduced}
         backgroundStyle={styles.sheetBackground}
+        bottomInset={tabBarHeight}
         enableDynamicSizing={false}
         handleIndicatorStyle={styles.handle}
         index={HALF}
         keyboardBehavior="extend"
         keyboardBlurBehavior="restore"
+        onAnimate={handleSheetAnimate}
         onChange={handleSheetChange}
         overrideReduceMotion={reduced ? ReduceMotion.Always : ReduceMotion.System}
         ref={sheetRef}
@@ -224,7 +235,7 @@ export default function HomeScreen() {
         style={styles.sheet}
       >
         <BottomSheetScrollView
-          contentContainerStyle={{ paddingBottom: clearance }}
+          contentContainerStyle={{ paddingBottom: spacing.xl }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           stickyHeaderIndices={searching ? [0] : undefined}
@@ -272,6 +283,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
+    backgroundColor: colors.sun,
     borderColor: colors.white,
     borderRadius: 26,
     borderWidth: 2,
@@ -280,7 +292,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     width: 52,
   },
-  avatarText: { color: colors.deepOcean, fontFamily: fonts.bold, fontSize: 20 },
+  avatarText: { color: colors.ink, fontFamily: fonts.bold, fontSize: 20 },
   controls: { alignItems: 'flex-end', flexDirection: 'row', gap: 12, justifyContent: 'space-between' },
   credit: {
     backgroundColor: 'rgba(255,255,255,0.88)',
@@ -293,7 +305,7 @@ const styles = StyleSheet.create({
   creditText: { color: colors.ink, fontFamily: fonts.medium, fontSize: 11, lineHeight: 15 },
   floating: { height: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   floatingInner: { bottom: 12, gap: 12, left: GUTTER, position: 'absolute', right: GUTTER - 4 },
-  gutter: { backgroundColor: colors.white, paddingHorizontal: GUTTER },
+  gutter: { backgroundColor: colors.canvas, paddingHorizontal: GUTTER },
   handle: { backgroundColor: '#C9C9C9', height: 4, width: 68 },
   header: { gap: 10, left: 0, paddingHorizontal: GUTTER - 4, position: 'absolute', right: 0, top: 0 },
   offlineHint: {
@@ -308,14 +320,14 @@ const styles = StyleSheet.create({
   },
   offlineText: { color: colors.ink, flexShrink: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
   scrim: { left: 0, position: 'absolute', right: 0, top: 0 },
-  screen: { backgroundColor: colors.skyWash, flex: 1 },
+  screen: { backgroundColor: colors.canvas, flex: 1 },
   sheet: {
     shadowColor: colors.ink,
     shadowOffset: { height: -4, width: 0 },
     shadowOpacity: 0.08,
     shadowRadius: 14,
   },
-  sheetBackground: { backgroundColor: colors.white, borderTopLeftRadius: 40, borderTopRightRadius: 40 },
+  sheetBackground: { backgroundColor: colors.canvas, borderTopLeftRadius: radii.sheet, borderTopRightRadius: radii.sheet },
   toast: {
     alignSelf: 'center',
     backgroundColor: colors.deepOcean,
@@ -326,6 +338,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: GUTTER,
   },
-  toastText: { color: colors.white, fontFamily: fonts.medium, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  toastText: { color: colors.white, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   topRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingLeft: 4 },
 });

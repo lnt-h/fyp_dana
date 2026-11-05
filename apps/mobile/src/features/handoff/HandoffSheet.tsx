@@ -23,7 +23,7 @@ export function HandoffSheet({ visible, tripId, kinds, stopId, onClose }: Handof
   return (
     <SheetFrame
       accessibilityLabel={t('save.handoff.title')}
-      footer={<SecondaryButton label={t('save.handoff.close')} onPress={onClose} style={{ height: 56 }} />}
+      footer={<SecondaryButton label={t('save.handoff.close')} onPress={onClose} />}
       onRequestClose={onClose}
       visible={visible}
     >

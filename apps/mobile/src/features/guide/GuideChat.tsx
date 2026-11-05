@@ -11,7 +11,7 @@ import { createGuideSession, getPlace, getPreferences, listCities, listGuideMess
 import type { GuideMessage, GuideSession, GuideStreamEvent, PlaceDetail } from '../../lib/api/types';
 import { resolveImage } from '../../lib/images/imagekit';
 import { colors } from '../../theme/colors';
-import { elevation } from '../../theme/elevation';
+import { radii } from '../../theme/spacing';
 import { fonts } from '../../theme/typography';
 import { ScreenMessage, isNotFound } from '../place/components/PlaceUI';
 import { AssistantBubble, ErrorLine, StreamingBubble, TravelerBubble } from './components/GuideBubbles';
@@ -158,7 +158,7 @@ export function GuideChat({ placeId, onChangePlace, keyboardOpen }: { placeId: s
       accessibilityLabel={t('guide.context.a11y', { name: [placeName, cityName].filter(Boolean).join(', ') })}
       accessibilityRole="button"
       onPress={changePlace}
-      style={({ pressed }) => [c.context, elevation.sm, pressed && { opacity: 0.8 }]}
+      style={({ pressed }) => [c.context, pressed && { opacity: 0.8 }]}
     >
       <View style={c.contextThumb}>
         {thumb
@@ -249,13 +249,13 @@ export function GuideChat({ placeId, onChangePlace, keyboardOpen }: { placeId: s
           accessibilityState={{ busy, disabled: !canSend }}
           disabled={!canSend}
           onPress={() => void send(input)}
-          style={({ pressed }) => [c.send, canSend ? elevation.md : c.sendDisabled, pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] }]}
+          style={({ pressed }) => [c.send, !canSend && c.sendDisabled, pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] }]}
         >
           {busy ? <ActivityIndicator color={colors.white} /> : <Icon color={colors.white} name="send" size={22} />}
         </Pressable>
       </View>
       <View style={c.footer}>
-        <Icon color={colors.textMuted} name="sparkle" size={12} />
+        <Icon color={colors.textMuted} name="info" size={12} />
         <Text style={c.footerText}>{t('guide.composer.disclaimer')}</Text>
         {remaining && <Text accessibilityLiveRegion="polite" style={c.counter}>{t('guide.composer.counter', { count: input.length, max: MAX_QUESTION })}</Text>}
       </View>
@@ -269,27 +269,28 @@ const c = StyleSheet.create({
   composer: { alignItems: 'flex-end', flexDirection: 'row', gap: 10 },
   composerKeyboard: { paddingBottom: 8 },
   composerWrap: { paddingTop: 8 },
-  context: { alignItems: 'center', backgroundColor: colors.white, borderColor: '#E4EDF2', borderRadius: 20, borderWidth: 1, flexDirection: 'row', gap: 12, marginBottom: 8, minHeight: 60, padding: 8, paddingRight: 14 },
+  context: { alignItems: 'center', backgroundColor: colors.white, borderColor: colors.hairline, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: 12, marginBottom: 8, minHeight: 60, padding: 8, paddingRight: 14 },
   contextCopy: { flex: 1, minWidth: 0 },
   contextMeta: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 13, lineHeight: 18 },
   contextName: { color: colors.ink, fontFamily: fonts.bold, fontSize: 16, lineHeight: 21 },
-  contextThumb: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: 12, height: 44, justifyContent: 'center', overflow: 'hidden', width: 44 },
+  contextThumb: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: 12, height: 44, justifyContent: 'center', overflow: 'hidden', width: 44 },
   counter: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12, marginLeft: 'auto' },
   empty: { alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 28 },
-  emptyBody: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  emptyBody: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   emptyTitle: { color: colors.ink, fontFamily: fonts.bold, fontSize: 20, letterSpacing: -0.3, lineHeight: 26, marginTop: 6, textAlign: 'center' },
   fill: { flex: 1 },
   footer: { alignItems: 'center', flexDirection: 'row', gap: 5, marginTop: 6, paddingHorizontal: 6 },
   footerText: { color: colors.textMuted, flexShrink: 1, fontFamily: fonts.medium, fontSize: 12, lineHeight: 16 },
   input: { color: colors.ink, fontFamily: fonts.medium, fontSize: 16, maxHeight: 120, minHeight: 48, paddingBottom: 12, paddingTop: 13 },
-  inputPill: { backgroundColor: colors.white, borderColor: '#D3E2EA', borderRadius: 24, borderWidth: 1.5, flex: 1, paddingHorizontal: 18 },
-  link: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 14 },
-  notice: { alignItems: 'flex-start', backgroundColor: colors.skyWash, borderRadius: 20, flexDirection: 'row', gap: 10, marginBottom: 8, padding: 14, paddingBottom: 4 },
+  inputPill: { backgroundColor: colors.white, borderColor: colors.hairline, borderRadius: radii.field, borderWidth: 1.5, flex: 1, paddingHorizontal: 18 },
+  /** Ink + underline: teal text drops to 4.45:1 on the warm notice tint. */
+  link: { color: colors.ink, fontFamily: fonts.bold, fontSize: 14, textDecorationLine: 'underline' },
+  notice: { alignItems: 'flex-start', backgroundColor: colors.surfaceTint, borderRadius: radii.inset, flexDirection: 'row', gap: 10, marginBottom: 8, padding: 14, paddingBottom: 4 },
   noticeAction: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: 44 },
-  noticeBody: { color: colors.deepOcean, fontFamily: fonts.medium, fontSize: 13, lineHeight: 19, marginTop: 2 },
+  noticeBody: { color: colors.deepOcean, fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, marginTop: 2 },
   noticeIcon: { alignItems: 'center', backgroundColor: colors.white, borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
   noticeTitle: { color: colors.deepOcean, fontFamily: fonts.bold, fontSize: 14 },
-  send: { alignItems: 'center', backgroundColor: colors.deepOcean, borderRadius: 24, height: 48, justifyContent: 'center', width: 48 },
+  send: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: radii.button, height: 48, justifyContent: 'center', width: 48 },
   sendDisabled: { backgroundColor: colors.disabledButton },
   skeleton: { flex: 1, gap: 14, paddingTop: 12 },
   skeletonRight: { alignSelf: 'flex-end' },

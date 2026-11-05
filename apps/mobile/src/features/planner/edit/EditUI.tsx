@@ -8,13 +8,13 @@ import { palette } from '../../auth/components/AuthUI';
 import { HealthGlyph, PlannerIcon, type PlannerIconName } from '../timeline/icons';
 
 export const editTokens = {
-  border: '#DCE8EE',
-  cardBorder: '#E4EDF2',
-  canvas: '#F5FAFC',
-  errorBg: '#FDECEA',
-  warnBg: '#FFF5E4',
+  border: colors.hairline,
+  cardBorder: colors.hairline,
+  canvas: colors.canvas,
+  errorBg: colors.dangerBg,
+  warnBg: colors.warnBg,
   /** Warning text on warnBg (contrast ≥ 4.5:1). */
-  warnText: '#9A6200',
+  warnText: colors.warn,
 } as const;
 
 type Tone = 'default' | 'primary' | 'danger';
@@ -108,7 +108,7 @@ export function LinkButton({ label, onPress, disabled, accessibilityLabel, tone 
 }
 
 export const u = StyleSheet.create({
-  pill: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: MIN_TOUCH, paddingHorizontal: 14, borderRadius: radii.action, borderWidth: 1.5, borderColor: editTokens.border, backgroundColor: colors.white },
+  pill: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: MIN_TOUCH, paddingHorizontal: 14, borderRadius: radii.button, borderWidth: 1.5, borderColor: editTokens.border, backgroundColor: colors.white },
   pillPrimary: { backgroundColor: colors.deepOcean, borderColor: colors.deepOcean },
   pillDanger: { borderColor: '#EBC5C5' },
   pillSelected: { backgroundColor: colors.deepOcean, borderColor: colors.deepOcean },
@@ -117,14 +117,14 @@ export const u = StyleSheet.create({
   pressed: { opacity: 0.8 },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
   label: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', color: colors.textMuted },
-  banner: { borderRadius: 18, padding: spacing.sm, backgroundColor: colors.skyWash },
+  banner: { borderRadius: 18, padding: spacing.sm, backgroundColor: colors.surfaceTint },
   bannerError: { backgroundColor: editTokens.errorBg },
   bannerWarning: { backgroundColor: editTokens.warnBg },
   bannerRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   bannerIcon: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   bannerCopy: { flex: 1, minWidth: 0 },
   bannerTitle: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: colors.deepOcean },
-  bannerBody: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 19, color: colors.ink, marginTop: 2 },
+  bannerBody: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.ink, marginTop: 2 },
   bannerActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs, paddingLeft: 32 },
   link: { minHeight: MIN_TOUCH, justifyContent: 'center', paddingHorizontal: spacing.xs },
   linkText: { fontFamily: fonts.bold, fontSize: 14, color: colors.tealText },

@@ -6,6 +6,7 @@ import { Icon, categoryIcon } from '../../../components/ui';
 import type { Place } from '../../../lib/api/types';
 import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
+import { radii } from '../../../theme/spacing';
 import { elevation } from '../../../theme/elevation';
 import { fonts } from '../../../theme/typography';
 
@@ -56,7 +57,7 @@ const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderRadius: 20,
+    borderRadius: radii.card,
     flexDirection: 'row',
     gap: 12,
     minHeight: 72,
@@ -68,7 +69,7 @@ const styles = StyleSheet.create({
   name: { color: colors.ink, fontFamily: fonts.bold, fontSize: 16, lineHeight: 22 },
   photo: {
     alignItems: 'center',
-    backgroundColor: colors.skyWash,
+    backgroundColor: colors.surfaceTint,
     borderRadius: 14,
     height: 56,
     justifyContent: 'center',

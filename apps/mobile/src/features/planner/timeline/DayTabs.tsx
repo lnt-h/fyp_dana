@@ -28,7 +28,7 @@ export function DayTabs({ days, activeDay, dateOf, onChange }: { days: NumberedD
 
 const d = StyleSheet.create({
   row: { gap: spacing.xs, paddingHorizontal: spacing.lg },
-  tab: { minHeight: MIN_TOUCH, paddingHorizontal: spacing.md, borderRadius: radii.chip, backgroundColor: colors.skyWash, justifyContent: 'center' },
+  tab: { minHeight: MIN_TOUCH, paddingHorizontal: spacing.md, borderRadius: radii.chip, backgroundColor: colors.surfaceTint, justifyContent: 'center' },
   active: { backgroundColor: colors.deepOcean },
   text: { fontFamily: fonts.bold, fontSize: 14, color: colors.deepOcean },
   activeText: { color: colors.white },

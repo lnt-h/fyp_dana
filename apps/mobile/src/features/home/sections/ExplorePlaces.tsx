@@ -4,11 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
-import { Icon, SectionHeader, Skeleton, categoryIcon } from '../../../components/ui';
+import { Icon, SectionHeader, Skeleton, categoryIcon, PhotoFallback } from '../../../components/ui';
 import type { Place } from '../../../lib/api/types';
 import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
-import { elevation } from '../../../theme/elevation';
 import { radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
 import { ErrorBanner } from './SheetBanners';
@@ -27,13 +26,13 @@ function PlaceTile({ place, onPress }: { place: Place; onPress: () => void }) {
       accessibilityLabel={[place.name, minutes].filter(Boolean).join(', ')}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.tile, elevation.sm, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
     >
       <View style={styles.clip}>
         {photo ? (
           <Image contentFit="cover" placeholder={photo.placeholder} placeholderContentFit="cover" source={photo.source} style={StyleSheet.absoluteFill} transition={200} />
         ) : (
-          <LinearGradient colors={[colors.deepOcean, colors.tealDark]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={StyleSheet.absoluteFill} />
+          <PhotoFallback tone="dark" icon={categoryIcon(place.category_code)} />
         )}
         <LinearGradient colors={['rgba(7,21,30,0)', 'rgba(7,21,30,0.78)']} locations={[0.35, 1]} style={StyleSheet.absoluteFill} />
         <View style={styles.overlay}>
@@ -106,9 +105,9 @@ export function ExplorePlaces({ places, state, cityName, filtered, onRetry, onOp
 }
 
 const styles = StyleSheet.create({
-  clip: { backgroundColor: colors.deepOcean, borderRadius: radii.card, height: CARD_HEIGHT, overflow: 'hidden', width: CARD_WIDTH },
+  clip: { backgroundColor: colors.deepOcean, borderRadius: radii.photoCard, height: CARD_HEIGHT, overflow: 'hidden', width: CARD_WIDTH },
   credit: { color: 'rgba(255,255,255,0.82)', fontFamily: fonts.medium, fontSize: 9, marginTop: 4 },
-  empty: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: radii.card, flexDirection: 'row', gap: spacing.md, padding: spacing.lg },
+  empty: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.card, flexDirection: 'row', gap: spacing.md, padding: spacing.lg },
   emptyBody: { ...typography.caption, marginTop: 2 },
   emptyCopy: { flex: 1 },
   emptyIcon: { alignItems: 'center', backgroundColor: colors.white, borderRadius: 24, height: 48, justifyContent: 'center', width: 48 },
@@ -119,5 +118,5 @@ const styles = StyleSheet.create({
   overlay: { bottom: 0, left: 0, padding: spacing.sm, position: 'absolute', right: 0 },
   pressed: { opacity: 0.9 },
   row: { flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.sm },
-  tile: { backgroundColor: colors.white, borderRadius: radii.card },
+  tile: { backgroundColor: colors.white, borderRadius: radii.photoCard },
 });

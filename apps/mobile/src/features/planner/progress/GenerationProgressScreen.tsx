@@ -1,22 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
-import { Icon, SecondaryButton, type IconName } from '../../../components/ui';
+import { Icon, PhotoFallback, PrimaryButton, SecondaryButton, type IconName } from '../../../components/ui';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { streamPlanning } from '../../../lib/api/source';
 import type { ClarificationRequired, ErrorDetail, PlanningStage } from '../../../lib/api/types';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
 import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
-import { elevation } from '../../../theme/elevation';
 import { radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
 import { setPendingView } from '../input/draftStore';
-import { AssistantAvatar, Banner, IntroCard, PlannerShell, PrimaryButton, UserBubble, p, tone } from '../input/PlannerUI';
+import { AssistantAvatar, Banner, IntroCard, PlannerShell, UserBubble, p, tone } from '../input/PlannerUI';
 import { errorCopy, toErrorDetail } from './errorCopy';
 import { getPlanRequest } from './planRequestStore';
 
@@ -30,7 +28,7 @@ const stageIcon: Record<PlanningStage, IconName> = {
   ROUTING: 'navigation',
   SCHEDULING: 'calendar',
   SELECTING_PLACES: 'map-pin',
-  VALIDATING_REQUEST: 'sparkle',
+  VALIDATING_REQUEST: 'check',
 };
 const ART_W = 196;
 const ART_H = 228;
@@ -119,7 +117,7 @@ export function GenerationProgressScreen() {
 
   if (!request) {
     return <PlannerShell title={t('planner.title')} onBack={() => router.replace('/home')}
-      footer={<PrimaryButton icon="sparkle" label={t('planner.progress.newTrip')} onPress={() => router.replace('/plan/new')} />}>
+      footer={<PrimaryButton label={t('planner.progress.newTrip')} onPress={() => router.replace('/plan/new')} />}>
       <Banner tone="info">{t('planner.progress.missing')}</Banner>
     </PlannerShell>;
   }
@@ -143,7 +141,7 @@ export function GenerationProgressScreen() {
     const { error } = status;
     return <PlannerShell title={t('planner.title')} onBack={editRequest}
       footer={<>
-        <PrimaryButton icon="sparkle" label={t('planner.errors.retry')} onPress={run} />
+        <PrimaryButton label={t('planner.errors.retry')} onPress={run} />
         <View style={styles.footerRow}>
           <SecondaryButton label={t('planner.errors.edit')} onPress={editRequest} style={p.flex} />
           <SecondaryButton label={t('planner.errors.home')} onPress={() => router.replace('/home')} style={p.flex} />
@@ -177,7 +175,7 @@ export function GenerationProgressScreen() {
           {photo
             ? <Image source={photo.source} placeholder={photo.placeholder} placeholderContentFit="cover" contentFit="cover" transition={250} style={StyleSheet.absoluteFill}
               accessible accessibilityLabel={cityName} />
-            : <LinearGradient colors={[colors.deepOcean, colors.tealDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />}
+            : <PhotoFallback icon="map-pin" />}
         </View>
         <View style={styles.artAvatar}><AssistantAvatar size={52} /></View>
       </View>
@@ -235,37 +233,37 @@ const styles = StyleSheet.create({
   pageTitle: { ...typography.title, marginTop: spacing.xs, marginBottom: spacing.lg },
   hero: { alignItems: 'center', marginBottom: spacing.xl },
   artWrap: { width: ART_W + 24, height: ART_H + 24, alignItems: 'center', justifyContent: 'center' },
-  artGlow: { position: 'absolute', width: ART_W + 24, height: ART_H + 24, borderTopLeftRadius: (ART_W + 24) / 2, borderTopRightRadius: (ART_W + 24) / 2, borderBottomLeftRadius: 40, borderBottomRightRadius: 40, backgroundColor: colors.skyWash },
-  art: { width: ART_W, height: ART_H, borderTopLeftRadius: ART_W / 2, borderTopRightRadius: ART_W / 2, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, overflow: 'hidden', backgroundColor: colors.deepOcean, borderWidth: 4, borderColor: colors.white, ...elevation.md },
+  artGlow: { position: 'absolute', width: ART_W + 24, height: ART_H + 24, borderTopLeftRadius: (ART_W + 24) / 2, borderTopRightRadius: (ART_W + 24) / 2, borderBottomLeftRadius: 40, borderBottomRightRadius: 40, backgroundColor: colors.surfaceTint },
+  art: { width: ART_W, height: ART_H, borderTopLeftRadius: ART_W / 2, borderTopRightRadius: ART_W / 2, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, overflow: 'hidden', backgroundColor: colors.deepOcean, borderWidth: 4, borderColor: colors.white },
   artAvatar: { position: 'absolute', bottom: 0, right: 8, borderRadius: 30, borderWidth: 4, borderColor: colors.white, backgroundColor: colors.white },
   credit: { fontFamily: fonts.medium, fontSize: 11, color: colors.textMuted, marginTop: 6, maxWidth: 280, textAlign: 'center' },
   heading: { ...typography.title, textAlign: 'center', marginTop: spacing.lg },
-  subtitle: { fontFamily: fonts.medium, fontSize: 17, lineHeight: 24, color: colors.textMuted, textAlign: 'center', marginTop: 6 },
-  stepsCard: { borderRadius: radii.card, backgroundColor: colors.white, borderWidth: 1, borderColor: tone.hairline, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 18, ...elevation.sm },
+  subtitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 24, color: colors.textMuted, textAlign: 'center', marginTop: 6 },
+  stepsCard: { borderRadius: radii.card, backgroundColor: colors.white, borderWidth: 1, borderColor: tone.hairline, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 18 },
   stepsHead: { marginBottom: spacing.md },
-  stepCount: { fontFamily: fonts.bold, fontSize: 13, letterSpacing: 0.3, color: colors.tealText, marginBottom: spacing.xs },
-  bar: { height: 6, borderRadius: 3, backgroundColor: colors.skyWash, overflow: 'hidden' },
+  stepCount: { ...typography.eyebrow, marginBottom: spacing.xs },
+  bar: { height: 6, borderRadius: 3, backgroundColor: colors.surfaceTint, overflow: 'hidden' },
   barFill: { height: 6, borderRadius: 3, backgroundColor: colors.audioTeal },
   stepRow: { flexDirection: 'row', gap: 14 },
   rail: { width: MARKER, alignItems: 'center' },
   markerBox: { width: MARKER, height: MARKER, alignItems: 'center', justifyContent: 'center' },
   halo: { position: 'absolute', width: MARKER, height: MARKER, borderRadius: MARKER / 2, backgroundColor: colors.audioTeal },
-  marker: { width: MARKER, height: MARKER, borderRadius: MARKER / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.skyWash },
+  marker: { width: MARKER, height: MARKER, borderRadius: MARKER / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceTint },
   markerDone: { backgroundColor: colors.tealText },
   markerCurrent: { backgroundColor: colors.deepOcean },
-  connector: { flex: 1, width: 2, minHeight: 14, borderRadius: 1, backgroundColor: '#D4E0E5', marginVertical: 4 },
+  connector: { flex: 1, width: 2, minHeight: 14, borderRadius: 1, backgroundColor: colors.hairline, marginVertical: 4 },
   connectorDone: { backgroundColor: colors.audioTeal },
   stepCopy: { flex: 1, minHeight: MARKER, justifyContent: 'center', paddingTop: 2 },
   stepCopyGap: { paddingBottom: spacing.sm },
   stepText: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.ink },
   stepPending: { color: colors.textMuted, fontFamily: fonts.medium },
   stepCurrent: { color: colors.deepOcean },
-  statusLine: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: colors.tealText, marginTop: 2 },
-  slow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, alignSelf: 'center', marginTop: spacing.md, backgroundColor: '#FDF1DC', borderRadius: radii.chip, paddingHorizontal: 14, paddingVertical: 10 },
+  statusLine: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.tealText, marginTop: 2 },
+  slow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, alignSelf: 'center', marginTop: spacing.md, backgroundColor: colors.warnBg, borderRadius: radii.inset, paddingHorizontal: 14, paddingVertical: 10 },
   slowText: { fontFamily: fonts.bold, fontSize: 14, color: colors.deepOcean },
-  reassurance: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginTop: spacing.lg, paddingHorizontal: spacing.xs },
+  reassurance: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginTop: spacing.lg, paddingHorizontal: spacing.xs },
   footerRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   errorHero: { alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.xl },
-  errorBadge: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F8E6E6', alignItems: 'center', justifyContent: 'center' },
+  errorBadge: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.dangerBg, alignItems: 'center', justifyContent: 'center' },
   code: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted, marginTop: 6 },
 });

@@ -36,7 +36,6 @@ export function SaveBar({ disabledReason, saved, onSave, onOpenHealth }: Props) 
           label={t(saved ? 'proposal.save.saved' : 'proposal.save.action')}
           onPress={onSave}
           style={s.primary}
-          variant="gradient"
         />
       </View>
     </View>
@@ -49,7 +48,7 @@ const s = StyleSheet.create({
     paddingTop: spacing.sm,
     backgroundColor: colors.white,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#DCE8EE',
+    borderTopColor: colors.hairline,
     ...Platform.select({
       android: { elevation: 12 },
       default: { shadowColor: colors.ink, shadowOffset: { width: 0, height: -6 }, shadowOpacity: 0.06, shadowRadius: 16 },
@@ -59,5 +58,5 @@ const s = StyleSheet.create({
   reason: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: spacing.xs },
   reasonText: { flex: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: palette.error },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  primary: { flex: 1, height: 56 },
+  primary: { flex: 1 },
 });

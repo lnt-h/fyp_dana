@@ -94,10 +94,10 @@ function Issue({ issue, onGoToStop }: { issue: HealthIssue; onGoToStop: (dayInde
 }
 
 const edgeColor: Record<PlanHealth, string> = { BLOCKED: palette.error, GOOD: colors.audioTeal, WARNING: colors.sun };
-const tileColor: Record<PlanHealth, string> = { BLOCKED: '#F8E3E3', GOOD: colors.skyWash, WARNING: '#FDF0DA' };
+const tileColor: Record<PlanHealth, string> = { BLOCKED: colors.dangerBg, GOOD: colors.surfaceTint, WARNING: colors.warnBg };
 
 const h = StyleSheet.create({
-  card: { flexDirection: 'row', borderRadius: radii.card, backgroundColor: colors.white, borderWidth: 1, borderColor: '#E4EDF2', overflow: 'hidden' },
+  card: { flexDirection: 'row', borderRadius: radii.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.hairline, overflow: 'hidden' },
   edge: { width: 6 },
   inner: { flex: 1, padding: spacing.md, paddingLeft: spacing.md },
   head: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
@@ -108,17 +108,17 @@ const h = StyleSheet.create({
   badgeRow: { flexDirection: 'row', marginTop: spacing.sm },
   group: { marginTop: spacing.md, gap: 10 },
   groupTitle: { fontFamily: fonts.bold, color: colors.textMuted, fontSize: 11, letterSpacing: 1.6, textTransform: 'uppercase' },
-  issue: { borderRadius: 16, backgroundColor: '#F5FAFC', padding: 14, paddingBottom: 4, borderLeftWidth: 4, borderLeftColor: colors.sun },
+  issue: { borderRadius: radii.inset, backgroundColor: colors.canvas, padding: 14, paddingBottom: 4, borderLeftWidth: 4, borderLeftColor: colors.sun },
   issueBlocking: { borderLeftColor: palette.error },
   issueHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   severity: { fontFamily: fonts.bold, fontSize: 12, color: colors.deepOcean },
   issueTitle: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 20, color: colors.ink, marginTop: 6 },
-  issueBody: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 19, color: colors.textMuted, marginTop: 2 },
+  issueBody: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.textMuted, marginTop: 2 },
   goTo: { flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf: 'flex-start', minHeight: MIN_TOUCH },
   goToText: { fontFamily: fonts.bold, fontSize: 14, color: colors.tealText },
-  goodNote: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: colors.ink, marginTop: spacing.sm },
+  goodNote: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.ink, marginTop: spacing.sm },
   updating: { opacity: 0.55 },
-  detail: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, minHeight: 48, borderRadius: radii.action, backgroundColor: colors.deepOcean, marginTop: spacing.sm },
+  detail: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, minHeight: 48, borderRadius: radii.button, backgroundColor: colors.deepOcean, marginTop: spacing.sm },
   detailText: { fontFamily: fonts.bold, fontSize: 15, color: colors.white },
   note: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 18, color: colors.textMuted, marginTop: spacing.sm },
 });

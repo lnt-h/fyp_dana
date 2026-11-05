@@ -5,9 +5,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
-import { CircleButton, Icon, PrimaryButton, categoryIcon } from '../../../components/ui';
+import { CircleButton, Icon, PrimaryButton, categoryIcon, PhotoFallback } from '../../../components/ui';
 import type { PreviewEditOperation } from '../../../lib/api/sourcePlanning';
 import { MAX_EDITS_PER_REQUEST } from '../../../lib/api/sourcePlanning';
 import type { Leg, TravelMode } from '../../../lib/api/types';
@@ -135,9 +134,7 @@ function EditStopBody({ target, day, index, stop, days, places, allowedModes, pe
     <View style={e.photo}>
       {image
         ? <Image accessibilityLabel={t('proposal.sheet.photo', { name: stop.name })} contentFit="cover" placeholder={image.placeholder} source={image.source} style={StyleSheet.absoluteFill} />
-        : <LinearGradient colors={[colors.deepOcean, colors.tealDark]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={[StyleSheet.absoluteFill, e.photoFallback]}>
-          <Icon color={colors.white} name={categoryIcon(place?.categoryCode)} size={28} />
-        </LinearGradient>}
+        : <PhotoFallback icon={categoryIcon(place?.categoryCode)} iconSize={28} />}
     </View>
     <View style={e.headerCopy}>
       <Text accessibilityRole="header" numberOfLines={2} style={e.title}>{stop.name}</Text>
@@ -176,7 +173,6 @@ function EditStopBody({ target, day, index, stop, days, places, allowedModes, pe
       loading={applying}
       onPress={() => submit(edits)}
       style={e.apply}
-      variant="gradient"
     />
   </View>;
 
@@ -295,8 +291,7 @@ const e = StyleSheet.create({
   pad: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingTop: spacing.xs, paddingBottom: spacing.md },
-  photo: { width: 72, height: 72, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.skyWash },
-  photoFallback: { alignItems: 'center', justifyContent: 'center' },
+  photo: { width: 72, height: 72, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.surfaceTint },
   headerCopy: { flex: 1, minWidth: 0 },
   title: { ...typography.headline },
   secondary: { fontFamily: fonts.medium, fontSize: 14, color: colors.textMuted, marginTop: 1 },
@@ -304,7 +299,7 @@ const e = StyleSheet.create({
   close: { alignSelf: 'flex-start', transform: [{ rotate: '-90deg' }] },
   banner: { marginBottom: spacing.sm },
   section: { borderRadius: radii.card, borderWidth: 1, borderColor: editTokens.cardBorder, padding: spacing.md, marginBottom: spacing.sm },
-  focused: { borderColor: colors.audioTeal, backgroundColor: '#F1F9FB' },
+  focused: { borderColor: colors.audioTeal, backgroundColor: colors.canvas },
   stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   stepButton: { width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, borderColor: editTokens.border, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
   stepValue: { alignItems: 'center', minWidth: 120 },
@@ -312,7 +307,7 @@ const e = StyleSheet.create({
   stepUnit: { fontFamily: fonts.medium, fontSize: 14, color: colors.textMuted },
   hint: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.textMuted, marginTop: spacing.xs },
   hintTop: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.textMuted, marginBottom: spacing.xs },
-  segment: { flexDirection: 'row', padding: 4, gap: 4, borderRadius: radii.action, backgroundColor: colors.skyWash },
+  segment: { flexDirection: 'row', padding: 4, gap: 4, borderRadius: radii.button, backgroundColor: colors.surfaceTint },
   segmentItem: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', minHeight: MIN_TOUCH, borderRadius: 18 },
   segmentSelected: { backgroundColor: colors.deepOcean },
   segmentText: { fontFamily: fonts.bold, fontSize: 15, color: colors.deepOcean },
@@ -322,7 +317,7 @@ const e = StyleSheet.create({
   footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: editTokens.border },
   note: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 17, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.xs },
   reason: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: palette.error, textAlign: 'center', marginBottom: spacing.xs },
-  apply: { height: 56 },
+  apply: {},
   confirm: { alignItems: 'center', paddingVertical: spacing.md },
   confirmIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: editTokens.errorBg, alignItems: 'center', justifyContent: 'center' },
   confirmTitle: { ...typography.headline, marginTop: spacing.sm, textAlign: 'center' },

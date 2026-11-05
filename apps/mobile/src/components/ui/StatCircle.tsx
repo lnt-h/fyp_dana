@@ -12,7 +12,7 @@ export type StatCircleProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** Icon in a skyWash circle, value below, muted label. Read as one element ("3 ngày, Thời lượng"). */
+/** Icon in a surfaceTint circle, value below, muted label. Read as one element ("3 ngày, Thời lượng"). */
 export function StatCircle({ icon, value, label, size = 64, style }: StatCircleProps) {
   return (
     <View accessible accessibilityLabel={`${value}, ${label}`} style={[styles.root, style]}>
@@ -26,7 +26,7 @@ export function StatCircle({ icon, value, label, size = 64, style }: StatCircleP
 }
 
 const styles = StyleSheet.create({
-  circle: { alignItems: 'center', backgroundColor: colors.skyWash, justifyContent: 'center', marginBottom: 10 },
+  circle: { alignItems: 'center', backgroundColor: colors.surfaceTint, justifyContent: 'center', marginBottom: 10 },
   label: { ...typography.caption, fontSize: 14, textAlign: 'center' },
   root: { alignItems: 'center', flex: 1, minWidth: 0 },
   value: { ...typography.headline, textAlign: 'center' },

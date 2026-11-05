@@ -5,7 +5,7 @@ import { colors } from '../../../theme/colors';
 import { typography } from '../../../theme/typography';
 import { dayPartNow } from './homeSheetUtils';
 
-/** "Chào buổi sáng, {first name} 👋" by the hour in Asia/Ho_Chi_Minh; guests get "Chào bạn 👋". */
+/** "Chào buổi sáng, {first name}" by the hour in Asia/Ho_Chi_Minh; guests get "Chào bạn". */
 export function Greeting({ name, cityName }: { name: string | null; cityName: string }) {
   const { t } = useTranslation();
   const firstName = name?.trim().split(/\s+/)[0] ?? '';

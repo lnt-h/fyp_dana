@@ -118,7 +118,7 @@ export function SavedTrips({ trips, state, cities, onRetry, gutter }: { trips: T
 }
 
 const styles = StyleSheet.create({
-  guest: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: radii.card, flexDirection: 'row', gap: spacing.sm, minHeight: 64, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  guest: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.card, flexDirection: 'row', gap: spacing.sm, minHeight: 64, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   guestIcon: { alignItems: 'center', backgroundColor: colors.white, borderRadius: radii.iconTile, height: MIN_TOUCH, justifyContent: 'center', width: MIN_TOUCH },
   guestText: { color: colors.ink, flex: 1, fontFamily: fonts.bold, fontSize: 15, lineHeight: 21 },
   notice: { marginBottom: spacing.sm },

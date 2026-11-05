@@ -45,5 +45,5 @@ const s = StyleSheet.create({
   sheet: { maxHeight: '92%', backgroundColor: colors.white, borderTopLeftRadius: radii.sheet, borderTopRightRadius: radii.sheet, paddingTop: spacing.xs, width: '100%', maxWidth: 560, alignSelf: 'center' },
   handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: colors.mutedDot, marginBottom: spacing.xs },
   body: { flexShrink: 1 },
-  footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#DCE8EE' },
+  footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.hairline },
 });

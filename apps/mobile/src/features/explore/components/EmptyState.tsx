@@ -28,9 +28,9 @@ export function EmptyState({ icon, title, body, actions = [] }: { icon: IconName
 
 const styles = StyleSheet.create({
   actions: { alignSelf: 'stretch', gap: spacing.xs, marginTop: spacing.xs },
-  body: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 15, lineHeight: 22, textAlign: 'center' },
-  card: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: radii.card, gap: 10, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl },
+  body: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  card: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.card, gap: 10, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl },
   glyph: { alignItems: 'center', backgroundColor: colors.white, borderRadius: 32, height: 64, justifyContent: 'center', marginBottom: 4, width: 64 },
-  sun: { backgroundColor: colors.sun, borderColor: colors.skyWash, borderRadius: 7, borderWidth: 2, height: 14, position: 'absolute', right: 2, top: 2, width: 14 },
+  sun: { backgroundColor: colors.sun, borderColor: colors.surfaceTint, borderRadius: 7, borderWidth: 2, height: 14, position: 'absolute', right: 2, top: 2, width: 14 },
   title: { color: colors.ink, fontFamily: fonts.bold, fontSize: 18, lineHeight: 24, textAlign: 'center' },
 });

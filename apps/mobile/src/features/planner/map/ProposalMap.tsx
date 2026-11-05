@@ -7,7 +7,6 @@ import { CircleButton, Icon, categoryIcon } from '../../../components/ui';
 import type { Uuid } from '../../../lib/api/types';
 import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
-import { elevation } from '../../../theme/elevation';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
 import { palette } from '../../auth/components/AuthUI';
@@ -71,7 +70,7 @@ export function ProposalMap({ day, places, selectedStopId, onSelect, onOpenPlace
   const selectedTime = selected ? [formatTime(selected.planned_arrival), formatTime(selected.planned_departure)] : [];
 
   return <View>
-    <View style={[m.shadow, elevation.md]}>
+    <View style={m.shadow}>
       <View style={m.card}>
         {initialRegion ? <MapView
           ref={mapRef}
@@ -174,8 +173,8 @@ function regionFor(points: LatLng[]) {
 }
 
 const m = StyleSheet.create({
-  shadow: { borderRadius: radii.card, backgroundColor: colors.white },
-  card: { height: 260, borderRadius: radii.card, overflow: 'hidden', backgroundColor: colors.skyWash },
+  shadow: { borderRadius: radii.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.hairline },
+  card: { height: 260, borderRadius: radii.card, overflow: 'hidden', backgroundColor: colors.surfaceTint },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, padding: spacing.xl },
   emptyText: { fontFamily: fonts.bold, fontSize: 15, color: colors.deepOcean, textAlign: 'center' },
   pinWrap: { alignItems: 'center', paddingHorizontal: 4, paddingTop: 4 },
@@ -190,10 +189,10 @@ const m = StyleSheet.create({
   legend: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: spacing.sm, paddingHorizontal: spacing.xxs },
   legendLine: { flexDirection: 'row', gap: 3 },
   legendDash: { width: 7, height: 3, borderRadius: 1.5, backgroundColor: palette.error },
-  legendText: { flex: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 19, color: colors.textMuted },
+  legendText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.textMuted },
   controls: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm },
-  current: { flex: 1, minWidth: 0, minHeight: MIN_TOUCH + 12, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 6, paddingRight: 10, borderRadius: radii.chip + 4, backgroundColor: colors.white, borderWidth: 1, borderColor: '#DCE8EE' },
-  currentThumb: { width: 44, height: 44, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.skyWash, alignItems: 'center', justifyContent: 'center' },
+  current: { flex: 1, minWidth: 0, minHeight: MIN_TOUCH + 12, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 6, paddingRight: 10, borderRadius: radii.inset + 4, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.hairline },
+  currentThumb: { width: 44, height: 44, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.surfaceTint, alignItems: 'center', justifyContent: 'center' },
   currentCopy: { flex: 1, minWidth: 0 },
   currentName: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 19, color: colors.ink },
   currentTime: { fontFamily: fonts.bold, fontSize: 12, lineHeight: 16, color: colors.tealText },

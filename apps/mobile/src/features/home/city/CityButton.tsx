@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '../../../components/ui';
 import { colors } from '../../../theme/colors';
+import { radii } from '../../../theme/spacing';
 import { elevation } from '../../../theme/elevation';
 import { fonts } from '../../../theme/typography';
 
@@ -39,7 +40,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(255,255,255,0.94)',
-    borderRadius: 22,
+    borderRadius: radii.button,
     flexDirection: 'row',
     gap: 6,
     height: 44,

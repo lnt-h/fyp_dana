@@ -50,7 +50,7 @@ export function ProposalHeader({ title, cityName, image, imageLabel, dayCount, s
   </View>;
 }
 
-const tint: Record<PlanHealth, string> = { BLOCKED: '#F8E3E3', GOOD: colors.skyWash, WARNING: '#FDF0DA' };
+const tint: Record<PlanHealth, string> = { BLOCKED: colors.dangerBg, GOOD: colors.surfaceTint, WARNING: colors.warnBg };
 
 /** Local variant of `StatCircle`: the circle and word take the health colour, and it opens the Health card. */
 function HealthStat({ health, onPress }: { health: PlanHealth; onPress: () => void }) {

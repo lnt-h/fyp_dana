@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '../../../components/ui';
 import { colors } from '../../../theme/colors';
+import { radii } from '../../../theme/spacing';
 import { elevation } from '../../../theme/elevation';
 import { fonts } from '../../../theme/typography';
 import { AudioMark } from '../../onboarding/components/OnboardingMosaic';
@@ -48,11 +49,11 @@ const styles = StyleSheet.create({
   pill: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderColor: '#A9D6DE',
-    borderRadius: 26,
+    borderColor: colors.hairline,
+    borderRadius: radii.field,
     borderWidth: 1,
     flexDirection: 'row',
     height: 52,
   },
-  placeholder: { color: colors.textMuted, flex: 1, fontFamily: fonts.medium, fontSize: 15, lineHeight: 20 },
+  placeholder: { color: colors.textMuted, flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 20 },
 });

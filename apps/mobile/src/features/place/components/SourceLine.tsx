@@ -13,8 +13,8 @@ import { formatDate, isStaleDate } from '../format';
 export function StaleBadge({ onDark = false }: { onDark?: boolean }) {
   const { t } = useTranslation();
   return <View style={[st.badge, st.stale, onDark && st.staleDark]}>
-    <Icon color={onDark ? colors.sun : '#8A5A00'} name="warning" size={14} />
-    <Text style={[st.badgeText, { color: onDark ? colors.white : '#6B4600' }]}>{t('place.stale')}</Text>
+    <Icon color={onDark ? colors.sun : colors.warn} name="warning" size={14} />
+    <Text style={[st.badgeText, { color: onDark ? colors.white : colors.warn }]}>{t('place.stale')}</Text>
   </View>;
 }
 
@@ -42,7 +42,7 @@ export function CitationDetail({ citation, onOpen }: { citation: Citation; onOpe
     {isStaleDate(citation.verified_at) && <StaleBadge />}
     {onOpen && <Pressable accessibilityRole="link" onPress={onOpen} style={({ pressed }) => [st.openLink, pressed && { opacity: 0.6 }]}>
       <Text style={st.link}>{t('place.source.openPlace')}</Text>
-      <Icon color={colors.tealText} name="chevron-right" size={16} />
+      <Icon color={colors.ink} name="chevron-right" size={16} />
     </Pressable>}
   </View>;
 }
@@ -79,16 +79,17 @@ export function SourceLine({ citation, stale, onOpen }: { citation: Citation; st
 const st = StyleSheet.create({
   badge: { alignItems: 'center', alignSelf: 'flex-start', borderRadius: 16, borderWidth: 1, flexDirection: 'row', gap: 5, marginTop: 4, minHeight: 26, paddingHorizontal: 10, paddingVertical: 3 },
   badgeText: { fontFamily: fonts.bold, fontSize: 12, lineHeight: 16 },
-  detail: { backgroundColor: colors.skyWash, borderRadius: 14, gap: 4, marginBottom: 6, padding: 12 },
+  detail: { backgroundColor: colors.surfaceTint, borderRadius: 14, gap: 4, marginBottom: 6, padding: 12 },
   detailStrong: { color: colors.ink, fontFamily: fonts.bold, fontSize: 14, lineHeight: 20 },
-  detailText: { color: colors.deepOcean, fontFamily: fonts.medium, fontSize: 13, lineHeight: 19 },
+  detailText: { color: colors.deepOcean, fontFamily: fonts.regular, fontSize: 13, lineHeight: 19 },
   line: { alignItems: 'flex-start', flexDirection: 'row', gap: 6 },
   lineIcon: { paddingTop: 2 },
-  link: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 14 },
+  /** Ink + underline on the warm tint detail box (teal would be 4.45:1). */
+  link: { color: colors.ink, fontFamily: fonts.bold, fontSize: 14, textDecorationLine: 'underline' },
   openLink: { alignItems: 'center', alignSelf: 'flex-start', flexDirection: 'row', gap: 2, minHeight: 44 },
   row: { justifyContent: 'center', minHeight: 44, paddingVertical: 6 },
-  stale: { backgroundColor: '#FFF4E0', borderColor: colors.sun },
+  stale: { backgroundColor: colors.warnBg, borderColor: colors.sun },
   staleDark: { backgroundColor: 'rgba(246,166,35,0.16)' },
-  text: { color: colors.textMuted, flexShrink: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 19 },
-  unknown: { backgroundColor: '#F2F6F8', borderColor: '#DCE8EE' },
+  text: { color: colors.textMuted, flexShrink: 1, fontFamily: fonts.regular, fontSize: 13, lineHeight: 19 },
+  unknown: { backgroundColor: colors.surfaceTint, borderColor: colors.hairline },
 });

@@ -49,6 +49,6 @@ export function SuccessCheck() {
 
 const styles = StyleSheet.create({
   disc: { alignItems: 'center', backgroundColor: colors.audioTeal, borderRadius: SIZE / 2, height: SIZE, justifyContent: 'center', width: SIZE },
-  halo: { backgroundColor: colors.skyWash, borderRadius: (SIZE + 32) / 2, height: SIZE + 32, position: 'absolute', width: SIZE + 32 },
+  halo: { backgroundColor: colors.surfaceTint, borderRadius: (SIZE + 32) / 2, height: SIZE + 32, position: 'absolute', width: SIZE + 32 },
   wrap: { alignItems: 'center', alignSelf: 'center', height: SIZE + 32, justifyContent: 'center', width: SIZE + 32 },
 });

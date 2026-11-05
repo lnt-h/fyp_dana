@@ -2,11 +2,14 @@ import { memo, useState } from 'react';
 import { useAuth } from '@clerk/expo';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
 import { SignInGate, type GateFeature } from '../../auth/SignInGate';
 import { colors } from '../../../theme/colors';
+import { spacing } from '../../../theme/spacing';
+import { fonts } from '../../../theme/typography';
 
 export const tabs = ['home', 'explore', 'guide', 'trips'] as const;
 export type Tab = (typeof tabs)[number];
@@ -16,17 +19,20 @@ const gatedTabs: Partial<Record<Tab, GateFeature>> = { guide: 'guide', trips: 't
 
 const isTab = (name: string): name is Tab => (tabs as readonly string[]).includes(name);
 
-/** Same 440 × 956 design frame as Home; the bar sits at y 842, 80 pt tall. */
-const designFrame = { height: 956, width: 440 } as const;
-function useDesignScale() {
-  const { height, width } = useWindowDimensions();
-  return { height, scale: Math.min(width / designFrame.width, height / designFrame.height) };
+/** Height of the bar's tappable row (icon + label), above the bottom safe-area inset. */
+const BAR_HEIGHT = 58;
+/** Breathing room under the labels on devices without a home indicator. */
+const MIN_BOTTOM_PAD = 6;
+
+/** Full height of the tab bar including the bottom safe-area inset. */
+export function useTabBarHeight() {
+  const insets = useSafeAreaInsets();
+  return BAR_HEIGHT + Math.max(insets.bottom, MIN_BOTTOM_PAD);
 }
 
-/** Bottom padding a tab screen needs so the floating bar never covers its content. */
+/** Bottom padding a tab screen needs so the bar never covers its content. */
 export function useTabBarClearance() {
-  const { height, scale } = useDesignScale();
-  return height - 842 * scale + 16;
+  return useTabBarHeight() + spacing.md;
 }
 
 type IconProps = {
@@ -34,8 +40,11 @@ type IconProps = {
   tab: Tab;
 };
 
+/** Rendered at 26 dp from a 30-unit grid, so the 2-unit stroke lands at ~1.75 dp like `Icon`. */
+const ICON = 26;
+
 function TabIcon({ active, tab }: IconProps) {
-  const stroke = active ? colors.white : '#292D32';
+  const stroke = colors.textMuted;
 
   if (active) {
     const activePaths: Record<Tab, string[]> = {
@@ -58,9 +67,9 @@ function TabIcon({ active, tab }: IconProps) {
     };
 
     return (
-      <Svg height={30} viewBox="0 0 30 30" width={30}>
+      <Svg height={ICON} viewBox="0 0 30 30" width={ICON}>
         {activePaths[tab].map((path) => (
-          <Path d={path} fill={colors.white} key={path} />
+          <Path d={path} fill={colors.ink} key={path} />
         ))}
       </Svg>
     );
@@ -91,7 +100,7 @@ function TabIcon({ active, tab }: IconProps) {
   };
 
   return (
-    <Svg height={30} viewBox="0 0 30 30" width={30}>
+    <Svg height={ICON} viewBox="0 0 30 30" width={ICON}>
       {linePaths[tab].map((path) => (
         <Path
           d={path}
@@ -110,7 +119,7 @@ function TabIcon({ active, tab }: IconProps) {
 export const HomeTabBar = memo(function HomeTabBar({ emitter, navigateToTab, state }: BottomTabBarProps) {
   const { t } = useTranslation();
   const { isSignedIn } = useAuth();
-  const { scale } = useDesignScale();
+  const insets = useSafeAreaInsets();
   const [gate, setGate] = useState<GateFeature | null>(null);
   const activeName = state.routes[state.index]?.name;
 
@@ -122,74 +131,57 @@ export const HomeTabBar = memo(function HomeTabBar({ emitter, navigateToTab, sta
   }
 
   return (
-    <View pointerEvents="box-none" style={[styles.float, { top: 842 * scale }]}>
-    <View
-      accessibilityLabel={t('tabs.navigation')}
-      accessibilityRole="tablist"
-      style={[
-        styles.container,
-        {
-          borderRadius: 40 * scale,
-          gap: 20 * scale,
-          height: 80 * scale,
-          paddingHorizontal: 14 * scale,
-          width: 328 * scale,
-        },
-      ]}
-    >
-      {state.routes.map((route) => {
-        if (!isTab(route.name)) return null;
-        const tab = route.name;
-        const active = activeName === tab;
+    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, MIN_BOTTOM_PAD) }]}>
+      <View accessibilityLabel={t('tabs.navigation')} accessibilityRole="tablist" style={styles.row}>
+        {state.routes.map((route) => {
+          if (!isTab(route.name)) return null;
+          const tab = route.name;
+          const active = activeName === tab;
 
-        return (
-          <Pressable
-            accessibilityLabel={t(`tabs.${tab}`)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
-            hitSlop={4}
-            key={route.key}
-            onPress={() => press(route.key, tab, active)}
-            style={({ pressed }) => [
-              styles.tab,
-              {
-                backgroundColor: active ? 'rgba(187,233,255,0.72)' : 'transparent',
-                borderRadius: 30 * scale,
-                height: 60 * scale,
-                opacity: pressed ? 0.78 : 1,
-                width: 60 * scale,
-              },
-            ]}
-          >
-            <TabIcon active={active} tab={tab} />
-          </Pressable>
-        );
-      })}
-    </View>
-    <SignInGate feature={gate} onClose={() => setGate(null)} />
+          return (
+            <Pressable
+              accessibilityLabel={t(`tabs.${tab}`)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              key={route.key}
+              onPress={() => press(route.key, tab, active)}
+              style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
+            >
+              {/* Sun dot marks the active tab together with the filled icon and ink label (never colour alone). */}
+              <View style={[styles.dot, active && styles.dotActive]} />
+              <TabIcon active={active} tab={tab} />
+              <Text maxFontSizeMultiplier={1.3} numberOfLines={1} style={[styles.label, active && styles.labelActive]}>
+                {t(`tabs.${tab}`)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <SignInGate feature={gate} onClose={() => setGate(null)} />
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  float: {
-    alignItems: 'center',
+  bar: {
+    backgroundColor: 'rgba(251,247,240,0.96)',
+    borderTopColor: colors.hairline,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
-  },
-  container: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(211,220,225,0.88)',
-    flexDirection: 'row',
-    justifyContent: 'center',
     shadowColor: colors.ink,
-    shadowOffset: { height: 4, width: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 25,
+    shadowOffset: { height: -2, width: 0 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  tab: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  dot: { backgroundColor: 'transparent', borderRadius: 2, height: 4, marginBottom: 3, width: 4 },
+  dotActive: { backgroundColor: colors.sun },
+  label: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 11, lineHeight: 14, marginTop: 2 },
+  labelActive: { color: colors.ink, fontFamily: fonts.semibold },
+  pressed: { opacity: 0.7 },
+  row: { flexDirection: 'row', height: BAR_HEIGHT },
+  tab: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: 44, paddingHorizontal: 2 },
 });

@@ -1,11 +1,10 @@
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Icon, PrimaryButton, SecondaryButton, type IconName } from '../../components/ui';
+import { Icon, PrimaryButton, SecondaryButton, type IconName, PhotoFallback } from '../../components/ui';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { stayPricesEnabled } from '../../lib/api/sourceTrips';
 import type { City, CityCode, Conflict, HandoffKind, PlanHealth, PlanPreview, Trip, TripDetail, Uuid } from '../../lib/api/types';
@@ -22,8 +21,8 @@ import { SheetFrame } from './SheetFrame';
 import { SuccessCheck } from './SuccessCheck';
 import { useSaveTrip } from './useSaveTrip';
 
-const errorText = '#AF3434';
-const warnText = '#8A5800';
+const errorText = colors.danger;
+const warnText = colors.warn;
 
 /** What the confirm card shows; build it with `saveSummaryFromPreview`. */
 export type SaveSummary = {
@@ -156,7 +155,7 @@ export function SaveSheet(props: SaveSheetProps) {
         accessibilityLabel={t('save.success.title')}
         footer={
           <>
-            <PrimaryButton icon="chevron-right" iconPosition="end" label={t('save.success.viewTrip')} onPress={() => viewTrip(trip)} style={styles.button} variant="gradient" />
+            <PrimaryButton icon="chevron-right" iconPosition="end" label={t('save.success.viewTrip')} onPress={() => viewTrip(trip)} style={styles.button} />
             <SecondaryButton disabled={offline} label={t('save.success.book')} onPress={() => setView({ kinds: ['STAY', 'ACTIVITY', 'TRANSPORT'], name: 'handoff' })} style={styles.button} />
           </>
         }
@@ -211,7 +210,7 @@ export function SaveSheet(props: SaveSheetProps) {
         visible={visible}
       >
         <View accessibilityRole="alert" style={styles.stateHead}>
-          <View style={[styles.stateIcon, { backgroundColor: '#FDECEA' }]}>
+          <View style={[styles.stateIcon, { backgroundColor: colors.dangerBg }]}>
             <Icon color={errorText} name="blocked" size={28} />
           </View>
           <Text accessibilityRole="header" ref={heading} style={styles.title}>{t('save.blocked.title')}</Text>
@@ -231,7 +230,7 @@ export function SaveSheet(props: SaveSheetProps) {
         visible={visible}
       >
         <View accessibilityRole="alert" style={styles.stateHead}>
-          <View style={[styles.stateIcon, { backgroundColor: colors.skyWash }]}>
+          <View style={[styles.stateIcon, { backgroundColor: colors.surfaceTint }]}>
             <Icon color={colors.tealText} name="clock" size={28} />
           </View>
           <Text accessibilityRole="header" ref={heading} style={styles.title}>{t('save.expired.title')}</Text>
@@ -261,7 +260,6 @@ export function SaveSheet(props: SaveSheetProps) {
               loading={saving}
               onPress={() => void onPrimary()}
               style={styles.button}
-              variant="gradient"
             />
           )}
           <Pressable accessibilityRole="button" accessibilityState={{ disabled: saving }} disabled={saving} onPress={close} style={({ pressed }) => [styles.textLink, saving && styles.disabled, pressed && styles.pressed]}>
@@ -324,9 +322,9 @@ export function SaveSheet(props: SaveSheetProps) {
 /* ---------------------------------------------------------------- Pieces */
 
 const HEALTH: Record<PlanHealth, { icon: IconName; color: string; bg: string }> = {
-  BLOCKED: { bg: '#FDECEA', color: errorText, icon: 'blocked' },
-  GOOD: { bg: '#E9F6EF', color: '#1E7A4C', icon: 'check' },
-  WARNING: { bg: '#FFF5E4', color: warnText, icon: 'warning' },
+  BLOCKED: { bg: colors.dangerBg, color: errorText, icon: 'blocked' },
+  GOOD: { bg: colors.okBg, color: colors.ok, icon: 'check' },
+  WARNING: { bg: colors.warnBg, color: warnText, icon: 'warning' },
 };
 
 function SummaryCard({ summary, planHealth }: { summary: SaveSummary; planHealth: PlanHealth }) {
@@ -347,7 +345,7 @@ function SummaryCard({ summary, planHealth }: { summary: SaveSummary; planHealth
         {photo ? (
           <Image contentFit="cover" placeholder={photo.placeholder} source={photo.source} style={StyleSheet.absoluteFill} transition={200} />
         ) : (
-          <LinearGradient colors={[colors.deepOcean, colors.tealDark]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={StyleSheet.absoluteFill} />
+          <PhotoFallback icon="map-pin" />
         )}
       </View>
       <View style={styles.cardText}>
@@ -359,7 +357,7 @@ function SummaryCard({ summary, planHealth }: { summary: SaveSummary; planHealth
         <View style={styles.pills}>
           <View style={styles.pill}>
             <Icon color={colors.tealText} name="map-pin" size={14} />
-            <Text style={[styles.pillText, { color: colors.tealText }]}>{stops}</Text>
+            <Text style={[styles.pillText, { color: colors.ink }]}>{stops}</Text>
           </View>
           <View style={[styles.pill, { backgroundColor: health.bg }]}>
             <Icon color={health.color} name={health.icon} size={14} />
@@ -420,49 +418,47 @@ function ProgressBar() {
   const translateX = sweep.interpolate({ inputRange: [0, 1], outputRange: [-width * 0.4, width] });
   return (
     <View onLayout={event => setWidth(event.nativeEvent.layout.width)} style={styles.track}>
-      <Animated.View style={[reduced ? styles.fillFull : styles.fill, !reduced && { transform: [{ translateX }] }]}>
-        <LinearGradient colors={[colors.teal, colors.audioTeal]} end={{ x: 1, y: 0 }} start={{ x: 0, y: 0 }} style={StyleSheet.absoluteFill} />
-      </Animated.View>
+      <Animated.View style={[reduced ? styles.fillFull : styles.fill, !reduced && { transform: [{ translateX }] }]} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  banner: { borderRadius: radii.chip, gap: spacing.xs, padding: spacing.md },
+  banner: { borderRadius: radii.inset, gap: spacing.xs, padding: spacing.md },
   bannerActions: { gap: spacing.xs, marginTop: spacing.xs },
-  bannerBody: { color: colors.ink, fontFamily: fonts.medium, fontSize: 14, lineHeight: 20 },
+  bannerBody: { color: colors.ink, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
   bannerButton: { height: 52 },
-  bannerError: { backgroundColor: '#FDECEA' },
-  bannerInfo: { backgroundColor: colors.skyWash },
+  bannerError: { backgroundColor: colors.dangerBg },
+  bannerInfo: { backgroundColor: colors.surfaceTint },
   bannerRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   bannerTitle: { color: colors.ink, flex: 1, fontFamily: fonts.bold, fontSize: 15, lineHeight: 20 },
-  bannerWarn: { backgroundColor: '#FFF5E4' },
-  button: { height: 56 },
+  bannerWarn: { backgroundColor: colors.warnBg },
+  button: {},
   cap: { color: colors.textMuted, fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase' },
-  card: { alignItems: 'center', backgroundColor: '#F5FAFC', borderRadius: radii.card, flexDirection: 'row', gap: spacing.md, padding: spacing.sm },
+  card: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.card, flexDirection: 'row', gap: spacing.md, padding: spacing.sm },
   cardText: { flex: 1, gap: 4 },
   cardTitle: { ...typography.bodyStrong, fontSize: 17 },
   disabled: { opacity: 0.45 },
-  entry: { alignItems: 'center', backgroundColor: colors.white, borderColor: '#DCE8EE', borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 72, padding: spacing.sm },
-  entryPressed: { backgroundColor: colors.skyWash },
-  entrySub: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14, lineHeight: 19 },
+  entry: { alignItems: 'center', backgroundColor: colors.white, borderColor: colors.hairline, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 72, padding: spacing.sm },
+  entryPressed: { backgroundColor: colors.surfaceTint },
+  entrySub: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 19 },
   entryText: { flex: 1 },
-  entryTile: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: radii.iconTile, height: 48, justifyContent: 'center', width: 48 },
+  entryTile: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.iconTile, height: 48, justifyContent: 'center', width: 48 },
   entryTitle: { ...typography.label, fontSize: 16 },
-  fill: { borderRadius: 3, height: 6, overflow: 'hidden', width: '40%' },
-  fillFull: { borderRadius: 3, height: 6, overflow: 'hidden', width: '100%' },
+  fill: { backgroundColor: colors.audioTeal, borderRadius: 3, height: 6, width: '40%' },
+  fillFull: { backgroundColor: colors.audioTeal, borderRadius: 3, height: 6, width: '100%' },
   flex: { flex: 1 },
-  kicker: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 13, letterSpacing: 0.4, marginBottom: 2 },
+  kicker: { ...typography.eyebrow, marginBottom: 4 },
   meta: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14 },
   metaRow: { alignItems: 'center', flexDirection: 'row', gap: 6 },
-  note: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13, lineHeight: 19 },
-  pill: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: radii.pill, flexDirection: 'row', gap: 4, paddingHorizontal: 8, paddingVertical: 4 },
+  note: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13, lineHeight: 19 },
+  pill: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.pill, flexDirection: 'row', gap: 4, paddingHorizontal: 8, paddingVertical: 4 },
   pillText: { fontFamily: fonts.bold, fontSize: 12 },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
   pressed: { opacity: 0.7 },
   progress: { gap: spacing.xs },
   progressText: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14 },
-  replayed: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: radii.pill, flexDirection: 'row', gap: 6, marginTop: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 6 },
+  replayed: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.pill, flexDirection: 'row', gap: 6, marginTop: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 6 },
   replayedText: { color: colors.ink, fontFamily: fonts.medium, fontSize: 13 },
   rows: { gap: spacing.sm },
   stateBody: { ...typography.body, color: colors.textMuted, textAlign: 'center' },
@@ -475,5 +471,5 @@ const styles = StyleSheet.create({
   textLinkText: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 16 },
   thumb: { backgroundColor: colors.deepOcean, borderRadius: 18, height: 88, overflow: 'hidden', width: 88 },
   title: { ...typography.title, fontSize: 26, lineHeight: 32 },
-  track: { backgroundColor: colors.skyWash, borderRadius: 3, height: 6, overflow: 'hidden' },
+  track: { backgroundColor: colors.surfaceTint, borderRadius: 3, height: 6, overflow: 'hidden' },
 });

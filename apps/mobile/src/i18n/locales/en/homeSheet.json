@@ -1,10 +1,10 @@
 {
   "offline": "You are offline. Search and planning need a connection. Saved trips still open.",
   "greeting": {
-    "morning": "Good morning, {{name}} 👋",
-    "afternoon": "Good afternoon, {{name}} 👋",
-    "evening": "Good evening, {{name}} 👋",
-    "guest": "Hello there 👋",
+    "morning": "Good morning, {{name}}",
+    "afternoon": "Good afternoon, {{name}}",
+    "evening": "Good evening, {{name}}",
+    "guest": "Hello there",
     "subtitle": "Ready to explore {{city}} today?",
     "subtitleNoCity": "Where shall we go today?"
   },

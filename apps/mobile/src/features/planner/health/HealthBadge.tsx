@@ -22,7 +22,7 @@ export function HealthBadge({ health, blocking, warnings }: { health: PlanHealth
 export function SavedBadge({ saved }: { saved: boolean }) {
   const { t } = useTranslation();
   return <View style={[b.badge, saved && b.saved]}>
-    <Text style={[b.text, saved && { color: colors.tealText }]}>{t(saved ? 'proposal.status.saved' : 'proposal.status.unsaved')}</Text>
+    <Text style={[b.text, saved && { color: colors.ok }]}>{t(saved ? 'proposal.status.saved' : 'proposal.status.unsaved')}</Text>
   </View>;
 }
 
@@ -30,6 +30,6 @@ const b = StyleSheet.create({
   badge: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.white, borderWidth: 1, borderColor: palette.border, flexShrink: 1 },
   warning: { borderColor: colors.sun },
   blocked: { borderColor: palette.error },
-  saved: { borderColor: colors.audioTeal, backgroundColor: colors.skyWash },
+  saved: { borderColor: colors.ok, backgroundColor: colors.okBg },
   text: { fontFamily: 'HankenGrotesk_700Bold', fontSize: 13, color: colors.deepOcean, flexShrink: 1 },
 });

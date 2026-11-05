@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 16, color: colors.deepOcean, paddingVertical: 12 },
   list: { marginTop: 8 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 20 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 60, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#ECF2F5' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 60, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.hairline },
   box: { width: 26, height: 26, borderRadius: 8, borderWidth: 1.5, borderColor: palette.border, alignItems: 'center', justifyContent: 'center' },
   boxChecked: { backgroundColor: colors.tealText, borderColor: colors.tealText },
   name: { fontFamily: 'HankenGrotesk_700Bold', fontSize: 16, color: colors.deepOcean },

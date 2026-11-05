@@ -29,14 +29,13 @@ export default function BookRoute() {
         <HandoffPanel kinds={kinds.length ? kinds : KINDS} stopId={stopId} tripId={tripId} />
       </ScrollView>
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-        <SecondaryButton label={t('save.handoff.close')} onPress={close} style={styles.button} />
+        <SecondaryButton label={t('save.handoff.close')} onPress={close} />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  button: { height: 56 },
   content: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   handle: { alignSelf: 'center', backgroundColor: colors.mutedDot, borderRadius: 3, height: 5, marginTop: spacing.sm, width: 44 },

@@ -14,10 +14,12 @@ type Props = {
   /** True only after the user granted foreground location from the GPS button. */
   showsUserLocation: boolean;
   accessibilityLabel: string;
+  /** Height covered by the bottom sheet and tab bar, so the map's Legal/attribution stays visible (FR-008). */
+  bottomPadding: number;
 };
 
 /** Full-screen map (platform default provider) with up to 20 published-place markers. */
-export const HomeMap = memo(function HomeMap({ mapRef, initialRegion, places, selectedId, onSelect, showsUserLocation, accessibilityLabel }: Props) {
+export const HomeMap = memo(function HomeMap({ mapRef, initialRegion, places, selectedId, onSelect, showsUserLocation, accessibilityLabel, bottomPadding }: Props) {
   function handleMapPress(event: MapPressEvent) {
     if (event.nativeEvent.action === 'marker-press') return;
     onSelect(null);
@@ -27,6 +29,7 @@ export const HomeMap = memo(function HomeMap({ mapRef, initialRegion, places, se
     <MapView
       accessibilityLabel={accessibilityLabel}
       initialRegion={initialRegion}
+      mapPadding={{ bottom: bottomPadding, left: 0, right: 0, top: 0 }}
       onPress={handleMapPress}
       pitchEnabled={false}
       ref={mapRef}

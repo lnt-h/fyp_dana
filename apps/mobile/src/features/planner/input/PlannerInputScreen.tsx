@@ -8,7 +8,7 @@ import { currentLocale } from '../../../i18n';
 import { HOI_AN_PREVIEW_ID } from '../../../lib/api/fixtures/hoi-an';
 import { ApiError, createTrip, getPreferences, listCategories, listCities } from '../../../lib/api/source';
 import type { Category, City, ClarificationRequired, Pace, PlanPreviewCreate, TravelMode, Uuid } from '../../../lib/api/types';
-import { Icon, SecondaryButton, Skeleton, categoryIcon, travelModeIcon } from '../../../components/ui';
+import { Icon, PrimaryButton, SecondaryButton, Skeleton, categoryIcon, travelModeIcon } from '../../../components/ui';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
 import { colors } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
@@ -20,7 +20,7 @@ import {
 } from './draftStore';
 import { MUST_SEE_MAX, MustSeePicker } from './MustSeePicker';
 import {
-  Banner, Chip, ChipRow, CityTiles, FieldError, IntroCard, PickerField, PlannerShell, PrimaryButton, Segmented, SectionLabel, UserBubble, p, tone,
+  Banner, Chip, ChipRow, CityTiles, FieldError, IntroCard, PickerField, PlannerShell, Segmented, SectionLabel, UserBubble, p, tone,
 } from './PlannerUI';
 import { dateFromIso, dateFromLocalTime, dayMonthYear, minutesOf, todayVn, vnIsoDate, vnLocalTime, weekdayOf } from './vnTime';
 
@@ -211,8 +211,8 @@ export function PlannerInputScreen() {
       footer={<>
         {!answered && <Text style={styles.reason}>{t('planner.clarify.disabledReason')}</Text>}
         {!!submitError && <Text accessibilityRole="alert" style={[styles.reason, { color: tone.error }]}>{submitError}</Text>}
-        <PrimaryButton label={busy ? t('planner.submit.creating') : t('planner.submit.create')} busy={busy} disabled={!answered}
-          hint={answered ? undefined : t('planner.clarify.disabledReason')} onPress={() => void submit()} />
+        <PrimaryButton label={busy ? t('planner.submit.creating') : t('planner.submit.create')} icon="sparkle" iconSize={16} loading={busy} disabled={!answered}
+          accessibilityHint={answered ? undefined : t('planner.clarify.disabledReason')} onPress={() => void submit()} />
       </>}>
       {!!draft.requestText.trim() && <UserBubble text={draft.requestText.trim()} />}
       <IntroCard label={t('planner.intro.label')} body={missing.map(field => t(`planner.clarify.question.${field}`)).join(' ')} />
@@ -248,7 +248,9 @@ export function PlannerInputScreen() {
     footer={<>
       {emptyText && <Text style={styles.reason}>{t('planner.validation.text')}</Text>}
       {!!submitError && <Text accessibilityRole="alert" style={[styles.reason, { color: tone.error }]}>{submitError}</Text>}
-      <PrimaryButton label={ctaLabel} busy={busy} disabled={!city || emptyText} hint={emptyText ? t('planner.validation.text') : undefined} onPress={() => void submit()} />
+      {/* The one sparkle left in the app: the "Tạo đề xuất" CTA (thin, 16 dp). */}
+      <PrimaryButton label={ctaLabel} icon={describing ? undefined : 'sparkle'} iconSize={16} loading={busy} disabled={!city || emptyText}
+        accessibilityHint={emptyText ? t('planner.validation.text') : undefined} onPress={() => void submit()} />
     </>}>
     <IntroCard label={t('planner.intro.label')} body={t('planner.intro.body')} />
     <Segmented<InputMode> label={t('planner.mode.label')} value={draft.mode} onChange={mode => { update({ mode }); setErrors({}); setSubmitError(null); }}
@@ -342,26 +344,26 @@ export function PlannerInputScreen() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.sm },
-  reason: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.xs },
+  reason: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.xs },
   prefill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.sm },
   prefillText: { fontFamily: fonts.medium, fontSize: 14, color: colors.tealText },
   credit: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted, marginTop: spacing.xs },
   tileSkeletons: { flexDirection: 'row', gap: spacing.sm, paddingVertical: 6 },
   chipSkeletons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   textArea: { minHeight: 168, borderWidth: 1, borderColor: tone.border, borderRadius: radii.card, backgroundColor: colors.white, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 12 },
-  textInput: { flex: 1, minHeight: 120, fontFamily: fonts.medium, fontSize: 17, lineHeight: 25, color: colors.ink, padding: 0 },
+  textInput: { flex: 1, minHeight: 120, fontFamily: fonts.regular, fontSize: 17, lineHeight: 25, color: colors.ink, padding: 0 },
   counter: { alignSelf: 'flex-end', fontFamily: fonts.bold, fontSize: 13, color: colors.textMuted, marginTop: 6 },
   learnMore: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 44, alignSelf: 'flex-start' },
-  understood: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs, marginTop: spacing.xl, backgroundColor: colors.skyWash, borderRadius: radii.field, padding: 14 },
-  understoodText: { flex: 1, fontFamily: fonts.medium, fontSize: 15, lineHeight: 21, color: colors.deepOcean },
+  understood: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs, marginTop: spacing.xl, backgroundColor: colors.surfaceTint, borderRadius: radii.field, padding: 14 },
+  understoodText: { flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 21, color: colors.deepOcean },
   secondary: { marginTop: spacing.xl },
-  count: { fontFamily: fonts.bold, fontSize: 13, color: colors.tealText, backgroundColor: colors.skyWash, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, overflow: 'hidden' },
+  count: { fontFamily: fonts.bold, fontSize: 13, color: colors.ink, backgroundColor: colors.surfaceTint, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, overflow: 'hidden' },
   mustSeeList: { gap: spacing.xs, marginBottom: spacing.xs },
-  placeChip: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, borderRadius: radii.field, backgroundColor: colors.skyWash, paddingLeft: 14, paddingRight: 4 },
+  placeChip: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, borderRadius: radii.field, backgroundColor: colors.surfaceTint, paddingLeft: 14, paddingRight: 4 },
   placeText: { flex: 1, fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
   remove: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   removeGlyph: { fontSize: 24, lineHeight: 26, color: colors.deepOcean },
-  addPlace: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 58, borderRadius: radii.field, borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#B9CFD9', backgroundColor: colors.white, paddingLeft: 8, paddingRight: 14 },
-  addPlus: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.skyWash, alignItems: 'center', justifyContent: 'center' },
+  addPlace: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 58, borderRadius: radii.field, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.hairline, backgroundColor: colors.white, paddingLeft: 8, paddingRight: 14 },
+  addPlus: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.surfaceTint, alignItems: 'center', justifyContent: 'center' },
   addPlusGlyph: { fontFamily: fonts.bold, fontSize: 22, lineHeight: 24, color: colors.tealText },
 });

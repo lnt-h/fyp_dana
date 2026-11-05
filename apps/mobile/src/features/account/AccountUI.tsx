@@ -8,15 +8,14 @@ import Svg, { Path } from 'react-native-svg';
 import { CircleButton } from '../../components/ui';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { colors } from '../../theme/colors';
-import { elevation } from '../../theme/elevation';
 import { MIN_TOUCH, radii, spacing } from '../../theme/spacing';
 import { fonts, typography } from '../../theme/typography';
 import { useAccount } from './AccountContext';
 
 /** AA error red (6.1:1 on white); same value as the auth palette. */
-export const errorColor = '#AF3434';
-const hairline = '#E4EDF2';
-const screenBg = '#F5FAFC';
+export const errorColor = colors.danger;
+const hairline = colors.hairline;
+const screenBg = colors.canvas;
 
 const c = (cx: number, cy: number, r: number) => `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`;
 const paths = {
@@ -27,7 +26,6 @@ const paths = {
   language: 'M3.5 5.5h9M8 3.5v2M10.5 5.5c0 4-2.8 7-6.5 8.5M5.8 9c1.2 2.2 3.3 3.8 6.2 4.6M12.5 20.5l4-9 4 9M14 17.5h5',
   motion: 'M2 8h5M2 12h3M2 16h5M15 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14M15 8v4l3 2',
   shield: 'M12 2l8 4v6c0 5-8 10-8 10S4 17 4 12V6ZM8 12l3 3 5-6',
-  sparkle: 'M11 4l1.8 5.2L18 11l-5.2 1.8L11 18l-1.8-5.2L4 11l5.2-1.8zM18.5 3v3.5M16.75 4.75h3.5',
   doc: 'M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6',
   info: `${c(12, 12, 9)}M12 11v5.5M12 7.8h.01`,
   exit: 'M9 3H4v18h5M9 12h12M16 7l5 5-5 5',
@@ -190,13 +188,13 @@ export const a = StyleSheet.create({
   largeTitle: { ...typography.display, color: colors.ink, marginBottom: spacing.lg },
   lead: { ...typography.body, color: colors.textMuted, marginTop: -spacing.sm, marginBottom: spacing.lg },
   section: { fontFamily: fonts.bold, color: colors.textMuted, fontSize: 15, marginTop: spacing.xs, marginBottom: spacing.xs, marginLeft: spacing.xxs },
-  card: { borderRadius: radii.card, backgroundColor: colors.white, borderWidth: StyleSheet.hairlineWidth, borderColor: hairline, overflow: 'hidden', marginBottom: spacing.lg, ...elevation.sm },
+  card: { borderRadius: radii.card, backgroundColor: colors.white, borderWidth: StyleSheet.hairlineWidth, borderColor: hairline, overflow: 'hidden', marginBottom: spacing.lg },
   padded: { padding: spacing.lg },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#D9E5EB', marginLeft: 58 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.hairline, marginLeft: 58 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, minHeight: 56 },
   pressed: { opacity: 0.7 },
   rowCopy: { flex: 1 },
-  rowTitle: { fontFamily: fonts.medium, fontSize: 17, lineHeight: 22, color: colors.ink },
+  rowTitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 22, color: colors.ink },
   rowSubtitle: { ...typography.caption, marginTop: 2 },
   rowValue: { ...typography.caption, fontSize: 15, maxWidth: 130 },
   radioSpacer: { width: 22 },
@@ -204,15 +202,15 @@ export const a = StyleSheet.create({
   body: { ...typography.body, color: colors.textMuted, fontSize: 15, lineHeight: 22 },
   note: { ...typography.caption, textAlign: 'center', marginVertical: spacing.sm },
   error: { ...typography.caption, color: errorColor, marginTop: spacing.xs },
-  danger: { flexDirection: 'row', gap: spacing.xs, alignItems: 'center', justifyContent: 'center', minHeight: 56, borderRadius: radii.action, backgroundColor: errorColor, paddingHorizontal: spacing.xl },
+  danger: { flexDirection: 'row', gap: spacing.xs, alignItems: 'center', justifyContent: 'center', minHeight: 56, borderRadius: radii.button, backgroundColor: errorColor, paddingHorizontal: spacing.xl },
   dangerDisabled: { backgroundColor: '#C9B4B4' },
   dangerText: { fontFamily: fonts.bold, fontSize: 17, color: colors.white },
   confirm: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, paddingTop: spacing.xxs },
   confirmBody: { ...typography.caption, fontSize: 14, lineHeight: 21, color: colors.ink },
   confirmActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  ghost: { flex: 1, minHeight: MIN_TOUCH + 4, borderRadius: radii.action, borderWidth: 1.5, borderColor: '#DCE8EE', alignItems: 'center', justifyContent: 'center' },
+  ghost: { flex: 1, minHeight: MIN_TOUCH + 4, borderRadius: radii.button, borderWidth: 1.5, borderColor: colors.hairline, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
-  confirmButton: { flex: 1, minHeight: MIN_TOUCH + 4, borderRadius: radii.action, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' },
+  confirmButton: { flex: 1, minHeight: MIN_TOUCH + 4, borderRadius: radii.button, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' },
   confirmText: { fontFamily: fonts.bold, fontSize: 15, color: colors.white },
   textButton: { minHeight: MIN_TOUCH + 4, alignItems: 'center', justifyContent: 'center', marginTop: spacing.xs },
   textButtonLabel: { fontFamily: fonts.bold, fontSize: 16, color: colors.tealText },

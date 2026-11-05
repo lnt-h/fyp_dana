@@ -4,7 +4,7 @@ import { radii } from '../../theme/spacing';
 import { fonts } from '../../theme/typography';
 import { Icon, type IconName } from './Icon';
 
-const border = '#DCE8EE';
+const border = colors.hairline;
 
 export type ChipProps = {
   label: string;
@@ -14,14 +14,14 @@ export type ChipProps = {
   /** Pressable when set (toggle semantics if `selected` is defined). */
   onPress?: () => void;
   disabled?: boolean;
-  /** `default` = outline on white; `tint` = skyWash fill, tealText label. */
+  /** `default` = outline on white; `tint` = surfaceTint fill, ink label. */
   tone?: 'default' | 'tint';
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 };
 
 export function Chip({ label, icon, selected, onPress, disabled, tone = 'default', accessibilityLabel, style }: ChipProps) {
-  const fg = selected ? colors.white : tone === 'tint' ? colors.tealText : colors.ink;
+  const fg = selected ? colors.white : colors.ink;
   const body = (
     <>
       {icon ? <Icon color={fg} name={icon} size={16} /> : null}
@@ -64,5 +64,5 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.8 },
   selected: { backgroundColor: colors.deepOcean, borderColor: colors.deepOcean },
   text: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 19 },
-  tint: { backgroundColor: colors.skyWash, borderColor: colors.skyWash },
+  tint: { backgroundColor: colors.surfaceTint, borderColor: colors.surfaceTint },
 });

@@ -1,10 +1,10 @@
 {
   "offline": "Bạn đang ngoại tuyến. Tìm kiếm và lập kế hoạch cần kết nối. Chuyến đã lưu vẫn mở được.",
   "greeting": {
-    "morning": "Chào buổi sáng, {{name}} 👋",
-    "afternoon": "Chào buổi chiều, {{name}} 👋",
-    "evening": "Chào buổi tối, {{name}} 👋",
-    "guest": "Chào bạn 👋",
+    "morning": "Chào buổi sáng, {{name}}",
+    "afternoon": "Chào buổi chiều, {{name}}",
+    "evening": "Chào buổi tối, {{name}}",
+    "guest": "Chào bạn",
     "subtitle": "Hôm nay khám phá {{city}} nhé?",
     "subtitleNoCity": "Hôm nay mình đi đâu nhé?"
   },

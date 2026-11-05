@@ -11,16 +11,26 @@ export const spacing = {
   huge: 56,
 } as const;
 
-/** Radii shared by every screen (design system). */
+/** Radii shared by every screen (design refresh 2026-11-05: calmer, less pill-heavy). */
 export const radii = {
-  action: 22,
-  field: 17,
-  card: 24,
-  iconTile: 14,
-  chip: 16,
-  sheet: 40,
+  /** Buttons and button-like actions (52 tall). */
+  button: 14,
+  field: 12,
+  /** Static cards, rows and sections. */
+  card: 16,
+  /** Cards whose face is a photo. */
+  photoCard: 20,
+  /** Banners, notices, thumbnails and other inset surfaces. */
+  inset: 12,
+  iconTile: 10,
+  /** Filter and choice chips, small status pills. */
+  chip: 999,
+  sheet: 28,
   pill: 999,
 } as const;
+
+/** Button height (design system). */
+export const BUTTON_HEIGHT = 52;
 
 /** Minimum touch target (WCAG / platform HIG). */
 export const MIN_TOUCH = 44;

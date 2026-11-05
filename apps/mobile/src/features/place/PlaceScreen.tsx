@@ -28,7 +28,7 @@ const coreFacts = ['OPENING_HOURS', 'ADMISSION_PRICE', 'ENTRANCE_LOCATION'] as c
 const optionalFacts = ['PAYMENT_METHODS', 'DRESS_CODE', 'ACCESS_RULES'] as const;
 
 const HERO_HEIGHT = 380;
-const surfaceBorder = '#E4EDF2';
+const surfaceBorder = colors.hairline;
 
 const unknownFact = (field_code: string): PlaceFact => ({ field_code, freshness: 'CURRENT', knowledge_state: 'UNKNOWN', sources: [], value: null });
 
@@ -68,7 +68,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
       <View accessibilityLabel={t('place.loading')} accessibilityLiveRegion="polite" accessible style={s.fill}>
         <Skeleton height={HERO_HEIGHT} radius={0} />
         <View style={s.skeletonBody}>
-          <Skeleton height={56} radius={radii.chip} />
+          <Skeleton height={56} radius={radii.inset} />
           <Skeleton height={150} radius={radii.card} />
           <Skeleton height={220} radius={radii.card} />
         </View>
@@ -159,7 +159,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
           </View>)}
         </ScrollView>
 
-        <View accessibilityLabel={t('place.driver.a11y', { address: addressText ?? t('place.driver.addressUnknown'), name: place.name_vi })} accessible style={[s.driver, elevation.md]}>
+        <View accessibilityLabel={t('place.driver.a11y', { address: addressText ?? t('place.driver.addressUnknown'), name: place.name_vi })} accessible style={s.driver}>
           <View style={s.driverHead}>
             <View style={s.driverIcon}><Icon color={colors.white} name="car" size={20} /></View>
             <Text style={s.driverCap}>{t('place.driver.cap')}</Text>
@@ -171,7 +171,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
         {address.sources[0] && <View style={s.driverSource}><SourceLine citation={address.sources[0]} stale={isStaleFact(address)} /></View>}
 
         <SectionHeader style={s.section} title={t('place.facts.title')} />
-        <View style={[s.card, elevation.sm]}>
+        <View style={s.card}>
           {listed.map((fact, index) => <FactRow fact={fact} first={index === 0} key={fact.field_code} locale={locale} />)}
         </View>
 
@@ -211,8 +211,8 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
       <View style={s.barInner}>
         {mapsFailed && <Text accessibilityRole="alert" style={s.error}>{t('place.directionsFailed')}</Text>}
         <View style={s.actions}>
-          <PrimaryButton accessibilityHint={t('place.directionsHint')} icon="navigation" label={t('place.directions')} onPress={() => void openDirections()} style={s.actionPrimary} variant="gradient" />
-          <SecondaryButton icon="sparkle" label={t('place.askGuide')} onPress={() => router.push({ params: { placeId: place.id }, pathname: '/guide' })} style={s.actionSecondary} />
+          <PrimaryButton accessibilityHint={t('place.directionsHint')} icon="navigation" label={t('place.directions')} onPress={() => void openDirections()} style={s.actionPrimary} />
+          <SecondaryButton icon="lantern" label={t('place.askGuide')} onPress={() => router.push({ params: { placeId: place.id }, pathname: '/guide' })} style={s.actionSecondary} />
         </View>
       </View>
     </View>
@@ -243,16 +243,17 @@ function FactRow({ fact, first, locale }: { fact: PlaceFact; first: boolean; loc
 
 const s = StyleSheet.create({
   actionBar: { backgroundColor: colors.white, borderTopLeftRadius: radii.card, borderTopRightRadius: radii.card, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
-  actionPrimary: { flex: 1.15, paddingHorizontal: spacing.sm },
-  actionSecondary: { flex: 1, paddingHorizontal: spacing.sm },
-  actions: { flexDirection: 'row', gap: spacing.sm },
+  actionPrimary: { paddingHorizontal: spacing.sm },
+  actionSecondary: { paddingHorizontal: spacing.sm },
+  /** Stacked so "Hỏi về nơi này" / "Ask about this place" never truncates beside Directions. */
+  actions: { gap: spacing.xs },
   attribution: { ...typography.caption, marginBottom: 4 },
   barInner: { alignSelf: 'center', maxWidth: 480, width: '100%' },
   body: { ...typography.body, color: colors.ink, fontSize: 17, lineHeight: 26 },
   caption: { ...typography.caption, fontSize: 12, marginTop: 6 },
   card: { backgroundColor: colors.white, borderColor: surfaceBorder, borderRadius: radii.card, borderWidth: 1 },
-  credits: { backgroundColor: colors.skyWash, borderRadius: radii.card, padding: spacing.md },
-  divider: { borderTopColor: '#ECF2F5', borderTopWidth: 1 },
+  credits: { backgroundColor: colors.surfaceTint, borderRadius: radii.card, padding: spacing.md },
+  divider: { borderTopColor: colors.hairline, borderTopWidth: 1 },
   driver: { backgroundColor: colors.deepOcean, borderRadius: radii.card, gap: 6, marginTop: spacing.lg, padding: 22 },
   driverAddress: { color: colors.white, fontFamily: fonts.medium, fontSize: 22, lineHeight: 30 },
   driverCap: { color: colors.white, flexShrink: 1, fontFamily: fonts.bold, fontSize: 18, lineHeight: 24 },
@@ -260,34 +261,34 @@ const s = StyleSheet.create({
   driverIcon: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 18, height: 36, justifyContent: 'center', width: 36 },
   driverName: { color: colors.white, fontFamily: fonts.bold, fontSize: 30, letterSpacing: -0.5, lineHeight: 36 },
   driverSource: { paddingHorizontal: 4 },
-  driverUnknown: { color: '#D3E2EA' },
-  error: { color: '#AF3434', fontFamily: fonts.medium, fontSize: 14, marginBottom: 8, textAlign: 'center' },
+  driverUnknown: { color: colors.hairline },
+  error: { color: colors.danger, fontFamily: fonts.medium, fontSize: 14, marginBottom: 8, textAlign: 'center' },
   factCopy: { flex: 1, gap: 2 },
-  factIcon: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: radii.iconTile, height: 40, justifyContent: 'center', width: 40 },
+  factIcon: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.iconTile, height: 40, justifyContent: 'center', width: 40 },
   factLabel: { color: colors.textMuted, fontFamily: fonts.bold, fontSize: 13, letterSpacing: 0.2, lineHeight: 18 },
   factRow: { alignItems: 'flex-start', flexDirection: 'row', gap: 14, paddingHorizontal: spacing.md, paddingVertical: spacing.md },
   factValue: { color: colors.ink, fontFamily: fonts.bold, fontSize: 17, lineHeight: 24 },
   fill: { flex: 1 },
   floatingBack: { left: spacing.md, position: 'absolute' },
   inner: { alignSelf: 'center', maxWidth: 480, paddingHorizontal: spacing.lg, width: '100%' },
-  mediaEmpty: { backgroundColor: colors.skyWash },
-  mediaImage: { borderRadius: radii.chip, height: 140, width: 200 },
+  mediaEmpty: { backgroundColor: colors.surfaceTint },
+  mediaImage: { borderRadius: radii.inset, height: 140, width: 200 },
   mediaItem: { width: 200 },
   mediaRow: { gap: spacing.sm, paddingHorizontal: spacing.lg },
   mediaScroll: { marginHorizontal: -spacing.lg },
   muted: { color: colors.textMuted },
   note: { ...typography.caption, marginTop: spacing.xs },
   otherName: { color: 'rgba(255,255,255,0.9)', fontFamily: fonts.medium, fontSize: 17, marginTop: 2 },
-  plain: { backgroundColor: '#F5FAFC' },
+  plain: { backgroundColor: colors.canvas },
   plainHeader: { paddingHorizontal: spacing.md },
-  quick: { alignItems: 'center', backgroundColor: colors.white, borderColor: surfaceBorder, borderRadius: radii.chip, borderWidth: 1, flexDirection: 'row', gap: 10, maxWidth: 240, minHeight: 56, paddingLeft: 8, paddingRight: 14, paddingVertical: 8 },
+  quick: { alignItems: 'center', backgroundColor: colors.white, borderColor: surfaceBorder, borderRadius: radii.inset, borderWidth: 1, flexDirection: 'row', gap: 10, maxWidth: 240, minHeight: 56, paddingLeft: 8, paddingRight: 14, paddingVertical: 8 },
   quickCopy: { flexShrink: 1 },
-  quickIcon: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: 12, height: 36, justifyContent: 'center', width: 36 },
+  quickIcon: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: 12, height: 36, justifyContent: 'center', width: 36 },
   quickLabel: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 16 },
   quickRow: { gap: 10, paddingHorizontal: spacing.lg },
   quickScroll: { marginHorizontal: -spacing.lg, marginTop: 4 },
   quickValue: { color: colors.ink, fontFamily: fonts.bold, fontSize: 15, lineHeight: 20 },
-  screen: { backgroundColor: colors.white, flex: 1 },
+  screen: { backgroundColor: colors.canvas, flex: 1 },
   scroll: { paddingBottom: spacing.xxl },
   section: { marginBottom: spacing.sm, marginTop: spacing.xxl },
   skeletonBody: { gap: spacing.md, padding: spacing.lg },

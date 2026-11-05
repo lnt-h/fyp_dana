@@ -3,13 +3,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import type { Media } from '../../lib/api/types';
 import { resolveImage } from '../../lib/images/imagekit';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { fonts, typography } from '../../theme/typography';
 import { Icon } from './Icon';
+import { PhotoFallback } from './PhotoFallback';
 
 const SCRIM = ['rgba(7,21,30,0)', 'rgba(7,21,30,0.25)', 'rgba(7,21,30,0.72)'] as const;
 const ARCH_HEIGHT = 36;
@@ -23,7 +24,7 @@ export type PhotoHeroProps = {
   kicker?: string;
   /** Photo credit, e.g. Media.attribution_text. Required by licence whenever a photo is shown. */
   attribution?: string | null;
-  /** Curved white bottom edge that the page content tucks under (default true). */
+  /** Curved canvas-coloured bottom edge that the page content tucks under (default true). */
   arch?: boolean;
   /** Floating controls over the photo (e.g. CircleButtons), placed below the safe-area top inset. */
   topLeft?: ReactNode;
@@ -35,22 +36,6 @@ export type PhotoHeroProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** Fallback when no photo: deepOcean→tealDark with a faint lantern-ring pattern. */
-function FallbackArt() {
-  return (
-    <>
-      <LinearGradient colors={[colors.deepOcean, colors.tealDark]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={StyleSheet.absoluteFill} />
-      <Svg height="100%" preserveAspectRatio="xMidYMid slice" style={StyleSheet.absoluteFill} viewBox="0 0 200 200" width="100%">
-        {[0, 1, 2, 3].map(i => (
-          <Circle cx={170} cy={30} fill="none" key={`a${i}`} r={22 + i * 22} stroke={colors.white} strokeOpacity={0.07} strokeWidth={1.2} />
-        ))}
-        {[0, 1, 2].map(i => (
-          <Circle cx={20} cy={180} fill="none" key={`b${i}`} r={18 + i * 20} stroke={colors.white} strokeOpacity={0.06} strokeWidth={1.2} />
-        ))}
-      </Svg>
-    </>
-  );
-}
 
 export function PhotoHero({ image, height = 360, title, kicker, attribution, arch = true, topLeft, topRight, children, accessibilityLabel, style }: PhotoHeroProps) {
   const insets = useSafeAreaInsets();
@@ -72,7 +57,7 @@ export function PhotoHero({ image, height = 360, title, kicker, attribution, arc
           transition={250}
         />
       ) : (
-        <FallbackArt />
+        <PhotoFallback icon="lantern" iconSize={40} tone="dark" />
       )}
       <LinearGradient colors={SCRIM} locations={[0.35, 0.6, 1]} pointerEvents="none" style={StyleSheet.absoluteFill} />
       {/* Top fade so floating controls and the status bar stay legible on bright skies. */}
@@ -99,7 +84,7 @@ export function PhotoHero({ image, height = 360, title, kicker, attribution, arc
 
       {arch ? (
         <Svg height={ARCH_HEIGHT} preserveAspectRatio="none" style={styles.arch} viewBox="0 0 100 10" width="100%">
-          <Path d="M0 0Q50 20 100 0V10H0Z" fill={colors.white} />
+          <Path d="M0 0Q50 20 100 0V10H0Z" fill={colors.canvas} />
         </Svg>
       ) : null}
     </View>

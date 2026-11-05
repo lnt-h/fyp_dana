@@ -3,14 +3,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Icon } from '../../../components/ui';
+import { Icon, PhotoFallback } from '../../../components/ui';
 import type { CityCode } from '../../../lib/api/types';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
 import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
-import { elevation } from '../../../theme/elevation';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
-import { fonts } from '../../../theme/typography';
+import { fonts, typography } from '../../../theme/typography';
 
 const HEIGHT = 196;
 
@@ -32,21 +31,18 @@ export function PlanBanner({ cityCode, cityName, offline, onStart }: { cityCode:
         accessibilityState={{ disabled: offline }}
         disabled={offline}
         onPress={onStart}
-        style={({ pressed }) => [styles.card, elevation.md, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       >
         <View style={styles.clip}>
           {photo ? (
             <Image contentFit="cover" placeholder={photo.placeholder} placeholderContentFit="cover" source={photo.source} style={StyleSheet.absoluteFill} transition={200} />
           ) : (
-            <LinearGradient colors={[colors.deepOcean, colors.tealDark]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={StyleSheet.absoluteFill} />
+            <PhotoFallback tone="dark" icon="map-pin" />
           )}
           {/* Strong scrim on the left/bottom keeps white text ≥4.5:1 on any photo. */}
           <LinearGradient colors={['rgba(7,21,30,0.88)', 'rgba(7,21,30,0.72)', 'rgba(7,21,30,0.35)']} end={{ x: 1, y: 0.5 }} locations={[0, 0.55, 1]} start={{ x: 0, y: 0.5 }} style={StyleSheet.absoluteFill} />
           <View style={styles.body}>
-            <View style={styles.kicker}>
-              <Icon color={colors.sun} name="sparkle" size={16} />
-              <Text numberOfLines={1} style={styles.kickerText}>{t('homeSheet.plan.kicker')}</Text>
-            </View>
+            <Text numberOfLines={1} style={styles.kicker}>{t('homeSheet.plan.kicker')}</Text>
             <Text numberOfLines={2} style={styles.title}>{title}</Text>
             <Text numberOfLines={1} style={styles.subtitle}>{t('homeSheet.plan.subtitle')}</Text>
             <View style={styles.row}>
@@ -66,17 +62,17 @@ export function PlanBanner({ cityCode, cityName, offline, onStart }: { cityCode:
 
 const styles = StyleSheet.create({
   body: { flex: 1, justifyContent: 'flex-end', padding: spacing.lg },
-  card: { backgroundColor: colors.deepOcean, borderRadius: radii.card },
-  clip: { borderRadius: radii.card, height: HEIGHT, overflow: 'hidden' },
+  card: { backgroundColor: colors.deepOcean, borderRadius: radii.photoCard },
+  clip: { borderRadius: radii.photoCard, height: HEIGHT, overflow: 'hidden' },
   credit: { color: 'rgba(255,255,255,0.85)', flexShrink: 1, fontFamily: fonts.medium, fontSize: 10, marginLeft: spacing.sm, textAlign: 'right' },
   hint: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, marginTop: spacing.xs },
-  kicker: { alignItems: 'center', flexDirection: 'row', gap: 6 },
-  kickerText: { color: colors.white, fontFamily: fonts.bold, fontSize: 13, letterSpacing: 0.2 },
+  /** Eyebrow in white on the dark scrim (sun would drop to ~3.7:1 where the scrim thins on a bright photo). */
+  kicker: { ...typography.eyebrow, color: colors.white },
   pill: { alignItems: 'center', backgroundColor: colors.white, borderRadius: radii.pill, flexDirection: 'row', gap: 4, minHeight: MIN_TOUCH, paddingLeft: 18, paddingRight: 12 },
   pillDisabled: { opacity: 0.6 },
   pillText: { color: colors.ink, fontFamily: fonts.bold, fontSize: 15 },
   pressed: { opacity: 0.94 },
   row: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
-  subtitle: { color: 'rgba(255,255,255,0.92)', fontFamily: fonts.medium, fontSize: 14, lineHeight: 19, marginTop: 2 },
+  subtitle: { color: 'rgba(255,255,255,0.92)', fontFamily: fonts.regular, fontSize: 14, lineHeight: 19, marginTop: 2 },
   title: { color: colors.white, fontFamily: fonts.bold, fontSize: 22, letterSpacing: -0.3, lineHeight: 27, marginTop: 6 },
 });
