@@ -293,9 +293,12 @@
     "stage": {
       "VALIDATING_REQUEST": "Kiểm tra yêu cầu",
       "SELECTING_PLACES": "Chọn địa điểm đã kiểm duyệt",
+      "RESEARCHING": "Tìm trên web",
+      "VERIFYING_WEB_PLACES": "Kiểm tra địa điểm từ web",
       "ROUTING": "Lấy tuyến đường",
       "SCHEDULING": "Sắp xếp thời gian trong ngày",
-      "CHECKING_HEALTH": "Kiểm tra tình trạng kế hoạch"
+      "CHECKING_HEALTH": "Kiểm tra tình trạng kế hoạch",
+      "WRITING": "Viết lý do"
     },
     "stageDone": "Xong",
     "stageActive": "Đang làm",

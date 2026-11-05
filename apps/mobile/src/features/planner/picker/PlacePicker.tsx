@@ -30,7 +30,7 @@ export type PickedPlace = Pick<Place, 'id' | 'name'>;
 
 export type PickerMode =
   | { kind: 'add'; dayIndex: number }
-  | { kind: 'replace'; stopId: Uuid; number: number; name: string; placeId: Uuid }
+  | { kind: 'replace'; stopId: Uuid; number: number; name: string; /** Null when replacing a WEB_UNVERIFIED stop. */ placeId: Uuid | null }
   | { kind: 'mustSee'; selected: PickedPlace[]; onChange: (next: PickedPlace[]) => void };
 
 type Props = {

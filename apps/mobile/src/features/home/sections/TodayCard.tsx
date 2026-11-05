@@ -103,7 +103,7 @@ export function TodayCard({ trip, cityCode, onOpenPlace }: { trip: Trip; cityCod
     const ok = await openDirections(stop);
     if (!ok) {
       setNotice(t('homeSheet.today.directionsError'));
-      onOpenPlace(stop.place_id);
+      if (stop.place_id) onOpenPlace(stop.place_id);
     }
   }, [onOpenPlace, t]);
 

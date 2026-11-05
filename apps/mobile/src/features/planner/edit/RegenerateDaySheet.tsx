@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { PrimaryButton } from '../../../components/ui';
 import { currentLocale } from '../../../i18n';
 import { getPreviewHead, newIdempotencyKey, streamRegenerateDay } from '../../../lib/api/sourcePlanning';
-import type { PlanPreview, PlanningStage, Uuid } from '../../../lib/api/types';
+import { OPTIONAL_PLANNING_STAGES, PLANNING_STAGES, type PlanPreview, type PlanningStage, type Uuid } from '../../../lib/api/types';
 import { colors } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
@@ -19,7 +19,6 @@ import { InlineBanner, LinkButton, PillButton, editTokens } from './EditUI';
 import { editErrorCopy } from './errorCopy';
 import { Sheet } from './Sheet';
 
-const STAGES: PlanningStage[] = ['VALIDATING_REQUEST', 'SELECTING_PLACES', 'ROUTING', 'SCHEDULING', 'CHECKING_HEALTH'];
 const NOTE_MAX = 500;
 
 type Props = {
@@ -41,6 +40,8 @@ export function RegenerateDaySheet({ dayIndex, days, previewId, revision, offlin
   const { t } = useTranslation();
   const [phase, setPhase] = useState<Phase>({ kind: 'confirm' });
   const [note, setNote] = useState('');
+  /** Research stages are listed only once reported (they run only when the catalog pool is thin). */
+  const [seenOptional, setSeenOptional] = useState<PlanningStage[]>([]);
   const abort = useRef<AbortController | null>(null);
   const key = useRef<string | null>(null);
 
@@ -61,6 +62,7 @@ export function RegenerateDaySheet({ dayIndex, days, previewId, revision, offlin
     abort.current = controller;
     key.current = key.current ?? newIdempotencyKey();
     setPhase({ kind: 'progress', stage: null });
+    setSeenOptional([]);
     const result: { failed: string | null; ready: boolean } = { failed: null, ready: false };
     try {
       await streamRegenerateDay(previewId, {
@@ -70,7 +72,12 @@ export function RegenerateDaySheet({ dayIndex, days, previewId, revision, offlin
         locale: currentLocale(),
         locked_stop_ids: locked.map(stop => stop.id),
       }, key.current, event => {
-        if (event.type === 'progress') setPhase({ kind: 'progress', stage: event.stage });
+        if (event.type === 'progress') {
+          const stage = event.stage;
+          if (!PLANNING_STAGES.includes(stage)) return;
+          if (OPTIONAL_PLANNING_STAGES.includes(stage)) setSeenOptional(previous => (previous.includes(stage) ? previous : [...previous, stage]));
+          setPhase({ kind: 'progress', stage });
+        }
         else if (event.type === 'error') result.failed = event.error.code;
         else if (event.type === 'preview_ready') result.ready = true;
       }, controller.signal);
@@ -86,6 +93,7 @@ export function RegenerateDaySheet({ dayIndex, days, previewId, revision, offlin
   }
 
   const othersText = others.length > 1 ? `${others.slice(0, -1).join(', ')} ${t('proposal.regen.and')} ${others[others.length - 1]}` : String(others[0] ?? '');
+  const STAGES = PLANNING_STAGES.filter(stage => !OPTIONAL_PLANNING_STAGES.includes(stage) || seenOptional.includes(stage));
   const stageIndex = phase.kind === 'progress' && phase.stage ? STAGES.indexOf(phase.stage) : -1;
 
   return <Sheet

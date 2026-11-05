@@ -4,7 +4,7 @@
  *
  * Params: `previewId`; optional `tripId` and `mode=saved|draft` (from My trips). `mode=saved` shows the saved itinerary
  * read-only. Editing (SCR-027/028/030) sends op lists to the server and renders the revision it returns; pending edits
- * live in the draft store until acknowledged (ADR-009). Fixture previews (EXPO_PUBLIC_USE_FIXTURES=1):
+ * live in the draft store until acknowledged (ADR-009). Fixture previews (no EXPO_PUBLIC_API_URL):
  *   /plan/00000000-0000-4000-8000-000000000501/proposal  WARNING
  *   /plan/00000000-0000-4000-8000-000000000502/proposal  BLOCKED (day-2 leg unavailable)
  */

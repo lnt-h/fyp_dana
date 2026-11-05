@@ -1,6 +1,8 @@
 /**
- * Hand-written mirror of docs/04-design/api/openapi.yaml; replace with openapi-typescript output (ADR-001) when the
- * API lands. Field names are the contract's snake_case names. Only the schemas UI steps 1–5 need are mirrored.
+ * App-facing domain types. Field names are the contract's snake_case names. The raw contract types are generated into
+ * `schema.d.ts` (`npm run gen:api`, openapi-typescript) from docs/04-design/api/openapi.yaml; this file narrows them
+ * (string enums, per-op unions) and adds the architecture 1.0 trust-label fields (`trust_level`, `web_source`, new
+ * stream stages) that the 0.4 contract file does not carry yet. Marked "1.0 (not yet in openapi.yaml)" below.
  */
 
 /** UUID string. */
@@ -18,8 +20,27 @@ export type Pace = 'RELAXED' | 'BALANCED' | 'PACKED';
 export type TripStatus = 'DRAFT' | 'SAVED';
 export type PlanHealth = 'GOOD' | 'WARNING' | 'BLOCKED';
 
-/** City `code` values of the five launch cities (schema.sql `ck_cities_code_format`, kebab-case). */
-export type CityCode = 'ha-noi' | 'ho-chi-minh-city' | 'da-nang' | 'hoi-an' | 'hue';
+/**
+ * City `code` values (schema.sql `ck_cities_code_format`, kebab-case). The FYP release enables Đà Nẵng only; Hội An is
+ * an area of Đà Nẵng (2025 merger), not a city. Hà Nội, TP.HCM and Huế are roadmap.
+ */
+export type CityCode = 'da-nang' | 'ha-noi' | 'ho-chi-minh-city' | 'hue';
+
+/** The city the app opens on and falls back to. */
+export const DEFAULT_CITY_CODE: CityCode = 'da-nang';
+
+/**
+ * 1.0 (not yet in openapi.yaml): trust label on stops, places and citations (architecture §5, FR-098). `VERIFIED` =
+ * published catalog place / reviewed source; `WEB_UNVERIFIED` = found on the web by the research agent, not reviewed.
+ */
+export type TrustLevel = 'VERIFIED' | 'WEB_UNVERIFIED';
+
+/** 1.0 (not yet in openapi.yaml): provenance of a `WEB_UNVERIFIED` stop. */
+export type WebSource = {
+  url: string;
+  fetched_at: IsoDateTime;
+  candidate_id: Uuid;
+};
 
 export type KnowledgeState = 'KNOWN' | 'UNKNOWN' | 'NOT_APPLICABLE';
 /** STALE when verified_at is more than 180 days before today (ASM-008). */
@@ -50,6 +71,8 @@ export type City = {
   name_vi: string;
   name_en: string;
   time_zone: 'Asia/Ho_Chi_Minh';
+  /** Map centre for a view with no stops (OQ-109); null when no boundary is recorded. */
+  centre?: GeoPoint | null;
 };
 
 export type GeoPoint = {
@@ -83,6 +106,8 @@ export type Place = {
   visit_minutes_suggested?: number | null;
   catalog_publication_id: Uuid;
   thumbnail: Media | null;
+  /** 1.0: always `VERIFIED` for a published place; absent from 0.4 servers. */
+  trust_level?: TrustLevel;
 };
 
 export type PlaceSummaryPage = PageInfo & { items: Place[] };
@@ -183,8 +208,14 @@ export type Conflict = {
 export type Stop = {
   /** Stable across preview revisions and into the saved trip_stops row. */
   id: Uuid;
-  place_id: Uuid;
-  catalog_publication_id: Uuid;
+  /** Published place; null for a `WEB_UNVERIFIED` stop (1.0). */
+  place_id: Uuid | null;
+  /** Null for a `WEB_UNVERIFIED` stop (1.0). */
+  catalog_publication_id: Uuid | null;
+  /** 1.0 (not yet in openapi.yaml). */
+  trust_level: TrustLevel;
+  /** 1.0: present only when `trust_level` is `WEB_UNVERIFIED`. */
+  web_source?: WebSource | null;
   ordinal: number;
   planned_arrival?: IsoDateTime | null;
   planned_departure?: IsoDateTime | null;
@@ -319,16 +350,41 @@ export type ErrorDetail = {
 
 export type ErrorResponse = { error: ErrorDetail };
 
-export type PlanningStage = 'VALIDATING_REQUEST' | 'SELECTING_PLACES' | 'ROUTING' | 'SCHEDULING' | 'CHECKING_HEALTH';
+/**
+ * Planning stream stages in order (architecture §5). RESEARCHING and VERIFYING_WEB_PLACES run only when the catalog pool
+ * is thin; WRITING writes rationales. 1.0: those three are not yet in openapi.yaml.
+ */
+export type PlanningStage =
+  | 'VALIDATING_REQUEST'
+  | 'SELECTING_PLACES'
+  | 'RESEARCHING'
+  | 'VERIFYING_WEB_PLACES'
+  | 'ROUTING'
+  | 'SCHEDULING'
+  | 'CHECKING_HEALTH'
+  | 'WRITING';
+
+export const PLANNING_STAGES: readonly PlanningStage[] = [
+  'VALIDATING_REQUEST', 'SELECTING_PLACES', 'RESEARCHING', 'VERIFYING_WEB_PLACES', 'ROUTING', 'SCHEDULING', 'CHECKING_HEALTH', 'WRITING',
+];
+
+/** Stages that appear only when the research path runs; screens show them once reported. */
+export const OPTIONAL_PLANNING_STAGES: readonly PlanningStage[] = ['RESEARCHING', 'VERIFYING_WEB_PLACES'];
+
+/** 1.0: progress `detail` (counts only; no place names or user text). */
+export type StageDetail = { catalog_candidates?: number; web_candidates?: number; verified?: number };
 
 /** One SSE `data:` payload of the planning stream; terminal: preview_ready, clarification_required, error. */
 export type PlanningStreamEvent =
-  | { type: 'progress'; stage: PlanningStage }
+  | { type: 'progress'; stage: PlanningStage; agent?: string | null; detail?: StageDetail | null }
   | { type: 'clarification_required'; clarification: ClarificationRequired }
   | { type: 'preview_ready'; preview_id: Uuid; preview_revision: number; plan_health: PlanHealth }
   | { type: 'error'; error: ErrorDetail };
 
 export type CitationSection = 'OVERVIEW' | 'HISTORY' | 'HIGHLIGHTS' | 'VISIT_TIPS' | 'ETIQUETTE' | 'ACCESS';
+
+/** 1.0 (ADR-010): kind of evidence a citation points to. */
+export type EvidenceKind = 'FACT' | 'CHUNK' | 'WEB';
 
 export type Citation = {
   source_revision_id: Uuid;
@@ -339,10 +395,20 @@ export type Citation = {
   publisher: string;
   title?: string | null;
   locator?: string | null;
-  verified_at: IsoDate;
+  /** Reviewed date; null for a `WEB_UNVERIFIED` citation (1.0). */
+  verified_at: IsoDate | null;
+  /** 1.0 (not yet in openapi.yaml). */
+  trust_level: TrustLevel;
+  /** 1.0: FACT, CHUNK or WEB. */
+  evidence_kind?: EvidenceKind | null;
+  /** 1.0: source page URL of a WEB citation. */
+  url?: string | null;
+  /** 1.0: when a WEB citation's page was fetched. */
+  fetched_at?: IsoDateTime | null;
 };
 
-export type GuideAnswerStatus = 'ANSWERED' | 'INSUFFICIENT_EVIDENCE' | 'NOT_RECOGNISED';
+/** `ANSWERED_WEB_UNVERIFIED` is 1.0 (ADR-010 web fallback), not yet in openapi.yaml. */
+export type GuideAnswerStatus = 'ANSWERED' | 'ANSWERED_WEB_UNVERIFIED' | 'INSUFFICIENT_EVIDENCE' | 'NOT_RECOGNISED';
 
 export type GuideMessage = {
   id: Uuid;
@@ -377,9 +443,12 @@ export type GuideQuestion = {
   input_mode: 'TEXT' | 'VOICE_TRANSCRIPT';
 };
 
+/** Guide stream stages in order (architecture §5); SEARCHING_WEB runs only for the web fallback. VALIDATING and SEARCHING_WEB are 1.0. */
+export type GuideStage = 'VALIDATING' | 'RETRIEVING' | 'SEARCHING_WEB' | 'ANSWERING';
+
 /** One SSE `data:` payload of the Guide stream; `text` carries a delta; `result` and `error` are terminal. */
 export type GuideStreamEvent =
-  | { type: 'progress'; stage: 'RETRIEVING' | 'ANSWERING' }
+  | { type: 'progress'; stage: GuideStage }
   | { type: 'text'; delta: string }
   | { type: 'result'; message: GuideMessage }
   | { type: 'error'; error: ErrorDetail };
@@ -396,3 +465,6 @@ export type HandoffLink = {
   start_date?: IsoDate;
   end_date?: IsoDate;
 };
+
+/** API-003 `GET /v1/me` (generated from openapi.yaml; unchanged since 0.1). */
+export type Identity = import('./schema').components['schemas']['IdentityResponse'];

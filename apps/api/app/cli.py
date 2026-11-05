@@ -1,0 +1,455 @@
+"""Gonarra operations CLI (ADR-012).
+
+Usage from apps/api:
+    uv run python -m app.cli seed        # idempotent reference data for Đà Nẵng
+    uv run python -m app.cli db-check    # alembic head vs database revision
+"""
+
+import asyncio
+from dataclasses import dataclass
+from datetime import timedelta
+from pathlib import Path
+
+import typer
+from sqlalchemy import func, select, text
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.session import engine, session_factory
+from app.models.providers import DataProvider, ProviderFieldRule, ProviderPolicy
+from app.models.reference import Area, Category, City, FactField
+
+app = typer.Typer(help="Gonarra operations CLI.", no_args_is_help=True)
+
+# ---------------------------------------------------------------------------------------------
+# Reference data
+# ---------------------------------------------------------------------------------------------
+
+# Rough post-merger Đà Nẵng envelope (former Đà Nẵng + Quảng Nam, incl. Hội An and Cù Lao Chàm).
+# A generous rectangle, deliberately larger than the city, so OUTSIDE_CITY never rejects a real
+# Hội An place. Replace with the authoritative polygon from OQ-121.
+_DA_NANG_RING = (
+    (107.20, 14.90),
+    (108.95, 14.90),
+    (108.95, 16.35),
+    (107.20, 16.35),
+    (107.20, 14.90),
+)
+DA_NANG_BOUNDARY_EWKT = (
+    "SRID=4326;MULTIPOLYGON(((" + ", ".join(f"{lng} {lat}" for lng, lat in _DA_NANG_RING) + ")))"
+)
+
+
+@dataclass(frozen=True)
+class CitySeed:
+    code: str
+    name_vi: str
+    name_en: str
+    is_enabled: bool
+    boundary: str | None
+
+
+CITIES: tuple[CitySeed, ...] = (
+    CitySeed("da-nang", "Đà Nẵng", "Da Nang", True, DA_NANG_BOUNDARY_EWKT),
+    # Roadmap cities (DEC-013): present but disabled. Hội An is an area of Đà Nẵng, not a city.
+    CitySeed("ha-noi", "Hà Nội", "Ha Noi", False, None),
+    CitySeed("ho-chi-minh-city", "Thành phố Hồ Chí Minh", "Ho Chi Minh City", False, None),
+    CitySeed("hue", "Huế", "Hue", False, None),
+)
+
+# Travel areas of Đà Nẵng (ADR-012 0.4, OQ-121): curator-defined, not wards. Boundaries stay NULL
+# until the curator draws them.
+AREAS: tuple[tuple[str, str, str], ...] = (
+    ("da-nang-center", "Trung tâm Đà Nẵng (Hải Châu, Thanh Khê)", "Da Nang city centre"),
+    ("son-tra", "Bán đảo Sơn Trà", "Son Tra Peninsula"),
+    ("my-khe-ngu-hanh-son", "Biển Mỹ Khê – Ngũ Hành Sơn", "My Khe Beach – Marble Mountains"),
+    ("ba-na-hoa-vang", "Bà Nà – Hòa Vang", "Ba Na Hills – Hoa Vang"),
+    ("hoi-an-old-town", "Phố cổ Hội An", "Hoi An Ancient Town"),
+    (
+        "hoi-an-beaches-islands",
+        "Biển và đảo Hội An (An Bàng, Cửa Đại, Cù Lao Chàm)",
+        "Hoi An beaches and islands (An Bang, Cua Dai, Cham Islands)",
+    ),
+)
+
+CATEGORIES: tuple[tuple[str, str, str], ...] = (
+    ("HERITAGE", "Di sản & di tích", "Heritage & historic sites"),
+    ("MUSEUM", "Bảo tàng", "Museums"),
+    ("RELIGIOUS_SITE", "Chùa, đền & nhà thờ", "Pagodas, temples & churches"),
+    ("BEACH", "Biển", "Beaches"),
+    ("NATURE", "Thiên nhiên", "Nature"),
+    ("VIEWPOINT", "Điểm ngắm cảnh", "Viewpoints"),
+    ("MARKET", "Chợ", "Markets"),
+    ("FOOD", "Ẩm thực", "Food"),
+    ("CAFE", "Cà phê", "Cafés"),
+    ("NIGHTLIFE", "Về đêm", "Evening & nightlife"),
+    ("THEME_PARK", "Khu vui chơi", "Theme parks"),
+    ("CRAFT_VILLAGE", "Làng nghề", "Craft villages"),
+)
+
+# schema.sql Section 9: operational fact vocabulary, 180-day staleness (ASM-008).
+FACT_FIELDS: tuple[tuple[str, bool, bool, str, int | None], ...] = (
+    ("OPENING_HOURS", True, True, "HOURS", 180),
+    ("ADMISSION_PRICE", True, True, "MONEY", 180),
+    ("ADDRESS_VI", True, True, "TEXT", 180),
+    ("ENTRANCE_LOCATION", True, True, "LOCATION", 180),
+    ("PAYMENT_METHODS", True, False, "TEXT", 180),
+    ("DRESS_CODE", True, False, "TEXT", 180),
+    ("ACCESS_RULES", True, False, "TEXT", 180),
+)
+
+CANONICAL = "ALLOW_CANONICAL"
+EPHEMERAL = "ALLOW_EPHEMERAL"
+IDENTIFIER = "ALLOW_IDENTIFIER_ONLY"
+DENY = "DENY"
+
+
+@dataclass(frozen=True)
+class ProviderSeed:
+    key: str
+    display_name: str
+    kind: str
+    terms_url: str
+    purpose: str
+    attribution: str | None
+    # field name -> (persistence class, max retention)
+    fields: dict[str, tuple[str, timedelta | None]]
+
+
+_OPEN_PLACE_FIELDS: dict[str, tuple[str, timedelta | None]] = {
+    "id": (IDENTIFIER, None),
+    "name": (CANONICAL, None),
+    "location": (CANONICAL, None),
+    "category": (CANONICAL, None),
+}
+
+# ADR-006 0.2. Policies are seeded as DRAFT revision 1: the owner records the terms version and
+# activates each policy before the first live call (OQ-016).
+PROVIDERS: tuple[ProviderSeed, ...] = (
+    ProviderSeed(
+        "overture_places",
+        "Overture Maps Places",
+        "OPEN_DATASET",
+        "https://docs.overturemaps.org/attribution/",
+        "Candidate import (ADR-012)",
+        "© Overture Maps Foundation",
+        _OPEN_PLACE_FIELDS,
+    ),
+    ProviderSeed(
+        "foursquare_os_places",
+        "Foursquare Open Source Places",
+        "OPEN_DATASET",
+        "https://opensource.foursquare.com/os-places/",
+        "Candidate import (ADR-012)",
+        "Foursquare Open Source Places (Apache-2.0)",
+        _OPEN_PLACE_FIELDS,
+    ),
+    ProviderSeed(
+        "wikidata",
+        "Wikidata",
+        "OPEN_DATASET",
+        "https://www.wikidata.org/wiki/Wikidata:Licensing",
+        "Candidate import and identity (ADR-012)",
+        "Wikidata (CC0)",
+        _OPEN_PLACE_FIELDS,
+    ),
+    ProviderSeed(
+        "openstreetmap",
+        "OpenStreetMap",
+        "OPEN_DATASET",
+        "https://www.openstreetmap.org/copyright",
+        "Candidate import and coordinates (ADR-012)",
+        "© OpenStreetMap contributors (ODbL)",
+        _OPEN_PLACE_FIELDS,
+    ),
+    ProviderSeed(
+        "wikimedia_commons",
+        "Wikimedia Commons",
+        "MEDIA_LIBRARY",
+        "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
+        "Place photos with per-file licence",
+        None,
+        {
+            "file_url": (CANONICAL, None),
+            "creator": (CANONICAL, None),
+            "license": (CANONICAL, None),
+        },
+    ),
+    ProviderSeed(
+        "google_places",
+        "Google Places API",
+        "RUNTIME_API",
+        "https://cloud.google.com/maps-platform/terms",
+        "Existence/status check of web candidates",
+        "Google Maps",
+        {
+            "place_id": (IDENTIFIER, None),
+            "location": (EPHEMERAL, timedelta(days=30)),
+            "business_status": (DENY, None),
+            "regular_opening_hours": (DENY, None),
+        },
+    ),
+    ProviderSeed(
+        "google_routes",
+        "Google Routes API",
+        "RUNTIME_API",
+        "https://cloud.google.com/maps-platform/terms",
+        "Leg distance and duration (ADR-011)",
+        "Google Maps",
+        {
+            "distance_m": (EPHEMERAL, timedelta(days=30)),
+            "duration_s": (EPHEMERAL, timedelta(days=30)),
+        },
+    ),
+    ProviderSeed(
+        "liteapi",
+        "LiteAPI",
+        "RUNTIME_API",
+        "https://www.liteapi.travel/terms",
+        "Indicative stay prices (Could, flag-gated)",
+        "LiteAPI",
+        {"price": (DENY, None), "rate": (DENY, None)},
+    ),
+    ProviderSeed(
+        "gemini",
+        "Google Gemini API",
+        "AI_SERVICE",
+        "https://ai.google.dev/gemini-api/terms",
+        "Selection, rationales, Guide answers, embeddings",
+        None,
+        {
+            "prompt": (DENY, None),
+            "response": (DENY, None),
+            "chunk_embedding": (CANONICAL, None),
+            "query_embedding": (EPHEMERAL, timedelta(days=90)),
+        },
+    ),
+    ProviderSeed(
+        "groq",
+        "Groq API",
+        "AI_SERVICE",
+        "https://groq.com/terms-of-use/",
+        "Fallback model and research extraction",
+        None,
+        {"prompt": (DENY, None), "response": (DENY, None)},
+    ),
+    ProviderSeed(
+        "tavily",
+        "Tavily Search API",
+        "WEB_SEARCH",
+        "https://tavily.com/terms",
+        "Research agent web search (ADR-014)",
+        None,
+        {
+            "result_url": (EPHEMERAL, timedelta(days=7)),
+            "result_title": (EPHEMERAL, timedelta(days=7)),
+            "result_snippet": (EPHEMERAL, timedelta(days=7)),
+        },
+    ),
+    ProviderSeed(
+        "web_page",
+        "Fetched web pages",
+        "WEB_CONTENT",
+        "https://www.robotstxt.org/",
+        "Evidence pages for WEB_UNVERIFIED candidates (ADR-014)",
+        None,
+        {
+            "url": (CANONICAL, None),
+            "content_sha256": (CANONICAL, None),
+            "retrieved_at": (CANONICAL, None),
+            "extracted_text": (EPHEMERAL, timedelta(days=7)),
+        },
+    ),
+)
+
+PROVIDER_POLICY_TERMS_VERSION = "UNRECORDED"
+
+
+async def seed_reference_data(session: AsyncSession) -> dict[str, int]:
+    """Upsert cities, areas, categories, fact fields, providers, policies and field rules.
+
+    Idempotent: reference rows are updated in place; policy revisions and their field rules are
+    immutable once written, so existing ones are left untouched.
+    """
+    for city in CITIES:
+        stmt = insert(City).values(
+            code=city.code,
+            name_vi=city.name_vi,
+            name_en=city.name_en,
+            time_zone="Asia/Ho_Chi_Minh",
+            is_enabled=city.is_enabled,
+            boundary=city.boundary,
+        )
+        await session.execute(
+            stmt.on_conflict_do_update(
+                index_elements=[City.code],
+                set_={
+                    "name_vi": stmt.excluded.name_vi,
+                    "name_en": stmt.excluded.name_en,
+                    "is_enabled": stmt.excluded.is_enabled,
+                    "boundary": func.coalesce(City.boundary, stmt.excluded.boundary),
+                },
+            )
+        )
+
+    city_id = await session.scalar(select(City.id).where(City.code == "da-nang"))
+    assert city_id is not None
+    for sort_order, (code, name_vi, name_en) in enumerate(AREAS, start=1):
+        area_stmt = insert(Area).values(
+            code=code, city_id=city_id, name_vi=name_vi, name_en=name_en, sort_order=sort_order
+        )
+        await session.execute(
+            area_stmt.on_conflict_do_update(
+                index_elements=[Area.code],
+                set_={
+                    "name_vi": area_stmt.excluded.name_vi,
+                    "name_en": area_stmt.excluded.name_en,
+                    "sort_order": area_stmt.excluded.sort_order,
+                },
+            )
+        )
+
+    for sort_order, (code, name_vi, name_en) in enumerate(CATEGORIES, start=1):
+        cat_stmt = insert(Category).values(
+            code=code, name_vi=name_vi, name_en=name_en, sort_order=sort_order
+        )
+        await session.execute(
+            cat_stmt.on_conflict_do_update(
+                index_elements=[Category.code],
+                set_={
+                    "name_vi": cat_stmt.excluded.name_vi,
+                    "name_en": cat_stmt.excluded.name_en,
+                    "sort_order": cat_stmt.excluded.sort_order,
+                },
+            )
+        )
+
+    for code, operational, required, kind, stale in FACT_FIELDS:
+        ff_stmt = insert(FactField).values(
+            code=code,
+            is_operational=operational,
+            required_for_publication=required,
+            value_kind=kind,
+            stale_after_days=stale,
+        )
+        await session.execute(
+            ff_stmt.on_conflict_do_update(
+                index_elements=[FactField.code],
+                set_={
+                    "is_operational": ff_stmt.excluded.is_operational,
+                    "required_for_publication": ff_stmt.excluded.required_for_publication,
+                    "value_kind": ff_stmt.excluded.value_kind,
+                    "stale_after_days": ff_stmt.excluded.stale_after_days,
+                },
+            )
+        )
+
+    for provider in PROVIDERS:
+        dp_stmt = insert(DataProvider).values(
+            provider_key=provider.key,
+            display_name=provider.display_name,
+            provider_kind=provider.kind,
+        )
+        provider_id = await session.scalar(
+            dp_stmt.on_conflict_do_update(
+                index_elements=[DataProvider.provider_key],
+                set_={
+                    "display_name": dp_stmt.excluded.display_name,
+                    "provider_kind": dp_stmt.excluded.provider_kind,
+                },
+            ).returning(DataProvider.id)
+        )
+        await session.execute(
+            insert(ProviderPolicy)
+            .values(
+                data_provider_id=provider_id,
+                policy_revision=1,
+                terms_version=PROVIDER_POLICY_TERMS_VERSION,
+                terms_url=provider.terms_url,
+                purpose=provider.purpose,
+                attribution_text=provider.attribution,
+                status="DRAFT",
+            )
+            .on_conflict_do_nothing(
+                index_elements=[ProviderPolicy.data_provider_id, ProviderPolicy.policy_revision]
+            )
+        )
+        policy_id = await session.scalar(
+            select(ProviderPolicy.id).where(
+                ProviderPolicy.data_provider_id == provider_id,
+                ProviderPolicy.policy_revision == 1,
+            )
+        )
+        for field_name, (persistence_class, retention) in provider.fields.items():
+            await session.execute(
+                insert(ProviderFieldRule)
+                .values(
+                    provider_policy_id=policy_id,
+                    field_name=field_name,
+                    persistence_class=persistence_class,
+                    max_retention=retention,
+                )
+                .on_conflict_do_nothing()
+            )
+
+    await session.commit()
+    return await reference_counts(session)
+
+
+async def reference_counts(session: AsyncSession) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for model in (City, Area, Category, FactField, DataProvider, ProviderPolicy, ProviderFieldRule):
+        count = await session.scalar(select(func.count()).select_from(model))
+        counts[str(model.__tablename__)] = int(count or 0)
+    return counts
+
+
+@app.command()
+def seed() -> None:
+    """Upsert Đà Nẵng reference data (idempotent)."""
+
+    async def run() -> dict[str, int]:
+        try:
+            async with session_factory() as session:
+                return await seed_reference_data(session)
+        finally:
+            await engine.dispose()
+
+    for table, count in asyncio.run(run()).items():
+        typer.echo(f"{table}: {count}")
+
+
+@app.command("db-check")
+def db_check() -> None:
+    """Print the alembic head revision and the database revision; exit 1 if they differ."""
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    config.set_main_option(
+        "script_location", str(Path(__file__).resolve().parents[1] / "migrations")
+    )
+    head = ScriptDirectory.from_config(config).get_current_head()
+
+    async def current() -> str | None:
+        try:
+            async with engine.connect() as conn:
+                exists = await conn.scalar(
+                    text("SELECT to_regclass('alembic_version') IS NOT NULL")
+                )
+                if not exists:
+                    return None
+                version = await conn.scalar(text("SELECT version_num FROM alembic_version"))
+                return None if version is None else str(version)
+        finally:
+            await engine.dispose()
+
+    db_revision = asyncio.run(current())
+    typer.echo(f"alembic head: {head}")
+    typer.echo(f"database:     {db_revision}")
+    if db_revision != head:
+        raise typer.Exit(code=1)
+
+
+if __name__ == "__main__":
+    app()

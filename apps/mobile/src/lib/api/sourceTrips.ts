@@ -1,11 +1,12 @@
 /**
- * Save, booking handoff and trip deletion calls (SCR-029, SCR-037, SCR-031). Same rules as `source.ts`: with
- * EXPO_PUBLIC_USE_FIXTURES=1 every call is served from local fixtures; otherwise calls throw until the API client lands
- * (TASK-001). Types missing from `types.ts` are mirrored here from docs/04-design/api/openapi.yaml.
+ * Save, booking handoff and trip deletion calls (SCR-029, SCR-037, SCR-031). Same rules as `source.ts`: remote when
+ * `isRemoteEnabled()` (EXPO_PUBLIC_API_URL set, see config.ts), otherwise served from local fixtures. Types missing from `types.ts` are mirrored here from docs/04-design/api/openapi.yaml.
  */
-import { cityById, fixtureTripDetail, fixtureTrips } from './fixtures/hoi-an';
-import { ApiError, useFixtures } from './source';
 import { currentLocale } from '../../i18n';
+import { apiRequest, apiRequestRaw } from './client';
+import { isRemoteEnabled } from './config';
+import { ApiError } from './errors';
+import { cityById, fixtureTripDetail, fixtureTrips } from './fixtures/da-nang';
 import type { Conflict, HandoffKind, HandoffLink, IsoDate, IsoDateTime, Money, TripDetail, Uuid } from './types';
 
 /* ---------------------------------------------------------------- Contract mirrors */
@@ -57,10 +58,6 @@ export const stayPricesEnabled = process.env.EXPO_PUBLIC_FEATURE_PRICES === '1';
 
 /* ---------------------------------------------------------------- Fixture plumbing */
 
-function notWired(): never {
-  throw new Error('API not wired yet (TASK-001)');
-}
-
 const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
 /**
@@ -106,7 +103,16 @@ const previewTripId = (_previewId: Uuid): Uuid => fixtureTrips[0].id;
  * (`context.current_revision`), 410 `preview_expired`, `NetworkError` when no response arrived.
  */
 export async function acceptPreview(previewId: Uuid, body: AcceptPreviewRequest, idempotencyKey: string): Promise<AcceptPreviewResult> {
-  if (!useFixtures) notWired();
+  if (isRemoteEnabled()) {
+    try {
+      const response = await apiRequestRaw<TripDetail>(`/v1/plan-previews/${encodeURIComponent(previewId)}/accept`, { body, idempotencyKey, method: 'POST' });
+      return { replayed: response.headers.get('Idempotent-Replayed') === 'true', trip: response.data };
+    } catch (error) {
+      // No response: the save may have committed; the caller retries with the same key.
+      if (error instanceof TypeError) throw new NetworkError();
+      throw error;
+    }
+  }
   await wait(900);
   const serialized = JSON.stringify(body);
   const stored = idempotency.get(idempotencyKey);
@@ -160,7 +166,12 @@ const isoAddDays = (date: IsoDate, days: number): IsoDate => {
  * kinds. Requires a SAVED trip (409 `trip_not_saved`). `end_date` = check-out = start + day_count.
  */
 export async function getHandoffLinks(tripId: Uuid, options: { kinds?: HandoffKind[]; stopId?: Uuid } = {}): Promise<HandoffLink[]> {
-  if (!useFixtures) notWired();
+  if (isRemoteEnabled()) {
+    const kinds = options.kinds ?? ['STAY', 'ACTIVITY', 'TRANSPORT'];
+    return Promise.all(kinds.map(kind => apiRequest<HandoffLink>(`/v1/trips/${encodeURIComponent(tripId)}/handoff-links`, {
+      query: { kind, locale: currentLocale(), stop_id: options.stopId },
+    })));
+  }
   await wait(450);
   const trip = fixtureTrips.find(item => item.id === tripId);
   if (!trip) throw new ApiError({ code: 'not_found', message: 'This item was not found', retryable: false }, 404);
@@ -199,7 +210,7 @@ export async function getStayPrices(tripId: Uuid): Promise<StayPricePage> {
   if (!stayPricesEnabled) {
     throw new ApiError({ code: 'feature_disabled', message: 'Feature disabled', retryable: false }, 503);
   }
-  if (!useFixtures) notWired();
+  if (isRemoteEnabled()) return apiRequest<StayPricePage>(`/v1/trips/${encodeURIComponent(tripId)}/stay-prices`);
   await wait(700);
   if (!fixtureTrips.some(item => item.id === tripId)) {
     throw new ApiError({ code: 'not_found', message: 'This item was not found', retryable: false }, 404);
@@ -223,7 +234,14 @@ export async function getStayPrices(tripId: Uuid): Promise<StayPricePage> {
 
 /** API-016 `DELETE /v1/trips/{trip_id}`. 204 and 404 are both "done" for the caller (SCR-031). */
 export async function deleteTrip(tripId: Uuid): Promise<void> {
-  if (!useFixtures) notWired();
+  if (isRemoteEnabled()) {
+    try {
+      await apiRequest<void>(`/v1/trips/${encodeURIComponent(tripId)}`, { method: 'DELETE' });
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 404)) throw error;
+    }
+    return;
+  }
   await wait(400);
   serverRevision.delete(tripId);
   otherDeviceSaved.delete(tripId);

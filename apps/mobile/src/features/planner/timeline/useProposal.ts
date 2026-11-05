@@ -50,7 +50,8 @@ async function cityOf(cityId: Uuid | undefined): Promise<{ cityName: string | nu
 
 /** Photo and category of every stop's place (API-011), loaded in parallel; a failed lookup just shows no photo. */
 async function placesOf(days: NumberedDay[], known: Record<Uuid, StopPlace> = {}): Promise<Record<Uuid, StopPlace>> {
-  const ids = [...new Set(days.flatMap(day => day.stops.map(stop => stop.place_id)))];
+  // WEB_UNVERIFIED stops have no catalog place (place_id null): nothing to look up.
+  const ids = [...new Set(days.flatMap(day => day.stops.map(stop => stop.place_id)).filter((id): id is Uuid => !!id))];
   const entries = await Promise.all(ids.map(id => {
     if (known[id]) return [id, known[id]] as const;
     const seen = cachedPlace(id);
@@ -64,7 +65,7 @@ async function placesOf(days: NumberedDay[], known: Record<Uuid, StopPlace> = {}
 
 function coverOf(days: NumberedDay[], places: Record<Uuid, StopPlace>): Media | null {
   const first = days.find(day => day.stops.length)?.stops[0];
-  return first ? places[first.place_id]?.thumbnail ?? null : null;
+  return first?.place_id ? places[first.place_id]?.thumbnail ?? null : null;
 }
 
 async function fromTrip(trip: TripDetail): Promise<ProposalData> {

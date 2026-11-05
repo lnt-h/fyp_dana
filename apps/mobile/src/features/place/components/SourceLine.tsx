@@ -8,6 +8,9 @@ import type { Citation } from '../../../lib/api/types';
 import { colors } from '../../../theme/colors';
 import { fonts } from '../../../theme/typography';
 import { formatDate, isStaleDate } from '../format';
+import { CitationTrustBadge, isWebUnverified } from './UnverifiedBadge';
+
+export { CitationTrustBadge, StopTrustBadge, UnverifiedBadge, isWebUnverified } from './UnverifiedBadge';
 
 /** *Có thể đã cũ / May be out of date* badge: word + icon, never colour alone (S-4). */
 export function StaleBadge({ onDark = false }: { onDark?: boolean }) {
@@ -38,8 +41,12 @@ export function CitationDetail({ citation, onOpen }: { citation: Citation; onOpe
       {t('place.source.sectionLabel')}: {citation.section ? t(`place.sections.${citation.section}`) : t('place.sections.FACT')}
     </Text>
     {!!citation.locator && <Text selectable style={st.detailText}>{t('place.source.locatorLabel')}: {citation.locator}</Text>}
-    <Text style={st.detailText}>{t('place.source.verifiedLong', { date: formatDate(citation.verified_at, locale) })}</Text>
-    {isStaleDate(citation.verified_at) && <StaleBadge />}
+    {isWebUnverified(citation)
+      ? <CitationTrustBadge citation={citation} />
+      : <>
+        {!!citation.verified_at && <Text style={st.detailText}>{t('place.source.verifiedLong', { date: formatDate(citation.verified_at, locale) })}</Text>}
+        {isStaleDate(citation.verified_at) && <StaleBadge />}
+      </>}
     {onOpen && <Pressable accessibilityRole="link" onPress={onOpen} style={({ pressed }) => [st.openLink, pressed && { opacity: 0.6 }]}>
       <Text style={st.link}>{t('place.source.openPlace')}</Text>
       <Icon color={colors.ink} name="chevron-right" size={16} />
@@ -49,15 +56,17 @@ export function CitationDetail({ citation, onOpen }: { citation: Citation; onOpe
 
 /**
  * One source: `ⓘ {publisher}, {title} · verified {date}` + stale badge. Tapping expands the title, section and locator.
+ * A `WEB_UNVERIFIED` source shows the *Unverified* badge with host + fetched date instead (stale after 7 days).
  * `onOpen` adds an "open place card" link inside the expanded block (Guide → SCR-033).
  */
 export function SourceLine({ citation, stale, onOpen }: { citation: Citation; stale?: boolean; onOpen?: () => void }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const locale = currentLocale();
-  const isStale = stale ?? isStaleDate(citation.verified_at);
+  const web = isWebUnverified(citation);
+  const isStale = !web && (stale ?? isStaleDate(citation.verified_at));
   const label = [citation.publisher, citation.title].filter(Boolean).join(', ');
-  const verified = t('place.source.verified', { date: formatDate(citation.verified_at, locale) });
+  const verified = !web && citation.verified_at ? t('place.source.verified', { date: formatDate(citation.verified_at, locale) }) : null;
   return <View>
     <Pressable
       accessibilityRole="button"
@@ -68,8 +77,9 @@ export function SourceLine({ citation, stale, onOpen }: { citation: Citation; st
     >
       <View style={st.line}>
         <View style={st.lineIcon}><Icon color={colors.textMuted} name="info" size={14} /></View>
-        <Text style={st.text}>{label} · {verified}</Text>
+        <Text style={st.text}>{[label, verified].filter(Boolean).join(' · ')}</Text>
       </View>
+      {web && <CitationTrustBadge citation={citation} />}
       {isStale && <StaleBadge />}
     </Pressable>
     {open && <CitationDetail citation={citation} onOpen={onOpen} />}

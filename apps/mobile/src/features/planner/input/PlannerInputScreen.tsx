@@ -5,9 +5,9 @@ import { useTranslation } from 'react-i18next';
 
 import { useAccount, type Interest } from '../../account/AccountContext';
 import { currentLocale } from '../../../i18n';
-import { HOI_AN_PREVIEW_ID } from '../../../lib/api/fixtures/hoi-an';
 import { ApiError, createTrip, getPreferences, listCategories, listCities } from '../../../lib/api/source';
 import type { Category, City, ClarificationRequired, Pace, PlanPreviewCreate, TravelMode, Uuid } from '../../../lib/api/types';
+import { DEFAULT_CITY_CODE } from '../../../lib/api/types';
 import { Icon, PrimaryButton, SecondaryButton, Skeleton, categoryIcon, travelModeIcon } from '../../../components/ui';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
 import { colors } from '../../../theme/colors';
@@ -67,7 +67,7 @@ export function PlannerInputScreen() {
       setCities(items);
       setDraftState(previous => {
         if (previous.cityId) return previous;
-        const next = { ...previous, cityId: (items.find(city => city.code === 'hoi-an') ?? items[0])?.id ?? null };
+        const next = { ...previous, cityId: (items.find(city => city.code === DEFAULT_CITY_CODE) ?? items[0])?.id ?? null };
         writeDraft(next);
         return next;
       });
@@ -158,8 +158,8 @@ export function PlannerInputScreen() {
         source: 'GENERATE',
       };
       setPlanRequest({ body, city, trip });
-      // The preview id is only known once the stream reports preview_ready; the fixture id stands in for the route.
-      router.replace({ params: { previewId: HOI_AN_PREVIEW_ID }, pathname: '/plan/[previewId]' });
+      // The preview id is only known once the stream reports preview_ready; the progress route ignores this segment.
+      router.replace({ params: { previewId: 'pending' }, pathname: '/plan/[previewId]' });
     } catch (error) {
       const detail = toErrorDetail(error);
       if (detail.code === 'unsupported_request') { setView({ kind: 'unsupported' }); return; }

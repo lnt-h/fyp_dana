@@ -3,15 +3,14 @@ import logging
 import re
 import time
 import uuid
-from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.datastructures import Headers, MutableHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = logging.getLogger("gonarra.request")
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
@@ -36,34 +35,54 @@ def error_payload(
     }
 
 
-class RequestContextMiddleware(BaseHTTPMiddleware):
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: Callable[[Request], Awaitable[Response]],
-    ) -> Response:
-        supplied_request_id = request.headers.get("x-request-id", "")
+class RequestContextMiddleware:
+    """Pure ASGI request-context middleware.
+
+    Assigns ``X-Request-ID`` (client value if it matches :data:`REQUEST_ID_PATTERN`, else a
+    UUID4), exposes it as ``request.state.request_id``, echoes it on the response and logs one
+    JSON line per request once the response has completed. The body is never buffered, so
+    streaming responses (SSE) pass straight through. Non-HTTP scopes are untouched.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        supplied_request_id = Headers(scope=scope).get("x-request-id", "")
         request_id = (
             supplied_request_id
             if REQUEST_ID_PATTERN.fullmatch(supplied_request_id)
             else str(uuid.uuid4())
         )
-        request.state.request_id = request_id
+        scope.setdefault("state", {})["request_id"] = request_id
         started = time.perf_counter()
-        response = await call_next(request)
-        response.headers["x-request-id"] = request_id
-        logger.info(
-            json.dumps(
-                {
-                    "request_id": request_id,
-                    "method": request.method,
-                    "path": request.url.path,
-                    "status": response.status_code,
-                    "duration_ms": round((time.perf_counter() - started) * 1000, 2),
-                }
+        status_code = 500
+
+        async def send_with_request_id(message: Message) -> None:
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+                MutableHeaders(scope=message)["x-request-id"] = request_id
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_with_request_id)
+        finally:
+            logger.info(
+                json.dumps(
+                    {
+                        "request_id": request_id,
+                        "method": scope["method"],
+                        "path": scope["path"],
+                        "status": status_code,
+                        "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                    }
+                )
             )
-        )
-        return response
 
 
 def install_observability(application: FastAPI) -> None:

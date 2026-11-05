@@ -103,7 +103,7 @@ export function GuideChat({ placeId, onChangePlace, keyboardOpen }: { placeId: s
     };
     let finished = false;
     try {
-      await streamGuide({ content, input_mode: 'TEXT' }, event => {
+      await streamGuide(session.id, { content, input_mode: 'TEXT' }, event => {
         if (controller.signal.aborted) return;
         if (event.type === 'progress') update(item => ({ ...item, stage: event.stage }));
         else if (event.type === 'text') update(item => ({ ...item, text: item.text + event.delta }));

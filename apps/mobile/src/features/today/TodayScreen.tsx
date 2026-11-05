@@ -17,6 +17,7 @@ import { MIN_TOUCH, radii, spacing } from '../../theme/spacing';
 import { fonts, typography } from '../../theme/typography';
 import { ErrorBanner } from '../home/sections/SheetBanners';
 import { openTripDetail, vietnamMinutesNow } from '../home/sections/homeSheetUtils';
+import { StopTrustBadge } from '../place/components/SourceLine';
 import { addIsoDays, cityName, formatLongDate, formatShortDate } from '../save/format';
 import { focusStop, legAfter, openDirections, pickDay, timeStops, type TimedStop } from './todayModel';
 
@@ -58,7 +59,8 @@ export function TodayScreen({ tripId }: { tripId: Uuid }) {
   const focus = focusStop(stops);
   const finished = picked?.mode === 'today' && stops.length > 0 && !focus;
 
-  const placeIds = stops.map(item => item.stop.place_id).join(',');
+  // Web (WEB_UNVERIFIED) stops have no catalog place, so no photo lookup and no place page.
+  const placeIds = stops.map(item => item.stop.place_id).filter((id): id is Uuid => !!id).join(',');
   useEffect(() => {
     if (!placeIds) return;
     let active = true;
@@ -73,10 +75,10 @@ export function TodayScreen({ tripId }: { tripId: Uuid }) {
     const message = t('save.today.directionsError');
     setNotice(message);
     AccessibilityInfo.announceForAccessibility(message);
-    router.push({ params: { placeId: stop.place_id }, pathname: '/place/[placeId]' });
+    if (stop.place_id) router.push({ params: { placeId: stop.place_id }, pathname: '/place/[placeId]' });
   }, [t]);
 
-  const openPlace = (stop: Stop) => router.push({ params: { placeId: stop.place_id }, pathname: '/place/[placeId]' });
+  const openPlace = (stop: Stop) => { if (stop.place_id) router.push({ params: { placeId: stop.place_id }, pathname: '/place/[placeId]' }); };
   const back = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'));
   const backButton = <CircleButton accessibilityLabel={t('save.today.back')} icon="back" onPress={back} />;
 
@@ -151,7 +153,7 @@ export function TodayScreen({ tripId }: { tripId: Uuid }) {
               nowMinutes={nowMinutes}
               onDirections={() => void directions(focus.stop)}
               onOpen={() => openPlace(focus.stop)}
-              thumb={thumbs[focus.stop.place_id] ?? null}
+              thumb={focus.stop.place_id ? thumbs[focus.stop.place_id] ?? null : null}
             />
           ) : null}
 
@@ -171,7 +173,7 @@ export function TodayScreen({ tripId }: { tripId: Uuid }) {
                     leg={index < stops.length - 1 ? legAfter(day, item.stop) : undefined}
                     onDirections={() => void directions(item.stop)}
                     onOpen={() => openPlace(item.stop)}
-                    thumb={thumbs[item.stop.place_id] ?? null}
+                    thumb={item.stop.place_id ? thumbs[item.stop.place_id] ?? null : null}
                   />
                 ))}
               </View>
@@ -225,6 +227,7 @@ function FocusCard({ item, mode, nowMinutes, thumb, onDirections, onOpen }: { it
           <View style={styles.focusOverlay}>
             <Text numberOfLines={2} style={styles.focusName}>{stop.name}</Text>
             {showOther ? <Text numberOfLines={1} style={styles.focusOther}>{stop.name_vi}</Text> : null}
+            <StopTrustBadge compact onDark stop={stop} />
           </View>
         </Pressable>
         <View style={styles.focusBody}>
@@ -288,6 +291,7 @@ function TimelineRow({ item, thumb, focused, focusLabel, last, leg, onOpen, onDi
             {focused ? <Text style={styles.rowBadge}>{focusLabel}</Text> : null}
             {done ? <Text style={styles.rowDone}>{t('save.today.done')}</Text> : null}
             <Text numberOfLines={2} style={[styles.rowName, done && styles.muted]}>{stop.name}</Text>
+            <StopTrustBadge stop={stop} />
             {item.arrival && item.departure ? (
               <Text style={styles.rowSub}>{`${item.arrival.label} – ${item.departure.label}`}</Text>
             ) : null}

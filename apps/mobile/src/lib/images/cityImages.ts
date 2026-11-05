@@ -17,6 +17,5 @@ export const CITY_IMAGES: Record<CityCode, Media> = {
   'da-nang': cover(4, 'city-da-nang.jpg', 1400, 1054, 'Shenzybaby · CC0 · Wikimedia Commons', 'CC0-1.0'),
   'ha-noi': cover(1, 'city-ha-noi.jpg', 1400, 933, 'Daderot · CC0 · Wikimedia Commons', 'CC0-1.0'),
   'ho-chi-minh-city': cover(2, 'city-hcm.jpg', 1400, 933, 'lumoplank · CC0 · Wikimedia Commons', 'CC0-1.0'),
-  'hoi-an': cover(3, 'city-hoi-an.jpg', 1400, 917, 'Steffen Schmitz · CC BY-SA 4.0 · Wikimedia Commons', 'CC-BY-SA-4.0'),
   hue: cover(5, 'city-hue.jpg', 1400, 1050, 'Chainwit. · CC BY 4.0 · Wikimedia Commons', 'CC-BY-4.0'),
 };

@@ -65,5 +65,11 @@
     "visit": "Visit",
     "price": "Admission"
   },
-  "share": "Share this place"
+  "share": "Share this place",
+  "trust": {
+    "unverified": "Unverified",
+    "unverifiedHint": "Found on the web; not reviewed by Gonarra yet.",
+    "webSource": "{{host}} · fetched {{date}}",
+    "webSourceUnknown": "Web source"
+  }
 }

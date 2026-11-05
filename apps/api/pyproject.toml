@@ -5,23 +5,33 @@ description = "Backend API for the Gonarra itinerary planner"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+  "agno==3.1.12",
   "alembic>=1.14,<2",
   "fastapi>=0.115,<1",
+  "google-genai>=1.0",
+  "groq>=0.20",
   "httpx>=0.28,<1",
+  "ortools>=9.11",
   "pgvector>=0.3,<1",
   "psycopg[binary]>=3.2,<4",
   "pydantic-settings>=2.7,<3",
   "pyjwt[crypto]>=2.10,<3",
   "sqlalchemy[asyncio]>=2.0.37,<3",
+  "sse-starlette>=2.1",
+  "tavily-python>=0.5",
+  "trafilatura>=2.0",
+  "typer>=0.15",
   "uvicorn[standard]>=0.34,<1",
 ]
 
 [dependency-groups]
 dev = [
+  "import-linter>=2.0",
   "mypy>=1.14,<2",
   "pytest>=8.3,<9",
   "pytest-asyncio>=0.25,<1",
   "pytest-cov>=6,<8",
+  "pytest-httpx>=0.35",
   "ruff>=0.9,<1",
 ]
 
@@ -49,3 +59,40 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[tool.importlinter]
+root_package = "app"
+include_external_packages = false
+
+# Architecture §2 import rules, limited to modules that exist today. Add the planning, routing,
+# agents and guide contracts (solver/calendar/health/routing never import agents or ai; agents
+# import only ai and agents.schemas; api imports workflows only) when those packages land.
+[[tool.importlinter.contracts]]
+name = "Schemas and models do not import the HTTP layer"
+type = "forbidden"
+source_modules = ["app.schemas", "app.models"]
+forbidden_modules = ["app.api", "app.main"]
+
+[[tool.importlinter.contracts]]
+name = "Database plumbing does not import the HTTP layer or repositories"
+type = "forbidden"
+source_modules = ["app.db"]
+forbidden_modules = ["app.api", "app.main", "app.repositories"]
+
+[[tool.importlinter.contracts]]
+name = "Security does not import the HTTP layer"
+type = "forbidden"
+source_modules = ["app.security"]
+forbidden_modules = ["app.api", "app.main"]
+
+[[tool.importlinter.contracts]]
+name = "Observability does not import the HTTP layer or persistence"
+type = "forbidden"
+source_modules = ["app.observability"]
+forbidden_modules = ["app.api", "app.main", "app.db", "app.repositories"]
+
+[[tool.importlinter.contracts]]
+name = "AI providers do not import the HTTP layer"
+type = "forbidden"
+source_modules = ["app.ai"]
+forbidden_modules = ["app.api", "app.main"]

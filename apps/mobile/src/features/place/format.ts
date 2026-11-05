@@ -71,3 +71,20 @@ export function factPoint(fact: PlaceFact | undefined): GeoPoint | null {
   const value = fact?.knowledge_state === 'KNOWN' ? fact.value : null;
   return isObject(value) && 'latitude' in value && 'longitude' in value ? value : null;
 }
+
+/** Days after `fetched_at` when a `WEB_UNVERIFIED` source counts as stale (architecture §5). */
+export const WEB_STALE_AFTER_DAYS = 7;
+
+/** True when a web page was fetched more than 7 days ago. Unknown or unparsable dates are not stale. */
+export function isWebSourceStale(fetchedAt: string | null | undefined, now = Date.now()): boolean {
+  if (!fetchedAt) return false;
+  const fetched = Date.parse(fetchedAt);
+  if (Number.isNaN(fetched)) return false;
+  return (now - fetched) / 86_400_000 > WEB_STALE_AFTER_DAYS;
+}
+
+/** Host of a source URL without `www.` (e.g. `vietnam.travel`); null when the URL has no host. */
+export function hostOf(url: string | null | undefined): string | null {
+  const match = url ? /^[a-z][a-z0-9+.-]*:\/\/(?:[^/?#@]*@)?([^/?#:]+)/i.exec(url.trim()) : null;
+  return match ? match[1].toLowerCase().replace(/^www\./, '') : null;
+}

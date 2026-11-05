@@ -230,7 +230,7 @@ export function TripsScreen() {
       <SectionList
         ListEmptyComponent={state === 'ready' ? (
           <View style={[styles.inner, styles.stateGap]}>
-            <PhotoPanel action={t('trips.empty.action')} body={t('trips.empty.body')} code="hoi-an" icon="map-pin" onAction={newTrip} title={t('trips.empty.title')} />
+            <PhotoPanel action={t('trips.empty.action')} body={t('trips.empty.body')} code="da-nang" icon="map-pin" onAction={newTrip} title={t('trips.empty.title')} />
           </View>
         ) : undefined}
         ListHeaderComponent={header}

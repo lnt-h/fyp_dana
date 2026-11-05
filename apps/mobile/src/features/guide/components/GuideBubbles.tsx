@@ -9,14 +9,18 @@ import type { Citation, GuideMessage, GuideStreamEvent } from '../../../lib/api/
 import { colors } from '../../../theme/colors';
 import { radii } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
-import { CitationDetail } from '../../place/components/SourceLine';
-import { formatDate, isStaleDate } from '../../place/format';
+import { CitationDetail, UnverifiedBadge, isWebUnverified } from '../../place/components/SourceLine';
+import { formatDate, hostOf, isStaleDate, isWebSourceStale } from '../../place/format';
 import { GuideAvatar, washMuted } from './GuideHeader';
 
 type Stage = Extract<GuideStreamEvent, { type: 'progress' }>['stage'];
 
 /** Domain rule: an answer counts only with ≥ 1 citation; anything else renders as insufficient evidence. */
-export const isCitedAnswer = (message: GuideMessage) => message.answer_status === 'ANSWERED' && (message.citations?.length ?? 0) > 0;
+export const isCitedAnswer = (message: GuideMessage) =>
+  (message.answer_status === 'ANSWERED' || message.answer_status === 'ANSWERED_WEB_UNVERIFIED') && (message.citations?.length ?? 0) > 0;
+
+/** Web-fallback answer (ADR-010): evidence came from pages Gonarra has not reviewed. */
+const isWebAnswer = (message: GuideMessage) => message.answer_status === 'ANSWERED_WEB_UNVERIFIED';
 
 export function TravelerBubble({ content }: { content: string }) {
   const { t } = useTranslation();
@@ -49,11 +53,12 @@ export function AssistantBubble({ message, onOpenPlace }: { message: GuideMessag
   }
   return <AssistantRow>
     <View style={[b.bubble, b.assistant]}>
+      {isWebAnswer(message) && <UnverifiedBadge compact />}
       <Text accessibilityLabel={`${t('guide.assistant')}: ${message.content}`} selectable style={b.body}>{message.content}</Text>
       <SourceChips citations={message.citations ?? []} onOpenPlace={onOpenPlace} />
       <View style={b.aiRow}>
         <Icon color={washMuted} name="info" size={13} />
-        <Text style={b.aiLabel}>{t('guide.aiLabel')}</Text>
+        <Text style={b.aiLabel}>{t(isWebAnswer(message) ? 'guide.aiLabelWeb' : 'guide.aiLabel')}</Text>
       </View>
     </View>
   </AssistantRow>;
@@ -69,9 +74,12 @@ function SourceChips({ citations, onOpenPlace }: { citations: Citation[]; onOpen
     <Text style={b.sourcesTitle}>{t('guide.sources', { count: citations.length })}</Text>
     <View style={b.chips}>
       {citations.map((citation, index) => {
-        const stale = isStaleDate(citation.verified_at);
+        const web = isWebUnverified(citation);
+        const stale = web ? isWebSourceStale(citation.fetched_at) : isStaleDate(citation.verified_at);
         const active = open === index;
-        const verified = t('place.source.verified', { date: formatDate(citation.verified_at, locale) });
+        const verified = web
+          ? `${t('place.trust.unverified')}, ${hostOf(citation.url ?? citation.locator) ?? t('place.trust.webSourceUnknown')}`
+          : citation.verified_at ? t('place.source.verified', { date: formatDate(citation.verified_at, locale) }) : null;
         return <Pressable
           accessibilityHint={t(active ? 'place.source.collapseHint' : 'place.source.expandHint')}
           accessibilityLabel={[`${index + 1}. ${citation.publisher}`, citation.title, verified, stale ? t('place.stale') : null].filter(Boolean).join(', ')}
@@ -86,6 +94,7 @@ function SourceChips({ citations, onOpenPlace }: { citations: Citation[]; onOpen
             <Text style={[b.chipIndexText, active && { color: colors.deepOcean }]}>{index + 1}</Text>
           </View>
           <Text numberOfLines={1} style={[b.chipText, active && { color: colors.white }]}>{citation.publisher}</Text>
+          {web && <Icon color={active ? colors.white : colors.accentText} name="info" size={14} />}
           {stale && <Icon color={active ? colors.sun : colors.warn} name="warning" size={14} />}
         </Pressable>;
       })}

@@ -28,7 +28,7 @@ export function collectIssues(days: NumberedDay[], healthReasons: Conflict[] = [
     for (const stop of day.stops) {
       (stop.conflicts ?? []).forEach((conflict, index) => issues.push({
         ...conflict, arrival: stop.planned_arrival, dayIndex: day.day_index, departure: stop.planned_departure, key: `stop-${stop.id}-${index}`,
-        placeId: stop.place_id, source: 'stop', stopId: stop.id, stopName: stop.name, stopNumber: stop.number,
+        placeId: stop.place_id ?? undefined, source: 'stop', stopId: stop.id, stopName: stop.name, stopNumber: stop.number,
       }));
     }
     for (const leg of day.legs) {
