@@ -10,7 +10,7 @@ import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
 import { palette } from '../../auth/components/AuthUI';
 import { formatTime } from './format';
-import { HealthGlyph } from './icons';
+import { HealthGlyph, PlannerIcon } from './icons';
 import { isStopBlocked, type NumberedStop } from './model';
 import type { StopPlace } from './useProposal';
 
@@ -24,13 +24,25 @@ type Props = {
   onSelect: () => void;
   onOpenDetails: () => void;
   rowRef?: Ref<ComponentRef<typeof View>>;
+  /** Editable draft: ⋯ opens the Edit stop sheet (SCR-027); `reorder` shows Move up/down (no drag-only path). */
+  edit?: StopEditControls;
+  /** FEATURE_REGENERATION: show the lock badge on locked stops. */
+  showLock?: boolean;
+};
+
+export type StopEditControls = {
+  onMore: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  reorder: boolean;
+  disabled: boolean;
 };
 
 /**
  * One stop of a day (SCR-024 `StopCard`): photo, number, server times in Asia/Ho_Chi_Minh, name, category, conflicts
  * and the AI-written rationale (labelled as AI). The selection highlight fades in and follows the map.
  */
-export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpenDetails, rowRef }: Props) {
+export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpenDetails, rowRef, edit, showLock = false }: Props) {
   const { t } = useTranslation();
   const [showWhy, setShowWhy] = useState(false);
   const highlight = useRef(new Animated.Value(selected ? 1 : 0)).current;
@@ -53,13 +65,14 @@ export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpe
   return <View ref={rowRef} style={r.root}>
     <Animated.View pointerEvents="none" style={[r.highlight, blocked && r.highlightBlocked, { opacity: highlight }]} />
     {blocked && <View style={r.blockedEdge} />}
+    <View style={r.mainRow}>
     <Pressable
       accessibilityHint={t('proposal.stop.selectHint')}
       accessibilityLabel={t('proposal.stop.a11y', { arrival: arrival ?? '—', departure: departure ?? '—', name: stop.name, number: stop.number, status })}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onSelect}
-      style={({ pressed }) => [r.main, pressed && { opacity: 0.75 }]}
+      style={({ pressed }) => [r.main, edit && r.mainWithMore, pressed && { opacity: 0.75 }]}
     >
       <View style={r.thumbWrap}>
         <View style={r.thumb}>
@@ -77,6 +90,10 @@ export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpe
         <View style={r.timeRow}>
           <Icon color={colors.tealText} name="clock" size={14} strokeWidth={2.2} />
           <Text style={r.time}>{timeRange}</Text>
+          {showLock && stop.is_locked ? <View style={r.lock}>
+            <PlannerIcon color={colors.tealText} name="lock" size={12} />
+            <Text style={r.lockText}>{t('proposal.edit.locked')}</Text>
+          </View> : null}
         </View>
         <Text numberOfLines={2} style={r.name}>{stop.name}</Text>
         <View style={r.metaRow}>
@@ -89,6 +106,18 @@ export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpe
         </View>)}
       </View>
     </Pressable>
+    {edit ? <Pressable
+      accessibilityLabel={t('proposal.edit.moreA11y', { name: stop.name, number: stop.number })}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: edit.disabled }}
+      disabled={edit.disabled}
+      hitSlop={2}
+      onPress={edit.onMore}
+      style={({ pressed }) => [r.more, edit.disabled && { opacity: 0.4 }, pressed && { opacity: 0.6 }]}
+    >
+      <Icon color={colors.deepOcean} name="more" size={22} />
+    </Pressable> : null}
+    </View>
     <View style={r.extras}>
       {!!stop.rationale && <View style={r.why}>
         <View style={r.aiLabel}>
@@ -116,8 +145,39 @@ export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpe
           <Icon color={colors.tealText} name="chevron-right" size={16} strokeWidth={2.2} />
         </Pressable>
       </View>
+      {edit?.reorder ? <View style={r.reorder}>
+        <ReorderButton
+          accessibilityLabel={t('proposal.edit.moveUpA11y', { name: stop.name })}
+          disabled={edit.disabled || !edit.onMoveUp}
+          icon="arrowUp"
+          label={t('proposal.edit.moveUp')}
+          onPress={edit.onMoveUp}
+        />
+        <ReorderButton
+          accessibilityLabel={t('proposal.edit.moveDownA11y', { name: stop.name })}
+          disabled={edit.disabled || !edit.onMoveDown}
+          icon="arrowDown"
+          label={t('proposal.edit.moveDown')}
+          onPress={edit.onMoveDown}
+        />
+        <ReorderButton disabled={edit.disabled} icon="edit" label={t('proposal.edit.more')} onPress={edit.onMore} />
+      </View> : null}
     </View>
   </View>;
+}
+
+function ReorderButton({ label, icon, onPress, disabled, accessibilityLabel }: { label: string; icon: 'arrowUp' | 'arrowDown' | 'edit'; onPress?: () => void; disabled: boolean; accessibilityLabel?: string }) {
+  return <Pressable
+    accessibilityLabel={accessibilityLabel ?? label}
+    accessibilityRole="button"
+    accessibilityState={{ disabled }}
+    disabled={disabled}
+    onPress={onPress}
+    style={({ pressed }) => [r.reorderButton, disabled && { opacity: 0.4 }, pressed && { opacity: 0.7 }]}
+  >
+    <PlannerIcon color={colors.deepOcean} name={icon} size={18} />
+    <Text style={r.reorderText}>{label}</Text>
+  </Pressable>;
 }
 
 const r = StyleSheet.create({
@@ -125,7 +185,15 @@ const r = StyleSheet.create({
   highlight: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: '#F1F9FB', borderRadius: 20, borderWidth: 1.5, borderColor: colors.audioTeal },
   highlightBlocked: { backgroundColor: '#FDF3F3', borderColor: palette.error },
   blockedEdge: { position: 'absolute', left: 0, top: 10, bottom: 10, width: 4, borderRadius: 2, backgroundColor: palette.error },
-  main: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.sm, paddingTop: spacing.sm },
+  mainRow: { flexDirection: 'row' },
+  main: { flex: 1, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.sm, paddingTop: spacing.sm },
+  mainWithMore: { paddingRight: 0 },
+  more: { width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center', marginTop: spacing.xxs, marginRight: spacing.xxs },
+  lock: { flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: colors.skyWash },
+  lockText: { fontFamily: fonts.bold, fontSize: 11, color: colors.tealText },
+  reorder: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingBottom: spacing.xs },
+  reorderButton: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: MIN_TOUCH, paddingHorizontal: 12, borderRadius: radii.action, borderWidth: 1.5, borderColor: '#DCE8EE', backgroundColor: colors.white },
+  reorderText: { fontFamily: fonts.bold, fontSize: 13, color: colors.deepOcean },
   thumbWrap: { width: THUMB, height: THUMB },
   thumb: { width: THUMB, height: THUMB, borderRadius: radii.iconTile, overflow: 'hidden', backgroundColor: colors.skyWash },
   thumbFallback: { alignItems: 'center', justifyContent: 'center' },

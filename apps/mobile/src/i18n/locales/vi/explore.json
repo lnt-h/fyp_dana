@@ -1,0 +1,58 @@
+{
+  "title": "Khám phá",
+  "subtitle": "Địa điểm đã kiểm duyệt ở {{city}}",
+  "city": {
+    "label": "Thành phố: {{city}}. Đổi thành phố",
+    "loading": "Đang tải thành phố…"
+  },
+  "search": {
+    "placeholder": "Tìm địa điểm ở {{city}}",
+    "label": "Tìm địa điểm ở {{city}}",
+    "clear": "Xoá nội dung tìm kiếm",
+    "guest": "Đăng nhập để tìm địa điểm",
+    "offline": "Tạm dừng tìm kiếm khi ngoại tuyến"
+  },
+  "view": {
+    "label": "Kiểu hiển thị",
+    "grid": "Dạng lưới",
+    "list": "Dạng danh sách"
+  },
+  "categories": {
+    "label": "Danh mục",
+    "all": "Tất cả"
+  },
+  "featured": {
+    "title": "Nổi bật ở {{city}}",
+    "subtitle": "Những điểm đáng ghé để bắt đầu"
+  },
+  "all": {
+    "title": "Tất cả địa điểm",
+    "count_one": "{{count}} địa điểm đã kiểm duyệt",
+    "count_other": "{{count}} địa điểm đã kiểm duyệt"
+  },
+  "results": {
+    "searching": "Đang tìm…",
+    "count_one": "{{count}} kết quả ở {{city}}",
+    "count_other": "{{count}} kết quả ở {{city}}"
+  },
+  "minutes": "{{count}} phút",
+  "openHint": "Mở thẻ địa điểm",
+  "states": {
+    "loading": "Đang tải địa điểm",
+    "emptyQueryTitle": "Không tìm thấy “{{q}}” ở {{city}}",
+    "emptyQueryBody": "Gonarra chỉ hiển thị địa điểm đã kiểm duyệt của thành phố đang chọn. Thử tên tiếng Việt, tên tiếng Anh, hoặc đổi thành phố.",
+    "emptyCategoryTitle": "Chưa có địa điểm {{category}} ở {{city}}",
+    "emptyCategoryBody": "Thử danh mục khác, hoặc xem mọi địa điểm trong thành phố.",
+    "comingTitle": "Đang cập nhật địa điểm ở {{city}}…",
+    "comingBody": "Biên tập viên vẫn đang kiểm duyệt địa điểm ở {{city}}. Trong lúc chờ, bạn thử thành phố khác nhé.",
+    "showAll": "Xem tất cả địa điểm",
+    "clearSearch": "Xoá tìm kiếm",
+    "changeCity": "Đổi thành phố",
+    "error": "Không tải được danh sách địa điểm lúc này.",
+    "searchError": "Không tìm được lúc này.",
+    "cityError": "Không tải được danh sách thành phố.",
+    "retry": "Thử lại",
+    "offline": "Bạn đang ngoại tuyến. Tìm kiếm tạm dừng, danh sách là lần tải gần nhất.",
+    "offlineEmpty": "Bạn đang ngoại tuyến. Hãy kết nối để tải địa điểm."
+  }
+}

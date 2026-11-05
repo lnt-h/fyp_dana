@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -15,7 +16,7 @@ import { radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
 import { todayInVietnam, tripStart } from '../../trips/tripDates';
 import { ErrorBanner } from './SheetBanners';
-import { openTripDetail, timeOfDay, vietnamMinutesNow } from './homeSheetUtils';
+import { timeOfDay, vietnamMinutesNow } from './homeSheetUtils';
 
 const PHOTO_HEIGHT = 150;
 
@@ -121,7 +122,8 @@ export function TodayCard({ trip, cityCode, onOpenPlace }: { trip: Trip; cityCod
   const media = thumb ?? (cityCode ? CITY_IMAGES[cityCode] : null);
   const photo = resolveImage(media, { height: PHOTO_HEIGHT, width: 400 });
   const kicker = t('homeSheet.today.kicker', { day: dayIndex });
-  const viewPlan = () => openTripDetail(load.detail);
+  // SCR-032: the Today screen shows the rest of today and links to the full itinerary.
+  const viewPlan = () => router.push({ pathname: '/trip/[tripId]/today', params: { tripId: trip.id } });
 
   return (
     <View style={[styles.card, elevation.md]}>

@@ -14,7 +14,15 @@ import type { HealthIssue } from './reasons';
  * Plan Health summary (the part of SCR-026 shown inline on the proposal): status line, then the server's reasons
  * grouped Must fix (BLOCKING) / Worth checking (WARNING), each with a shortcut to its stop.
  */
-export function HealthSummary({ health, issues, onGoToStop }: { health: PlanHealth; issues: HealthIssue[]; onGoToStop: (dayIndex: number, stopId: Uuid) => void }) {
+export function HealthSummary({ health, issues, onGoToStop, onOpenDetail, updating = false }: {
+  health: PlanHealth;
+  issues: HealthIssue[];
+  onGoToStop: (dayIndex: number, stopId: Uuid) => void;
+  /** Opens SCR-026 (full Plan Health detail with fix shortcuts). */
+  onOpenDetail?: () => void;
+  /** An edit is being recalculated: the previous result stays, greyed (SCR-026 loading). */
+  updating?: boolean;
+}) {
   const { t } = useTranslation();
   const blocking = issues.filter(issue => issue.severity === 'BLOCKING');
   const warnings = issues.filter(issue => issue.severity !== 'BLOCKING');
@@ -28,7 +36,7 @@ export function HealthSummary({ health, issues, onGoToStop }: { health: PlanHeal
     </View>;
   }
 
-  return <View style={h.card}>
+  return <View style={[h.card, updating && h.updating]}>
     <View style={[h.edge, { backgroundColor: edgeColor[health] }]} />
     <View style={h.inner}>
       <View style={h.head}>
@@ -43,6 +51,14 @@ export function HealthSummary({ health, issues, onGoToStop }: { health: PlanHeal
       {group(t('proposal.health.mustFix'), blocking)}
       {group(t('proposal.health.worthChecking'), warnings)}
       <Text style={h.note}>{t('proposal.health.recheckNote')}</Text>
+      {onOpenDetail ? <Pressable
+        accessibilityRole="button"
+        onPress={onOpenDetail}
+        style={({ pressed }) => [h.detail, pressed && { opacity: 0.7 }]}
+      >
+        <Text style={h.detailText}>{t('proposal.healthDetail.openDetail')}</Text>
+        <Icon color={colors.white} name="chevron-right" size={18} strokeWidth={2.2} />
+      </Pressable> : null}
     </View>
   </View>;
 }
@@ -101,5 +117,8 @@ const h = StyleSheet.create({
   goTo: { flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf: 'flex-start', minHeight: MIN_TOUCH },
   goToText: { fontFamily: fonts.bold, fontSize: 14, color: colors.tealText },
   goodNote: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: colors.ink, marginTop: spacing.sm },
+  updating: { opacity: 0.55 },
+  detail: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, minHeight: 48, borderRadius: radii.action, backgroundColor: colors.deepOcean, marginTop: spacing.sm },
+  detailText: { fontFamily: fonts.bold, fontSize: 15, color: colors.white },
   note: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 18, color: colors.textMuted, marginTop: spacing.sm },
 });

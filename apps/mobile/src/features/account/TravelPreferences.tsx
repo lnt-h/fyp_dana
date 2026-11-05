@@ -1,7 +1,9 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { interestOptions, travelTypes, type Interest, type TravelType } from './AccountContext';
-import { palette } from '../auth/components/AuthUI';
+import { colors } from '../../theme/colors';
+import { radii, spacing } from '../../theme/spacing';
+import { fonts, typography } from '../../theme/typography';
 
 const photos = {
   Culture: require('../../../assets/images/places/cham-sculpture.png'),
@@ -38,18 +40,18 @@ export function TravelPreferences({ selected, onSelect, travelType, onTravelType
   </>;
 }
 const styles = StyleSheet.create({
-  section: { fontFamily: 'HankenGrotesk_700Bold', fontSize: 19, color: palette.deepOcean, marginTop: 8 },
-  hint: { fontSize: 14, lineHeight: 20, color: palette.muted, marginTop: 4, marginBottom: 14 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 16, marginBottom: 20 },
+  section: { ...typography.headline, color: colors.ink, marginTop: spacing.xs },
+  hint: { ...typography.caption, fontSize: 14, lineHeight: 20, marginTop: spacing.xxs, marginBottom: spacing.md },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: spacing.md, marginBottom: spacing.xl },
   tile: { width: '48%' },
-  frame: { width: '100%', aspectRatio: 1.5, borderWidth: 3, borderColor: 'transparent', borderRadius: 20, overflow: 'hidden' },
-  selected: { borderColor: palette.audioTeal },
-  photo: { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', borderRadius: 17 },
-  label: { fontFamily: 'HankenGrotesk_700Bold', fontSize: 15, color: palette.deepOcean, textAlign: 'center', marginVertical: 6 },
-  check: { position: 'absolute', top: 7, right: 7, width: 26, height: 26, borderRadius: 13, backgroundColor: palette.audioTeal, alignItems: 'center', justifyContent: 'center' },
-  tick: { color: palette.white, fontSize: 18, fontWeight: '700' },
-  types: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
-  chip: { paddingHorizontal: 15, minHeight: 46, borderRadius: 16, borderWidth: 1.5, borderColor: palette.border, justifyContent: 'center', backgroundColor: palette.white },
-  chipSelected: { backgroundColor: palette.tealText, borderColor: palette.tealText },
-  light: { color: palette.white },
+  frame: { width: '100%', aspectRatio: 1.5, borderWidth: 3, borderColor: 'transparent', borderRadius: radii.card, overflow: 'hidden' },
+  selected: { borderColor: colors.audioTeal },
+  photo: { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', borderRadius: radii.card - 3 },
+  label: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink, textAlign: 'center', marginVertical: 6 },
+  check: { position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.audioTeal, borderWidth: 2, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  tick: { color: colors.white, fontSize: 15, fontFamily: fonts.bold },
+  types: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.lg },
+  chip: { paddingHorizontal: spacing.md, minHeight: 46, borderRadius: radii.chip, borderWidth: 1.5, borderColor: '#DCE8EE', justifyContent: 'center', backgroundColor: colors.white },
+  chipSelected: { backgroundColor: colors.tealText, borderColor: colors.tealText },
+  light: { color: colors.white },
 });

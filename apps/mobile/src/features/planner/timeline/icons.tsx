@@ -14,6 +14,17 @@ const paths = {
   card: 'M4 5h16v14H4ZM8 9h8M8 13h5',
   check: 'M5 12.5l4.5 4.5L19 7',
   close: 'M6 6l12 12M18 6L6 18',
+  lock: 'M7 11V8a5 5 0 0 1 10 0v3M5.5 11h13v9.5h-13ZM12 14.5v2.5',
+  unlock: 'M7 11V8a5 5 0 0 1 9.6-2M5.5 11h13v9.5h-13ZM12 14.5v2.5',
+  plus: 'M12 5v14M5 12h14',
+  minus: 'M5 12h14',
+  arrowUp: 'M12 19V5M6 11l6-6 6 6',
+  arrowDown: 'M12 5v14M6 13l6 6 6-6',
+  toStart: 'M5 5h14M12 20V9M7 14l5-5 5 5',
+  swap: 'M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4',
+  refresh: 'M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4',
+  edit: 'M4 20h4L19 9l-4-4L4 16ZM13.5 6.5l4 4',
+  calendarMove: 'M6.5 5h11a3 3 0 0 1 3 3v9.5a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3zM3.5 10h17M8 3v4M16 3v4M10 15h5M13 13l2 2-2 2',
 } as const;
 
 export type PlannerIconName = keyof typeof paths;

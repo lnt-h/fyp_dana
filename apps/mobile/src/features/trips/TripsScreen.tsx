@@ -249,7 +249,7 @@ export function TripsScreen() {
                 dates={formatTripDates(t, item)}
                 isToday={isTripToday(item)}
                 onDelete={() => confirmDelete(item)}
-                onOpen={() => void openTrip(item)}
+                onOpen={() => isTripToday(item) ? router.push({ pathname: '/trip/[tripId]/today', params: { tripId: item.id } }) : void openTrip(item)}
                 opening={openingId === item.id}
                 title={tripTitle(item)}
                 trip={item}

@@ -39,12 +39,17 @@ function AppStack() {
       <Stack.Screen name="profile" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="travel-preferences" />
+      <Stack.Screen name="language" />
       <Stack.Protected guard={Boolean(isSignedIn)}>
         <Stack.Screen name="edit-profile" />
+        <Stack.Screen name="delete-account" />
         <Stack.Screen name="plan/new" />
         <Stack.Screen name="plan/[previewId]/index" />
         <Stack.Screen name="plan/[previewId]/proposal" />
+        <Stack.Screen name="plan/[previewId]/health" />
         <Stack.Screen name="place/[placeId]" />
+        <Stack.Screen name="trip/[tripId]/today" />
+        <Stack.Screen name="trip/[tripId]/book" options={{ presentation: 'modal' }} />
       </Stack.Protected>
     </Stack.Protected>
   </Stack>;
