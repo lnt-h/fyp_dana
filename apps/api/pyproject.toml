@@ -102,3 +102,9 @@ name = "AI providers do not import the HTTP layer"
 type = "forbidden"
 source_modules = ["app.ai"]
 forbidden_modules = ["app.api", "app.main"]
+
+[[tool.importlinter.contracts]]
+name = "Trips and planning do not import the HTTP layer or agents"
+type = "forbidden"
+source_modules = ["app.trips", "app.planning"]
+forbidden_modules = ["app.api", "app.main", "app.agents"]

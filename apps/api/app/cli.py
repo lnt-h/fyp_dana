@@ -3,6 +3,7 @@
 Usage from apps/api:
     uv run python -m app.cli seed        # idempotent reference data for Đà Nẵng
     uv run python -m app.cli db-check    # alembic head vs database revision
+    uv run python -m app.cli run-deletion-jobs   # purge accounts with a pending deletion job
 """
 
 import asyncio
@@ -448,6 +449,28 @@ def db_check() -> None:
     typer.echo(f"alembic head: {head}")
     typer.echo(f"database:     {db_revision}")
     if db_revision != head:
+        raise typer.Exit(code=1)
+
+
+@app.command("run-deletion-jobs")
+def run_deletion_jobs_command(
+    max_attempts: int = typer.Option(10, min=1, help="Skip jobs that failed this many times."),
+) -> None:
+    """Purge accounts with a REQUESTED, FAILED or stuck job (FR-071); exit 1 if any failed."""
+    from app.trips.deletion import run_deletion_jobs
+
+    async def run() -> tuple[int, int]:
+        try:
+            async with session_factory() as session:
+                report = await run_deletion_jobs(session, max_attempts=max_attempts)
+                return len(report.completed), len(report.failed)
+        finally:
+            await engine.dispose()
+
+    completed, failed = asyncio.run(run())
+    typer.echo(f"deletion jobs completed: {completed}")
+    typer.echo(f"deletion jobs failed:    {failed}")
+    if failed:
         raise typer.Exit(code=1)
 
 

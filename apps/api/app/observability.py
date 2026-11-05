@@ -12,6 +12,8 @@ from starlette.datastructures import Headers, MutableHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.errors import AppError
+
 logger = logging.getLogger("gonarra.request")
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 
@@ -111,6 +113,20 @@ def install_observability(application: FastAPI) -> None:
                 retryable=exc.status_code == 503,
                 context=context if isinstance(context, dict) else None,
             ),
+        )
+
+    @application.exception_handler(AppError)
+    async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=error_payload(
+                exc.code,
+                exc.message,
+                request.state.request_id,
+                retryable=exc.retryable,
+                context=exc.context,
+            ),
+            headers=exc.headers,
         )
 
     @application.exception_handler(RequestValidationError)
