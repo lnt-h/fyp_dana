@@ -3,20 +3,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { GlassBadge, Icon, Skeleton, type IconName } from '../../components/ui';
+import { GlassBadge, Icon, Skeleton, type IconName, PhotoFallback } from '../../components/ui';
 import type { CityCode, Trip } from '../../lib/api/types';
 import { CITY_IMAGES } from '../../lib/images/cityImages';
 import { resolveImage } from '../../lib/images/imagekit';
 import { colors } from '../../theme/colors';
-import { elevation } from '../../theme/elevation';
 import { MIN_TOUCH, radii, spacing } from '../../theme/spacing';
 import { fonts } from '../../theme/typography';
 
 /** Photo area height of a trip card (dp). */
 const PHOTO_HEIGHT = 190;
-const hairline = '#DCE8EE';
+const hairline = colors.hairline;
 /** Warm wash for Draft / Today pills; ink text on it is > 15:1. */
-const sunWash = '#FDF1DC';
+const sunWash = colors.warnBg;
 
 type Props = {
   trip: Trip;
@@ -33,7 +32,7 @@ type Props = {
 };
 
 function StatusPill({ icon, label, tone }: { icon: IconName; label: string; tone: 'saved' | 'draft' | 'today' }) {
-  const fg = tone === 'saved' ? colors.tealText : colors.ink;
+  const fg = tone === 'saved' ? colors.ok : colors.ink;
   return (
     <View style={[styles.pill, tone === 'saved' ? styles.pillSaved : styles.pillWarm]}>
       <Icon color={tone === 'today' ? colors.ink : fg} name={icon} size={14} strokeWidth={2} />
@@ -51,7 +50,7 @@ export function TripCard({ trip, title, cityName, cityCode, dates, isToday, open
   const photo = resolveImage(cover, { height: PHOTO_HEIGHT, width });
 
   return (
-    <View style={[styles.card, elevation.md]}>
+    <View style={styles.card}>
       <Pressable
         accessibilityHint={t('trips.card.hint')}
         accessibilityLabel={t('trips.card.label', { dates, status: isToday ? `${status}, ${t('trips.card.today')}` : status, title })}
@@ -67,7 +66,7 @@ export function TripCard({ trip, title, cityName, cityCode, dates, isToday, open
           {photo ? (
             <Image contentFit="cover" placeholder={photo.placeholder} placeholderContentFit="cover" source={photo.source} style={StyleSheet.absoluteFill} transition={200} />
           ) : (
-            <LinearGradient colors={[colors.deepOcean, colors.tealDark]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={StyleSheet.absoluteFill} />
+            <PhotoFallback tone="dark" icon="calendar" />
           )}
           <LinearGradient colors={['rgba(7,21,30,0.28)', 'rgba(7,21,30,0)', 'rgba(7,21,30,0.78)']} locations={[0, 0.35, 1]} style={StyleSheet.absoluteFill} />
           <GlassBadge icon="calendar" label={t('trips.card.days', { count: trip.day_count })} style={styles.badge} />
@@ -125,7 +124,7 @@ export function TripCard({ trip, title, cityName, cityCode, dates, isToday, open
 /** Loading placeholder with the same geometry as `TripCard`. */
 export function TripCardSkeleton() {
   return (
-    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.card, elevation.sm]}>
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.card}>
       <View style={styles.clip}>
         <Skeleton height={PHOTO_HEIGHT} radius={0} />
         <View style={styles.footer}>
@@ -142,13 +141,13 @@ export function TripCardSkeleton() {
 
 const styles = StyleSheet.create({
   badge: { position: 'absolute', right: spacing.sm, top: spacing.sm },
-  card: { backgroundColor: colors.white, borderRadius: radii.card, marginBottom: spacing.lg },
-  city: { color: colors.white, flexShrink: 1, fontFamily: fonts.medium, fontSize: 15, lineHeight: 20 },
+  card: { backgroundColor: colors.white, borderRadius: radii.photoCard, marginBottom: spacing.lg },
+  city: { color: colors.white, flexShrink: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 20 },
   cityRow: { alignItems: 'center', flexDirection: 'row', gap: 5, marginTop: 4 },
-  clip: { backgroundColor: colors.white, borderColor: hairline, borderRadius: radii.card, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  clip: { backgroundColor: colors.white, borderColor: hairline, borderRadius: radii.photoCard, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   credit: { bottom: 6, color: 'rgba(255,255,255,0.85)', fontFamily: fonts.medium, fontSize: 10, maxWidth: '60%', position: 'absolute', right: spacing.sm },
   dateRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-  dates: { color: colors.textMuted, flexShrink: 1, fontFamily: fonts.medium, fontSize: 15, lineHeight: 20 },
+  dates: { color: colors.textMuted, flexShrink: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 20 },
   footer: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 14 },
   footerMain: { flex: 1 },
   more: {
@@ -168,7 +167,7 @@ const styles = StyleSheet.create({
   overlay: { bottom: 0, left: 0, paddingBottom: 22, paddingHorizontal: spacing.md, position: 'absolute', right: 0 },
   photo: { backgroundColor: colors.deepOcean, height: PHOTO_HEIGHT },
   pill: { alignItems: 'center', alignSelf: 'flex-start', borderRadius: radii.chip, flexDirection: 'row', gap: 5, minHeight: 28, paddingHorizontal: 10 },
-  pillSaved: { backgroundColor: colors.skyWash },
+  pillSaved: { backgroundColor: colors.okBg },
   pillText: { fontFamily: fonts.bold, fontSize: 13, lineHeight: 18 },
   pillWarm: { backgroundColor: sunWash },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },

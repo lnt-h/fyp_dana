@@ -1,7 +1,6 @@
 import { useAuth, useSSO } from '@clerk/expo';
 import type { SetActiveNavigate } from '@clerk/shared/types';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -10,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, type IconName } from '../../components/ui';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { colors } from '../../theme/colors';
+import { radii } from '../../theme/spacing';
 import { fonts } from '../../theme/typography';
 import { useIsOffline } from '../home/useNetwork';
 import { authErrorMessage } from './authErrors';
@@ -20,7 +20,7 @@ export type GateFeature = 'trips' | 'guide' | 'plan' | 'search';
 
 type Provider = 'oauth_google' | 'oauth_apple';
 
-const ART: Record<GateFeature, IconName> = { guide: 'lantern', plan: 'sparkle', search: 'search', trips: 'calendar' };
+const ART: Record<GateFeature, IconName> = { guide: 'lantern', plan: 'map-pin', search: 'search', trips: 'calendar' };
 const ENTER_MS = 220;
 
 /**
@@ -179,15 +179,15 @@ export function SignInGate({ feature, onClose, onSignedIn }: Props) {
   );
 }
 
-/** Feature glyph on a skyWash disc with the brand sun dot. Decorative. */
+/** Feature glyph on a flat warm disc with the brand sun dot. Decorative. */
 function GateArt({ icon }: { icon: IconName }) {
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.art}>
-      <LinearGradient colors={[colors.skyWash, colors.white]} end={{ x: 0.8, y: 1 }} start={{ x: 0.2, y: 0 }} style={styles.artDisc}>
+      <View style={styles.artDisc}>
         <View style={styles.artInner}>
-          <Icon color={colors.tealText} name={icon} size={34} strokeWidth={1.7} />
+          <Icon color={colors.tealText} name={icon} size={34} />
         </View>
-      </LinearGradient>
+      </View>
       <View style={styles.sun} />
     </View>
   );
@@ -195,7 +195,7 @@ function GateArt({ icon }: { icon: IconName }) {
 
 const styles = StyleSheet.create({
   art: { alignSelf: 'center', height: 96, marginBottom: 14, width: 96 },
-  artDisc: { alignItems: 'center', borderRadius: 48, height: 96, justifyContent: 'center', width: 96 },
+  artDisc: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: 48, height: 96, justifyContent: 'center', width: 96 },
   artInner: {
     alignItems: 'center',
     backgroundColor: colors.white,
@@ -207,15 +207,15 @@ const styles = StyleSheet.create({
     width: 64,
   },
   backdrop: { backgroundColor: 'rgba(7,21,30,0.45)', flex: 1, justifyContent: 'flex-end' },
-  body: { color: colors.textMuted, flexShrink: 1, fontFamily: fonts.medium, fontSize: 15, lineHeight: 22 },
-  error: { color: palette.error, fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, marginTop: 10, textAlign: 'center' },
+  body: { color: colors.textMuted, flexShrink: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22 },
+  error: { color: palette.error, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, marginTop: 10, textAlign: 'center' },
   handle: { alignSelf: 'center', backgroundColor: colors.mutedDot, borderRadius: 3, height: 5, marginBottom: 18, width: 56 },
   links: { alignItems: 'center', marginTop: 6 },
   notNow: { alignItems: 'center', justifyContent: 'center', minHeight: 44, minWidth: 120, paddingHorizontal: 16 },
   notNowText: { color: colors.textMuted, fontFamily: fonts.bold, fontSize: 15 },
   offline: {
     alignItems: 'center',
-    backgroundColor: colors.skyWash,
+    backgroundColor: colors.surfaceTint,
     borderRadius: 16,
     flexDirection: 'row',
     gap: 10,
@@ -223,13 +223,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  offlineText: { color: colors.ink, flex: 1, fontFamily: fonts.medium, fontSize: 14, lineHeight: 20 },
+  offlineText: { color: colors.ink, flex: 1, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
   privacy: { alignItems: 'flex-start', alignSelf: 'center', flexDirection: 'row', gap: 8, marginBottom: 6, marginTop: 10, maxWidth: 360 },
   sheet: {
     alignSelf: 'center',
     backgroundColor: colors.white,
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
+    borderTopLeftRadius: radii.sheet,
+    borderTopRightRadius: radii.sheet,
     maxWidth: 520,
     paddingHorizontal: 24,
     paddingTop: 10,

@@ -55,7 +55,7 @@ const l = StyleSheet.create({
   dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.mutedDot },
   dashRail: { position: 'absolute', left: RAIL_X, top: 0, bottom: 0, width: 2, justifyContent: 'space-between', paddingVertical: 2 },
   dash: { width: 2, height: 4, borderRadius: 1, backgroundColor: palette.error },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.chip, backgroundColor: colors.skyWash, flexShrink: 1 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.chip, backgroundColor: colors.surfaceTint, flexShrink: 1 },
   pillBlocked: { backgroundColor: colors.white, borderWidth: 1, borderColor: palette.error },
   text: { flexShrink: 1, fontFamily: fonts.bold, fontSize: 12, lineHeight: 16, color: colors.deepOcean },
 });

@@ -18,7 +18,7 @@ export default function SettingsScreen() {
     <SectionLabel>{t('account.settings.sectionAccessibility')}</SectionLabel>
     <GroupCard>
       <AccountRow icon="motion" title={t('account.common.reduceMotion')} subtitle={t('account.common.reduceMotionSubtitle')}
-        trailing={<Switch accessibilityLabel={t('account.common.reduceMotion')} value={reduceMotion} onValueChange={setReduceMotion} trackColor={{ false: '#D7E3EA', true: colors.audioTeal }} />} />
+        trailing={<Switch accessibilityLabel={t('account.common.reduceMotion')} value={reduceMotion} onValueChange={setReduceMotion} trackColor={{ false: colors.hairline, true: colors.audioTeal }} />} />
     </GroupCard>
 
     <SectionLabel>{t('account.settings.sectionPersonalization')}</SectionLabel>
@@ -33,7 +33,7 @@ export default function SettingsScreen() {
 
     <SectionLabel>{t('account.settings.sectionPrivacy')}</SectionLabel>
     <GroupCard>
-      <ExpandableRow icon="sparkle" title={t('account.common.aiData')} subtitle={t('account.common.aiDataSubtitle')} body={t('account.common.aiDataBody')} />
+      <ExpandableRow icon="info" title={t('account.common.aiData')} subtitle={t('account.common.aiDataSubtitle')} body={t('account.common.aiDataBody')} />
       <ExpandableRow icon="shield" title={t('account.settings.data')} subtitle={t('account.settings.dataSubtitle')} body={t('account.settings.dataBody')} />
       <ExpandableRow icon="doc" title={t('account.common.legal')} badge={t('account.common.legalDraft')} body={t('account.common.legalBody')} />
       <ExpandableRow icon="info" title={t('account.common.about')} subtitle={t('account.common.version', { version })} body={t('account.common.aboutBody')} />

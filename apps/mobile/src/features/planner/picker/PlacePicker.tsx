@@ -6,11 +6,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Chip, CircleButton, Icon, Skeleton, categoryIcon } from '../../../components/ui';
+import { Chip, CircleButton, Icon, Skeleton, categoryIcon, PhotoFallback } from '../../../components/ui';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { currentLocale } from '../../../i18n';
 import { listCategories } from '../../../lib/api/source';
@@ -218,9 +217,7 @@ function PlaceRow({ place, badge, chosen, busy, disabled, mustSee, onChoose }: {
     <View style={k.thumb}>
       {image
         ? <Image contentFit="cover" placeholder={image.placeholder} source={image.source} style={StyleSheet.absoluteFill} transition={150} />
-        : <LinearGradient colors={[colors.deepOcean, colors.tealDark]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={[StyleSheet.absoluteFill, k.thumbFallback]}>
-          <Icon color={colors.white} name={categoryIcon(place.category_code)} size={26} />
-        </LinearGradient>}
+        : <PhotoFallback icon={categoryIcon(place.category_code)} iconSize={26} />}
     </View>
     <View style={k.rowCopy}>
       <Text numberOfLines={2} style={k.name}>{place.name}</Text>
@@ -241,7 +238,7 @@ function PlaceRow({ place, badge, chosen, busy, disabled, mustSee, onChoose }: {
 }
 
 const k = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+  screen: { flex: 1, backgroundColor: colors.canvas },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   headerCopy: { flex: 1, minWidth: 0 },
   title: { ...typography.headline },
@@ -259,16 +256,15 @@ const k = StyleSheet.create({
   list: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: editTokens.border },
   rowMuted: { opacity: 0.85 },
-  thumb: { width: THUMB, height: THUMB, borderRadius: radii.iconTile, overflow: 'hidden', backgroundColor: colors.skyWash },
-  thumbFallback: { alignItems: 'center', justifyContent: 'center' },
+  thumb: { width: THUMB, height: THUMB, borderRadius: radii.iconTile, overflow: 'hidden', backgroundColor: colors.surfaceTint },
   rowCopy: { flex: 1, minWidth: 0, gap: 3 },
   name: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 21, color: colors.ink },
   secondary: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.textMuted },
   description: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.textMuted },
-  badge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: radii.chip, backgroundColor: colors.skyWash },
-  badgeText: { fontFamily: fonts.bold, fontSize: 12, color: colors.tealText },
+  badge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: radii.chip, backgroundColor: colors.surfaceTint },
+  badgeText: { fontFamily: fonts.bold, fontSize: 12, color: colors.accentText },
   empty: { alignItems: 'center', paddingVertical: spacing.xxl, paddingHorizontal: spacing.lg },
-  emptyIcon: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.skyWash, alignItems: 'center', justifyContent: 'center' },
+  emptyIcon: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.surfaceTint, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { ...typography.bodyStrong, textAlign: 'center', marginTop: spacing.sm },
   emptyBody: { ...typography.caption, fontSize: 14, textAlign: 'center', marginTop: 2 },
 });

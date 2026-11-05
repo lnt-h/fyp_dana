@@ -1,11 +1,8 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors } from '../../theme/colors';
-import { elevation } from '../../theme/elevation';
+import { BUTTON_HEIGHT, radii } from '../../theme/spacing';
 import { fonts } from '../../theme/typography';
 import { Icon, type IconName } from './Icon';
-
-const border = '#DCE8EE';
 
 type BaseButtonProps = {
   label: string;
@@ -13,6 +10,8 @@ type BaseButtonProps = {
   icon?: IconName;
   /** Icon after the label (e.g. chevron-right) instead of before. */
   iconPosition?: 'start' | 'end';
+  /** Icon size in dp (default 20). */
+  iconSize?: number;
   disabled?: boolean;
   /** Shows a spinner, keeps the width, blocks presses and sets accessibilityState.busy. */
   loading?: boolean;
@@ -21,26 +20,25 @@ type BaseButtonProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export type PrimaryButtonProps = BaseButtonProps & {
-  /** `ink` = solid ink pill (default); `gradient` = audioTeal→deepOcean. */
-  variant?: 'ink' | 'gradient';
-};
+export type PrimaryButtonProps = BaseButtonProps;
 
-function Content({ label, icon, iconPosition = 'start', loading, color }: Pick<BaseButtonProps, 'label' | 'icon' | 'iconPosition' | 'loading'> & { color: string }) {
+type ContentProps = Pick<BaseButtonProps, 'label' | 'icon' | 'iconPosition' | 'iconSize' | 'loading'> & { color: string };
+
+function Content({ label, icon, iconPosition = 'start', iconSize = 20, loading, color }: ContentProps) {
   return (
     <View style={styles.content}>
       <View style={[styles.content, loading && styles.hidden]}>
-        {icon && iconPosition === 'start' ? <Icon color={color} name={icon} size={20} /> : null}
-        <Text numberOfLines={1} style={[styles.label, { color }]}>{label}</Text>
-        {icon && iconPosition === 'end' ? <Icon color={color} name={icon} size={20} /> : null}
+        {icon && iconPosition === 'start' ? <Icon color={color} name={icon} size={iconSize} /> : null}
+        <Text maxFontSizeMultiplier={1.4} numberOfLines={1} style={[styles.label, { color }]}>{label}</Text>
+        {icon && iconPosition === 'end' ? <Icon color={color} name={icon} size={iconSize} /> : null}
       </View>
       {loading ? <ActivityIndicator color={color} style={StyleSheet.absoluteFill} /> : null}
     </View>
   );
 }
 
-/** Pill CTA, height 60 / radius 30. */
-export function PrimaryButton({ variant = 'ink', disabled, loading, onPress, style, accessibilityLabel, accessibilityHint, ...content }: PrimaryButtonProps) {
+/** Solid ink CTA, 52 tall, radius 14. No gradient, no shadow. */
+export function PrimaryButton({ disabled, loading, onPress, style, accessibilityLabel, accessibilityHint, ...content }: PrimaryButtonProps) {
   const inactive = disabled || loading;
   return (
     <Pressable
@@ -50,17 +48,14 @@ export function PrimaryButton({ variant = 'ink', disabled, loading, onPress, sty
       accessibilityState={{ busy: !!loading, disabled: !!disabled }}
       disabled={inactive}
       onPress={onPress}
-      style={({ pressed }) => [styles.primary, !disabled && elevation.md, disabled && styles.disabledFill, pressed && styles.pressed, style]}
+      style={({ pressed }) => [styles.primary, disabled && styles.disabledFill, pressed && styles.pressed, style]}
     >
-      {variant === 'gradient' && !disabled ? (
-        <LinearGradient colors={[colors.audioTeal, colors.deepOcean]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={[StyleSheet.absoluteFill, styles.radius]} />
-      ) : null}
       <Content {...content} color={colors.white} loading={loading} />
     </Pressable>
   );
 }
 
-/** Outline pill on white, same geometry as PrimaryButton. */
+/** Outline button on white, same geometry as PrimaryButton. */
 export function SecondaryButton({ disabled, loading, onPress, style, accessibilityLabel, accessibilityHint, ...content }: BaseButtonProps) {
   return (
     <Pressable
@@ -82,19 +77,18 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.45 },
   disabledFill: { backgroundColor: colors.disabledButton },
   hidden: { opacity: 0 },
-  label: { fontFamily: fonts.bold, fontSize: 17, letterSpacing: 0.1 },
-  pressed: { opacity: 0.88, transform: [{ scale: 0.99 }] },
-  pressedSecondary: { backgroundColor: colors.skyWash },
-  primary: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: 30, height: 60, justifyContent: 'center', paddingHorizontal: 28 },
-  radius: { borderRadius: 30 },
+  label: { fontFamily: fonts.semibold, fontSize: 16, letterSpacing: 0.1 },
+  pressed: { opacity: 0.88 },
+  pressedSecondary: { backgroundColor: colors.surfaceTint },
+  primary: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: radii.button, height: BUTTON_HEIGHT, justifyContent: 'center', paddingHorizontal: 24 },
   secondary: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderColor: border,
-    borderRadius: 30,
+    borderColor: colors.hairline,
+    borderRadius: radii.button,
     borderWidth: 1.5,
-    height: 60,
+    height: BUTTON_HEIGHT,
     justifyContent: 'center',
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
   },
 });

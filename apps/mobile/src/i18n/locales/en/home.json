@@ -13,9 +13,9 @@
     "label": "Map of {{city}}",
     "gps": "Center map on my location",
     "photoCredit": "Photo: {{credit}}",
-    "photoCredits": "Place photos are credited on each card",
     "visitMinutes": "{{count}} min",
     "openPlace": "Open place card for {{name}}",
+    "cluster": "{{count}} places, tap to zoom in",
     "locationDenied": "Location permission is off. The map still works as usual.",
     "locationFailed": "Could not get your location right now. Please try again later."
   },

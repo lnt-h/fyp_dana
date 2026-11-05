@@ -9,6 +9,7 @@ import { listCategories, searchPlaces } from '../../../lib/api/source';
 import type { Category, City, Place } from '../../../lib/api/types';
 import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
+import { radii } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
 
 const DEBOUNCE_MS = 300;
@@ -243,7 +244,7 @@ function ResultRow({ place, categoryLabel, onPress }: { place: Place; categoryLa
 const styles = StyleSheet.create({
   banner: {
     alignItems: 'center',
-    backgroundColor: colors.skyWash,
+    backgroundColor: colors.surfaceTint,
     borderRadius: 16,
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -251,7 +252,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     padding: 14,
   },
-  bannerText: { color: colors.ink, flex: 1, fontFamily: fonts.medium, fontSize: 15, lineHeight: 22, minWidth: 180 },
+  bannerText: { color: colors.ink, flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, minWidth: 180 },
   cancel: { justifyContent: 'center', minHeight: 44, paddingLeft: 4 },
   cancelText: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 16, lineHeight: 22 },
   caption: { color: colors.textMuted, fontFamily: fonts.bold, fontSize: 13, letterSpacing: 0.4, lineHeight: 18, textTransform: 'uppercase' },
@@ -259,15 +260,15 @@ const styles = StyleSheet.create({
   clear: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
   clearDot: { alignItems: 'center', backgroundColor: colors.textMuted, borderRadius: 10, height: 20, justifyContent: 'center', width: 20 },
   clearGlyph: { color: colors.white, fontFamily: fonts.bold, fontSize: 15, lineHeight: 18 },
-  empty: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: 24, gap: 10, marginTop: 8, padding: 20 },
-  emptyBody: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  empty: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.card, gap: 10, marginTop: 8, padding: 20 },
+  emptyBody: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   emptyGlyph: { alignItems: 'center', backgroundColor: colors.white, borderRadius: 24, height: 48, justifyContent: 'center', width: 48 },
   emptyTitle: { color: colors.ink, fontFamily: fonts.bold, fontSize: 17, lineHeight: 24, textAlign: 'center' },
   field: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderColor: '#A9D6DE',
-    borderRadius: 26,
+    borderColor: colors.hairline,
+    borderRadius: radii.field,
     borderWidth: 1,
     flex: 1,
     flexDirection: 'row',
@@ -281,14 +282,14 @@ const styles = StyleSheet.create({
   link: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 15, lineHeight: 22, textDecorationLine: 'underline' },
   pressed: { opacity: 0.8 },
   recentRow: { alignItems: 'center', flexDirection: 'row', gap: 10, minHeight: 44 },
-  recentText: { color: colors.ink, flex: 1, fontFamily: fonts.medium, fontSize: 16, lineHeight: 22 },
+  recentText: { color: colors.ink, flex: 1, fontFamily: fonts.regular, fontSize: 16, lineHeight: 22 },
   row: { alignItems: 'center', flexDirection: 'row', gap: 12, minHeight: 72, paddingVertical: 8 },
   rowBody: { flex: 1, gap: 4 },
   rowMeta: { alignItems: 'center', flexDirection: 'row', gap: 6 },
   rowMetaText: { color: colors.textMuted, flexShrink: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
   rowName: { color: colors.ink, fontFamily: fonts.bold, fontSize: 16, lineHeight: 22 },
-  rowSecondary: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14, lineHeight: 20 },
-  status: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, marginBottom: 4 },
-  thumb: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: 14, height: 56, justifyContent: 'center', overflow: 'hidden', width: 56 },
+  rowSecondary: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
+  status: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, marginBottom: 4 },
+  thumb: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: 14, height: 56, justifyContent: 'center', overflow: 'hidden', width: 56 },
   topicRow: { alignItems: 'flex-start', marginBottom: 4 },
 });

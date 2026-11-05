@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Icon, SecondaryButton, SectionHeader, Skeleton, categoryIcon } from '../../../components/ui';
+import { Icon, SecondaryButton, SectionHeader, Skeleton, categoryIcon, PhotoFallback } from '../../../components/ui';
 import { currentLocale } from '../../../i18n';
 import { listCategories, listCities, searchPlaces } from '../../../lib/api/source';
 import type { Category, City, Place } from '../../../lib/api/types';
 import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
-import { elevation } from '../../../theme/elevation';
 import { radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
 import { washMuted } from './GuideHeader';
@@ -55,7 +53,7 @@ export function GuidePlacePicker({ onPick }: { onPick: (placeId: string) => void
 
     {load.state === 'loading' && <View accessibilityLabel={t('guide.picker.loading')} accessibilityLiveRegion="polite" accessible style={p.list}>
       {[0, 1, 2, 3].map(key => <View key={key} style={p.skeletonRow}>
-        <Skeleton height={THUMB} radius={radii.chip} width={THUMB} />
+        <Skeleton height={THUMB} radius={radii.inset} width={THUMB} />
         <View style={p.copy}>
           <Skeleton height={18} width="70%" />
           <Skeleton height={14} width="90%" />
@@ -92,14 +90,12 @@ function PlaceRow({ place, category, onPress }: { place: Place; category?: Categ
     accessibilityLabel={[place.name, place.short_description, meta].filter(Boolean).join('. ')}
     accessibilityRole="button"
     onPress={onPress}
-    style={({ pressed }) => [p.row, elevation.sm, pressed && p.pressed]}
+    style={({ pressed }) => [p.row, pressed && p.pressed]}
   >
     <View style={p.thumb}>
       {resolved
         ? <Image contentFit="cover" placeholder={resolved.placeholder} source={resolved.source} style={StyleSheet.absoluteFill} transition={200} />
-        : <LinearGradient colors={[colors.deepOcean, colors.tealDark]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={[StyleSheet.absoluteFill, p.thumbFallback]}>
-          <Icon color={colors.white} name={categoryIcon(place.category_code)} size={28} />
-        </LinearGradient>}
+        : <PhotoFallback icon={categoryIcon(place.category_code)} iconSize={28} />}
     </View>
     <View style={p.copy}>
       <Text numberOfLines={1} style={p.name}>{place.name}</Text>
@@ -114,11 +110,11 @@ function PlaceRow({ place, category, onPress }: { place: Place; category?: Categ
 }
 
 const p = StyleSheet.create({
-  chevron: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
+  chevron: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
   copy: { flex: 1, gap: 4, minWidth: 0 },
-  description: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14, lineHeight: 19 },
-  intro: { alignItems: 'flex-start', backgroundColor: colors.skyWash, borderRadius: radii.card, flexDirection: 'row', gap: 12, marginTop: spacing.xs, padding: spacing.md },
-  introBody: { color: washMuted, fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, marginTop: 2 },
+  description: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 19 },
+  intro: { alignItems: 'flex-start', backgroundColor: colors.surfaceTint, borderRadius: radii.card, flexDirection: 'row', gap: 12, marginTop: spacing.xs, padding: spacing.md },
+  introBody: { color: washMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, marginTop: 2 },
   introCopy: { flex: 1 },
   introIcon: { alignItems: 'center', backgroundColor: colors.white, borderRadius: 18, height: 36, justifyContent: 'center', width: 36 },
   introTitle: { color: colors.ink, fontFamily: fonts.bold, fontSize: 16, lineHeight: 22 },
@@ -127,11 +123,10 @@ const p = StyleSheet.create({
   metaRow: { alignItems: 'center', flexDirection: 'row', gap: 5 },
   name: { color: colors.ink, fontFamily: fonts.bold, fontSize: 17, lineHeight: 22 },
   pressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
-  row: { alignItems: 'center', backgroundColor: colors.white, borderColor: '#E4EDF2', borderRadius: 22, borderWidth: 1, flexDirection: 'row', gap: 14, padding: 10, paddingRight: 14 },
+  row: { alignItems: 'center', backgroundColor: colors.white, borderColor: colors.hairline, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: 14, padding: 10, paddingRight: 14 },
   section: { marginBottom: spacing.sm, marginTop: spacing.xl },
   skeletonRow: { alignItems: 'center', flexDirection: 'row', gap: 14, padding: 10 },
   status: { alignItems: 'stretch', gap: 12, paddingVertical: 24 },
-  statusText: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 15, lineHeight: 22, textAlign: 'center' },
-  thumb: { backgroundColor: colors.skyWash, borderRadius: radii.chip, height: THUMB, overflow: 'hidden', width: THUMB },
-  thumbFallback: { alignItems: 'center', justifyContent: 'center' },
+  statusText: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  thumb: { backgroundColor: colors.surfaceTint, borderRadius: radii.inset, height: THUMB, overflow: 'hidden', width: THUMB },
 });

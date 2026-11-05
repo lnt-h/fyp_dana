@@ -73,7 +73,7 @@ export const PlaceMarker = memo(function PlaceMarker({ place, selected, onPress 
 const styles = StyleSheet.create({
   bubble: {
     alignItems: 'center',
-    backgroundColor: colors.skyWash,
+    backgroundColor: colors.surfaceTint,
     borderColor: colors.white,
     borderWidth: 3,
     justifyContent: 'center',

@@ -142,7 +142,7 @@ export function RegenerateDaySheet({ dayIndex, days, previewId, revision, offlin
           <LinkButton label={phase.kind === 'error' ? t('proposal.regen.close') : t('proposal.regen.cancel')} onPress={onClose} tone="muted" />
           {phase.kind === 'error'
             ? <PillButton disabled={offline} icon="refresh" label={t('proposal.regen.retry')} onPress={start} style={g.primary} tone="primary" />
-            : <PrimaryButton disabled={offline || revision == null} icon="sparkle" label={t('proposal.regen.confirm', { day: day.day_index })} onPress={start} style={g.primary} variant="gradient" />}
+            : <PrimaryButton disabled={offline || revision == null} label={t('proposal.regen.confirm', { day: day.day_index })} onPress={start} style={g.primary} />}
         </View>
       </>}
     </ScrollView> : null}
@@ -158,13 +158,13 @@ function Bullet({ text }: { text: string }) {
 
 const g = StyleSheet.create({
   pad: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, paddingTop: spacing.xs },
-  icon: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.skyWash, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
+  icon: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.surfaceTint, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   title: { ...typography.headline, textAlign: 'center', marginTop: spacing.sm, marginBottom: spacing.sm },
   body: { ...typography.caption, fontSize: 14, textAlign: 'center' },
   banner: { marginBottom: spacing.sm },
   bullet: { flexDirection: 'row', gap: 10, marginTop: spacing.xs },
   bulletDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.audioTeal, marginTop: 8 },
-  bulletText: { flex: 1, fontFamily: fonts.medium, fontSize: 15, lineHeight: 22, color: colors.ink },
+  bulletText: { flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, color: colors.ink },
   locked: { marginTop: spacing.xs, marginLeft: 16, borderRadius: 16, backgroundColor: editTokens.canvas, padding: spacing.sm, gap: 6 },
   lockedRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   lockedName: { flex: 1, fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: colors.deepOcean },
@@ -172,7 +172,7 @@ const g = StyleSheet.create({
   input: { minHeight: 52, borderRadius: radii.field, borderWidth: 1.5, borderColor: editTokens.border, paddingHorizontal: spacing.md, fontFamily: fonts.medium, fontSize: 16, color: colors.deepOcean },
   offline: { fontFamily: fonts.medium, fontSize: 13, color: palette.error, marginTop: spacing.xs },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.lg },
-  primary: { flex: 1, height: 56 },
+  primary: { flex: 1 },
   stages: { marginTop: spacing.lg, gap: spacing.sm },
   stage: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 32 },
   dot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: editTokens.border, alignItems: 'center', justifyContent: 'center' },

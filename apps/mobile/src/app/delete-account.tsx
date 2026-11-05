@@ -67,7 +67,7 @@ export default function DeleteAccountScreen() {
 }
 
 const styles = StyleSheet.create({
-  badge: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FBECEC', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+  badge: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.dangerBg, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
   heading: { ...typography.headline, color: colors.ink },
   lead: { ...typography.body, color: colors.ink, marginTop: spacing.sm, marginBottom: spacing.xs },
   item: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingVertical: spacing.xxs },
@@ -75,10 +75,10 @@ const styles = StyleSheet.create({
   itemText: { ...typography.body, fontSize: 15, lineHeight: 22, color: colors.ink, flex: 1 },
   warning: { ...typography.caption, fontSize: 14, lineHeight: 21, marginTop: spacing.md },
   label: { ...typography.label, marginBottom: spacing.xs, marginLeft: spacing.xxs },
-  input: { minHeight: 54, borderRadius: radii.field, borderWidth: 1.5, borderColor: '#DCE8EE', backgroundColor: colors.white, paddingHorizontal: spacing.md, fontFamily: fonts.bold, fontSize: 17, letterSpacing: 1, color: colors.ink },
+  input: { minHeight: 54, borderRadius: radii.field, borderWidth: 1.5, borderColor: colors.hairline, backgroundColor: colors.white, paddingHorizontal: spacing.md, fontFamily: fonts.bold, fontSize: 17, letterSpacing: 1, color: colors.ink },
   inputReady: { borderColor: errorColor },
   helper: { ...typography.caption, marginTop: spacing.xs, marginBottom: spacing.lg, marginLeft: spacing.xxs },
-  notice: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start', backgroundColor: colors.skyWash, borderRadius: radii.chip, padding: spacing.md, marginBottom: spacing.lg },
+  notice: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start', backgroundColor: colors.surfaceTint, borderRadius: radii.inset, padding: spacing.md, marginBottom: spacing.lg },
   noticeText: { ...typography.caption, fontSize: 14, lineHeight: 21, color: colors.ink, flex: 1 },
   keep: { minHeight: MIN_TOUCH + 4, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
   keepText: { fontFamily: fonts.bold, fontSize: 16, color: colors.tealText },

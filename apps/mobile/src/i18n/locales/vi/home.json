@@ -13,9 +13,9 @@
     "label": "Bản đồ {{city}}",
     "gps": "Đưa bản đồ về vị trí của tôi",
     "photoCredit": "Ảnh: {{credit}}",
-    "photoCredits": "Ảnh địa điểm có ghi nguồn trên từng thẻ",
     "visitMinutes": "{{count}} phút",
     "openPlace": "Mở thẻ địa điểm {{name}}",
+    "cluster": "{{count}} địa điểm, chạm để phóng to",
     "locationDenied": "Chưa có quyền vị trí. Bản đồ vẫn dùng bình thường.",
     "locationFailed": "Chưa lấy được vị trí lúc này. Thử lại sau nhé."
   },

@@ -38,6 +38,6 @@ export default function EditProfileScreen() {
       <Pressable accessibilityRole="button" onPress={close} style={({ pressed }) => [a.textButton, pressed && a.pressed]}>
         <Text style={a.textButtonLabel}>{t('common.cancel')}</Text>
       </Pressable>
-    </> : <PrimaryButton label={t('account.editProfile.create')} variant="gradient" onPress={() => router.push('/register')} />}
+    </> : <PrimaryButton label={t('account.editProfile.create')} onPress={() => router.push('/register')} />}
   </AccountShell>;
 }

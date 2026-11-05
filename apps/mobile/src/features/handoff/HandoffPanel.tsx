@@ -14,8 +14,8 @@ import { useIsOffline } from '../home/useNetwork';
 import { addIsoDays, cityName, formatShortDate } from '../save/format';
 import { HandoffIcon } from './kindIcons';
 
-const border = '#DCE8EE';
-const errorText = '#AF3434';
+const border = colors.hairline;
+const errorText = colors.danger;
 const ALL_KINDS: HandoffKind[] = ['STAY', 'ACTIVITY', 'TRANSPORT'];
 
 export type HandoffPanelProps = {
@@ -332,48 +332,49 @@ function EmptyCard({ title, body, retryLabel, onRetry }: { title: string; body: 
 
 const styles = StyleSheet.create({
   arrow: { alignItems: 'center', height: MIN_TOUCH, justifyContent: 'center', width: 32 },
-  back: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: MIN_TOUCH / 2, height: MIN_TOUCH, justifyContent: 'center', width: MIN_TOUCH },
+  back: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: MIN_TOUCH / 2, height: MIN_TOUCH, justifyContent: 'center', width: MIN_TOUCH },
   cap: { color: colors.textMuted, fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase' },
   context: { color: colors.textMuted, fontFamily: fonts.bold, fontSize: 14 },
   contextRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: 4 },
   disabled: { opacity: 0.5 },
   disclosure: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.xs, paddingTop: spacing.xs },
-  disclosureText: { color: colors.textMuted, flex: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 19 },
-  empty: { alignItems: 'center', backgroundColor: '#F5FAFC', borderRadius: radii.card, gap: spacing.xs, padding: spacing.xl },
+  disclosureText: { color: colors.textMuted, flex: 1, fontFamily: fonts.regular, fontSize: 13, lineHeight: 19 },
+  empty: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.card, gap: spacing.xs, padding: spacing.xl },
   emptyBody: { ...typography.body, color: colors.textMuted, fontSize: 15, lineHeight: 21, textAlign: 'center' },
-  emptyIcon: { alignItems: 'center', backgroundColor: '#FDECEA', borderRadius: radii.iconTile, height: 44, justifyContent: 'center', marginBottom: 4, width: 44 },
+  emptyIcon: { alignItems: 'center', backgroundColor: colors.dangerBg, borderRadius: radii.iconTile, height: 44, justifyContent: 'center', marginBottom: 4, width: 44 },
   emptyTitle: { ...typography.bodyStrong, textAlign: 'center' },
   group: { gap: spacing.sm },
   header: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.sm },
   headerText: { flex: 1 },
   list: { gap: spacing.sm },
-  notice: { color: errorText, fontFamily: fonts.medium, fontSize: 14, lineHeight: 20 },
-  offline: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: radii.chip, flexDirection: 'row', gap: spacing.sm, padding: spacing.sm },
+  notice: { color: errorText, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
+  offline: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.inset, flexDirection: 'row', gap: spacing.sm, padding: spacing.sm },
   offlineText: { color: colors.ink, flex: 1, fontFamily: fonts.bold, fontSize: 14 },
   partner: { ...typography.bodyStrong, fontSize: 17 },
-  prefill: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.skyWash, borderRadius: radii.pill, flexDirection: 'row', gap: 6, paddingHorizontal: spacing.sm, paddingVertical: 6 },
+  prefill: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.surfaceTint, borderRadius: radii.pill, flexDirection: 'row', gap: 6, paddingHorizontal: spacing.sm, paddingVertical: 6 },
   prefillText: { color: colors.ink, flexShrink: 1, fontFamily: fonts.bold, fontSize: 13, lineHeight: 18 },
   pressed: { opacity: 0.7 },
   priceAttribution: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 16 },
-  priceCard: { backgroundColor: '#FFF8EC', borderColor: '#F3E2C2', borderRadius: radii.card, borderWidth: 1, gap: spacing.xs, padding: spacing.md },
+  priceCard: { backgroundColor: colors.warnBg, borderColor: '#F3E2C2', borderRadius: radii.card, borderWidth: 1, gap: spacing.xs, padding: spacing.md },
   priceDivider: { borderTopColor: '#F3E2C2', borderTopWidth: StyleSheet.hairlineWidth },
   priceHead: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, justifyContent: 'space-between' },
   priceName: { ...typography.label, flex: 1 },
   priceNotice: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, marginTop: 4 },
   priceRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, minHeight: MIN_TOUCH, paddingVertical: 6 },
   priceTag: { backgroundColor: colors.white, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 4 },
-  priceTagText: { color: '#7A4E00', fontFamily: fonts.bold, fontSize: 12 },
+  priceTagText: { color: colors.warn, fontFamily: fonts.bold, fontSize: 12 },
   priceUnavailable: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   priceValue: { color: colors.ink, fontFamily: fonts.bold, fontSize: 14 },
   retry: { alignItems: 'center', justifyContent: 'center', minHeight: MIN_TOUCH, paddingHorizontal: spacing.md },
-  retryText: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 15 },
+  /** Ink + underline on the warm tint card (teal would be 4.45:1). */
+  retryText: { color: colors.ink, fontFamily: fonts.bold, fontSize: 15, textDecorationLine: 'underline' },
   root: { gap: spacing.md },
   row: { alignItems: 'center', backgroundColor: colors.white, borderColor: border, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 76, paddingLeft: spacing.sm, paddingRight: spacing.xs, paddingVertical: spacing.sm },
-  rowPressed: { backgroundColor: colors.skyWash },
-  rowSub: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14, lineHeight: 19 },
+  rowPressed: { backgroundColor: colors.surfaceTint },
+  rowSub: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 19 },
   rowText: { flex: 1 },
-  savedBadge: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: radii.pill, flexDirection: 'row', gap: 4, paddingHorizontal: 8, paddingVertical: 2 },
-  savedText: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 12 },
-  tile: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: radii.iconTile, height: 48, justifyContent: 'center', width: 48 },
+  savedBadge: { alignItems: 'center', backgroundColor: colors.okBg, borderRadius: radii.pill, flexDirection: 'row', gap: 4, paddingHorizontal: 8, paddingVertical: 2 },
+  savedText: { color: colors.ok, fontFamily: fonts.bold, fontSize: 12 },
+  tile: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.iconTile, height: 48, justifyContent: 'center', width: 48 },
   title: { ...typography.headline, fontSize: 24, lineHeight: 30 },
 });

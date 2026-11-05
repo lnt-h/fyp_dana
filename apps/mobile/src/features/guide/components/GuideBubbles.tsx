@@ -7,6 +7,7 @@ import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { currentLocale } from '../../../i18n';
 import type { Citation, GuideMessage, GuideStreamEvent } from '../../../lib/api/types';
 import { colors } from '../../../theme/colors';
+import { radii } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
 import { CitationDetail } from '../../place/components/SourceLine';
 import { formatDate, isStaleDate } from '../../place/format';
@@ -51,7 +52,7 @@ export function AssistantBubble({ message, onOpenPlace }: { message: GuideMessag
       <Text accessibilityLabel={`${t('guide.assistant')}: ${message.content}`} selectable style={b.body}>{message.content}</Text>
       <SourceChips citations={message.citations ?? []} onOpenPlace={onOpenPlace} />
       <View style={b.aiRow}>
-        <Icon color={washMuted} name="sparkle" size={13} />
+        <Icon color={washMuted} name="info" size={13} />
         <Text style={b.aiLabel}>{t('guide.aiLabel')}</Text>
       </View>
     </View>
@@ -85,7 +86,7 @@ function SourceChips({ citations, onOpenPlace }: { citations: Citation[]; onOpen
             <Text style={[b.chipIndexText, active && { color: colors.deepOcean }]}>{index + 1}</Text>
           </View>
           <Text numberOfLines={1} style={[b.chipText, active && { color: colors.white }]}>{citation.publisher}</Text>
-          {stale && <Icon color={active ? colors.sun : '#8A5A00'} name="warning" size={14} />}
+          {stale && <Icon color={active ? colors.sun : colors.warn} name="warning" size={14} />}
         </Pressable>;
       })}
     </View>
@@ -143,31 +144,31 @@ function TypingDots() {
 const b = StyleSheet.create({
   aiLabel: { color: washMuted, flexShrink: 1, fontFamily: fonts.medium, fontSize: 12, lineHeight: 16 },
   aiRow: { alignItems: 'center', flexDirection: 'row', gap: 5, marginTop: 10 },
-  assistant: { backgroundColor: colors.skyWash, borderBottomLeftRadius: 6, flexShrink: 1 },
+  assistant: { backgroundColor: colors.surfaceTint, borderBottomLeftRadius: 6, flexShrink: 1 },
   assistantRow: { alignItems: 'flex-end', flexDirection: 'row', gap: 8, marginBottom: 14, maxWidth: '92%' },
   avatarSlot: { marginBottom: 2 },
-  body: { color: colors.ink, fontFamily: fonts.medium, fontSize: 16, lineHeight: 24 },
-  bubble: { borderRadius: 22, paddingHorizontal: 16, paddingVertical: 12 },
-  chip: { alignItems: 'center', backgroundColor: colors.white, borderColor: '#D3E6EA', borderRadius: 16, borderWidth: 1, flexDirection: 'row', gap: 6, maxWidth: '100%', minHeight: 36, paddingLeft: 4, paddingRight: 12 },
+  body: { color: colors.ink, fontFamily: fonts.regular, fontSize: 16, lineHeight: 24 },
+  bubble: { borderRadius: radii.card, paddingHorizontal: 16, paddingVertical: 12 },
+  chip: { alignItems: 'center', backgroundColor: colors.white, borderColor: colors.hairline, borderRadius: 16, borderWidth: 1, flexDirection: 'row', gap: 6, maxWidth: '100%', minHeight: 36, paddingLeft: 4, paddingRight: 12 },
   chipActive: { backgroundColor: colors.deepOcean, borderColor: colors.deepOcean },
-  chipIndex: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: 13, height: 26, justifyContent: 'center', width: 26 },
+  chipIndex: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: 13, height: 26, justifyContent: 'center', width: 26 },
   chipIndexActive: { backgroundColor: colors.white },
-  chipIndexText: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 13 },
+  chipIndexText: { color: colors.ink, fontFamily: fonts.bold, fontSize: 13 },
   chipText: { color: colors.ink, flexShrink: 1, fontFamily: fonts.bold, fontSize: 13 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   cursor: { color: colors.audioTeal },
   detail: { marginTop: 8 },
   dot: { backgroundColor: colors.audioTeal, borderRadius: 4, height: 8, width: 8 },
   dots: { flexDirection: 'row', gap: 6, paddingVertical: 8 },
-  error: { alignItems: 'center', alignSelf: 'center', backgroundColor: '#FDEDED', borderRadius: 16, flexDirection: 'row', gap: 8, marginBottom: 14, maxWidth: '100%', paddingHorizontal: 14, paddingVertical: 10 },
-  errorText: { color: '#8F2A2A', flexShrink: 1, fontFamily: fonts.medium, fontSize: 14, lineHeight: 20 },
-  insufficient: { backgroundColor: '#FFF8EC', borderColor: colors.sun, borderLeftWidth: 4 },
+  error: { alignItems: 'center', alignSelf: 'center', backgroundColor: colors.dangerBg, borderRadius: 16, flexDirection: 'row', gap: 8, marginBottom: 14, maxWidth: '100%', paddingHorizontal: 14, paddingVertical: 10 },
+  errorText: { color: colors.danger, flexShrink: 1, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
+  insufficient: { backgroundColor: colors.warnBg, borderColor: colors.sun, borderLeftWidth: 4 },
   insufficientHead: { alignItems: 'center', flexDirection: 'row', gap: 8, marginBottom: 6 },
   insufficientTitle: { color: colors.ink, flexShrink: 1, fontFamily: fonts.bold, fontSize: 16, lineHeight: 22 },
   meta: { color: washMuted, fontFamily: fonts.medium, fontSize: 13, marginTop: 6 },
   sources: { borderTopColor: 'rgba(11,48,69,0.1)', borderTopWidth: 1, gap: 8, marginTop: 12, paddingTop: 10 },
   sourcesTitle: { color: washMuted, fontFamily: fonts.bold, fontSize: 12, letterSpacing: 0.6 },
-  sunIcon: { alignItems: 'center', backgroundColor: '#FFE7BF', borderRadius: 14, height: 28, justifyContent: 'center', width: 28 },
+  sunIcon: { alignItems: 'center', backgroundColor: colors.warnBg, borderRadius: 14, height: 28, justifyContent: 'center', width: 28 },
   traveler: { alignSelf: 'flex-end', backgroundColor: colors.deepOcean, borderBottomRightRadius: 6, marginBottom: 14, maxWidth: '82%' },
-  travelerText: { color: colors.white, fontFamily: fonts.medium, fontSize: 16, lineHeight: 24 },
+  travelerText: { color: colors.white, fontFamily: fonts.regular, fontSize: 16, lineHeight: 24 },
 });

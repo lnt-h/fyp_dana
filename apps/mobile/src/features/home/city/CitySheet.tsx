@@ -10,6 +10,7 @@ import type { CityCode } from '../../../lib/api/types';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
 import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
+import { radii } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
 import { useSelectedCity } from '../cityStore';
 
@@ -114,7 +115,7 @@ const styles = StyleSheet.create({
   close: { alignItems: 'center', height: 44, justifyContent: 'center', marginRight: -10, width: 44 },
   closeGlyph: { color: colors.ink, fontFamily: fonts.medium, fontSize: 30, lineHeight: 32 },
   error: { alignItems: 'center', gap: 10, paddingVertical: 16 },
-  errorText: { color: colors.ink, fontFamily: fonts.medium, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  errorText: { color: colors.ink, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   handle: { alignSelf: 'center', backgroundColor: '#C9C9C9', borderRadius: 2, height: 4, marginBottom: 16, width: 68 },
   headerRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   list: { gap: 10, paddingTop: 16 },
@@ -122,15 +123,15 @@ const styles = StyleSheet.create({
   sheet: {
     alignSelf: 'center',
     backgroundColor: colors.white,
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
+    borderTopLeftRadius: radii.sheet,
+    borderTopRightRadius: radii.sheet,
     maxHeight: '88%',
     maxWidth: 520,
     paddingHorizontal: 20,
     paddingTop: 10,
     width: '100%',
   },
-  subtitle: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 15, lineHeight: 22, marginTop: 2 },
+  subtitle: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, marginTop: 2 },
   tile: {
     alignItems: 'center',
     backgroundColor: colors.deepOcean,
@@ -142,7 +143,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   tileName: { color: colors.white, fontFamily: fonts.bold, fontSize: 20, lineHeight: 26 },
-  tileSecondary: { color: colors.white, fontFamily: fonts.medium, fontSize: 14, lineHeight: 20 },
+  tileSecondary: { color: colors.white, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
   tileSelected: { borderColor: colors.audioTeal },
   tileText: { flex: 1, paddingHorizontal: 18 },
   title: { color: colors.ink, fontFamily: fonts.bold, fontSize: 20, lineHeight: 26 },

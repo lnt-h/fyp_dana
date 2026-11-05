@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState, type ComponentRef, type Ref } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
-import { Icon, categoryIcon } from '../../../components/ui';
+import { Icon, categoryIcon, PhotoFallback } from '../../../components/ui';
 import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
@@ -78,9 +77,7 @@ export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpe
         <View style={r.thumb}>
           {image
             ? <Image contentFit="cover" placeholder={image.placeholder} source={image.source} style={StyleSheet.absoluteFill} transition={150} />
-            : <LinearGradient colors={[colors.deepOcean, colors.tealDark]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={[StyleSheet.absoluteFill, r.thumbFallback]}>
-              <Icon color={colors.white} name={categoryIcon(place?.categoryCode)} size={26} />
-            </LinearGradient>}
+            : <PhotoFallback icon={categoryIcon(place?.categoryCode)} iconSize={26} />}
         </View>
         <View style={[r.number, selected && r.numberSelected, blocked && r.numberBlocked]}>
           <Text style={r.numberText}>{stop.number}</Text>
@@ -121,7 +118,7 @@ export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpe
     <View style={r.extras}>
       {!!stop.rationale && <View style={r.why}>
         <View style={r.aiLabel}>
-          <Icon color={colors.tealText} name="sparkle" size={14} strokeWidth={2} />
+          <Icon color={colors.tealText} name="info" size={14} />
           <Text style={r.aiLabelText}>{t('proposal.stop.aiLabel')}</Text>
         </View>
         <Text numberOfLines={showWhy ? undefined : 2} style={r.whyText}>{stop.rationale}</Text>
@@ -181,22 +178,21 @@ function ReorderButton({ label, icon, onPress, disabled, accessibilityLabel }: {
 }
 
 const r = StyleSheet.create({
-  root: { borderRadius: 20, overflow: 'hidden' },
-  highlight: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: '#F1F9FB', borderRadius: 20, borderWidth: 1.5, borderColor: colors.audioTeal },
-  highlightBlocked: { backgroundColor: '#FDF3F3', borderColor: palette.error },
+  root: { borderRadius: radii.card, overflow: 'hidden' },
+  highlight: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.canvas, borderRadius: radii.card, borderWidth: 1.5, borderColor: colors.audioTeal },
+  highlightBlocked: { backgroundColor: colors.dangerBg, borderColor: palette.error },
   blockedEdge: { position: 'absolute', left: 0, top: 10, bottom: 10, width: 4, borderRadius: 2, backgroundColor: palette.error },
   mainRow: { flexDirection: 'row' },
   main: { flex: 1, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.sm, paddingTop: spacing.sm },
   mainWithMore: { paddingRight: 0 },
   more: { width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center', marginTop: spacing.xxs, marginRight: spacing.xxs },
-  lock: { flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: colors.skyWash },
-  lockText: { fontFamily: fonts.bold, fontSize: 11, color: colors.tealText },
+  lock: { flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: colors.surfaceTint },
+  lockText: { fontFamily: fonts.bold, fontSize: 11, color: colors.ink },
   reorder: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingBottom: spacing.xs },
-  reorderButton: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: MIN_TOUCH, paddingHorizontal: 12, borderRadius: radii.action, borderWidth: 1.5, borderColor: '#DCE8EE', backgroundColor: colors.white },
+  reorderButton: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: MIN_TOUCH, paddingHorizontal: 12, borderRadius: radii.button, borderWidth: 1.5, borderColor: colors.hairline, backgroundColor: colors.white },
   reorderText: { fontFamily: fonts.bold, fontSize: 13, color: colors.deepOcean },
   thumbWrap: { width: THUMB, height: THUMB },
-  thumb: { width: THUMB, height: THUMB, borderRadius: radii.iconTile, overflow: 'hidden', backgroundColor: colors.skyWash },
-  thumbFallback: { alignItems: 'center', justifyContent: 'center' },
+  thumb: { width: THUMB, height: THUMB, borderRadius: radii.iconTile, overflow: 'hidden', backgroundColor: colors.surfaceTint },
   number: { position: 'absolute', top: -6, left: -6, minWidth: 26, height: 26, borderRadius: 13, paddingHorizontal: 5, backgroundColor: colors.deepOcean, borderWidth: 2, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   numberSelected: { backgroundColor: colors.tealText },
   numberBlocked: { backgroundColor: palette.error },
@@ -213,7 +209,7 @@ const r = StyleSheet.create({
   why: { marginTop: spacing.xs },
   aiLabel: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
   aiLabelText: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.tealText },
-  whyText: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: colors.textMuted },
+  whyText: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted },
   actions: { flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.md },
   action: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: MIN_TOUCH },
   actionText: { fontFamily: fonts.bold, fontSize: 14, color: colors.tealText },

@@ -198,10 +198,10 @@ function IssueCard({ issue, data, disabled, onIntent }: { issue: HealthIssue; da
 }
 
 const edgeColor: Record<PlanHealth, string> = { BLOCKED: palette.error, GOOD: colors.audioTeal, WARNING: colors.sun };
-const tileColor: Record<PlanHealth, string> = { BLOCKED: '#F8E3E3', GOOD: colors.skyWash, WARNING: '#FDF0DA' };
+const tileColor: Record<PlanHealth, string> = { BLOCKED: colors.dangerBg, GOOD: colors.surfaceTint, WARNING: colors.warnBg };
 
 const x = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+  screen: { flex: 1, backgroundColor: colors.canvas },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   headerTitle: { ...typography.headline, flex: 1, textAlign: 'center' },
   headerSpacer: { width: 44 },
@@ -217,7 +217,7 @@ const x = StyleSheet.create({
   summaryInner: { flex: 1, alignItems: 'center', padding: spacing.lg },
   tile: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
   status: { ...typography.headline, textAlign: 'center', marginTop: spacing.sm },
-  counts: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginTop: 2 },
+  counts: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginTop: 2 },
   dim: { opacity: 0.5 },
   banner: { marginTop: spacing.sm },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.md },
@@ -234,9 +234,9 @@ const x = StyleSheet.create({
   badgeText: { fontFamily: fonts.bold, fontSize: 12 },
   issueTitle: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.ink, marginTop: spacing.xs },
   issueWhere: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: colors.deepOcean, marginTop: 2 },
-  issueBody: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: colors.textMuted, marginTop: 2 },
+  issueBody: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted, marginTop: 2 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
-  good: { flexDirection: 'row', gap: spacing.xs, alignItems: 'flex-start', marginTop: spacing.lg, padding: spacing.md, borderRadius: radii.card, backgroundColor: colors.skyWash },
-  goodText: { flex: 1, fontFamily: fonts.medium, fontSize: 15, lineHeight: 22, color: colors.ink },
-  note: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 19, color: colors.textMuted, marginTop: spacing.lg },
+  good: { flexDirection: 'row', gap: spacing.xs, alignItems: 'flex-start', marginTop: spacing.lg, padding: spacing.md, borderRadius: radii.card, backgroundColor: colors.surfaceTint },
+  goodText: { flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, color: colors.ink },
+  note: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.textMuted, marginTop: spacing.lg },
 });

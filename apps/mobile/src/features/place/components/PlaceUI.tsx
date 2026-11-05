@@ -3,13 +3,14 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { ApiError } from '../../../lib/api/source';
 import { colors } from '../../../theme/colors';
+import { BUTTON_HEIGHT, radii } from '../../../theme/spacing';
 
-export const border = '#DCE8EE';
-export const screenBackground = '#F5FAFC';
+export const border = colors.hairline;
+export const screenBackground = colors.canvas;
 
 export const isNotFound = (error: unknown) => error instanceof ApiError && (error.status === 404 || error.error.code === 'not_found');
 
-/** Pill button (60 pt, radius 30) as on onboarding: `primary` is deepOcean with white text, `secondary` is outlined. */
+/** Button (52 pt, radius 14): `primary` is deepOcean with white text, `secondary` is outlined. */
 export function PillButton({ title, onPress, variant = 'primary', icon, disabled = false, hint }: {
   title: string; onPress: () => void; variant?: 'primary' | 'secondary'; icon?: ReactNode; disabled?: boolean; hint?: string;
 }) {
@@ -40,9 +41,9 @@ export function ScreenMessage({ title, body, busy = false, children }: { title: 
 export const ui = StyleSheet.create({
   message: { alignItems: 'center', alignSelf: 'center', flex: 1, gap: 12, justifyContent: 'center', maxWidth: 420, padding: 24, width: '100%' },
   messageActions: { alignSelf: 'stretch', gap: 12, marginTop: 8 },
-  messageBody: { color: colors.textMuted, fontFamily: 'HankenGrotesk_500Medium', fontSize: 16, lineHeight: 24, textAlign: 'center' },
+  messageBody: { color: colors.textMuted, fontFamily: 'HankenGrotesk_400Regular', fontSize: 16, lineHeight: 24, textAlign: 'center' },
   messageTitle: { color: colors.deepOcean, fontFamily: 'HankenGrotesk_700Bold', fontSize: 24, letterSpacing: -0.6, lineHeight: 30, textAlign: 'center' },
-  pill: { alignItems: 'center', borderRadius: 30, flexDirection: 'row', gap: 10, justifyContent: 'center', minHeight: 60, paddingHorizontal: 20 },
+  pill: { alignItems: 'center', borderRadius: radii.button, flexDirection: 'row', gap: 10, justifyContent: 'center', minHeight: BUTTON_HEIGHT, paddingHorizontal: 20 },
   pillPrimary: { backgroundColor: colors.deepOcean },
   pillSecondary: { backgroundColor: colors.white, borderColor: border, borderWidth: 1.5 },
   pillText: { fontFamily: 'HankenGrotesk_700Bold', fontSize: 17, flexShrink: 1, textAlign: 'center' },

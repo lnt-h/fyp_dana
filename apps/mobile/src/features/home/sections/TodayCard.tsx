@@ -5,13 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
 
-import { GlassBadge, Icon, PrimaryButton, SecondaryButton, Skeleton } from '../../../components/ui';
+import { GlassBadge, Icon, PrimaryButton, SecondaryButton, Skeleton, PhotoFallback } from '../../../components/ui';
 import { getPlace, getTrip } from '../../../lib/api/source';
 import type { CityCode, Media, Stop, Trip, TripDetail } from '../../../lib/api/types';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
 import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
-import { elevation } from '../../../theme/elevation';
 import { radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
 import { todayInVietnam, tripStart } from '../../trips/tripDates';
@@ -126,13 +125,13 @@ export function TodayCard({ trip, cityCode, onOpenPlace }: { trip: Trip; cityCod
   const viewPlan = () => router.push({ pathname: '/trip/[tripId]/today', params: { tripId: trip.id } });
 
   return (
-    <View style={[styles.card, elevation.md]}>
+    <View style={styles.card}>
       <View style={styles.clip}>
         <View style={styles.photo}>
           {photo ? (
             <Image contentFit="cover" placeholder={photo.placeholder} placeholderContentFit="cover" source={photo.source} style={StyleSheet.absoluteFill} transition={200} />
           ) : (
-            <LinearGradient colors={[colors.deepOcean, colors.tealDark]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={StyleSheet.absoluteFill} />
+            <PhotoFallback tone="dark" icon="calendar" />
           )}
           <LinearGradient colors={['rgba(7,21,30,0)', 'rgba(7,21,30,0.72)']} locations={[0.3, 1]} style={StyleSheet.absoluteFill} />
           <GlassBadge icon="calendar" label={kicker} style={styles.badge} />
@@ -170,8 +169,8 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: spacing.sm },
   badge: { left: spacing.md, position: 'absolute', top: spacing.md },
   body: { gap: spacing.sm, padding: spacing.md },
-  card: { backgroundColor: colors.white, borderRadius: radii.card },
-  clip: { borderColor: '#DCE8EE', borderRadius: radii.card, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  card: { backgroundColor: colors.white, borderRadius: radii.photoCard },
+  clip: { borderColor: colors.hairline, borderRadius: radii.photoCard, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   doneBody: { ...typography.body, color: colors.textMuted, fontSize: 15, lineHeight: 21 },
   name: { color: colors.white, fontFamily: fonts.bold, fontSize: 22, letterSpacing: -0.2, lineHeight: 28 },
   notice: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },

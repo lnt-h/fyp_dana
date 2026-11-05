@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
@@ -35,7 +34,6 @@ export function GuideScreen() {
 
   return <View style={g.screen}>
     <StatusBar style="dark" />
-    <LinearGradient colors={[colors.skyWash, colors.white]} pointerEvents="none" style={g.wash} />
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={g.fill}>
       {placeId
         ? <View style={[g.chat, { paddingBottom: keyboardOpen ? 8 : clearance, paddingTop: insets.top + 8 }]}>
@@ -58,6 +56,5 @@ const g = StyleSheet.create({
   content: { flexGrow: 1, paddingHorizontal: 20 },
   fill: { flex: 1 },
   inner: { alignSelf: 'center', maxWidth: 480, width: '100%' },
-  screen: { backgroundColor: colors.white, flex: 1 },
-  wash: { height: 220, left: 0, position: 'absolute', right: 0, top: 0 },
+  screen: { backgroundColor: colors.canvas, flex: 1 },
 });

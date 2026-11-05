@@ -7,7 +7,7 @@ import { colors } from '../../theme/colors';
 export type SkeletonProps = {
   width?: DimensionValue;
   height?: DimensionValue;
-  /** Default 12; use radii.card (24) for card placeholders, height/2 for circles. */
+  /** Default 12; use radii.card (16) for card placeholders, height/2 for circles. */
   radius?: number;
   style?: StyleProp<ViewStyle>;
 };
@@ -54,5 +54,5 @@ export function Skeleton({ width = '100%', height = 16, radius = 12, style }: Sk
 }
 
 const styles = StyleSheet.create({
-  base: { backgroundColor: colors.skyWash, overflow: 'hidden' },
+  base: { backgroundColor: colors.surfaceTint, overflow: 'hidden' },
 });

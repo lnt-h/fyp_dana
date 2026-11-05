@@ -5,13 +5,12 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import { Chip, Icon, categoryIcon } from '../../../components/ui';
 import type { Category } from '../../../lib/api/types';
 import { colors } from '../../../theme/colors';
-import { elevation } from '../../../theme/elevation';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
 import { MAX_QUERY } from '../useExploreData';
 
 export type ResultView = 'grid' | 'list';
-const border = '#DCE8EE';
+const border = colors.hairline;
 
 /** Large title, city pill (opens SCR-020) and the reviewed-places subtitle. */
 export function ExploreTitle({ cityName, onPickCity }: { cityName: string | null; onPickCity: () => void }) {
@@ -111,7 +110,7 @@ function ViewToggle({ value, onChange }: { value: ResultView; onChange: (view: R
             accessibilityState={{ checked: selected }}
             key={option}
             onPress={() => onChange(option)}
-            style={[styles.toggleItem, selected && [styles.toggleOn, elevation.sm]]}
+            style={[styles.toggleItem, selected && styles.toggleOn]}
           >
             <Svg height={20} viewBox="0 0 24 24" width={20}>
               {option === 'grid' ? (
@@ -150,7 +149,7 @@ export function CategoryRow({ categories, value, onChange, gutter }: {
       keyboardShouldPersistTaps="handled"
       showsHorizontalScrollIndicator={false}
     >
-      <Chip icon="sparkle" label={t('explore.categories.all')} onPress={() => onChange(null)} selected={value === null} />
+      <Chip label={t('explore.categories.all')} onPress={() => onChange(null)} selected={value === null} />
       {categories.map(category => (
         <Chip
           icon={categoryIcon(category.code)}
@@ -169,7 +168,7 @@ const styles = StyleSheet.create({
   chips: { gap: spacing.xs, paddingVertical: 2 },
   cityPill: {
     alignItems: 'center',
-    backgroundColor: colors.skyWash,
+    backgroundColor: colors.surfaceTint,
     borderRadius: radii.pill,
     flexDirection: 'row',
     flexShrink: 1,
@@ -193,7 +192,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingLeft: 14,
   },
-  fieldOff: { backgroundColor: '#F5FAFC' },
+  fieldOff: { backgroundColor: colors.surfaceTint },
   input: { color: colors.ink, flex: 1, fontFamily: fonts.medium, fontSize: 16, marginLeft: 10, minHeight: 48, paddingVertical: 0 },
   pressed: { opacity: 0.8 },
   searchRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
@@ -201,7 +200,7 @@ const styles = StyleSheet.create({
   title: { ...typography.display, color: colors.ink, flexShrink: 0 },
   titleBlock: { gap: 2 },
   titleRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'space-between' },
-  toggle: { backgroundColor: colors.skyWash, borderRadius: radii.chip, flexDirection: 'row', gap: 2, padding: 4 },
+  toggle: { backgroundColor: colors.surfaceTint, borderRadius: radii.inset, flexDirection: 'row', gap: 2, padding: 4 },
   toggleItem: { alignItems: 'center', borderRadius: 12, height: MIN_TOUCH, justifyContent: 'center', width: MIN_TOUCH },
   toggleOn: { backgroundColor: colors.white },
 });

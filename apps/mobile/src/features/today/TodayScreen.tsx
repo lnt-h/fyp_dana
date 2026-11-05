@@ -7,13 +7,12 @@ import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CircleButton, GlassBadge, Icon, PhotoHero, PrimaryButton, SecondaryButton, Skeleton, travelModeIcon } from '../../components/ui';
+import { CircleButton, GlassBadge, Icon, PhotoHero, PrimaryButton, SecondaryButton, Skeleton, travelModeIcon, PhotoFallback } from '../../components/ui';
 import { ApiError, getPlace, getTrip, listCities } from '../../lib/api/source';
 import type { City, Leg, Media, Stop, TripDetail, Uuid } from '../../lib/api/types';
 import { CITY_IMAGES } from '../../lib/images/cityImages';
 import { resolveImage } from '../../lib/images/imagekit';
 import { colors } from '../../theme/colors';
-import { elevation } from '../../theme/elevation';
 import { MIN_TOUCH, radii, spacing } from '../../theme/spacing';
 import { fonts, typography } from '../../theme/typography';
 import { ErrorBanner } from '../home/sections/SheetBanners';
@@ -211,13 +210,13 @@ function FocusCard({ item, mode, nowMinutes, thumb, onDirections, onOpen }: { it
   const { stop } = item;
   const showOther = stop.name !== stop.name_vi;
   return (
-    <View style={[styles.focus, elevation.md]}>
+    <View style={styles.focus}>
       <View style={styles.focusClip}>
         <Pressable accessibilityHint={t('save.today.openPlace')} accessibilityLabel={`${badge}, ${stop.name}, ${countdown}`} accessibilityRole="button" onPress={onOpen} style={styles.focusPhoto}>
           {photo ? (
             <Image contentFit="cover" placeholder={photo.placeholder} placeholderContentFit="cover" source={photo.source} style={StyleSheet.absoluteFill} transition={200} />
           ) : (
-            <LinearGradient colors={[colors.deepOcean, colors.tealDark]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={StyleSheet.absoluteFill} />
+            <PhotoFallback tone="dark" icon="map-pin" />
           )}
           <LinearGradient colors={['rgba(7,21,30,0)', 'rgba(7,21,30,0.78)']} locations={[0.25, 1]} style={StyleSheet.absoluteFill} />
           <View style={[styles.focusBadge, item.status === 'current' && styles.focusBadgeNow]}>
@@ -241,7 +240,7 @@ function FocusCard({ item, mode, nowMinutes, thumb, onDirections, onOpen }: { it
             </View>
           </View>
           <View style={styles.actions}>
-            <PrimaryButton icon="navigation" label={t('save.today.directions')} onPress={onDirections} style={styles.action} variant="gradient" />
+            <PrimaryButton icon="navigation" label={t('save.today.directions')} onPress={onDirections} style={styles.action} />
             <SecondaryButton label={t('save.today.ask')} onPress={onOpen} style={styles.action} />
           </View>
         </View>
@@ -329,54 +328,54 @@ const styles = StyleSheet.create({
   action: { flex: 1, height: 52, paddingHorizontal: spacing.sm },
   actions: { flexDirection: 'row', gap: spacing.sm },
   body: { gap: spacing.lg, paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
-  countIcon: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: radii.iconTile, height: 44, justifyContent: 'center', width: 44 },
+  countIcon: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.iconTile, height: 44, justifyContent: 'center', width: 44 },
   countRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  countSub: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14, lineHeight: 19 },
+  countSub: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 19 },
   countText: { ...typography.bodyStrong, fontSize: 17 },
   dot: { backgroundColor: colors.white, borderColor: colors.audioTeal, borderRadius: 9, borderWidth: 2.5, height: 18, marginTop: 6, width: 18, alignItems: 'center', justifyContent: 'center' },
   dotDone: { backgroundColor: colors.textMuted, borderColor: colors.textMuted },
-  dotFocus: { backgroundColor: colors.audioTeal, borderColor: colors.skyWash, borderWidth: 4, height: 22, width: 22, borderRadius: 11 },
+  dotFocus: { backgroundColor: colors.audioTeal, borderColor: colors.surfaceTint, borderWidth: 4, height: 22, width: 22, borderRadius: 11 },
   flex: { flex: 1 },
-  focus: { backgroundColor: colors.white, borderRadius: radii.card },
+  focus: { backgroundColor: colors.white, borderRadius: radii.photoCard },
   focusBadge: { backgroundColor: colors.white, borderRadius: radii.pill, left: spacing.md, paddingHorizontal: 12, paddingVertical: 5, position: 'absolute', top: spacing.md },
   focusBadgeNow: { backgroundColor: colors.sun },
   focusBadgeText: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 13 },
   focusBadgeTextNow: { color: colors.ink },
   focusBody: { gap: spacing.md, padding: spacing.md },
-  focusClip: { borderColor: '#DCE8EE', borderRadius: radii.card, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  focusClip: { borderColor: colors.hairline, borderRadius: radii.photoCard, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   focusName: { color: colors.white, fontFamily: fonts.bold, fontSize: 24, letterSpacing: -0.3, lineHeight: 30 },
   focusOther: { color: 'rgba(255,255,255,0.9)', fontFamily: fonts.medium, fontSize: 15, marginTop: 2 },
   focusOverlay: { bottom: 0, left: 0, padding: spacing.md, position: 'absolute', right: 0 },
   focusPhoto: { backgroundColor: colors.deepOcean, height: FOCUS_PHOTO },
   gap: { gap: spacing.md },
   heroMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
-  info: { alignItems: 'center', backgroundColor: colors.skyWash, borderRadius: radii.chip, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
-  infoText: { color: colors.ink, flex: 1, fontFamily: fonts.medium, fontSize: 15, lineHeight: 21 },
+  info: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.inset, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
+  infoText: { color: colors.ink, flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 21 },
   legPill: { alignItems: 'center', alignSelf: 'flex-start', flexDirection: 'row', gap: 6, marginVertical: spacing.xs, paddingVertical: 4 },
   legRow: { flexDirection: 'row', gap: spacing.sm },
   legText: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13 },
   line: { backgroundColor: colors.mutedDot, flex: 1, marginTop: 4, minHeight: 12, width: 2 },
   muted: { color: colors.textMuted },
-  notice: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14, lineHeight: 20 },
+  notice: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
   pressed: { opacity: 0.7 },
   rail: { alignItems: 'center', width: 48 },
   railTime: { color: colors.ink, fontFamily: fonts.bold, fontSize: 13 },
   row: { flexDirection: 'row', gap: spacing.sm },
   rowBadge: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 12, letterSpacing: 0.6, textTransform: 'uppercase' },
-  rowCard: { alignItems: 'center', backgroundColor: colors.white, borderColor: '#DCE8EE', borderRadius: radii.card, borderWidth: 1, flex: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 76, padding: spacing.xs, paddingRight: spacing.sm },
-  rowCardDone: { backgroundColor: '#F5FAFC', borderColor: '#F5FAFC' },
+  rowCard: { alignItems: 'center', backgroundColor: colors.white, borderColor: colors.hairline, borderRadius: radii.card, borderWidth: 1, flex: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 76, padding: spacing.xs, paddingRight: spacing.sm },
+  rowCardDone: { backgroundColor: colors.surfaceTint, borderColor: colors.surfaceTint },
   rowCardFocus: { borderColor: colors.audioTeal, borderWidth: 2 },
   rowDone: { color: colors.textMuted, fontFamily: fonts.bold, fontSize: 12 },
   rowName: { ...typography.label, fontSize: 16, lineHeight: 21 },
-  rowPressed: { backgroundColor: colors.skyWash },
+  rowPressed: { backgroundColor: colors.surfaceTint },
   rowSub: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, marginTop: 2 },
-  rowThumb: { backgroundColor: colors.skyWash, borderRadius: radii.iconTile, height: 56, overflow: 'hidden', width: 56 },
-  screen: { backgroundColor: colors.white, flex: 1 },
+  rowThumb: { backgroundColor: colors.surfaceTint, borderRadius: radii.iconTile, height: 56, overflow: 'hidden', width: 56 },
+  screen: { backgroundColor: colors.canvas, flex: 1 },
   sectionTitle: { ...typography.headline, marginBottom: spacing.sm },
   seeAll: { alignItems: 'center', alignSelf: 'center', flexDirection: 'row', gap: 4, minHeight: MIN_TOUCH, paddingHorizontal: spacing.md },
   seeAllText: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 16 },
   stateBody: { ...typography.body, color: colors.textMuted, textAlign: 'center' },
-  stateCard: { alignItems: 'center', backgroundColor: '#F5FAFC', borderRadius: radii.card, gap: spacing.xs, padding: spacing.xl },
+  stateCard: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.card, gap: spacing.xs, padding: spacing.xl },
   stateIcon: { alignItems: 'center', backgroundColor: colors.deepOcean, borderRadius: 28, height: 56, justifyContent: 'center', marginBottom: spacing.xs, width: 56 },
   stateTitle: { ...typography.headline, textAlign: 'center' },
 });

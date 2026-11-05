@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { Icon } from '../../../components/ui';
 import type { Uuid } from '../../../lib/api/types';
 import { colors } from '../../../theme/colors';
-import { elevation } from '../../../theme/elevation';
 import { radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
 import { palette } from '../../auth/components/AuthUI';
@@ -58,7 +57,7 @@ export function DayCard({ day, date, cityName, open, active, places, selectedSto
   const summary = [date, t('proposal.day.stops', { count: day.stops.length }), first && last ? `${first} – ${last}` : null].filter(Boolean).join(' · ');
   const title = t('proposal.day.title', { day: day.day_index });
 
-  return <View style={[c.card, elevation.sm, active && c.cardActive]}>
+  return <View style={[c.card, active && c.cardActive]}>
     <Pressable
       accessibilityHint={t('proposal.day.expandHint')}
       accessibilityLabel={[title, summary].join(', ')}
@@ -141,8 +140,8 @@ function DayAction({ label, icon, onPress, disabled, primary, accessibilityLabel
 }
 
 const c = StyleSheet.create({
-  card: { borderRadius: radii.card, backgroundColor: colors.white, borderWidth: 1, borderColor: '#E4EDF2' },
-  cardActive: { borderColor: '#BFE0E7' },
+  card: { borderRadius: radii.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.hairline },
+  cardActive: { borderColor: colors.audioTeal },
   head: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 72, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   badge: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.deepOcean, alignItems: 'center', justifyContent: 'center' },
   badgeActive: { backgroundColor: colors.tealText },
@@ -153,16 +152,16 @@ const c = StyleSheet.create({
   issues: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: 4 },
   issue: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   issueText: { fontFamily: fonts.bold, fontSize: 12, color: colors.ink },
-  chevron: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.skyWash, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '90deg' }] },
+  chevron: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surfaceTint, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '90deg' }] },
   chevronOpen: { transform: [{ rotate: '-90deg' }] },
-  body: { paddingHorizontal: spacing.xxs, paddingBottom: spacing.xs, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#DCE8EE', paddingTop: spacing.xs },
+  body: { paddingHorizontal: spacing.xxs, paddingBottom: spacing.xs, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.hairline, paddingTop: spacing.xs },
   gap: { height: spacing.xs },
   empty: { alignItems: 'center', padding: spacing.lg },
-  emptyIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.skyWash, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs },
+  emptyIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.surfaceTint, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs },
   editRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingHorizontal: spacing.sm, paddingTop: spacing.xs, paddingBottom: spacing.xs },
-  dayAction: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 48, paddingHorizontal: 14, borderRadius: radii.action, borderWidth: 1.5, borderColor: '#DCE8EE', backgroundColor: colors.white },
-  dayActionPrimary: { borderStyle: 'dashed', borderColor: colors.audioTeal, backgroundColor: '#F1F9FB' },
+  dayAction: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 48, paddingHorizontal: 14, borderRadius: radii.button, borderWidth: 1.5, borderColor: colors.hairline, backgroundColor: colors.white },
+  dayActionPrimary: { borderStyle: 'dashed', borderColor: colors.audioTeal, backgroundColor: colors.canvas },
   dayActionText: { fontFamily: fonts.bold, fontSize: 14, color: colors.deepOcean },
   emptyTitle: { fontFamily: fonts.bold, fontSize: 16, color: colors.ink, textAlign: 'center' },
-  emptyBody: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginTop: 4 },
+  emptyBody: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginTop: 4 },
 });

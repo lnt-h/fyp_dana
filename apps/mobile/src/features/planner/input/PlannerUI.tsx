@@ -9,22 +9,21 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
-import { CircleButton, Icon, PrimaryButton as UiPrimaryButton, type IconName } from '../../../components/ui';
+import { CircleButton, Icon, type IconName, PhotoFallback } from '../../../components/ui';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import type { City } from '../../../lib/api/types';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
 import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
-import { elevation } from '../../../theme/elevation';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
 import { VN_TIME_ZONE } from './vnTime';
 
 /** Planner surface tokens (local; shared theme has no border/error tokens yet). */
 export const tone = {
-  border: '#DCE8EE',
-  hairline: '#E4EDF2',
-  error: '#AF3434',
+  border: colors.hairline,
+  hairline: colors.hairline,
+  error: colors.danger,
   surface: colors.white,
 } as const;
 
@@ -52,16 +51,11 @@ export function PlannerShell({ title, children, footer, onBack, centered = false
   </KeyboardAvoidingView>;
 }
 
-export function SparkleIcon({ size = 22, color = colors.audioTeal }: { size?: number; color?: string }) {
-  return <Icon name="sparkle" size={size} color={color} />;
-}
-
-/** Gradient assistant avatar with the sparkle mark. */
+/** Flat assistant avatar: warm tile with the lantern mark. Decorative. */
 export function AssistantAvatar({ size = 46 }: { size?: number }) {
-  return <View style={[p.avatarShadow, { borderRadius: size / 2, height: size, width: size }]}>
-    <LinearGradient colors={[colors.audioTeal, colors.deepOcean]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-      style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]} />
-    <Icon name="sparkle" size={Math.round(size * 0.5)} color={colors.white} />
+  return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
+    style={[p.avatar, { borderRadius: size / 2, height: size, width: size }]}>
+    <Icon name="lantern" size={Math.round(size * 0.55)} color={colors.accentText} />
   </View>;
 }
 
@@ -150,11 +144,11 @@ export function CityTiles({ cities, selectedId, onSelect, label, nameOf }: {
       const selected = city.id === selectedId;
       const image = resolveImage(CITY_IMAGES[city.code], { height: TILE_H, width: TILE_W });
       return <Pressable key={city.id} accessibilityRole="radio" accessibilityLabel={nameOf(city)} accessibilityState={{ checked: selected }}
-        onPress={() => onSelect(city)} style={({ pressed }) => [p.tile, selected ? p.tileSelected : elevation.sm, pressed && { transform: [{ scale: 0.97 }] }]}>
+        onPress={() => onSelect(city)} style={({ pressed }) => [p.tile, selected && p.tileSelected, pressed && { transform: [{ scale: 0.97 }] }]}>
         <View style={p.tileClip}>
           {image
             ? <Image source={image.source} placeholder={image.placeholder} placeholderContentFit="cover" contentFit="cover" transition={200} style={StyleSheet.absoluteFill} />
-            : <LinearGradient colors={[colors.deepOcean, colors.tealDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />}
+            : <PhotoFallback tone="dark" icon="map-pin" />}
           <LinearGradient pointerEvents="none" colors={['rgba(7,21,30,0)', 'rgba(7,21,30,0.78)']} locations={[0.35, 1]} style={StyleSheet.absoluteFill} />
           {selected && <View style={p.tileBadge}><Icon name="check" size={16} strokeWidth={2.6} color={colors.white} /></View>}
           <Text numberOfLines={2} style={p.tileName}>{nameOf(city)}</Text>
@@ -164,19 +158,12 @@ export function CityTiles({ cities, selectedId, onSelect, label, nameOf }: {
   </ScrollView>;
 }
 
-/** Sticky CTA: shared gradient pill with the sparkle; disabled renders the light grey fill. */
-export function PrimaryButton({ label, onPress, disabled = false, busy = false, hint, icon = 'sparkle' }: {
-  label: string; onPress: () => void; disabled?: boolean; busy?: boolean; hint?: string; icon?: IconName;
-}) {
-  return <UiPrimaryButton variant="gradient" icon={icon} label={label} onPress={onPress} disabled={disabled} loading={busy} accessibilityHint={hint} />;
-}
-
 /** Banner: `info` (neutral note), `warning` (refusal), `error` (role alert). */
 export function Banner({ tone: kind, title, children, action }: { tone: 'info' | 'warning' | 'error'; title?: string; children?: ReactNode; action?: ReactNode }) {
   const iconColor = kind === 'error' ? tone.error : kind === 'warning' ? colors.deepOcean : colors.tealText;
   return <View accessibilityRole={kind === 'error' ? 'alert' : undefined} accessibilityLiveRegion={kind === 'error' ? 'assertive' : 'polite'}
     style={[p.banner, kind === 'warning' && p.bannerWarning, kind === 'error' && p.bannerError]}>
-    <View style={[p.bannerIcon, kind === 'warning' && { backgroundColor: '#FDF1DC' }, kind === 'error' && { backgroundColor: '#F8E6E6' }]}>
+    <View style={[p.bannerIcon, kind === 'warning' && { backgroundColor: colors.warnBg }, kind === 'error' && { backgroundColor: colors.dangerBg }]}>
       <Icon name={kind === 'info' ? 'info' : 'warning'} size={20} color={iconColor} />
     </View>
     <View style={p.flex}>
@@ -204,7 +191,7 @@ export function PickerField({ label, text, placeholder, mode, value, onChange, m
   return <View style={p.fieldBlock}>
     {!hideLabel && <Text style={p.label}>{label}</Text>}
     <Pressable accessibilityRole="button" accessibilityLabel={`${label}, ${text ?? placeholder ?? ''}`} accessibilityHint={pickerTitle} onPress={show}
-      style={({ pressed }) => [p.field, !!error && p.invalid, pressed && { backgroundColor: colors.skyWash }]}>
+      style={({ pressed }) => [p.field, !!error && p.invalid, pressed && { backgroundColor: colors.surfaceTint }]}>
       <View style={p.fieldIcon}><Icon name={mode === 'date' ? 'calendar' : 'clock'} size={20} color={colors.tealText} /></View>
       <Text numberOfLines={1} style={[p.fieldText, !text && { color: colors.textMuted }]}>{text ?? placeholder}</Text>
       {mode === 'date' && <Icon name="chevron-right" size={18} color={colors.textMuted} />}
@@ -234,7 +221,7 @@ export function PickerField({ label, text, placeholder, mode, value, onChange, m
 
 export const p = StyleSheet.create({
   flex: { flex: 1 },
-  screen: { flex: 1, backgroundColor: colors.white },
+  screen: { flex: 1, backgroundColor: colors.canvas },
   header: { backgroundColor: colors.white, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   headerTitle: { ...typography.headline, flex: 1, textAlign: 'center', fontSize: 19, paddingHorizontal: spacing.xs },
   headerSpacer: { width: 44, height: 44 },
@@ -242,20 +229,20 @@ export const p = StyleSheet.create({
   content: { paddingHorizontal: GUTTER, paddingTop: spacing.xs },
   contentCentered: { flexGrow: 1, justifyContent: 'center' },
   inner: { width: '100%', maxWidth: 480, alignSelf: 'center' },
-  footer: { backgroundColor: colors.white, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#C9D9E1', paddingHorizontal: GUTTER, paddingTop: spacing.sm },
+  footer: { backgroundColor: colors.white, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.hairline, paddingHorizontal: GUTTER, paddingTop: spacing.sm },
 
-  avatarShadow: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.audioTeal, ...elevation.sm },
+  avatar: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceTint },
   intro: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.xl },
-  bubble: { flex: 1, backgroundColor: colors.white, borderRadius: radii.card, borderTopLeftRadius: 8, borderWidth: 1, borderColor: tone.hairline, paddingHorizontal: 18, paddingVertical: 16, ...elevation.sm },
-  introLabel: { fontFamily: fonts.bold, fontSize: 13, letterSpacing: 0.2, color: colors.tealText, marginBottom: 4 },
-  introBody: { fontFamily: fonts.medium, fontSize: 16, lineHeight: 23, color: colors.ink },
+  bubble: { flex: 1, backgroundColor: colors.white, borderRadius: radii.card, borderTopLeftRadius: 8, borderWidth: 1, borderColor: tone.hairline, paddingHorizontal: 18, paddingVertical: 16 },
+  introLabel: { ...typography.eyebrow, marginBottom: 6 },
+  introBody: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 23, color: colors.ink },
   userBubble: { alignSelf: 'flex-end', maxWidth: '85%', backgroundColor: colors.deepOcean, borderRadius: radii.card, borderBottomRightRadius: 8, paddingHorizontal: 18, paddingVertical: 13, marginBottom: spacing.md },
-  userBubbleText: { fontFamily: fonts.medium, fontSize: 15, lineHeight: 22, color: colors.white },
+  userBubbleText: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, color: colors.white },
 
   sectionBlock: { marginTop: 28, marginBottom: spacing.sm },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   section: { fontFamily: fonts.bold, fontSize: 19, lineHeight: 25, letterSpacing: -0.3, color: colors.ink, flexShrink: 1 },
-  hint: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: colors.textMuted, marginTop: 4 },
+  hint: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted, marginTop: 4 },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16, minHeight: 46, borderRadius: radii.chip, borderWidth: 1, borderColor: tone.border, backgroundColor: colors.white },
@@ -264,32 +251,32 @@ export const p = StyleSheet.create({
   chipTextSelected: { color: colors.white },
   chipTick: { color: colors.white, fontSize: 15, fontWeight: '700' },
 
-  segmented: { flexDirection: 'row', backgroundColor: colors.skyWash, borderRadius: radii.action, padding: 4, borderWidth: 1, borderColor: 'transparent' },
+  segmented: { flexDirection: 'row', backgroundColor: colors.surfaceTint, borderRadius: radii.button, padding: 4, borderWidth: 1, borderColor: 'transparent' },
   segment: { flex: 1, flexDirection: 'row', gap: 6, minHeight: 46, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
-  segmentSelected: { backgroundColor: colors.white, ...elevation.sm },
+  segmentSelected: { backgroundColor: colors.white, borderColor: colors.hairline, borderWidth: 1 },
   segmentText: { fontFamily: fonts.bold, fontSize: 15, color: colors.textMuted, textAlign: 'center' },
   segmentTextSelected: { color: colors.ink },
   invalid: { borderColor: tone.error, borderWidth: 1.5 },
 
   tileScroll: { marginHorizontal: -GUTTER },
   tileRow: { paddingHorizontal: GUTTER, paddingVertical: 6, gap: spacing.sm },
-  tile: { width: TILE_W, height: TILE_H, borderRadius: 22, backgroundColor: colors.white, borderWidth: 3, borderColor: colors.white },
-  tileSelected: { borderColor: colors.audioTeal, ...elevation.md },
-  tileClip: { flex: 1, borderRadius: 19, overflow: 'hidden', justifyContent: 'flex-end', padding: spacing.sm },
+  tile: { width: TILE_W, height: TILE_H, borderRadius: radii.photoCard, backgroundColor: colors.white, borderWidth: 3, borderColor: colors.white },
+  tileSelected: { borderColor: colors.audioTeal },
+  tileClip: { flex: 1, borderRadius: radii.photoCard - 3, overflow: 'hidden', justifyContent: 'flex-end', padding: spacing.sm },
   tileBadge: { position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.audioTeal, borderWidth: 2, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   tileName: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 20, color: colors.white, letterSpacing: -0.2 },
 
-  banner: { flexDirection: 'row', gap: spacing.sm, borderRadius: radii.card, backgroundColor: colors.skyWash, padding: spacing.md, marginBottom: 14 },
+  banner: { flexDirection: 'row', gap: spacing.sm, borderRadius: radii.card, backgroundColor: colors.surfaceTint, padding: spacing.md, marginBottom: 14 },
   bannerWarning: { backgroundColor: colors.white, borderWidth: 1.5, borderColor: colors.sun },
   bannerError: { backgroundColor: colors.white, borderWidth: 1.5, borderColor: tone.error },
   bannerIcon: { width: 36, height: 36, borderRadius: radii.iconTile, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   bannerTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink, marginBottom: 3 },
-  bannerBody: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 21, color: colors.deepOcean },
+  bannerBody: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.deepOcean },
 
   fieldBlock: { marginBottom: 4 },
   label: { fontFamily: fonts.bold, fontSize: 14, color: colors.deepOcean, marginBottom: spacing.xs },
   field: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 58, borderWidth: 1, borderColor: tone.border, borderRadius: radii.field, backgroundColor: colors.white, paddingLeft: 8, paddingRight: 14 },
-  fieldIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.skyWash, alignItems: 'center', justifyContent: 'center' },
+  fieldIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.surfaceTint, alignItems: 'center', justifyContent: 'center' },
   fieldText: { flex: 1, fontFamily: fonts.bold, fontSize: 16, color: colors.ink },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.xs },
   error: { flex: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: tone.error },
@@ -297,7 +284,7 @@ export const p = StyleSheet.create({
 
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(7,21,30,0.35)' },
   sheet: { backgroundColor: colors.white, borderTopLeftRadius: radii.sheet, borderTopRightRadius: radii.sheet, paddingHorizontal: spacing.lg, paddingTop: 10 },
-  grabber: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: '#D4E0E5', marginBottom: 6 },
+  grabber: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: colors.hairline, marginBottom: 6 },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   sheetTitle: { flex: 1, fontFamily: fonts.bold, fontSize: 19, color: colors.ink, letterSpacing: -0.3 },
 });
