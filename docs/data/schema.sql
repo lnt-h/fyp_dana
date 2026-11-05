@@ -1,18 +1,27 @@
 -- =============================================================================
--- Gonarra physical schema — GONARRA-DATA v0.1 (Draft)
--- DBMS:      PostgreSQL 16 + PostGIS + pgvector (+ pgcrypto, pg_trgm), AWS RDS db.t4g.micro
--- Owner:     Lê Ngọc Tấn Hiền · Approver: trantrongminh (Pending) · Date: 2026-11-04
+-- Gonarra physical schema — GONARRA-DATA v1.0 (Draft, mentor sign-off at M0)
+-- DBMS:      PostgreSQL 16 + PostGIS + pgvector (+ pgcrypto, pg_trgm); local Docker Compose now,
+--            single VM or AWS RDS later (DEC-018, OQ-129)
+-- Owner:     Lê Ngọc Tấn Hiền · Approver: trantrongminh (Pending) · Date: 2026-11-06
 -- Prompt:    design/databaseDesign_SQL_prompt.md v2.0 + design/databaseDesign_VectorDB_prompt.md v2.0
 --            (adapted copies in docs/00-governance/prompt-templates/design/, kit commit 6996dae)
--- Narrative: docs/04-design/data/data-model.md (section numbers below refer to it)
+-- Narrative: docs/data/data-model.md (section numbers below refer to it)
+-- History:   0.1 (2026-11-04) five-city draft. 1.0 (2026-11-06) re-baseline per SRC-105 DEC-013..DEC-021:
+--            Đà Nẵng only with travel areas (DEC-013); research agent, web place candidates and
+--            WEB_UNVERIFIED trip stops (DEC-015); curator-reviewed calendar rules (DEC-016); city-scoped
+--            Guide corpus and sessions, WEB evidence (DEC-017); free-tier quota ledger and caches (DEC-018);
+--            voice, photo and price tables kept (DEC-019); Agno agent run metadata (DEC-014).
 --
 -- This file is the design contract. Alembic revisions in apps/api/migrations/versions
 -- implement it (model.md §9). It applies cleanly to an EMPTY database:
 --   * Section 0 reproduces what migration 20261102_0001_foundation ALREADY creates
 --     (marked "EXISTS"). Migration 0002+ must NOT re-create those objects.
---   * Sections 1-9 are NEW objects (migrations 0002_catalog, 0003_planning, 0004_study).
+--   * Sections 1-10 are NEW objects (migrations 0002_catalog, 0003_planning, 0004_caches, 0005_study).
 -- Enumerations are TEXT + CHECK (not CREATE TYPE) so Alembic can extend them with a
 -- plain constraint swap instead of ALTER TYPE.
+-- Trust vocabulary (DEC-015): trust_level is VERIFIED (published, curator-reviewed catalog) or
+-- WEB_UNVERIFIED (research-agent candidate with source URL and fetched date). AI never publishes a
+-- place, never authors a displayed fact and never writes closure rules (BRU-002 rev. 1).
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -78,7 +87,24 @@ CREATE TABLE cities (
     CONSTRAINT ck_cities_code_format CHECK (code ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
     CONSTRAINT ck_cities_time_zone CHECK (time_zone = 'Asia/Ho_Chi_Minh')
 );
-COMMENT ON TABLE cities IS 'Five launch cities (BRU-007). boundary is optional and, when present, gates publication (OUTSIDE_CITY).';
+COMMENT ON TABLE cities IS 'Supported cities (BRU-007 rev. 1, DEC-013): only da-nang is enabled for the FYP; ha-noi, ho-chi-minh-city and hue stay disabled on the roadmap. Hội An is an area of Đà Nẵng (2025 merger), not a city. boundary is the post-merger polygon (OQ-121); optional and, when present, gates publication (OUTSIDE_CITY).';
+
+CREATE TABLE areas (
+    code        text        NOT NULL,
+    city_id     uuid        NOT NULL,
+    name_vi     text        NOT NULL,
+    name_en     text        NOT NULL,
+    boundary    geography(MultiPolygon, 4326),
+    sort_order  smallint    NOT NULL DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT pk_areas PRIMARY KEY (code),
+    CONSTRAINT fk_areas_city_id FOREIGN KEY (city_id) REFERENCES cities (id) ON DELETE RESTRICT,
+    CONSTRAINT uq_areas_code_city_id UNIQUE (code, city_id),
+    CONSTRAINT ck_areas_code_format CHECK (code ~ '^[a-z0-9]+(-[a-z0-9]+)*$')
+);
+CREATE INDEX ix_areas_city_id_sort_order ON areas (city_id, sort_order);
+COMMENT ON TABLE areas IS 'Travel areas of a city (DEC-013, OQ-121): curator-defined, not administrative wards. Used for the Hội An-area release gate (MET-011 rev. 1), area-scoped closure rules and the area label on places and stops. boundary is optional.';
 
 CREATE TABLE categories (
     code        text        NOT NULL,
@@ -120,9 +146,9 @@ CREATE TABLE data_providers (
     CONSTRAINT uq_data_providers_provider_key UNIQUE (provider_key),
     CONSTRAINT ck_data_providers_provider_key_format CHECK (provider_key ~ '^[a-z0-9_]+$'),
     CONSTRAINT ck_data_providers_provider_kind CHECK (provider_kind IN
-        ('OPEN_DATASET', 'RUNTIME_API', 'OFFICIAL_SOURCE', 'MEDIA_LIBRARY', 'AI_SERVICE'))
+        ('OPEN_DATASET', 'RUNTIME_API', 'OFFICIAL_SOURCE', 'MEDIA_LIBRARY', 'AI_SERVICE', 'WEB_SEARCH', 'WEB_CONTENT'))
 );
-COMMENT ON TABLE data_providers IS 'Every external data or service provider that can reach a persistence boundary (BRU-004).';
+COMMENT ON TABLE data_providers IS 'Every external data or service provider that can reach a persistence boundary (BRU-004). WEB_SEARCH (Tavily) and WEB_CONTENT (fetched web pages) feed the research agent (DEC-015).';
 
 CREATE TABLE provider_policies (
     id                uuid        NOT NULL DEFAULT gen_random_uuid(),
@@ -166,6 +192,7 @@ COMMENT ON TABLE provider_field_rules IS 'Field allowlist per policy revision. A
 CREATE TABLE places (
     id                       uuid        NOT NULL DEFAULT gen_random_uuid(),
     city_id                  uuid        NOT NULL,
+    area_code                text,
     slug                     text        NOT NULL,
     category_code            text,
     workflow_state           text        NOT NULL DEFAULT 'IMPORTED',
@@ -180,6 +207,8 @@ CREATE TABLE places (
     CONSTRAINT pk_places PRIMARY KEY (id),
     CONSTRAINT fk_places_city_id FOREIGN KEY (city_id) REFERENCES cities (id) ON DELETE RESTRICT,
     CONSTRAINT fk_places_category_code FOREIGN KEY (category_code) REFERENCES categories (code) ON DELETE RESTRICT,
+    CONSTRAINT fk_places_area_code_city_id FOREIGN KEY (area_code, city_id)
+        REFERENCES areas (code, city_id) ON DELETE RESTRICT,
     CONSTRAINT uq_places_city_id_slug UNIQUE (city_id, slug),
     CONSTRAINT uq_places_id_city_id UNIQUE (id, city_id),
     CONSTRAINT ck_places_slug_format CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
@@ -199,7 +228,8 @@ CREATE TABLE places (
 -- Q-I4: existing places within N m of a staging record (identity resolution).
 CREATE INDEX ix_places_location_gist ON places USING gist (location);
 CREATE INDEX ix_places_category_code ON places (category_code);
-COMMENT ON TABLE places IS 'Stable Gonarra place identity (candidate until published). location = place position for map and routing fallback (FR-003, FR-054).';
+CREATE INDEX ix_places_area_code ON places (area_code);
+COMMENT ON TABLE places IS 'Stable Gonarra place identity (candidate until published). location = place position for map and routing fallback (FR-003, FR-054). area_code = travel area within the city (DEC-013); the composite FK keeps area and place in the same city.';
 
 CREATE TABLE import_runs (
     id                  uuid        NOT NULL DEFAULT gen_random_uuid(),
@@ -352,10 +382,10 @@ CREATE TABLE sources (
     updated_at        timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT pk_sources PRIMARY KEY (id),
     CONSTRAINT fk_sources_data_provider_id FOREIGN KEY (data_provider_id) REFERENCES data_providers (id) ON DELETE SET NULL,
-    CONSTRAINT ck_sources_source_kind CHECK (source_kind IN ('OFFICIAL', 'OPEN_DATA', 'REFERENCE', 'OWN_OBSERVATION'))
+    CONSTRAINT ck_sources_source_kind CHECK (source_kind IN ('OFFICIAL', 'OPEN_DATA', 'REFERENCE', 'OWN_OBSERVATION', 'WEB'))
 );
 CREATE INDEX ix_sources_data_provider_id ON sources (data_provider_id);
-COMMENT ON TABLE sources IS 'Publisher with licence and required attribution text (FR-008, FR-016). NULL attribution blocks publication.';
+COMMENT ON TABLE sources IS 'Publisher with licence and required attribution text (FR-008, FR-016). NULL attribution blocks publication. WEB = a web site reached by the research agent (DEC-015); one source per host, one source_revisions row per fetched URL.';
 
 CREATE TABLE source_revisions (
     id                   uuid        NOT NULL DEFAULT gen_random_uuid(),
@@ -373,7 +403,7 @@ CREATE TABLE source_revisions (
 );
 CREATE TRIGGER trg_source_revisions_reject_update_before
     BEFORE UPDATE ON source_revisions FOR EACH ROW EXECUTE FUNCTION fn_reject_update();
-COMMENT ON TABLE source_revisions IS 'Immutable capture of one URL/document as consulted; private_evidence_key points to an access-controlled S3 object.';
+COMMENT ON TABLE source_revisions IS 'Immutable capture of one URL/document as consulted; private_evidence_key points to an access-controlled object store key. The research agent appends one row per fetched URL (locator = URL, retrieved_at = fetched_at, content_sha256 of the page text; the text itself is EPHEMERAL in research_cache under the web_page policy).';
 
 CREATE TABLE place_facts (
     id             uuid        NOT NULL DEFAULT gen_random_uuid(),
@@ -485,11 +515,142 @@ CREATE TABLE place_media (
 CREATE INDEX ix_place_media_media_asset_id ON place_media (media_asset_id);
 
 -- -----------------------------------------------------------------------------
+-- Section 4A — NEW (migration 0002): research candidates (curator queue) and calendar rules
+-- DEC-015, DEC-016. Both are curator-reviewed; the AI may propose a candidate, never publish it.
+-- -----------------------------------------------------------------------------
+CREATE TABLE web_place_candidates (
+    id                      uuid        NOT NULL DEFAULT gen_random_uuid(),
+    city_id                 uuid        NOT NULL,
+    name                    text        NOT NULL,
+    name_vi                 text,
+    name_en                 text,
+    category_guess          text,
+    location                geography(Point, 4326),
+    coordinate_source       text,
+    google_place_id         text,
+    places_check_outcome    text        NOT NULL DEFAULT 'SKIPPED',
+    places_checked_at       timestamptz,
+    source_revision_id      uuid        NOT NULL,
+    fetched_at              timestamptz NOT NULL,
+    tavily_query            text,
+    extraction              jsonb       NOT NULL DEFAULT '{}'::jsonb,
+    extraction_model        text,
+    review_state            text        NOT NULL DEFAULT 'PENDING',
+    promoted_place_id       uuid,
+    reviewed_by_account_id  uuid,
+    reviewed_at             timestamptz,
+    review_note             text,
+    times_proposed          integer     NOT NULL DEFAULT 1,
+    created_at              timestamptz NOT NULL DEFAULT now(),
+    updated_at              timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT pk_web_place_candidates PRIMARY KEY (id),
+    CONSTRAINT fk_web_place_candidates_city_id FOREIGN KEY (city_id) REFERENCES cities (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_web_place_candidates_source_revision_id FOREIGN KEY (source_revision_id)
+        REFERENCES source_revisions (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_web_place_candidates_promoted_place_id_city_id FOREIGN KEY (promoted_place_id, city_id)
+        REFERENCES places (id, city_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_web_place_candidates_reviewed_by_account_id FOREIGN KEY (reviewed_by_account_id)
+        REFERENCES accounts (id) ON DELETE SET NULL,
+    CONSTRAINT uq_web_place_candidates_id_city_id UNIQUE (id, city_id),
+    CONSTRAINT ck_web_place_candidates_name_length CHECK (length(name) BETWEEN 1 AND 200),
+    CONSTRAINT ck_web_place_candidates_coordinate_source CHECK (
+        coordinate_source IS NULL OR coordinate_source IN ('WEB_PAGE', 'TAVILY', 'OSM_NOMINATIM', 'CURATOR')),
+    CONSTRAINT ck_web_place_candidates_location_source CHECK ((location IS NULL) = (coordinate_source IS NULL)),
+    CONSTRAINT ck_web_place_candidates_places_check_outcome CHECK (places_check_outcome IN
+        ('EXISTS_OPERATIONAL', 'EXISTS_CLOSED', 'NOT_FOUND', 'OUTSIDE_CITY', 'SKIPPED')),
+    CONSTRAINT ck_web_place_candidates_places_checked CHECK (
+        (places_check_outcome = 'SKIPPED') = (places_checked_at IS NULL)),
+    CONSTRAINT ck_web_place_candidates_places_check_identity CHECK (
+        places_check_outcome IN ('SKIPPED', 'NOT_FOUND') OR google_place_id IS NOT NULL),
+    CONSTRAINT ck_web_place_candidates_extraction_object CHECK (jsonb_typeof(extraction) = 'object'),
+    CONSTRAINT ck_web_place_candidates_review_state CHECK (review_state IN ('PENDING', 'PROMOTED', 'REJECTED', 'EXPIRED')),
+    CONSTRAINT ck_web_place_candidates_promoted CHECK ((review_state = 'PROMOTED') = (promoted_place_id IS NOT NULL)),
+    CONSTRAINT ck_web_place_candidates_reviewed CHECK (
+        review_state IN ('PENDING', 'EXPIRED') OR reviewed_at IS NOT NULL),
+    CONSTRAINT ck_web_place_candidates_times_proposed CHECK (times_proposed >= 1)
+);
+-- Google place_id is an identifier only (ADR-006); one candidate row per Google place, re-proposals bump times_proposed.
+CREATE UNIQUE INDEX uq_web_place_candidates_google_place_id
+    ON web_place_candidates (google_place_id) WHERE google_place_id IS NOT NULL;
+-- Q-W1: curator queue, newest pending first (API-046).
+CREATE INDEX ix_web_place_candidates_city_id_review_state_created_at
+    ON web_place_candidates (city_id, review_state, created_at DESC);
+-- Q-W2: dedupe a candidate against places and other candidates within N m before queueing.
+CREATE INDEX ix_web_place_candidates_location_gist ON web_place_candidates USING gist (location);
+CREATE INDEX ix_web_place_candidates_source_revision_id ON web_place_candidates (source_revision_id);
+CREATE INDEX ix_web_place_candidates_promoted_place_id ON web_place_candidates (promoted_place_id);
+CREATE INDEX ix_web_place_candidates_reviewed_by_account_id ON web_place_candidates (reviewed_by_account_id);
+COMMENT ON TABLE web_place_candidates IS 'Curator queue of places found by the research agent (DEC-015, FR-101). Every row is WEB_UNVERIFIED until a curator promotes it: promotion creates a places row (IMPORTED), an external_place_identities row and a localization draft, then the ordinary publication gate applies. The EXPIRED sweep skips rows referenced by trip_stops.';
+COMMENT ON COLUMN web_place_candidates.coordinate_source IS 'Where location came from: WEB_PAGE, TAVILY, OSM_NOMINATIM or CURATOR. Google coordinates are never stored canonically (ADR-006; ephemeral copy only in places_lookup_cache).';
+COMMENT ON COLUMN web_place_candidates.places_check_outcome IS 'Gonarra verdict from the Google Places existence/status check (FR-100), not the raw Google string: EXISTS_OPERATIONAL, EXISTS_CLOSED, NOT_FOUND, OUTSIDE_CITY (outside cities.boundary) or SKIPPED (quota or check disabled).';
+COMMENT ON COLUMN web_place_candidates.extraction IS 'Validated structured output of the extraction model (Pydantic-checked JSON object): hours/price/address claims as text with the supporting quote. Never copied into place_facts without curator review.';
+
+CREATE TABLE place_closure_rules (
+    id                      uuid        NOT NULL DEFAULT gen_random_uuid(),
+    city_id                 uuid        NOT NULL,
+    applies_to              text        NOT NULL,
+    place_id                uuid,
+    area_code               text,
+    rule_kind               text        NOT NULL,
+    effect                  text        NOT NULL,
+    params                  jsonb       NOT NULL DEFAULT '{}'::jsonb,
+    severity                text        NOT NULL,
+    note_vi                 text        NOT NULL,
+    note_en                 text        NOT NULL,
+    effective_from          date,
+    effective_to            date,
+    source_revision_id      uuid,
+    review_state            text        NOT NULL DEFAULT 'DRAFT',
+    verified_at             timestamptz,
+    reviewed_by_account_id  uuid,
+    created_at              timestamptz NOT NULL DEFAULT now(),
+    updated_at              timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT pk_place_closure_rules PRIMARY KEY (id),
+    CONSTRAINT fk_place_closure_rules_city_id FOREIGN KEY (city_id) REFERENCES cities (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_place_closure_rules_place_id_city_id FOREIGN KEY (place_id, city_id)
+        REFERENCES places (id, city_id) ON DELETE CASCADE,
+    CONSTRAINT fk_place_closure_rules_area_code_city_id FOREIGN KEY (area_code, city_id)
+        REFERENCES areas (code, city_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_place_closure_rules_source_revision_id FOREIGN KEY (source_revision_id)
+        REFERENCES source_revisions (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_place_closure_rules_reviewed_by_account_id FOREIGN KEY (reviewed_by_account_id)
+        REFERENCES accounts (id) ON DELETE SET NULL,
+    CONSTRAINT ck_place_closure_rules_applies_to CHECK (applies_to IN ('PLACE', 'AREA', 'CITY')),
+    CONSTRAINT ck_place_closure_rules_target CHECK (
+        (applies_to = 'PLACE' AND place_id IS NOT NULL AND area_code IS NULL)
+        OR (applies_to = 'AREA' AND area_code IS NOT NULL AND place_id IS NULL)
+        OR (applies_to = 'CITY' AND place_id IS NULL AND area_code IS NULL)),
+    CONSTRAINT ck_place_closure_rules_rule_kind CHECK (rule_kind IN
+        ('WEEKLY', 'DATE', 'LUNAR_DATE', 'SEASON', 'TICKET_VALIDITY')),
+    CONSTRAINT ck_place_closure_rules_effect CHECK (effect IN ('CLOSED', 'PARTIAL', 'EVENT', 'NOTICE')),
+    CONSTRAINT ck_place_closure_rules_params_object CHECK (jsonb_typeof(params) = 'object'),
+    CONSTRAINT ck_place_closure_rules_severity CHECK (severity IN ('BLOCKING', 'WARNING')),
+    CONSTRAINT ck_place_closure_rules_notes CHECK (length(note_vi) BETWEEN 1 AND 500 AND length(note_en) BETWEEN 1 AND 500),
+    CONSTRAINT ck_place_closure_rules_effective_range CHECK (
+        effective_from IS NULL OR effective_to IS NULL OR effective_from <= effective_to),
+    CONSTRAINT ck_place_closure_rules_review_state CHECK (review_state IN ('DRAFT', 'APPROVED', 'RETIRED')),
+    CONSTRAINT ck_place_closure_rules_approved_verified CHECK (
+        review_state <> 'APPROVED' OR (verified_at IS NOT NULL AND source_revision_id IS NOT NULL))
+);
+-- Q-H1: Plan Health loads every approved rule of the trip's city once per evaluation (FR-102).
+CREATE INDEX ix_place_closure_rules_city_id_review_state ON place_closure_rules (city_id, review_state);
+CREATE INDEX ix_place_closure_rules_place_id ON place_closure_rules (place_id);
+CREATE INDEX ix_place_closure_rules_area_code ON place_closure_rules (area_code);
+CREATE INDEX ix_place_closure_rules_source_revision_id ON place_closure_rules (source_revision_id);
+CREATE INDEX ix_place_closure_rules_reviewed_by_account_id ON place_closure_rules (reviewed_by_account_id);
+COMMENT ON TABLE place_closure_rules IS 'Curator-reviewed calendar rules evaluated by deterministic Plan Health code (DEC-016, FR-102, FR-107): weekly closures, fixed dates, lunar dates (Tết, Hội An lantern nights), seasons and ticket validity. AI never writes here. Only APPROVED rules are evaluated; an approved rule needs verified_at and a source.';
+COMMENT ON COLUMN place_closure_rules.params IS 'Shape by rule_kind. WEEKLY {"weekdays":[1..7]} (ISO, 1 = Monday) with optional {"from":"HH:MM","to":"HH:MM"}; DATE {"dates":["YYYY-MM-DD"]} or {"month_day":["MM-DD"]} (yearly); LUNAR_DATE {"lunar_days":[1,14,15],"lunar_months":[...]|null} resolved by the pure-Python VN lunar algorithm, UTC+7 (OQ-125); SEASON {"from_month_day":"MM-DD","to_month_day":"MM-DD"}; TICKET_VALIDITY {"valid_same_day":true} or {"valid_hours":24}.';
+COMMENT ON COLUMN place_closure_rules.effect IS 'CLOSED = place/area closed (BLOCKING by default); PARTIAL = reduced hours or access; EVENT = special event (e.g. lantern night, Tết); NOTICE = advisory text only.';
+
+-- -----------------------------------------------------------------------------
 -- Section 5 — NEW (migration 0002): Guide corpus (pgvector), model.md §4.3
+-- Place-scoped chunks (scope PLACE) and city-scoped chunks (scope CITY, DEC-017) share one table.
 -- -----------------------------------------------------------------------------
 CREATE TABLE knowledge_chunks (
     id               uuid        NOT NULL DEFAULT gen_random_uuid(),
-    place_id         uuid        NOT NULL,
+    city_id          uuid        NOT NULL,
+    place_id         uuid,
+    scope            text        NOT NULL DEFAULT 'PLACE',
     locale           text        NOT NULL,
     section          text        NOT NULL,
     corpus_revision  integer     NOT NULL,
@@ -502,14 +663,22 @@ CREATE TABLE knowledge_chunks (
     retired_at       timestamptz,
     created_at       timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT pk_knowledge_chunks PRIMARY KEY (id),
-    CONSTRAINT fk_knowledge_chunks_place_id FOREIGN KEY (place_id) REFERENCES places (id) ON DELETE CASCADE,
-    CONSTRAINT uq_knowledge_chunks_place_id_locale_corpus_revision_chunk_index
-        UNIQUE (place_id, locale, corpus_revision, chunk_index),
-    CONSTRAINT uq_knowledge_chunks_place_id_locale_corpus_revision_section
-        UNIQUE (place_id, locale, corpus_revision, section),
+    CONSTRAINT fk_knowledge_chunks_city_id FOREIGN KEY (city_id) REFERENCES cities (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_knowledge_chunks_place_id_city_id FOREIGN KEY (place_id, city_id)
+        REFERENCES places (id, city_id) ON DELETE CASCADE,
+    -- NULLS NOT DISTINCT (PostgreSQL 15+): city-scoped rows have place_id NULL and must still be unique.
+    CONSTRAINT uq_knowledge_chunks_city_id_place_id_locale_corpus_revision_chunk_index
+        UNIQUE NULLS NOT DISTINCT (city_id, place_id, locale, corpus_revision, chunk_index),
+    CONSTRAINT uq_knowledge_chunks_city_id_place_id_locale_corpus_revision_section
+        UNIQUE NULLS NOT DISTINCT (city_id, place_id, locale, corpus_revision, section),
+    CONSTRAINT ck_knowledge_chunks_scope CHECK (scope IN ('PLACE', 'CITY')),
+    CONSTRAINT ck_knowledge_chunks_scope_place CHECK ((scope = 'PLACE') = (place_id IS NOT NULL)),
     CONSTRAINT ck_knowledge_chunks_locale CHECK (locale IN ('vi', 'en')),
     CONSTRAINT ck_knowledge_chunks_section CHECK (
-        section IN ('OVERVIEW', 'HISTORY', 'HIGHLIGHTS', 'VISIT_TIPS', 'ETIQUETTE', 'ACCESS')),
+        section IN ('OVERVIEW', 'HISTORY', 'HIGHLIGHTS', 'VISIT_TIPS', 'ETIQUETTE', 'ACCESS',
+                    'CITY_OVERVIEW', 'GETTING_AROUND', 'EVENTS_CALENDAR', 'PRACTICAL')),
+    CONSTRAINT ck_knowledge_chunks_section_scope CHECK (
+        (scope = 'CITY') = (section IN ('CITY_OVERVIEW', 'GETTING_AROUND', 'EVENTS_CALENDAR', 'PRACTICAL'))),
     CONSTRAINT ck_knowledge_chunks_corpus_revision CHECK (corpus_revision > 0),
     CONSTRAINT ck_knowledge_chunks_chunk_index CHECK (chunk_index >= 0),
     CONSTRAINT ck_knowledge_chunks_content_length CHECK (length(content) BETWEEN 1 AND 4000),
@@ -524,12 +693,16 @@ CREATE INDEX ix_knowledge_chunks_embedding_hnsw
     ON knowledge_chunks USING hnsw (embedding vector_cosine_ops)
     WITH (m = 16, ef_construction = 64)
     WHERE review_state = 'APPROVED';
--- Tier 2 (roadmap, ADR-010 0.3) lexical leg of hybrid retrieval over NFC-normalised, diacritic-folded content.
+-- Q-G2 (lexical leg of hybrid retrieval, ADR-010 1.0 / DEC-017) over lower-cased content; the API folds diacritics before matching.
 CREATE INDEX ix_knowledge_chunks_content_trgm
     ON knowledge_chunks USING gin (lower(content) gin_trgm_ops)
     WHERE review_state = 'APPROVED';
-COMMENT ON TABLE knowledge_chunks IS 'Approved original narrative chunks for the Guide (FR-056..FR-058), one per section per locale and corpus revision; embedded on write by the curation API (ADR-012). Never a source of operational facts.';
-COMMENT ON COLUMN knowledge_chunks.section IS 'Citation unit: OVERVIEW, HISTORY, HIGHLIGHTS, VISIT_TIPS, ETIQUETTE or ACCESS (ADR-010 0.3).';
+-- Q-G3: city-scoped approved chunks of one city and locale (city Guide, DEC-017).
+CREATE INDEX ix_knowledge_chunks_city_id_scope_locale_approved
+    ON knowledge_chunks (city_id, scope, locale) WHERE review_state = 'APPROVED';
+COMMENT ON TABLE knowledge_chunks IS 'Approved original narrative chunks for the Guide (FR-056..FR-058, FR-104), one per section per locale and corpus revision; embedded on write by the curation API (ADR-012). scope PLACE rows belong to a place; scope CITY rows (DEC-017) belong to the city only. Never a source of operational facts.';
+COMMENT ON COLUMN knowledge_chunks.section IS 'Citation unit. PLACE scope: OVERVIEW, HISTORY, HIGHLIGHTS, VISIT_TIPS, ETIQUETTE, ACCESS. CITY scope: CITY_OVERVIEW, GETTING_AROUND, EVENTS_CALENDAR, PRACTICAL (ADR-010 1.0).';
+COMMENT ON COLUMN knowledge_chunks.embedding IS 'gemini-embedding-001 with output_dimensionality=768, L2-normalised before storage (OQ-126); vector(768) is pinned to that model.';
 
 CREATE TABLE knowledge_chunk_sources (
     knowledge_chunk_id  uuid NOT NULL,
@@ -550,6 +723,7 @@ CREATE TABLE catalog_publications (
     publication_revision     integer     NOT NULL,
     state                    text        NOT NULL DEFAULT 'PUBLISHED',
     category_code            text        NOT NULL,
+    area_code                text,
     location                 geography(Point, 4326) NOT NULL,
     entrance_location        geography(Point, 4326),
     visit_minutes_min        smallint    NOT NULL,
@@ -566,6 +740,8 @@ CREATE TABLE catalog_publications (
     CONSTRAINT fk_catalog_publications_place_id_city_id FOREIGN KEY (place_id, city_id)
         REFERENCES places (id, city_id) ON DELETE RESTRICT,
     CONSTRAINT fk_catalog_publications_category_code FOREIGN KEY (category_code) REFERENCES categories (code) ON DELETE RESTRICT,
+    CONSTRAINT fk_catalog_publications_area_code_city_id FOREIGN KEY (area_code, city_id)
+        REFERENCES areas (code, city_id) ON DELETE RESTRICT,
     CONSTRAINT fk_catalog_publications_localization_vi_id FOREIGN KEY (localization_vi_id) REFERENCES place_localizations (id) ON DELETE RESTRICT,
     CONSTRAINT fk_catalog_publications_localization_en_id FOREIGN KEY (localization_en_id) REFERENCES place_localizations (id) ON DELETE RESTRICT,
     CONSTRAINT fk_catalog_publications_published_by_account_id FOREIGN KEY (published_by_account_id) REFERENCES accounts (id) ON DELETE SET NULL,
@@ -587,6 +763,9 @@ CREATE INDEX ix_catalog_publications_city_id_category_code_published
 CREATE INDEX ix_catalog_publications_location_gist_published
     ON catalog_publications USING gist (location) WHERE state = 'PUBLISHED';
 CREATE INDEX ix_catalog_publications_category_code ON catalog_publications (category_code);
+-- Q-C5: published places per area (Hội An-area gate, MET-011 rev. 1).
+CREATE INDEX ix_catalog_publications_city_id_area_code_published
+    ON catalog_publications (city_id, area_code) WHERE state = 'PUBLISHED';
 CREATE INDEX ix_catalog_publications_localization_vi_id ON catalog_publications (localization_vi_id);
 CREATE INDEX ix_catalog_publications_localization_en_id ON catalog_publications (localization_en_id);
 CREATE INDEX ix_catalog_publications_published_by_account_id ON catalog_publications (published_by_account_id);
@@ -649,13 +828,14 @@ CREATE TABLE catalog_audit_events (
     CONSTRAINT pk_catalog_audit_events PRIMARY KEY (id),
     CONSTRAINT fk_catalog_audit_events_actor_account_id FOREIGN KEY (actor_account_id) REFERENCES accounts (id) ON DELETE SET NULL,
     CONSTRAINT ck_catalog_audit_events_action CHECK (action IN
-        ('IMPORT', 'MATCH_REVIEW', 'CONTENT_REVIEW', 'FACT_REVIEW', 'MEDIA_REVIEW', 'PUBLISH', 'WITHDRAW', 'POLICY_CHANGE')),
+        ('IMPORT', 'MATCH_REVIEW', 'CONTENT_REVIEW', 'FACT_REVIEW', 'MEDIA_REVIEW', 'PUBLISH', 'WITHDRAW', 'POLICY_CHANGE',
+         'WEB_PROMOTE', 'WEB_REJECT')),
     CONSTRAINT ck_catalog_audit_events_detail_object CHECK (jsonb_typeof(detail) = 'object')
 );
 CREATE INDEX ix_catalog_audit_events_entity_table_entity_id_occurred_at
     ON catalog_audit_events (entity_table, entity_id, occurred_at);                       -- Q-A1
 CREATE INDEX ix_catalog_audit_events_actor_account_id ON catalog_audit_events (actor_account_id);
-COMMENT ON TABLE catalog_audit_events IS 'Append-only curator audit trail (FR-015, NFR-015). App role has INSERT/SELECT only.';
+COMMENT ON TABLE catalog_audit_events IS 'Append-only curator audit trail (FR-015, NFR-015). App role has INSERT/SELECT only. WEB_PROMOTE / WEB_REJECT record curator decisions on web_place_candidates (FR-101); closure-rule reviews are recorded with entity_table = place_closure_rules and FACT_REVIEW.';
 
 -- Publication gate (BR-004, BRU-003, FR-013, FR-016): returns one row per violation; empty = publishable.
 CREATE OR REPLACE FUNCTION fn_publication_gate_violations(p_place_id uuid)
@@ -760,13 +940,14 @@ BEGIN
        AND f.review_state = 'APPROVED' AND f.knowledge_state = 'KNOWN';
 
     SELECT max(kc.corpus_revision) INTO v_corpus
-      FROM knowledge_chunks kc WHERE kc.place_id = p_place_id AND kc.review_state = 'APPROVED';
+      FROM knowledge_chunks kc
+     WHERE kc.place_id = p_place_id AND kc.scope = 'PLACE' AND kc.review_state = 'APPROVED';
 
     INSERT INTO catalog_publications (
-        place_id, city_id, publication_revision, state, category_code, location, entrance_location,
+        place_id, city_id, publication_revision, state, category_code, area_code, location, entrance_location,
         visit_minutes_min, visit_minutes_suggested, visit_minutes_max,
         localization_vi_id, localization_en_id, corpus_revision, published_by_account_id)
-    SELECT p.id, p.city_id, v_revision, 'PUBLISHED', p.category_code, p.location,
+    SELECT p.id, p.city_id, v_revision, 'PUBLISHED', p.category_code, p.area_code, p.location,
            CASE WHEN v_entrance IS NULL THEN NULL
                 ELSE ST_SetSRID(ST_MakePoint((v_entrance ->> 'lng')::float8, (v_entrance ->> 'lat')::float8), 4326)::geography
            END,
@@ -883,7 +1064,7 @@ CREATE TABLE trips (
 -- Q-T1: list my trips, most recent first (FR-045).
 CREATE INDEX ix_trips_account_id_updated_at ON trips (account_id, updated_at DESC);
 CREATE INDEX ix_trips_city_id ON trips (city_id);
-COMMENT ON TABLE trips IS 'Trip header; revision = accepted (saved) version, advanced only by explicit Save (BR-011, FR-040..FR-042). One city, 1-3 days (BRU-007).';
+COMMENT ON TABLE trips IS 'Trip header; revision = accepted (saved) version, advanced only by explicit Save (BR-011, FR-040..FR-042). One enabled city, 1-3 days (BRU-007 rev. 1).';
 
 CREATE TABLE trip_days (
     id                uuid     NOT NULL DEFAULT gen_random_uuid(),
@@ -917,17 +1098,19 @@ CREATE TRIGGER trg_trip_days_check_day_index_before
     FOR EACH ROW EXECUTE FUNCTION fn_check_trip_day_index();
 
 CREATE TABLE trip_stops (
-    id                      uuid     NOT NULL,
-    trip_id                 uuid     NOT NULL,
-    trip_day_id             uuid     NOT NULL,
-    city_id                 uuid     NOT NULL,
-    place_id                uuid     NOT NULL,
-    catalog_publication_id  uuid     NOT NULL,
-    ordinal                 smallint NOT NULL,
-    planned_arrival         time     NOT NULL,
-    planned_departure       time     NOT NULL,
-    visit_minutes           smallint NOT NULL,
-    is_locked               boolean  NOT NULL DEFAULT false,
+    id                       uuid     NOT NULL,
+    trip_id                  uuid     NOT NULL,
+    trip_day_id              uuid     NOT NULL,
+    city_id                  uuid     NOT NULL,
+    trust_level              text     NOT NULL DEFAULT 'VERIFIED',
+    place_id                 uuid,
+    catalog_publication_id   uuid,
+    web_place_candidate_id   uuid,
+    ordinal                  smallint NOT NULL,
+    planned_arrival          time     NOT NULL,
+    planned_departure        time     NOT NULL,
+    visit_minutes            smallint NOT NULL,
+    is_locked                boolean  NOT NULL DEFAULT false,
     CONSTRAINT pk_trip_stops PRIMARY KEY (id),
     CONSTRAINT fk_trip_stops_trip_day_id_trip_id FOREIGN KEY (trip_day_id, trip_id)
         REFERENCES trip_days (id, trip_id) ON DELETE CASCADE,
@@ -937,16 +1120,53 @@ CREATE TABLE trip_stops (
         REFERENCES places (id, city_id) ON DELETE RESTRICT,
     CONSTRAINT fk_trip_stops_catalog_publication_id_place_id FOREIGN KEY (catalog_publication_id, place_id)
         REFERENCES catalog_publications (id, place_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_trip_stops_web_place_candidate_id_city_id FOREIGN KEY (web_place_candidate_id, city_id)
+        REFERENCES web_place_candidates (id, city_id) ON DELETE RESTRICT,
     CONSTRAINT uq_trip_stops_trip_day_id_ordinal UNIQUE (trip_day_id, ordinal) DEFERRABLE INITIALLY IMMEDIATE,
     CONSTRAINT uq_trip_stops_trip_id_place_id UNIQUE (trip_id, place_id),
     CONSTRAINT uq_trip_stops_id_trip_day_id UNIQUE (id, trip_day_id),
+    CONSTRAINT ck_trip_stops_trust_level CHECK (trust_level IN ('VERIFIED', 'WEB_UNVERIFIED')),
+    -- Exactly one shape: a VERIFIED stop pins a published place; a WEB_UNVERIFIED stop references a candidate.
+    CONSTRAINT ck_trip_stops_shape CHECK (
+        (trust_level = 'VERIFIED' AND place_id IS NOT NULL AND catalog_publication_id IS NOT NULL
+            AND web_place_candidate_id IS NULL)
+        OR (trust_level = 'WEB_UNVERIFIED' AND web_place_candidate_id IS NOT NULL
+            AND place_id IS NULL AND catalog_publication_id IS NULL)),
     CONSTRAINT ck_trip_stops_ordinal CHECK (ordinal > 0),
     CONSTRAINT ck_trip_stops_times CHECK (planned_arrival < planned_departure),
     CONSTRAINT ck_trip_stops_visit_minutes CHECK (visit_minutes BETWEEN 1 AND 600)
 );
+CREATE UNIQUE INDEX uq_trip_stops_trip_id_web_place_candidate_id
+    ON trip_stops (trip_id, web_place_candidate_id) WHERE web_place_candidate_id IS NOT NULL;
 CREATE INDEX ix_trip_stops_place_id_city_id ON trip_stops (place_id, city_id);
 CREATE INDEX ix_trip_stops_catalog_publication_id ON trip_stops (catalog_publication_id);
-COMMENT ON TABLE trip_stops IS 'Saved stops with stable IDs from the preview; composite FKs enforce same-city membership (BR-006) and the catalog revision used.';
+CREATE INDEX ix_trip_stops_web_place_candidate_id ON trip_stops (web_place_candidate_id);
+COMMENT ON TABLE trip_stops IS 'Saved stops with stable IDs from the preview; composite FKs enforce same-city membership (BR-006) and the catalog revision used. trust_level (DEC-015): VERIFIED pins a publication; WEB_UNVERIFIED references a web_place_candidates row and is shown with its source URL and fetched date. The stored level never changes; vw_trip_stop_trust derives the effective level.';
+COMMENT ON COLUMN trip_stops.trust_level IS 'VERIFIED or WEB_UNVERIFIED (canonical TrustLevel values, shared with the API).';
+
+-- Effective trust of a saved stop: a WEB_UNVERIFIED stop reads as VERIFIED once its candidate is promoted
+-- and the promoted place has a current publication (DEC-015). Read path for API-014 / API-017 trust labels.
+CREATE VIEW vw_trip_stop_trust AS
+SELECT ts.id                                    AS trip_stop_id,
+       ts.trip_id,
+       ts.trip_day_id,
+       ts.city_id,
+       ts.trust_level                           AS stored_trust_level,
+       CASE WHEN ts.trust_level = 'VERIFIED' THEN 'VERIFIED'
+            WHEN wpc.review_state = 'PROMOTED' AND cp.id IS NOT NULL THEN 'VERIFIED'
+            ELSE 'WEB_UNVERIFIED' END            AS effective_trust_level,
+       coalesce(ts.place_id, CASE WHEN cp.id IS NOT NULL THEN wpc.promoted_place_id END)  AS effective_place_id,
+       coalesce(ts.catalog_publication_id, cp.id)                                         AS effective_catalog_publication_id,
+       ts.web_place_candidate_id,
+       wpc.review_state                         AS candidate_review_state,
+       wpc.places_check_outcome,
+       sr.locator                               AS source_url,
+       wpc.fetched_at
+  FROM trip_stops ts
+  LEFT JOIN web_place_candidates wpc ON wpc.id = ts.web_place_candidate_id
+  LEFT JOIN catalog_publications cp ON cp.place_id = wpc.promoted_place_id AND cp.state = 'PUBLISHED'
+  LEFT JOIN source_revisions sr ON sr.id = wpc.source_revision_id;
+COMMENT ON VIEW vw_trip_stop_trust IS 'Per saved stop: stored and effective trust_level, resolved place/publication, candidate state, source URL and fetched_at (DEC-015, FR-098).';
 
 CREATE TABLE route_legs (
     id                uuid        NOT NULL DEFAULT gen_random_uuid(),
