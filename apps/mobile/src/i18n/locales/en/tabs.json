@@ -3,19 +3,5 @@
   "home": "Home",
   "explore": "Explore",
   "guide": "AI guide",
-  "trips": "Trips",
-  "placeholder": {
-    "explore": {
-      "title": "Explore {{city}}",
-      "subtitle": "Search reviewed places and see them on the map."
-    },
-    "guide": {
-      "title": "AI guide",
-      "subtitle": "Ask about a place and get answers with sources."
-    },
-    "trips": {
-      "title": "Your trips",
-      "subtitle": "Saved plans for 1–3 days in one city live here."
-    }
-  }
+  "trips": "Trips"
 }
