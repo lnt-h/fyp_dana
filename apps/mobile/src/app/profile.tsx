@@ -1,30 +1,27 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { PrimaryButton, SecondaryButton, Skeleton, StatCircle } from '../components/ui';
+import { Chip, PrimaryButton, SecondaryButton } from '../components/ui';
 import { useAccount } from '../features/account/AccountContext';
-import { AccountIcon, AccountRow, AccountShell, ExpandableRow, GroupCard, SectionLabel, SessionConfirm, a, errorColor } from '../features/account/AccountUI';
-import { useTripStats } from '../features/account/useTripStats';
+import { AccountIcon, AccountRow, AccountShell, GroupCard, SectionLabel, SessionConfirm, a, errorColor } from '../features/account/AccountUI';
 import { colors } from '../theme/colors';
 import { elevation } from '../theme/elevation';
 import { MIN_TOUCH, radii, spacing } from '../theme/spacing';
 import { fonts, typography } from '../theme/typography';
 
-/** SCR-009 Profile: identity, saved-trip stats and the account hub (fuller list lives in SCR-010 Settings). */
+/** SCR-009 Profile: identity, travel preferences, language and the account hub (privacy, legal and motion live in SCR-010 Settings). */
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
-  const { profile, isSignedIn, reduceMotion, setReduceMotion } = useAccount();
-  const stats = useTripStats(isSignedIn);
+  const { profile, isSignedIn } = useAccount();
   const [confirming, setConfirming] = useState(false);
   const version = Constants.expoConfig?.version ?? '1.0.0';
   const name = isSignedIn ? profile.name || t('account.profile.fallbackName') : t('account.profile.guestName');
   const initial = (isSignedIn ? profile.name.trim() || profile.email : '').charAt(0).toUpperCase();
-  const preferenceSummary = [
-    ...profile.interests.map(value => t(`account.preferences.interests.${value}`)),
-    ...(profile.travelType ? [t(`account.preferences.travelTypes.${profile.travelType}`)] : []),
-  ].join(' · ');
+  const interests = profile.interests.map(value => t(`account.preferences.interests.${value}`));
+  const travelType = profile.travelType ? t(`account.preferences.travelTypes.${profile.travelType}`) : null;
+  const preferenceSummary = [...interests, ...(travelType ? [travelType] : [])].join(', ');
   const languageName = t(`account.common.languageName.${i18n.language === 'vi' ? 'vi' : 'en'}`);
 
   return <AccountShell title={t('account.profile.title')} fallback="/home">
@@ -39,39 +36,28 @@ export default function ProfileScreen() {
     </View>
     {!isSignedIn && <PrimaryButton label={t('account.profile.create')} onPress={() => router.push('/register')} style={styles.create} />}
 
-    {isSignedIn && <View accessibilityLabel={t('account.profile.statsLabel')} style={[a.card, styles.stats]}>
-      {stats.status === 'ready' ? <View accessible accessibilityLabel={t('account.profile.statsA11y', stats.stats)} style={styles.statsRow}>
-        <StatCircle icon="navigation" size={44} value={String(stats.stats.trips)} label={t('account.profile.statTrips')} style={styles.stat} />
-        <View style={styles.statRule} />
-        <StatCircle icon="map-pin" size={44} value={String(stats.stats.cities)} label={t('account.profile.statCities')} style={styles.stat} />
-        <View style={styles.statRule} />
-        <StatCircle icon="calendar" size={44} value={String(stats.stats.days)} label={t('account.profile.statDays')} style={styles.stat} />
+    <Pressable accessibilityRole="button" accessibilityLabel={`${t('account.profile.preferences')}. ${preferenceSummary || t('account.profile.preferencesEmpty')}`}
+      accessibilityHint={t('account.profile.preferencesHint')} onPress={() => router.push('/travel-preferences')}
+      style={({ pressed }) => [a.card, styles.prefs, pressed && a.pressed]}>
+      <View style={styles.prefsHeader}>
+        <AccountIcon name="sliders" />
+        <Text style={styles.prefsTitle}>{t('account.profile.preferences')}</Text>
+        <AccountIcon name="chevron" color={colors.textMuted} size={18} />
       </View>
-      : stats.status === 'error' ? <Text accessibilityLiveRegion="polite" style={[a.note, styles.statsError]}>{t('account.profile.statsUnavailable')}</Text>
-      : <View style={styles.statsRow}>{[0, 1, 2].map(key => <View key={key} style={styles.statSkeleton}>
-        <Skeleton width={44} height={44} radius={22} /><Skeleton width={36} height={22} radius={8} /><Skeleton width={64} height={12} radius={6} />
-      </View>)}</View>}
-    </View>}
+      {interests.length || travelType ? <View style={styles.chips}>
+        {interests.map(label => <Chip key={label} label={label} tone="tint" />)}
+        {travelType ? <Chip icon="navigation" label={travelType} /> : null}
+      </View> : <Text style={styles.prefsEmpty}>{t('account.profile.preferencesEmpty')}</Text>}
+    </Pressable>
 
-    <SectionLabel>{t('account.profile.sectionAccount')}</SectionLabel>
-    <GroupCard>
-      {isSignedIn && <AccountRow icon="edit" title={t('account.profile.editProfile')} onPress={() => router.push('/edit-profile')} />}
-      <AccountRow icon="sliders" title={t('account.profile.preferences')} subtitle={preferenceSummary || t('account.profile.preferencesEmpty')} onPress={() => router.push('/travel-preferences')} />
-    </GroupCard>
+    {isSignedIn && <GroupCard>
+      <AccountRow icon="edit" title={t('account.profile.editProfile')} onPress={() => router.push('/edit-profile')} />
+    </GroupCard>}
 
     <SectionLabel>{t('account.profile.sectionOptions')}</SectionLabel>
     <GroupCard>
       <AccountRow icon="language" title={t('account.common.language')} value={languageName} onPress={() => router.push('/language')} />
-      <AccountRow icon="motion" title={t('account.common.reduceMotion')}
-        trailing={<Switch accessibilityLabel={t('account.common.reduceMotion')} value={reduceMotion} onValueChange={setReduceMotion} trackColor={{ false: colors.hairline, true: colors.audioTeal }} />} />
       <AccountRow icon="settings" title={t('account.profile.settings')} subtitle={t('account.profile.settingsSubtitle')} onPress={() => router.push('/settings')} />
-    </GroupCard>
-
-    <SectionLabel>{t('account.profile.sectionSupport')}</SectionLabel>
-    <GroupCard>
-      <ExpandableRow icon="info" title={t('account.common.aiData')} body={t('account.common.aiDataBody')} />
-      <ExpandableRow icon="doc" title={t('account.common.legal')} badge={t('account.common.legalDraft')} body={t('account.common.legalBody')} />
-      <ExpandableRow icon="info" title={t('account.common.about')} subtitle={t('account.common.version', { version })} body={t('account.common.aboutBody')} />
     </GroupCard>
 
     {confirming ? <View style={a.card}><SessionConfirm onCancel={() => setConfirming(false)} /></View>
@@ -87,19 +73,19 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
+  // Solid sun with ink initial: 10.1:1 contrast.
   avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sun },
   initial: { fontFamily: fonts.bold, fontSize: 28, color: colors.ink },
   identityCopy: { flex: 1 },
   name: { ...typography.headline, color: colors.ink },
   email: { ...typography.caption, fontSize: 15, lineHeight: 21, marginTop: 2 },
   create: { marginTop: -spacing.xs, marginBottom: spacing.lg },
-  stats: { paddingVertical: spacing.lg, paddingHorizontal: spacing.xs },
-  statsRow: { flexDirection: 'row', alignItems: 'stretch' },
-  stat: { flex: 1 },
-  statRule: { width: StyleSheet.hairlineWidth, backgroundColor: colors.hairline, marginVertical: spacing.xs },
-  statSkeleton: { flex: 1, alignItems: 'center', gap: spacing.xs },
-  statsError: { marginVertical: 0 },
-  signOut: { height: 56, borderRadius: radii.button, marginTop: spacing.xs, ...elevation.none },
+  prefs: { padding: spacing.lg, gap: spacing.sm, minHeight: MIN_TOUCH },
+  prefsHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: MIN_TOUCH - 12 },
+  prefsTitle: { flex: 1, fontFamily: fonts.bold, fontSize: 17, lineHeight: 22, color: colors.ink },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  prefsEmpty: { ...typography.caption, fontSize: 15, lineHeight: 21 },
+  signOut: { height: 52, borderRadius: radii.button, marginTop: spacing.xs, ...elevation.none },
   delete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, minHeight: MIN_TOUCH + 4, marginTop: spacing.sm, borderRadius: radii.button },
   deleteText: { fontFamily: fonts.bold, fontSize: 16, color: errorColor },
 });

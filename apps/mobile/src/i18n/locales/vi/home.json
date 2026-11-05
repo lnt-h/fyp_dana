@@ -15,6 +15,7 @@
     "photoCredit": "Ảnh: {{credit}}",
     "visitMinutes": "{{count}} phút",
     "openPlace": "Mở thẻ địa điểm {{name}}",
+    "cluster": "{{count}} địa điểm, chạm để phóng to",
     "locationDenied": "Chưa có quyền vị trí. Bản đồ vẫn dùng bình thường.",
     "locationFailed": "Chưa lấy được vị trí lúc này. Thử lại sau nhé."
   },
