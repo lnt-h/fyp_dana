@@ -15,6 +15,7 @@
     "photoCredit": "Photo: {{credit}}",
     "visitMinutes": "{{count}} min",
     "openPlace": "Open place card for {{name}}",
+    "cluster": "{{count}} places, tap to zoom in",
     "locationDenied": "Location permission is off. The map still works as usual.",
     "locationFailed": "Could not get your location right now. Please try again later."
   },

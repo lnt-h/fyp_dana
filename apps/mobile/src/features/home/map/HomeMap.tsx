@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 import MapView, { type MapPressEvent, type Region } from 'react-native-maps';
 
 import type { Place } from '../../../lib/api/types';
-import { PlaceMarker } from './PlaceMarker';
+import { MapMarkers, useMapClusters } from './MapMarkers';
 
 type Props = {
   mapRef: RefObject<MapView | null>;
@@ -16,8 +16,10 @@ type Props = {
   accessibilityLabel: string;
 };
 
-/** Full-screen map (platform default provider) with up to 20 published-place markers. */
+/** Full-screen map (platform default provider) with up to 20 published-place markers, grid-clustered when they overlap. */
 export const HomeMap = memo(function HomeMap({ mapRef, initialRegion, places, selectedId, onSelect, showsUserLocation, accessibilityLabel }: Props) {
+  const clusters = useMapClusters(mapRef, initialRegion, places, selectedId);
+
   function handleMapPress(event: MapPressEvent) {
     if (event.nativeEvent.action === 'marker-press') return;
     onSelect(null);
@@ -28,6 +30,7 @@ export const HomeMap = memo(function HomeMap({ mapRef, initialRegion, places, se
       accessibilityLabel={accessibilityLabel}
       initialRegion={initialRegion}
       onPress={handleMapPress}
+      onRegionChangeComplete={clusters.onRegionChangeComplete}
       pitchEnabled={false}
       ref={mapRef}
       rotateEnabled={false}
@@ -38,9 +41,7 @@ export const HomeMap = memo(function HomeMap({ mapRef, initialRegion, places, se
       style={StyleSheet.absoluteFill}
       toolbarEnabled={false}
     >
-      {places.map(place => (
-        <PlaceMarker key={place.id} onPress={onSelect} place={place} selected={place.id === selectedId} />
-      ))}
+      <MapMarkers items={clusters.items} onClusterPress={clusters.zoomToCluster} onSelect={onSelect} selectedId={selectedId} />
     </MapView>
   );
 });
