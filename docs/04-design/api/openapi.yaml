@@ -1,11 +1,12 @@
 openapi: 3.1.0
 info:
   title: Gonarra API
-  version: 0.3.0
+  version: 0.4.0
   summary: Gonarra /v1 contract (REST + SSE) for the traveler app and the curator SPA.
   description: |
-    Document ID GONARRA-API, version 0.3, status Draft. Owner Lê Ngọc Tấn Hiền; approver trantrongminh
-    (pending). Date 2026-11-05 (0.3: curation `chunks[]` embedded on write, Guide Tier 1 evidence; SRC-100 A-028). Produced with `design/apiDesign_prompt.md` v2.0 (kit commit `6996dae`, adapted copy
+    Document ID GONARRA-API, version 0.4, status Draft. Owner Lê Ngọc Tấn Hiền; approver trantrongminh
+    (pending). Date 2026-11-05 (0.3: curation `chunks[]` embedded on write, Guide Tier 1 evidence; SRC-100 A-028. 0.4: `City.centre`, curator
+    queue and import-run fields, API-033 `import_run_id` filter; SRC-100 A-029). Produced with `design/apiDesign_prompt.md` v2.0 (kit commit `6996dae`, adapted copy
     `docs/00-governance/prompt-templates/design/apiDesign_prompt.md`). Narrative, rules and traceability: `docs/04-design/api/api-contract.md`.
 
     This contract is a superset of the generated `apps/api/openapi.json` (info.version 0.1.0): `/health`, `/ready`
@@ -1236,6 +1237,13 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/WorkflowState'
+        - name: import_run_id
+          in: query
+          required: false
+          description: Only candidates with an import record from this run (OQ-112).
+          schema:
+            type: string
+            format: uuid
         - name: q
           in: query
           required: false
@@ -2125,6 +2133,11 @@ components:
         time_zone:
           type: string
           examples: [Asia/Ho_Chi_Minh]
+        centre:
+          description: Map centre for a day or view with no stops (OQ-109); centroid of `cities.boundary`, null when no boundary is recorded.
+          oneOf:
+            - $ref: '#/components/schemas/GeoPoint'
+            - type: 'null'
     CityList:
       type: object
       required: [items]
@@ -3037,6 +3050,13 @@ components:
           type: integer
         has_ai_draft:
           type: boolean
+        provider_release:
+          type: [string, 'null']
+          description: Provider and release of the import run that created or last matched this candidate, e.g. `overture 2026-10-22.0` (OQ-112); null for manual or CSV-only candidates.
+        gate_missing_count:
+          type: integer
+          minimum: 0
+          description: Number of publication-gate violations (`fn_publication_gate_violations`); 0 means ready to publish (OQ-112).
         updated_at:
           type: string
           format: date-time
@@ -3337,6 +3357,12 @@ components:
           type: [integer, 'null']
         rejected_count:
           type: [integer, 'null']
+        duplicate_count:
+          type: [integer, 'null']
+          description: Records skipped because they matched an existing candidate or place (OQ-112).
+        failure_code:
+          type: [string, 'null']
+          description: Machine-readable reason when `status` is FAILED, e.g. NO_ACTIVE_POLICY, CHECKSUM_MISMATCH, READ_ERROR, OUTSIDE_BOUNDING_BOX (OQ-112); null otherwise.
         started_at:
           type: string
           format: date-time

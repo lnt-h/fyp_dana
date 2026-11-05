@@ -213,6 +213,8 @@ CREATE TABLE import_runs (
     record_count        integer,
     accepted_count      integer,
     rejected_count      integer,
+    duplicate_count     integer,
+    failure_code        text,
     started_at          timestamptz NOT NULL DEFAULT now(),
     completed_at        timestamptz,
     CONSTRAINT pk_import_runs PRIMARY KEY (id),
@@ -224,7 +226,8 @@ CREATE TABLE import_runs (
     CONSTRAINT ck_import_runs_completion CHECK ((status = 'RUNNING') = (completed_at IS NULL)),
     CONSTRAINT ck_import_runs_counts CHECK (
         (record_count IS NULL OR record_count >= 0) AND (accepted_count IS NULL OR accepted_count >= 0)
-        AND (rejected_count IS NULL OR rejected_count >= 0))
+        AND (rejected_count IS NULL OR rejected_count >= 0) AND (duplicate_count IS NULL OR duplicate_count >= 0)),
+    CONSTRAINT ck_import_runs_failure_code CHECK ((status = 'FAILED') = (failure_code IS NOT NULL))
 );
 -- Q-I1: replaying the same release is a no-op (FR-010).
 CREATE UNIQUE INDEX uq_import_runs_succeeded_release

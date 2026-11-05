@@ -6,7 +6,7 @@
 |---|---|
 | Document ID | GONARRA-UI-SCREENS |
 | Title | Gonarra — detailed screen specifications (traveler app and curator admin) |
-| Version / status | 0.1 / Draft |
+| Version / status | 0.2 / Draft |
 | Date | 2026-11-05 |
 | Owner | Lê Ngọc Tấn Hiền, student author, product owner, curator and engineer |
 | Contributors | Claude Code (drafting agent; no approval authority) |
@@ -19,6 +19,7 @@
 | Version | Date | Author | Change summary |
 |---|---|---|---|
 | 0.1 | 2026-11-05 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | First issue: one section per screen SCR-001..SCR-012, SCR-020..SCR-040, SCR-101..SCR-105 with purpose, route, layout, data, actions, states, validation, accessibility, flags and open points |
+| 0.2 | 2026-11-05 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | Open points OQ-108..OQ-113 closed (SRC-100 A-029); SCR-025, SCR-102, SCR-104 use the new API 0.4.0 fields |
 
 ## Purpose and how to read this document
 
@@ -354,8 +355,7 @@ range; chevron) + `TextLink` *Xem tất cả / See all* when more exist. `HomeTa
 
 **Flags.** `FEATURE_VOICE` hides the mic.
 
-**Open points.** OQ-108 (see §Open points): the selected city is device-local today; decide whether to store it in
-`Preferences` (contract change) so it follows the account across devices.
+**Open points.** None. OQ-108 closed: the selected city stays device-local (no contract change).
 
 ### SCR-009 Profile
 
@@ -499,7 +499,7 @@ Try again*; offline: last cached list.
 
 **Accessibility.** `dialog` with heading; rows are `radio` in a `radiogroup`; Done ≥ 56 pt.
 
-**Flags.** None. **Open points.** OQ-108 (account-level city).
+**Flags.** None. **Open points.** None (OQ-108 closed: city is device-local).
 
 ### SCR-021 Search results / Explore
 
@@ -800,7 +800,7 @@ stays visible at 200 % text.
 
 **Flags.** As SCR-024.
 
-**Open points.** OQ-109 (see §Open points): map centre for empty days and a per-city centroid in API-008.
+**Open points.** None. OQ-109 closed: an empty day centres the map on API-008 `City.centre` (fallback: the first published place of the city when `centre` is null).
 
 ### SCR-026 Plan Health detail
 
@@ -929,7 +929,7 @@ banner S-1.
 
 **Flags.** None.
 
-**Open points.** OQ-110 (see §Open points): whether a straight-line "{n} m away" hint is allowed in the picker.
+**Open points.** None. OQ-110 closed: no straight-line distance hint in this release.
 
 ### SCR-029 Save confirmation / result
 
@@ -1550,13 +1550,13 @@ from import runs), checkbox *Chỉ có bản nháp AI / AI drafts only*, search 
 Result line *{n} ứng viên · {city} · sắp xếp theo cập nhật / {n} candidates · {city} · sorted by last update*.
 `DataTable` columns: *Tên (VI / EN) / Name (VI / EN)* (two lines; missing EN → *Thiếu tên tiếng Anh / English name
 missing* in warn colour), *Thành phố / City*, *Nguồn / bản phát hành / Provider / release*, *Trạng thái / Status*
-(`Badge` + *Có bản nháp AI / AI draft* badge), *Đầy đủ / Complete* (`{k}/9` gate items; computed client-side from
-SCR-103 rules, or omitted until OQ-112), *Cập nhật / Updated* (relative, *2 giờ trước / 2 h ago*). Pager *Tải thêm /
+(`Badge` + *Có bản nháp AI / AI draft* badge), *Đầy đủ / Complete* (`gate_missing_count`: *Đủ / Complete* when 0,
+else *Thiếu {n} / {n} missing*), *Cập nhật / Updated* (relative, *2 giờ trước / 2 h ago*). Pager *Tải thêm /
 Load more*.
 
 **Data shown.** API-033 `GET /v1/admin/candidates?city_id&workflow_state&q&sort=-updated_at|name&limit=50` →
 `items[].id`, `city_id`, `slug`, `category_code`, `workflow_state`, `name_vi`, `name_en`, `content_revision`,
-`has_ai_draft`, `updated_at`; `next_cursor`. Provider/release per candidate is not in `CandidateSummary` (see OQ-112).
+`has_ai_draft`, `updated_at`; `next_cursor`. Provider/release per candidate: `provider_release`; completeness: `gate_missing_count` (API 0.4.0, OQ-112 closed).
 
 **Actions.** Filters → URL + API-033; row click / Enter → SCR-103; coverage tile click → `city` filter; sort header
 click → `sort`.
@@ -1577,8 +1577,7 @@ wrap, table scrolls horizontally below 1280 (unsupported width).
 
 **Flags.** None.
 
-**Open points.** OQ-112 (see §Open points): `CandidateSummary` lacks provider/release and a completeness count; the
-UI shows them only when the contract adds `provider_release` and `gate_missing_count`.
+**Open points.** None. OQ-112 closed: `provider_release` and `gate_missing_count` are in API 0.4.0; the queue can be filtered by `import_run_id`.
 
 ### SCR-103 Place review / publish
 
@@ -1650,10 +1649,9 @@ that traps focus and returns to the row's Edit button; keyboard-only path Tab �
 
 **Flags.** None.
 
-**Open points.** OQ-113 (see §Open points): Guide chunks (narrative sections) are being added to API-034/API-035 as
-`chunks[]` by the AI-alignment change (embedding on save); until that contract lands on `main`, the row is shown
-read-only with *Quản lý bằng CLI / Managed by CLI*. Once it lands, the row's Edit drawer gets one sectioned chunk per
-topic (overview, history, visit tips, etiquette, access) with VI and EN text and ≥ 1 source each.
+**Open points.** None. OQ-113 closed: the Guide row's Edit drawer edits `chunks[]` (API-034/API-035), one sectioned
+chunk per topic (OVERVIEW, HISTORY, HIGHLIGHTS, VISIT_TIPS, ETIQUETTE, ACCESS) with VI and EN text and ≥ 1 source
+each; a chunk with `embedding_state: PENDING` shows *Đang chờ nhúng / Embedding pending* and cannot be approved.
 
 ### SCR-104 Import runs
 
@@ -1661,7 +1659,7 @@ topic (overview, history, visit tips, etiquette, access) with VI and EN text and
 (US-004; FR-009, FR-010; DEC-009; ADR-006). Wireframe a03.
 
 **Route, entry, exit.** Route `/imports` (`?run={id}` selects a row). Entry: sidebar. Exit: *Ứng viên mới / New
-candidates* count → SCR-102 filtered by run (OQ-112: needs a `import_run_id` filter; until then, by city).
+candidates* count → SCR-102 filtered by run (API-033 `import_run_id`, OQ-112 closed).
 
 **Layout (top → bottom).** `AdminShell`; title *Lượt nhập / Import runs*; caption *Lượt nhập chỉ đọc; chạy bằng CLI
 (DEC-009). / Read-only; runs are started from the CLI (DEC-009).* `DataTable` columns *Lượt / Run*, *Nguồn / Provider*,
@@ -1677,7 +1675,7 @@ Refresh* button (no auto-polling).
 **Data shown.** API-038 `GET /v1/admin/imports?city_id&limit=50` and API-039 `GET /v1/admin/imports/{import_run_id}`
 → `id`, `data_provider_id` (→ provider name via a small client map, or `Source` lookup), `provider_policy_id`,
 `city_id`, `release_id`, `importer_version`, `status` (RUNNING, SUCCEEDED, FAILED), `record_count`, `accepted_count`,
-`rejected_count`, `started_at`, `completed_at`. A failure reason/code field is not in `ImportRun` (OQ-112).
+`rejected_count`, `started_at`, `completed_at`. Failure reason: `failure_code`; duplicates skipped: `duplicate_count` (API 0.4.0, OQ-112 closed).
 
 **Actions.** Row click → detail; Refresh → API-038; count link → SCR-102.
 
@@ -1692,8 +1690,7 @@ labelled by the run id.
 
 **Flags.** None.
 
-**Open points.** OQ-112 (failure code and duplicates-skipped count are wireframe-only; the contract has
-`rejected_count` only).
+**Open points.** None. OQ-112 closed: `failure_code` and `duplicate_count` are in API 0.4.0.
 
 ### SCR-105 Coverage strip
 
@@ -1732,12 +1729,12 @@ contract or copy only.
 
 | ID | Question | Screens | Needed by | Recommendation |
 |---|---|---|---|---|
-| OQ-108 | Should the selected city be stored with account preferences (`Preferences.current_city_id`) so Home follows the account across devices, or stay device-local? | SCR-008, SCR-020 | 2026-11-20 | Device-local for the study (one device per participant); add the field to the contract only if a second device is needed |
-| OQ-109 | Map centre for a day with no stops: add `centre` (GeoPoint) to API-008 `City`, or derive from the first published place? | SCR-025 | 2026-11-25 | Add `centre` to `City` (one additive field, from `cities.boundary` centroid) |
-| OQ-110 | May the place picker show a straight-line "{n} m away" hint computed on the device? BRU-006 forbids straight-line values for legs; a nearby hint is not a leg but could be mistaken for one. | SCR-028 | 2026-11-25 | Omit the hint in 0.1; if kept later, label it *cách thẳng / straight line* and never show minutes |
+| OQ-108 | Should the selected city be stored with account preferences (`Preferences.current_city_id`) so Home follows the account across devices, or stay device-local? | SCR-008, SCR-020 | **Closed 2026-11-05 (A-029)** | **Adopted:** device-local for the study (one device per participant); no contract change. Revisit only if a second device is needed |
+| OQ-109 | Map centre for a day with no stops: add `centre` (GeoPoint) to API-008 `City`, or derive from the first published place? | SCR-025 | **Closed 2026-11-05 (A-029)** | **Adopted:** `City.centre` (nullable GeoPoint, centroid of `cities.boundary`) added in API 0.4.0 |
+| OQ-110 | May the place picker show a straight-line "{n} m away" hint computed on the device? BRU-006 forbids straight-line values for legs; a nearby hint is not a leg but could be mistaken for one. | SCR-028 | **Closed 2026-11-05 (A-029)** | **Adopted:** no distance hint in this release; if added later, label it *cách thẳng / straight line* and never show minutes |
 | OQ-111 | City-wide Guide questions (no `place_id`) are not in API v1; the context chip cannot offer "whole city". | SCR-034 | Closed by the AI alignment decision (2026-11-05) | Place-scoped only; city-scoped hybrid retrieval is roadmap (ADR-010). The chip never offers "whole city" in this release |
-| OQ-112 | `CandidateSummary` lacks provider/release and a gate-completeness count; `ImportRun` lacks a failure code and a duplicates-skipped count; the queue cannot filter by import run. The wireframes show all of these. | SCR-102, SCR-104 | 2026-11-25 | Add `provider_release`, `gate_missing_count` to `CandidateSummary`, `failure_code`, `duplicate_count` to `ImportRun`, and `import_run_id` filter to API-033 (all additive) |
-| OQ-113 | Guide narrative chunks have no admin read/write operation on `main` yet (`CandidateDetail` has no chunks); SCR-103 shows the row read-only until then. | SCR-103 | with the AI alignment PR | Adopted by the AI alignment decision (2026-11-05): `chunks[]` on API-034/API-035 with embedding on save; SCR-103 then shows one sectioned chunk per topic with VI/EN text and sources. Close when the contract merges |
+| OQ-112 | `CandidateSummary` lacks provider/release and a gate-completeness count; `ImportRun` lacks a failure code and a duplicates-skipped count; the queue cannot filter by import run. The wireframes show all of these. | SCR-102, SCR-104 | **Closed 2026-11-05 (A-029)** | **Adopted** in API 0.4.0 / data model 0.4: `CandidateSummary.provider_release`, `gate_missing_count`; `ImportRun.duplicate_count`, `failure_code`; API-033 `import_run_id` filter |
+| OQ-113 | Guide narrative chunks have no admin read/write operation on `main` yet (`CandidateDetail` has no chunks); SCR-103 shows the row read-only until then. | SCR-103 | **Closed 2026-11-05** (PR #4 merged) | **Adopted:** `chunks[]` on API-034/API-035 with embedding on save (ADR-012 0.3); SCR-103 shows one sectioned chunk per topic with VI/EN text and sources |
 
 Assumptions reused from README §13: ASM-060 (request text ≤ 500), ASM-061 (15-minute duration steps), ASM-062
 (10 s location fix), ASM-063 (24-hour times), ASM-064 (admin localized, ≥ 1280 px). New assumptions:
