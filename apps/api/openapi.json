@@ -1,6 +1,370 @@
 {
   "components": {
     "schemas": {
+      "Area": {
+        "description": "Travel area of a city (DEC-013), e.g. ``hoi-an-old-town``; a filter, not a city.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "name_en": {
+            "title": "Name En",
+            "type": "string"
+          },
+          "name_vi": {
+            "title": "Name Vi",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "name_vi",
+          "name_en",
+          "sort_order"
+        ],
+        "title": "Area",
+        "type": "object"
+      },
+      "Attribution": {
+        "properties": {
+          "attribution_text": {
+            "title": "Attribution Text",
+            "type": "string"
+          },
+          "homepage_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homepage Url"
+          },
+          "license_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License Code"
+          },
+          "publisher": {
+            "title": "Publisher",
+            "type": "string"
+          }
+        },
+        "required": [
+          "publisher",
+          "attribution_text"
+        ],
+        "title": "Attribution",
+        "type": "object"
+      },
+      "Category": {
+        "properties": {
+          "code": {
+            "description": "UPPER_CASE category code; lower-case is accepted on input.",
+            "title": "Code",
+            "type": "string"
+          },
+          "name_en": {
+            "title": "Name En",
+            "type": "string"
+          },
+          "name_vi": {
+            "title": "Name Vi",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "name_vi",
+          "name_en",
+          "sort_order"
+        ],
+        "title": "Category",
+        "type": "object"
+      },
+      "CategoryList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Category"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CategoryList",
+        "type": "object"
+      },
+      "Citation": {
+        "properties": {
+          "knowledge_chunk_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Knowledge Chunk Id"
+          },
+          "locator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locator"
+          },
+          "place_fact_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Fact Id"
+          },
+          "publisher": {
+            "title": "Publisher",
+            "type": "string"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "source_revision_id": {
+            "format": "uuid",
+            "title": "Source Revision Id",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "trust_level": {
+            "default": "VERIFIED",
+            "enum": [
+              "VERIFIED",
+              "WEB_UNVERIFIED"
+            ],
+            "title": "Trust Level",
+            "type": "string"
+          },
+          "verified_at": {
+            "format": "date",
+            "title": "Verified At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_revision_id",
+          "publisher",
+          "verified_at"
+        ],
+        "title": "Citation",
+        "type": "object"
+      },
+      "City": {
+        "properties": {
+          "areas": {
+            "items": {
+              "$ref": "#/components/schemas/Area"
+            },
+            "title": "Areas",
+            "type": "array"
+          },
+          "centre": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeoPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name_en": {
+            "title": "Name En",
+            "type": "string"
+          },
+          "name_vi": {
+            "title": "Name Vi",
+            "type": "string"
+          },
+          "time_zone": {
+            "title": "Time Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name_vi",
+          "name_en",
+          "time_zone"
+        ],
+        "title": "City",
+        "type": "object"
+      },
+      "CityList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/City"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CityList",
+        "type": "object"
+      },
+      "ClosureRule": {
+        "description": "Approved calendar rule applying to the place, its area or the city (ADR-011).",
+        "properties": {
+          "applies_to": {
+            "enum": [
+              "PLACE",
+              "AREA",
+              "CITY"
+            ],
+            "title": "Applies To",
+            "type": "string"
+          },
+          "effect": {
+            "title": "Effect",
+            "type": "string"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "note": {
+            "description": "Note in the requested locale.",
+            "title": "Note",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "rule_kind": {
+            "title": "Rule Kind",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "BLOCKING",
+              "WARNING"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          }
+        },
+        "required": [
+          "id",
+          "applies_to",
+          "rule_kind",
+          "effect",
+          "severity",
+          "params",
+          "note"
+        ],
+        "title": "ClosureRule",
+        "type": "object"
+      },
       "ErrorDetail": {
         "properties": {
           "code": {
@@ -52,6 +416,41 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "GeoPoint": {
+        "properties": {
+          "latitude": {
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude",
+            "type": "number"
+          },
+          "longitude": {
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude",
+            "type": "number"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "title": "GeoPoint",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
       "IdentityResponse": {
         "properties": {
           "account_id": {
@@ -82,6 +481,720 @@
         "title": "IdentityResponse",
         "type": "object"
       },
+      "Media": {
+        "properties": {
+          "alt_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt Text"
+          },
+          "attribution_text": {
+            "title": "Attribution Text",
+            "type": "string"
+          },
+          "creator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creator"
+          },
+          "height_px": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Px"
+          },
+          "license_code": {
+            "title": "License Code",
+            "type": "string"
+          },
+          "media_asset_id": {
+            "format": "uuid",
+            "title": "Media Asset Id",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "width_px": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width Px"
+          }
+        },
+        "required": [
+          "media_asset_id",
+          "url",
+          "license_code",
+          "attribution_text"
+        ],
+        "title": "Media",
+        "type": "object"
+      },
+      "PlaceDetail": {
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Area"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "area_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area Code"
+          },
+          "attributions": {
+            "description": "Every source whose data is shown.",
+            "items": {
+              "$ref": "#/components/schemas/Attribution"
+            },
+            "title": "Attributions",
+            "type": "array"
+          },
+          "catalog_publication_id": {
+            "format": "uuid",
+            "title": "Catalog Publication Id",
+            "type": "string"
+          },
+          "category_code": {
+            "title": "Category Code",
+            "type": "string"
+          },
+          "city_id": {
+            "format": "uuid",
+            "title": "City Id",
+            "type": "string"
+          },
+          "closure_rules": {
+            "items": {
+              "$ref": "#/components/schemas/ClosureRule"
+            },
+            "title": "Closure Rules",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "entrance_location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeoPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceFact"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "location": {
+            "$ref": "#/components/schemas/GeoPoint"
+          },
+          "media": {
+            "items": {
+              "$ref": "#/components/schemas/Media"
+            },
+            "title": "Media",
+            "type": "array"
+          },
+          "name": {
+            "description": "Name in the requested locale.",
+            "title": "Name",
+            "type": "string"
+          },
+          "name_en": {
+            "title": "Name En",
+            "type": "string"
+          },
+          "name_vi": {
+            "description": "Vietnamese name, always present (FR-076).",
+            "title": "Name Vi",
+            "type": "string"
+          },
+          "publication_revision": {
+            "title": "Publication Revision",
+            "type": "integer"
+          },
+          "published_at": {
+            "format": "date-time",
+            "title": "Published At",
+            "type": "string"
+          },
+          "short_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "thumbnail": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Media"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trust_level": {
+            "default": "VERIFIED",
+            "description": "Published catalog places are always VERIFIED.",
+            "enum": [
+              "VERIFIED",
+              "WEB_UNVERIFIED"
+            ],
+            "title": "Trust Level",
+            "type": "string"
+          },
+          "visit_minutes_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visit Minutes Max"
+          },
+          "visit_minutes_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visit Minutes Min"
+          },
+          "visit_minutes_suggested": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visit Minutes Suggested"
+          }
+        },
+        "required": [
+          "id",
+          "city_id",
+          "slug",
+          "category_code",
+          "name_vi",
+          "name",
+          "location",
+          "catalog_publication_id",
+          "name_en",
+          "publication_revision",
+          "published_at",
+          "facts",
+          "attributions"
+        ],
+        "title": "PlaceDetail",
+        "type": "object"
+      },
+      "PlaceFact": {
+        "description": "One operational fact. UNKNOWN is never collapsed into an empty value (FR-005).",
+        "properties": {
+          "field_code": {
+            "title": "Field Code",
+            "type": "string"
+          },
+          "freshness": {
+            "enum": [
+              "CURRENT",
+              "STALE"
+            ],
+            "title": "Freshness",
+            "type": "string"
+          },
+          "knowledge_state": {
+            "enum": [
+              "KNOWN",
+              "UNKNOWN",
+              "NOT_APPLICABLE"
+            ],
+            "title": "Knowledge State",
+            "type": "string"
+          },
+          "place_fact_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Fact Id"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Citation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Most recent supporting source (1.0); also listed in sources."
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          }
+        },
+        "required": [
+          "field_code",
+          "knowledge_state",
+          "freshness",
+          "sources"
+        ],
+        "title": "PlaceFact",
+        "type": "object"
+      },
+      "PlaceSummary": {
+        "properties": {
+          "area_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area Code"
+          },
+          "catalog_publication_id": {
+            "format": "uuid",
+            "title": "Catalog Publication Id",
+            "type": "string"
+          },
+          "category_code": {
+            "title": "Category Code",
+            "type": "string"
+          },
+          "city_id": {
+            "format": "uuid",
+            "title": "City Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "location": {
+            "$ref": "#/components/schemas/GeoPoint"
+          },
+          "name": {
+            "description": "Name in the requested locale.",
+            "title": "Name",
+            "type": "string"
+          },
+          "name_vi": {
+            "description": "Vietnamese name, always present (FR-076).",
+            "title": "Name Vi",
+            "type": "string"
+          },
+          "short_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "thumbnail": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Media"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trust_level": {
+            "default": "VERIFIED",
+            "description": "Published catalog places are always VERIFIED.",
+            "enum": [
+              "VERIFIED",
+              "WEB_UNVERIFIED"
+            ],
+            "title": "Trust Level",
+            "type": "string"
+          },
+          "visit_minutes_suggested": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visit Minutes Suggested"
+          }
+        },
+        "required": [
+          "id",
+          "city_id",
+          "slug",
+          "category_code",
+          "name_vi",
+          "name",
+          "location",
+          "catalog_publication_id"
+        ],
+        "title": "PlaceSummary",
+        "type": "object"
+      },
+      "PlaceSummaryPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null on the last page.",
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "next_cursor",
+          "items"
+        ],
+        "title": "PlaceSummaryPage",
+        "type": "object"
+      },
+      "Preferences": {
+        "properties": {
+          "ai_notice_acknowledged_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Notice Acknowledged At"
+          },
+          "allowed_modes": {
+            "items": {
+              "enum": [
+                "WALK",
+                "DRIVE"
+              ],
+              "type": "string"
+            },
+            "title": "Allowed Modes",
+            "type": "array"
+          },
+          "day_end_time": {
+            "anyOf": [
+              {
+                "examples": [
+                  "08:00"
+                ],
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day End Time"
+          },
+          "day_start_time": {
+            "anyOf": [
+              {
+                "examples": [
+                  "08:00"
+                ],
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Start Time"
+          },
+          "interest_category_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Interest Category Codes",
+            "type": "array"
+          },
+          "locale": {
+            "enum": [
+              "vi",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "pace": {
+            "anyOf": [
+              {
+                "enum": [
+                  "RELAXED",
+                  "BALANCED",
+                  "PACKED"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "locale",
+          "interest_category_codes",
+          "allowed_modes"
+        ],
+        "title": "Preferences",
+        "type": "object"
+      },
+      "PreferencesWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "ai_notice_acknowledged": {
+            "default": false,
+            "description": "Set true once the FR-074 notice is shown; the server stamps the time.",
+            "title": "Ai Notice Acknowledged",
+            "type": "boolean"
+          },
+          "allowed_modes": {
+            "items": {
+              "enum": [
+                "WALK",
+                "DRIVE"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Modes",
+            "type": "array"
+          },
+          "day_end_time": {
+            "anyOf": [
+              {
+                "examples": [
+                  "08:00"
+                ],
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day End Time"
+          },
+          "day_start_time": {
+            "anyOf": [
+              {
+                "examples": [
+                  "08:00"
+                ],
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Start Time"
+          },
+          "interest_category_codes": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Interest Category Codes",
+            "type": "array"
+          },
+          "locale": {
+            "enum": [
+              "vi",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "pace": {
+            "anyOf": [
+              {
+                "enum": [
+                  "RELAXED",
+                  "BALANCED",
+                  "PACKED"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace"
+          }
+        },
+        "required": [
+          "locale",
+          "interest_category_codes",
+          "allowed_modes"
+        ],
+        "title": "PreferencesWrite",
+        "type": "object"
+      },
       "ServiceStatus": {
         "properties": {
           "service": {
@@ -98,6 +1211,46 @@
           "status"
         ],
         "title": "ServiceStatus",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
         "type": "object"
       }
     },
@@ -166,6 +1319,99 @@
         ]
       }
     },
+    "/v1/categories": {
+      "get": {
+        "operationId": "list_categories_v1_categories_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Categories",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/v1/cities": {
+      "get": {
+        "description": "Enabled cities with their travel areas (FR-001; one city, Đà Nẵng, for the FYP).",
+        "operationId": "list_cities_v1_cities_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CityList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Cities",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/v1/me": {
       "get": {
         "operationId": "read_identity_v1_me_get",
@@ -209,6 +1455,501 @@
         "summary": "Read Identity",
         "tags": [
           "identity"
+        ]
+      }
+    },
+    "/v1/me/preferences": {
+      "get": {
+        "description": "Saved preferences, or defaults (vi, WALK+DRIVE) when none were saved.",
+        "operationId": "get_preferences_v1_me_preferences_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Preferences",
+        "tags": [
+          "identity"
+        ]
+      },
+      "put": {
+        "description": "Full replace (naturally idempotent). Interest codes are case-insensitive; stored UPPER.",
+        "operationId": "put_preferences_v1_me_preferences_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferencesWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Preferences",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/v1/places": {
+      "get": {
+        "description": "Search published places by VI/EN name or reviewed alias, ignoring case and diacritics.",
+        "operationId": "search_places_v1_places_get",
+        "parameters": [
+          {
+            "description": "Enabled city; defaults to the enabled launch city (Đà Nẵng).",
+            "in": "query",
+            "name": "city_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Enabled city; defaults to the enabled launch city (Đà Nẵng).",
+              "title": "City Id"
+            }
+          },
+          {
+            "description": "Alternative to city_id, e.g. da-nang.",
+            "in": "query",
+            "name": "city_code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alternative to city_id, e.g. da-nang.",
+              "title": "City Code"
+            }
+          },
+          {
+            "description": "Search text; omitted lists places.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Search text; omitted lists places.",
+              "title": "Q"
+            }
+          },
+          {
+            "description": "Category code; case-insensitive (HERITAGE, heritage).",
+            "in": "query",
+            "name": "category_code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Category code; case-insensitive (HERITAGE, heritage).",
+              "title": "Category Code"
+            }
+          },
+          {
+            "description": "Travel area, e.g. hoi-an-old-town.",
+            "in": "query",
+            "name": "area_code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Travel area, e.g. hoi-an-old-town.",
+              "title": "Area Code"
+            }
+          },
+          {
+            "description": "min_lng,min_lat,max_lng,max_lat (WGS84).",
+            "in": "query",
+            "name": "bbox",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "min_lng,min_lat,max_lng,max_lat (WGS84).",
+              "title": "Bbox"
+            }
+          },
+          {
+            "description": "lat,lng; combine with radius_m.",
+            "in": "query",
+            "name": "near",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "lat,lng; combine with radius_m.",
+              "title": "Near"
+            }
+          },
+          {
+            "in": "query",
+            "name": "radius_m",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "maximum": 50000,
+              "minimum": 1,
+              "title": "Radius M",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "relevance",
+              "enum": [
+                "relevance",
+                "name"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque cursor from a previous page's next_cursor.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous page's next_cursor.",
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Content language; defaults to the account preference, then vi.",
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "vi",
+                    "en"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Content language; defaults to the account preference, then vi.",
+              "title": "Locale"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceSummaryPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Search Places",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/v1/places/{place_id}": {
+      "get": {
+        "description": "Current publication of a place with facts, freshness, attribution and closure rules.",
+        "operationId": "get_place_v1_places__place_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "place_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Place Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Content language; defaults to the account preference, then vi.",
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "vi",
+                    "en"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Content language; defaults to the account preference, then vi.",
+              "title": "Locale"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Place",
+        "tags": [
+          "catalog"
         ]
       }
     }

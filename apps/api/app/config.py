@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # Product scope (DEC-013): FYP release serves one enabled city.
     default_city_code: str = "da-nang"
 
+    # Public base URL that media_assets.object_key is appended to (catalog Media.url).
+    media_base_url: str = "http://localhost:8000/media"
+
     # Provider secrets (ADR-006, BR-046): server-side only, never logged, never sent to clients.
     gemini_api_key: SecretStr | None = None
     groq_api_key: SecretStr | None = None
