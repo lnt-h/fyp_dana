@@ -43,7 +43,13 @@ import type {
   Uuid,
 } from './types';
 
-export const useFixtures = process.env.EXPO_PUBLIC_USE_FIXTURES === '1';
+/**
+ * Fixture data is used when EXPO_PUBLIC_USE_FIXTURES=1, and by default in development builds until the API client is
+ * wired (TASK-001): no EXPO_PUBLIC_API_URL means there is no server to call. Set EXPO_PUBLIC_USE_FIXTURES=0 to force
+ * the real API path.
+ */
+const fixtureFlag = process.env.EXPO_PUBLIC_USE_FIXTURES;
+export const useFixtures = fixtureFlag === '1' || (fixtureFlag !== '0' && __DEV__ && !process.env.EXPO_PUBLIC_API_URL);
 
 function notWired(): never {
   throw new Error('API not wired yet (TASK-001)');

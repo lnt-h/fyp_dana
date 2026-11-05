@@ -18,7 +18,7 @@ const FALLBACK_CENTERS: Record<CityCode, GeoPoint & { delta: number }> = {
  * Vertical position (fraction of screen height from the top) where the focus point should appear: midway between the
  * header over the map and the half-open sheet, so markers are not hidden under either.
  */
-const FOCUS_FRACTION = 0.36;
+const FOCUS_FRACTION = 0.3;
 
 /** `aspect` = map width / height. Shifts a centre south so `point` shows at FOCUS_FRACTION instead of the middle of the map. */
 export function framedRegion(point: GeoPoint, delta: number, aspect: number): Region {

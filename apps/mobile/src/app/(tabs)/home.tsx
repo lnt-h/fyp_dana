@@ -94,7 +94,16 @@ export default function HomeScreen() {
   const loadedFor = cityPlaces?.cityId === city?.id ? city?.id : undefined;
   useEffect(() => {
     if (!city || !loadedFor) return;
-    mapRef.current?.animateToRegion(cityRegion(city.code, places.map(place => place.location), aspect), reduced ? 0 : 600);
+    const points = places.map(place => place.location);
+    if (points.length > 1) {
+      // Centre on the median place (the dense core, e.g. Hội An old town) at street zoom so markers do not pile up;
+      // outlying places stay one pan away.
+      const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+      const core = { latitude: median(points.map(p => p.latitude)), longitude: median(points.map(p => p.longitude)) };
+      mapRef.current?.animateToRegion(framedRegion(core, 0.018, aspect), reduced ? 0 : 600);
+    } else {
+      mapRef.current?.animateToRegion(cityRegion(city.code, points, aspect), reduced ? 0 : 600);
+    }
     // Runs once per loaded city, not on resize or motion-setting changes.
   }, [loadedFor]);
 
@@ -190,11 +199,9 @@ export default function HomeScreen() {
           <View pointerEvents="box-none" style={styles.floatingInner}>
             {selectedPlace ? <PlacePreviewCard onOpen={openPlace} place={selectedPlace} /> : null}
             <View pointerEvents="box-none" style={styles.controls}>
-              <View style={styles.credit}>
-                <Text numberOfLines={1} style={styles.creditText}>
-                  {credit ? t('home.map.photoCredit', { credit }) : t('home.map.photoCredits')}
-                </Text>
-              </View>
+              {credit ? <View style={styles.credit}>
+                <Text numberOfLines={1} style={styles.creditText}>{t('home.map.photoCredit', { credit })}</Text>
+              </View> : <View style={styles.creditSpacer} />}
               <CircleButton accessibilityLabel={t('home.map.gps')} icon="navigation" onPress={handleLocate} size={48} />
             </View>
           </View>
@@ -282,6 +289,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
+  creditSpacer: { flex: 1 },
   creditText: { color: colors.ink, fontFamily: fonts.medium, fontSize: 11, lineHeight: 15 },
   floating: { height: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   floatingInner: { bottom: 12, gap: 12, left: GUTTER, position: 'absolute', right: GUTTER - 4 },

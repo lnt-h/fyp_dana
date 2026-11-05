@@ -41,7 +41,7 @@ export function PlanBanner({ cityCode, cityName, offline, onStart }: { cityCode:
             <LinearGradient colors={[colors.deepOcean, colors.tealDark]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={StyleSheet.absoluteFill} />
           )}
           {/* Strong scrim on the left/bottom keeps white text ≥4.5:1 on any photo. */}
-          <LinearGradient colors={['rgba(7,21,30,0.82)', 'rgba(7,21,30,0.55)', 'rgba(7,21,30,0.25)']} end={{ x: 1, y: 0.4 }} start={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
+          <LinearGradient colors={['rgba(7,21,30,0.88)', 'rgba(7,21,30,0.72)', 'rgba(7,21,30,0.35)']} end={{ x: 1, y: 0.5 }} locations={[0, 0.55, 1]} start={{ x: 0, y: 0.5 }} style={StyleSheet.absoluteFill} />
           <View style={styles.body}>
             <View style={styles.kicker}>
               <Icon color={colors.sun} name="sparkle" size={16} />

@@ -13,7 +13,6 @@
     "label": "Bản đồ {{city}}",
     "gps": "Đưa bản đồ về vị trí của tôi",
     "photoCredit": "Ảnh: {{credit}}",
-    "photoCredits": "Ảnh địa điểm có ghi nguồn trên từng thẻ",
     "visitMinutes": "{{count}} phút",
     "openPlace": "Mở thẻ địa điểm {{name}}",
     "locationDenied": "Chưa có quyền vị trí. Bản đồ vẫn dùng bình thường.",
