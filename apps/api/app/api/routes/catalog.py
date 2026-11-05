@@ -77,8 +77,9 @@ def _invalid(field: str, message: str) -> AppError:
         422,
         "validation_error",
         message,
-        context={"fields": [{"type": "value_error", "location": ["query", field],
-                             "message": message}]},
+        context={
+            "fields": [{"type": "value_error", "location": ["query", field], "message": message}]
+        },
     )
 
 
@@ -247,9 +248,7 @@ def _bbox(raw: str | None) -> BoundingBox | None:
     if raw is None:
         return None
     min_lng, min_lat, max_lng, max_lat = _parse_floats(raw, 4, "bbox")
-    if not (
-        -180 <= min_lng < max_lng <= 180 and -90 <= min_lat < max_lat <= 90
-    ):
+    if not (-180 <= min_lng < max_lng <= 180 and -90 <= min_lat < max_lat <= 90):
         raise _invalid("bbox", "bbox must be min_lng,min_lat,max_lng,max_lat with min < max")
     return BoundingBox(min_lng, min_lat, max_lng, max_lat)
 

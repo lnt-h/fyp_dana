@@ -41,7 +41,7 @@ ERROR_STATUS: dict[str, int] = {
     "quota_exceeded": 429,
     "revision_conflict": 409,
     "unsupported_request": 422,
-    "validation_failed": 422,
+    "validation_error": 422,
 }
 
 

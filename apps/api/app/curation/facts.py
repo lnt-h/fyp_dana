@@ -257,7 +257,7 @@ class FactService:
             select(PlaceFact).where(PlaceFact.id == fact_id, PlaceFact.place_id == place_id)
         )
         if row is None:
-            raise not_found("Fact not found", code="not_found")
+            raise not_found("Fact not found")
         return row
 
     async def _replace_evidence(

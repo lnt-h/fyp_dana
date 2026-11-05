@@ -223,9 +223,7 @@ async def test_search_is_diacritic_insensitive_and_excludes_candidates(
     assert abs(item.lat - 16.1003) < 1e-6 and abs(item.lng - 108.2772) < 1e-6
 
 
-async def test_search_filters_category_area_and_location(
-    session: AsyncSession, token: str
-) -> None:
+async def test_search_filters_category_area_and_location(session: AsyncSession, token: str) -> None:
     city_id = await da_nang_id(session)
     beach = await create_place(
         session,
@@ -275,7 +273,12 @@ async def test_search_pagination_is_stable(session: AsyncSession, token: str) ->
         cursor = None
         for _ in range(10):
             page = await search_catalog(
-                session, city_id=city_id, q=token, sort=sort, limit=2, cursor=cursor  # type: ignore[arg-type]
+                session,
+                city_id=city_id,
+                q=token,
+                sort=sort,
+                limit=2,
+                cursor=cursor,  # type: ignore[arg-type]
             )
             assert len(page.items) <= 2
             seen.extend(item.place_id for item in page.items)
@@ -304,7 +307,10 @@ async def test_place_detail_and_http_routes(session: AsyncSession, token: str) -
         area_code="my-khe-ngu-hanh-son",
     )
     candidate_id = await create_place(
-        session, city_id=city_id, name_vi=f"Ứng viên {token}", name_en=f"Cand {token}",
+        session,
+        city_id=city_id,
+        name_vi=f"Ứng viên {token}",
+        name_en=f"Cand {token}",
         publish=False,
     )
     revision_id = await session.scalar(

@@ -82,6 +82,7 @@ vw_published_place_facts = table(
     column("is_stale", Boolean),
 )
 
+
 @dataclass(frozen=True)
 class MediaRecord:
     media_asset_id: uuid.UUID
@@ -294,9 +295,7 @@ async def load_publication_media(
     return media
 
 
-async def attach_thumbnails(
-    session: AsyncSession, rows: Sequence[Any]
-) -> list[PlaceSummaryRecord]:
+async def attach_thumbnails(session: AsyncSession, rows: Sequence[Any]) -> list[PlaceSummaryRecord]:
     media = await load_publication_media(session, [row.catalog_publication_id for row in rows])
     records = []
     for row in rows:

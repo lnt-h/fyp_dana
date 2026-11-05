@@ -295,7 +295,7 @@ class ClosureRuleService:
             statement = statement.with_for_update()
         row = await self._session.scalar(statement)
         if row is None:
-            raise not_found("Closure rule not found", code="not_found")
+            raise not_found("Closure rule not found")
         return row
 
     async def _require_area(self, area_code: str | None, city_id: uuid.UUID) -> None:

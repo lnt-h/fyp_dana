@@ -39,7 +39,7 @@ def normalize_key(raw: str | None, *, required: bool) -> str | None:
         if required:
             raise AppError(
                 422,
-                "validation_failed",
+                "validation_error",
                 "Idempotency-Key header is required",
                 context={"fields": [{"location": ["header", IDEMPOTENCY_HEADER]}]},
             )
@@ -49,7 +49,7 @@ def normalize_key(raw: str | None, *, required: bool) -> str | None:
     except ValueError as exc:
         raise AppError(
             422,
-            "validation_failed",
+            "validation_error",
             "Idempotency-Key must be a UUID",
             context={"fields": [{"location": ["header", IDEMPOTENCY_HEADER]}]},
         ) from exc

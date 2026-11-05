@@ -50,14 +50,28 @@ SUMMARY = PlaceSummaryRecord(
     lng=108.27,
     visit_minutes_suggested=60,
     thumbnail=MediaRecord(
-        uuid.uuid4(), "places/linh-ung.jpg", 800, 600, "Jane", "CC-BY-4.0", "© Jane", "Chùa",
-        "Pagoda", 1,
+        uuid.uuid4(),
+        "places/linh-ung.jpg",
+        800,
+        600,
+        "Jane",
+        "CC-BY-4.0",
+        "© Jane",
+        "Chùa",
+        "Pagoda",
+        1,
     ),
 )
 VERIFIED_AT = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
 SOURCE = FactSourceRecord(
-    uuid.uuid4(), "Sở Du lịch", "Giờ mở cửa", "https://example.invalid/a", VERIFIED_AT,
-    "CC-BY-4.0", "© Sở Du lịch Đà Nẵng", None,
+    uuid.uuid4(),
+    "Sở Du lịch",
+    "Giờ mở cửa",
+    "https://example.invalid/a",
+    VERIFIED_AT,
+    "CC-BY-4.0",
+    "© Sở Du lịch Đà Nẵng",
+    None,
 )
 DETAIL = PlaceDetailRecord(
     summary=SUMMARY,
@@ -71,10 +85,28 @@ DETAIL = PlaceDetailRecord(
     entrance_lng=None,
     area=None,
     facts=(
-        FactRecord(uuid.uuid4(), "OPENING_HOURS", True, "KNOWN", {"text": "06:00-21:00"},
-                   VERIFIED_AT, None, False, (SOURCE,)),
-        FactRecord(uuid.uuid4(), "ADMISSION_PRICE", True, "UNKNOWN", None,
-                   VERIFIED_AT, None, True, (SOURCE,)),
+        FactRecord(
+            uuid.uuid4(),
+            "OPENING_HOURS",
+            True,
+            "KNOWN",
+            {"text": "06:00-21:00"},
+            VERIFIED_AT,
+            None,
+            False,
+            (SOURCE,),
+        ),
+        FactRecord(
+            uuid.uuid4(),
+            "ADMISSION_PRICE",
+            True,
+            "UNKNOWN",
+            None,
+            VERIFIED_AT,
+            None,
+            True,
+            (SOURCE,),
+        ),
     ),
     media=(SUMMARY.thumbnail,),  # type: ignore[arg-type]
     closure_rules=(),
@@ -120,8 +152,8 @@ async def put(app: FastAPI, path: str, body: Any) -> Response:
 
 
 @pytest.mark.parametrize(
-    "path", ["/v1/cities", "/v1/categories", "/v1/places", f"/v1/places/{PLACE_ID}",
-             "/v1/me/preferences"],
+    "path",
+    ["/v1/cities", "/v1/categories", "/v1/places", f"/v1/places/{PLACE_ID}", "/v1/me/preferences"],
 )
 async def test_routes_require_authentication(path: str) -> None:
     response = await get(create_app(), path)
@@ -171,8 +203,9 @@ async def test_search_returns_verified_summaries(
 
     monkeypatch.setattr(catalog_routes, "search_catalog", fake_search)
     response = await get(
-        app, "/v1/places", params={"q": "linh ung", "category_code": "religious_site",
-                                   "locale": "en", "limit": 5}
+        app,
+        "/v1/places",
+        params={"q": "linh ung", "category_code": "religious_site", "locale": "en", "limit": 5},
     )
     assert response.status_code == 200
     body = response.json()
@@ -339,10 +372,19 @@ async def test_put_preferences_normalises_interests(
         {"locale": "vi", "interest_category_codes": [], "allowed_modes": ["BIKE"]},
         {"locale": "fr", "interest_category_codes": [], "allowed_modes": ["WALK"]},
         {"locale": "vi", "interest_category_codes": [], "allowed_modes": ["WALK"], "x": 1},
-        {"locale": "vi", "interest_category_codes": [], "allowed_modes": ["WALK"],
-         "day_start_time": "8:00"},
-        {"locale": "vi", "interest_category_codes": [], "allowed_modes": ["WALK"],
-         "day_start_time": "20:00", "day_end_time": "08:00"},
+        {
+            "locale": "vi",
+            "interest_category_codes": [],
+            "allowed_modes": ["WALK"],
+            "day_start_time": "8:00",
+        },
+        {
+            "locale": "vi",
+            "interest_category_codes": [],
+            "allowed_modes": ["WALK"],
+            "day_start_time": "20:00",
+            "day_end_time": "08:00",
+        },
         {"locale": "vi", "interest_category_codes": ["x"] * 21, "allowed_modes": ["WALK"]},
         {"locale": "vi", "interest_category_codes": ["SPA"], "allowed_modes": ["WALK"]},
         {"locale": "vi", "pace": "FAST", "interest_category_codes": [], "allowed_modes": ["WALK"]},

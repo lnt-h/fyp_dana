@@ -119,7 +119,7 @@ async def get_place(session: AsyncSession, place_id: uuid.UUID, *, lock: bool = 
         statement = statement.with_for_update()
     place = await session.scalar(statement)
     if place is None:
-        raise not_found("Place not found", code="not_found")
+        raise not_found("Place not found")
     return place
 
 

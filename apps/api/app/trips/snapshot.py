@@ -224,7 +224,7 @@ class _Editor:
     def _locate(self, stop_id: uuid.UUID | None, index: int) -> tuple[int, int]:
         if stop_id is None:
             raise validation_failed(
-                "validation_failed", "stop_id is required", edit_index=index, field="stop_id"
+                "validation_error", "stop_id is required", edit_index=index, field="stop_id"
             )
         for day_index, stops in self.days.items():
             for position, stop in enumerate(stops):
@@ -237,7 +237,7 @@ class _Editor:
     def _publication(self, place_id: uuid.UUID | None, index: int) -> PublishedPlace:
         if place_id is None:
             raise validation_failed(
-                "validation_failed", "place_id is required", edit_index=index, field="place_id"
+                "validation_error", "place_id is required", edit_index=index, field="place_id"
             )
         published = self.publications.get(place_id)
         if published is None:
@@ -255,18 +255,18 @@ class _Editor:
     def _day(self, day_index: int | None, index: int) -> list[SnapshotStop]:
         if day_index is None:
             raise validation_failed(
-                "validation_failed", "day_index is required", edit_index=index, field="day_index"
+                "validation_error", "day_index is required", edit_index=index, field="day_index"
             )
         if day_index > self.day_count:
             raise validation_failed(
-                "validation_failed",
+                "validation_error",
                 "day_index exceeds the trip's day_count",
                 edit_index=index,
                 day_count=self.day_count,
             )
         if day_index not in self.days:
             raise validation_failed(
-                "validation_failed", "day_index is not part of this preview", edit_index=index
+                "validation_error", "day_index is not part of this preview", edit_index=index
             )
         return self.days[day_index]
 
@@ -316,7 +316,7 @@ class _Editor:
         elif op == "SET_VISIT_MINUTES":
             if edit.visit_minutes is None:
                 raise validation_failed(
-                    "validation_failed",
+                    "validation_error",
                     "visit_minutes is required",
                     edit_index=index,
                     field="visit_minutes",
@@ -327,7 +327,7 @@ class _Editor:
         elif op == "SET_LEG_MODE":
             if edit.from_stop_id is None or edit.to_stop_id is None or edit.travel_mode is None:
                 raise validation_failed(
-                    "validation_failed",
+                    "validation_error",
                     "from_stop_id, to_stop_id and travel_mode are required",
                     edit_index=index,
                 )
@@ -340,7 +340,7 @@ class _Editor:
             day_index, position = self._locate(edit.stop_id, index)
             self.days[day_index][position].is_locked = op == "LOCK_STOP"
         else:  # pragma: no cover - guarded by the schema Literal
-            raise AppError(422, "validation_failed", f"Unsupported edit {op}")
+            raise AppError(422, "validation_error", f"Unsupported edit {op}")
 
     def _consecutive(self, first: uuid.UUID, second: uuid.UUID) -> bool:
         for stops in self.days.values():

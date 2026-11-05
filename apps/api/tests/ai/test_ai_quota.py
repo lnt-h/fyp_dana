@@ -71,9 +71,7 @@ async def test_account_buckets_are_per_account(db: Any, settings: Settings) -> N
     with pytest.raises(ValueError):
         await ledger.reserve(bucket=Bucket.ACCOUNT_PROPOSALS)
     assert (await ledger.reserve(bucket=Bucket.ACCOUNT_PROPOSALS, account_id=ACCOUNT)).allowed
-    assert not (
-        await ledger.reserve(bucket=Bucket.ACCOUNT_PROPOSALS, account_id=ACCOUNT)
-    ).allowed
+    assert not (await ledger.reserve(bucket=Bucket.ACCOUNT_PROPOSALS, account_id=ACCOUNT)).allowed
     other = uuid.uuid4()
     assert (await ledger.reserve(bucket=Bucket.ACCOUNT_PROPOSALS, account_id=other)).allowed
     # Global buckets ignore the account id.

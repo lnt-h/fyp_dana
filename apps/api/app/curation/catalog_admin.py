@@ -60,7 +60,7 @@ class CatalogAdminService:
     async def get_source(self, source_id: uuid.UUID) -> SourceSchema:
         row = await self._session.get(Source, source_id)
         if row is None:
-            raise not_found("Source not found", code="not_found")
+            raise not_found("Source not found")
         return SourceSchema.model_validate(row, from_attributes=True)
 
     async def create_source(self, data: SourceCreate, actor_account_id: uuid.UUID) -> SourceSchema:
@@ -165,7 +165,7 @@ class CatalogAdminService:
             )
         ).first()
         if row is None:
-            raise not_found("Import run not found", code="not_found")
+            raise not_found("Import run not found")
         return _import_run(row[0], row[1])
 
     # ---- city summary -------------------------------------------------------------------

@@ -10,8 +10,16 @@ from app.ai.providers import Provider, Role
 
 ACCOUNT = uuid.UUID("11111111-1111-4111-8111-111111111111")
 DDL_COLUMNS = {
-    "id", "account_id", "purpose", "provider_model", "prompt_version", "corpus_revision",
-    "outcome", "latency_ms", "input_tokens", "output_tokens",
+    "id",
+    "account_id",
+    "purpose",
+    "provider_model",
+    "prompt_version",
+    "corpus_revision",
+    "outcome",
+    "latency_ms",
+    "input_tokens",
+    "output_tokens",
 }
 
 
@@ -47,23 +55,39 @@ async def test_record_invocation_shape(db: Any, caplog: pytest.LogCaptureFixture
 async def test_traveler_purpose_requires_account(db: Any) -> None:
     with pytest.raises(ValueError):
         await record_invocation(
-            db.factory(), purpose=Purpose.GUIDE_ANSWER, role=Role.WRITER_GUIDE,
-            provider=Provider.GROQ, model_id="llama-3.3-70b-versatile",
-            outcome=Outcome.OK, latency_ms=10,
+            db.factory(),
+            purpose=Purpose.GUIDE_ANSWER,
+            role=Role.WRITER_GUIDE,
+            provider=Provider.GROQ,
+            model_id="llama-3.3-70b-versatile",
+            outcome=Outcome.OK,
+            latency_ms=10,
         )
-    assert await record_invocation(
-        db.factory(), purpose=Purpose.CORPUS_EMBED, role=Role.EMBEDDING,
-        provider=Provider.GEMINI, model_id="gemini-embedding-001",
-        outcome=Outcome.OK, latency_ms=10,
-    ) is not None
+    assert (
+        await record_invocation(
+            db.factory(),
+            purpose=Purpose.CORPUS_EMBED,
+            role=Role.EMBEDDING,
+            provider=Provider.GEMINI,
+            model_id="gemini-embedding-001",
+            outcome=Outcome.OK,
+            latency_ms=10,
+        )
+        is not None
+    )
 
 
 async def test_database_failure_is_swallowed(db: Any) -> None:
     db.fail = True
     result = await record_invocation(
-        db.factory(), purpose=Purpose.QUERY_EMBED, role=Role.EMBEDDING,
-        provider=Provider.GEMINI, model_id="gemini-embedding-001",
-        outcome=Outcome.TIMEOUT, latency_ms=15000, account_id=ACCOUNT,
+        db.factory(),
+        purpose=Purpose.QUERY_EMBED,
+        role=Role.EMBEDDING,
+        provider=Provider.GEMINI,
+        model_id="gemini-embedding-001",
+        outcome=Outcome.TIMEOUT,
+        latency_ms=15000,
+        account_id=ACCOUNT,
     )
     assert result is None
 

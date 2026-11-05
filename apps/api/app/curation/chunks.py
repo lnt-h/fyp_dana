@@ -198,7 +198,7 @@ class ChunkService:
             )
         )
         if current is None:
-            raise not_found("Chunk not found", code="not_found")
+            raise not_found("Chunk not found")
         if data.source_revision_ids is not None:
             await require_source_revisions(self._session, data.source_revision_ids)
         prepared = await self._prepare(place_id, data.content) if data.content is not None else None

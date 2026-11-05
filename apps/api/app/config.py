@@ -73,9 +73,7 @@ class Settings(BaseSettings):
     @property
     def authorized_parties(self) -> frozenset[str]:
         return frozenset(
-            value.strip()
-            for value in self.clerk_authorized_parties.split(",")
-            if value.strip()
+            value.strip() for value in self.clerk_authorized_parties.split(",") if value.strip()
         )
 
     @property

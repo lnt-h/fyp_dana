@@ -61,7 +61,7 @@ def build_handoff_link(
     partner = PARTNERS[key]
     if partner.kind != kind:
         raise validation_failed(
-            "validation_failed",
+            "validation_error",
             f"Partner {key} does not serve {kind}",
             fields=[{"location": ["query", "partner"]}],
         )
@@ -95,7 +95,7 @@ def build_handoff_link(
     elif key == "klook":
         if not activity_name:
             raise validation_failed(
-                "validation_failed",
+                "validation_error",
                 "stop_id is required for ACTIVITY",
                 fields=[{"location": ["query", "stop_id"]}],
             )

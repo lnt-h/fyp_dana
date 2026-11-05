@@ -97,8 +97,14 @@ def test_redact_candidates_strips_location_contact_and_account() -> None:
     (dto,) = redact_candidates([raw])
     dumped = dto.model_dump()
     assert set(dumped) == {
-        "place_id", "name_vi", "name_en", "category_code", "area_code",
-        "summary", "open_windows", "tags",
+        "place_id",
+        "name_vi",
+        "name_en",
+        "category_code",
+        "area_code",
+        "summary",
+        "open_windows",
+        "tags",
     }
     assert dto.place_id == PLACE_ID
     assert dto.summary == "Tượng Quán Thế Âm cao 67 m. Hotline [PHONE]."

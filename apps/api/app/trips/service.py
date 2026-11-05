@@ -413,7 +413,7 @@ class TripService:
         if kind == "ACTIVITY":
             if stop_id is None:
                 raise validation_failed(
-                    "validation_failed",
+                    "validation_error",
                     "stop_id is required for ACTIVITY",
                     fields=[{"location": ["query", "stop_id"]}],
                 )

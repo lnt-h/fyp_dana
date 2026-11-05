@@ -71,7 +71,7 @@ class WebCandidateService:
             await self._session.execute(self._base().where(WebPlaceCandidate.id == candidate_id))
         ).first()
         if row is None:
-            raise not_found("Web candidate not found", code="not_found")
+            raise not_found("Web candidate not found")
         return _to_schema(row[0], row[1], row[2])
 
     async def review(
@@ -81,7 +81,7 @@ class WebCandidateService:
             select(WebPlaceCandidate).where(WebPlaceCandidate.id == candidate_id).with_for_update()
         )
         if candidate is None:
-            raise not_found("Web candidate not found", code="not_found")
+            raise not_found("Web candidate not found")
         if candidate.review_state != "PENDING":
             raise conflict(
                 "candidate_already_reviewed",

@@ -114,8 +114,9 @@ class ReferenceRepository:
     async def list_categories(self) -> list[CategoryRecord]:
         rows = (
             await self._session.execute(
-                select(Category.code, Category.name_vi, Category.name_en, Category.sort_order)
-                .order_by(Category.sort_order, Category.code)
+                select(
+                    Category.code, Category.name_vi, Category.name_en, Category.sort_order
+                ).order_by(Category.sort_order, Category.code)
             )
         ).all()
         return [

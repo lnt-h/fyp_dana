@@ -52,10 +52,7 @@ _COORD_KEY_RE = re.compile(
 _MAPS_AT_RE = re.compile(r"@-?\d{1,3}\.\d+,-?\d{1,3}\.\d+(?:,\d+(?:\.\d+)?z)?")
 # Vietnamese phone numbers: +84 / 0084 / (+84) / 0 prefix then 8–10 digits with optional
 # space, dot or dash separators: 0905 123 456, 0236.3822.123, +84 905-123-456.
-_PHONE_RE = re.compile(
-    r"(?<![\w+])(?:\(?\+84\)?|0084|0)(?:[\s.\-]?\d){8,10}(?![\w])"
-)
-
+_PHONE_RE = re.compile(r"(?<![\w+])(?:\(?\+84\)?|0084|0)(?:[\s.\-]?\d){8,10}(?![\w])")
 
 
 def _is_coordinate_pair(match: re.Match[str]) -> bool:
