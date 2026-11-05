@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import Svg, { Path } from 'react-native-svg';
 
 import { Wordmark } from '../components/brand/BrandMarks';
@@ -23,18 +24,9 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { colors } from '../theme/colors';
 
 const slides = [
-  {
-    key: 'discover',
-    title: 'Discover Da Nang’s\nstories, anytime,\nat any stop!',
-  },
-  {
-    key: 'plan',
-    title: 'Pin what you love, plan\nyour day, let the city\nsurprise you!',
-  },
-  {
-    key: 'personalized',
-    title: 'Flow at your rhythm\nwith personalized\nAI picks!',
-  },
+  { key: 'discover' },
+  { key: 'plan' },
+  { key: 'personalized' },
 ] as const;
 
 const onboardingStepCount = slides.length;
@@ -146,6 +138,7 @@ function PrimaryActionButton({
 }
 
 export default function OnboardingScreen() {
+  const { t } = useTranslation();
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [slideIndex, setSlideIndex] = useState(0);
@@ -273,7 +266,7 @@ export default function OnboardingScreen() {
         ]}
       >
         <OnboardingMosaic height={height} width={width} />
-        <SlideCopy bottom={copyBottom} fontSize={titleFontSize} title={slides[0].title} />
+        <SlideCopy bottom={copyBottom} fontSize={titleFontSize} title={t('onboarding.slides.discover')} />
       </Animated.View>
 
       {remainingSlidesPrepared ? (
@@ -297,7 +290,7 @@ export default function OnboardingScreen() {
             ]}
           >
             <PlanningOnboardingScene height={height} width={width} />
-            <SlideCopy bottom={copyBottom} fontSize={titleFontSize} title={slides[1].title} />
+            <SlideCopy bottom={copyBottom} fontSize={titleFontSize} title={t('onboarding.slides.plan')} />
           </Animated.View>
 
           <Animated.View
@@ -319,7 +312,7 @@ export default function OnboardingScreen() {
             ]}
           >
             <PersonalizedOnboardingScene height={height} width={width} />
-            <SlideCopy bottom={copyBottom} fontSize={titleFontSize} title={slides[2].title} />
+            <SlideCopy bottom={copyBottom} fontSize={titleFontSize} title={t('onboarding.slides.personalized')} />
           </Animated.View>
         </>
       ) : null}
@@ -334,8 +327,8 @@ export default function OnboardingScreen() {
       <View style={[styles.header, { left: horizontalPadding, right: horizontalPadding, top: headerTop }]}>
         <Wordmark width={wordmarkWidth} />
         <Pressable
-          accessibilityHint="Skip the onboarding introduction"
-          accessibilityLabel="Skip onboarding"
+          accessibilityHint={t('onboarding.skipHint')}
+          accessibilityLabel={t('onboarding.skipLabel')}
           accessibilityRole="button"
           hitSlop={12}
           onPress={handleSkip}
@@ -358,7 +351,7 @@ export default function OnboardingScreen() {
               },
             ]}
           >
-            Skip
+            {t('onboarding.skip')}
           </Text>
         </Pressable>
       </View>
@@ -366,7 +359,7 @@ export default function OnboardingScreen() {
       <View style={[styles.pagination, { bottom: buttonBottom + 90 }]}>
         {Array.from({ length: onboardingStepCount }, (_, index) => (
           <View
-            accessibilityLabel={`Onboarding page ${index + 1} of ${onboardingStepCount}`}
+            accessibilityLabel={t('onboarding.page', { current: index + 1, total: onboardingStepCount })}
             key={`onboarding-page-${index + 1}`}
             style={[styles.pageDot, index === slideIndex && styles.pageDotActive]}
           />
@@ -385,8 +378,8 @@ export default function OnboardingScreen() {
       >
         {slideIndex > 0 ? (
           <Pressable
-            accessibilityHint="Return to the previous onboarding step"
-            accessibilityLabel="Previous onboarding step"
+            accessibilityHint={t('onboarding.backHint')}
+            accessibilityLabel={t('onboarding.backLabel')}
             accessibilityRole="button"
             accessibilityState={{ disabled: transitionAction !== null }}
             disabled={transitionAction !== null}
@@ -398,14 +391,10 @@ export default function OnboardingScreen() {
         ) : null}
 
         <PrimaryActionButton
-          accessibilityHint={
-            !isFinalStep
-              ? 'Continue to the next onboarding step'
-              : 'Complete onboarding and start your journey'
-          }
-          accessibilityLabel={isFinalStep ? 'Start your journey' : 'Next onboarding step'}
+          accessibilityHint={t(isFinalStep ? 'onboarding.startHint' : 'onboarding.nextHint')}
+          accessibilityLabel={t(isFinalStep ? 'onboarding.startLabel' : 'onboarding.nextLabel')}
           busy={primaryButtonBusy}
-          label={isFinalStep ? 'Start Your Journey' : 'Next'}
+          label={t(isFinalStep ? 'onboarding.start' : 'onboarding.next')}
           onPress={handlePrimaryPress}
           reducedMotionEnabled={reducedMotionEnabled}
         />

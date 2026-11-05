@@ -1,0 +1,8 @@
+{
+  "location": "{{city}}, {{country}}",
+  "profile": "Profile",
+  "searchLabel": "Search places, stories and activities",
+  "searchPlaceholder": "Places, stories and your move...",
+  "sampleMarker": "Cham Museum",
+  "gps": "Center map on my location"
+}

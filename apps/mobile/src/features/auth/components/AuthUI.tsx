@@ -7,13 +7,15 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { colors } from '../../../theme/colors';
 import { ArrowIcon, ProviderIcon } from './AuthIcons';
 
-export const palette = { ...colors, muted: '#71899A', border: '#DCE8EE', error: '#AF3434' };
+export const palette = { ...colors, muted: colors.textMuted, border: '#DCE8EE', error: '#AF3434' };
 export function AuthShell({ children, back, step, skip }: { children: ReactNode; back?: () => void; step?: number; skip?: () => void }) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   return <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <StatusBar style="dark" />
     <View pointerEvents="none" style={s.background}>
@@ -25,9 +27,9 @@ export function AuthShell({ children, back, step, skip }: { children: ReactNode;
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24 }]}>
       <View style={s.inner}>
         {back && <View style={s.nav}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={back} style={s.touch}><ArrowIcon back color={colors.deepOcean} /></Pressable>
-          {step && <View accessibilityLabel={`Step ${step} of 3`} style={s.steps}>{[1, 2, 3].map(n => <View key={n} style={[s.step, n <= step && { backgroundColor: colors.audioTeal }]} />)}</View>}
-          {skip ? <Pressable accessibilityRole="button" onPress={skip} style={s.touch}><Text style={s.link}>Skip</Text></Pressable> : <View style={s.touch} />}
+          <Pressable accessibilityRole="button" accessibilityLabel={t('common.goBack')} onPress={back} style={s.touch}><ArrowIcon back color={colors.deepOcean} /></Pressable>
+          {step && <View accessibilityLabel={t('auth.shell.step', { step, total: 3 })} style={s.steps}>{[1, 2, 3].map(n => <View key={n} style={[s.step, n <= step && { backgroundColor: colors.audioTeal }]} />)}</View>}
+          {skip ? <Pressable accessibilityRole="button" onPress={skip} style={s.touch}><Text style={s.link}>{t('auth.shell.skip')}</Text></Pressable> : <View style={s.touch} />}
         </View>}
         {children}
       </View>
@@ -47,6 +49,7 @@ export function Action({ title, onPress, secondary = false, icon, arrow = false,
   </Pressable>;
 }
 export function SocialActions({ divider = false }: { divider?: boolean }) {
+  const { t } = useTranslation();
   const { isLoaded } = useAuth();
   const { startSSOFlow } = useSSO();
   const [busy, setBusy] = useState(false);
@@ -59,17 +62,17 @@ export function SocialActions({ divider = false }: { divider?: boolean }) {
       if (result.createdSessionId && result.setActive) {
         await result.setActive({ session: result.createdSessionId, navigate: finishAuth });
       } else if (result.signUp?.status === 'missing_requirements') {
-        setNotice('The provider did not supply all required account details. Please use email registration or contact support.');
+        setNotice(t('auth.social.missingRequirements'));
       } else if (result.authSessionResult?.type === 'success') {
-        setNotice('Additional verification is required. Please sign in with your email.');
+        setNotice(t('auth.social.verificationRequired'));
       }
     } catch (error) { setNotice(authErrorMessage(error)); }
     finally { setBusy(false); }
   }
   return <>
-    {divider && <View style={s.divider}><View style={s.dividerLine} /><Text style={s.note}>or continue with</Text><View style={s.dividerLine} /></View>}
-    <Action secondary disabled={busy || !isLoaded} title="Continue with Google" icon={<ProviderIcon provider="google" />} onPress={() => void authenticate('oauth_google')} />
-    <Action secondary disabled={busy || !isLoaded} title="Continue with Apple" icon={<ProviderIcon provider="apple" />} onPress={() => void authenticate('oauth_apple')} />
+    {divider && <View style={s.divider}><View style={s.dividerLine} /><Text style={s.note}>{t('auth.social.divider')}</Text><View style={s.dividerLine} /></View>}
+    <Action secondary disabled={busy || !isLoaded} title={t('auth.social.google')} icon={<ProviderIcon provider="google" />} onPress={() => void authenticate('oauth_google')} />
+    <Action secondary disabled={busy || !isLoaded} title={t('auth.social.apple')} icon={<ProviderIcon provider="apple" />} onPress={() => void authenticate('oauth_apple')} />
     {!!notice && <Text accessibilityLiveRegion="polite" style={s.error}>{notice}</Text>}
   </>;
 }
@@ -83,11 +86,12 @@ function FieldIcon({ kind }: { kind: 'email' | 'password' | 'person' }) {
 }
 
 export function Field({ label, error, password, placeholder, ...props }: TextInputProps & { label: string; error?: string; password?: boolean }) {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   return <View style={s.fieldBlock}><Text style={s.label}>{label}</Text><View style={[s.field, !!error && { borderColor: palette.error }]}>
     <FieldIcon kind={password ? 'password' : props.keyboardType === 'email-address' ? 'email' : 'person'} />
     <TextInput {...props} accessibilityLabel={label} secureTextEntry={password && !visible} placeholder={placeholder ?? label} placeholderTextColor={palette.muted} style={s.input} />
-    {password && <Pressable accessibilityRole="button" accessibilityLabel={visible ? 'Hide password' : 'Show password'} onPress={() => setVisible(!visible)} style={s.touch}><Svg width={23} height={23} viewBox="0 0 24 24" aria-hidden={true}>
+    {password && <Pressable accessibilityRole="button" accessibilityLabel={t(visible ? 'auth.field.hidePassword' : 'auth.field.showPassword')} onPress={() => setVisible(!visible)} style={s.touch}><Svg width={23} height={23} viewBox="0 0 24 24" aria-hidden={true}>
       <Path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" fill="none" stroke={colors.deepOcean} strokeWidth={1.7} />
       <Circle cx={12} cy={12} r={3} fill="none" stroke={colors.deepOcean} strokeWidth={1.7} />
       {visible && <Path d="M3 3l18 18" stroke={colors.deepOcean} strokeWidth={1.7} />}
@@ -107,5 +111,5 @@ export const s = StyleSheet.create({
   divider: { flexDirection: 'row', alignItems: 'baseline', gap: 14, marginBottom: 4 }, dividerLine: { height: 1, backgroundColor: palette.border, flex: 1 },
   action: { minHeight: 56, borderRadius: 22, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', marginTop: 12, padding: 16 }, actionText: { color: 'white', fontSize: 17, fontFamily: 'HankenGrotesk_700Bold', textAlign: 'center', flexShrink: 1 }, secondary: { borderWidth: 1.5, borderColor: palette.border, backgroundColor: 'white' },
   fieldBlock: { marginBottom: 16 }, label: { fontSize: 13, fontWeight: '600', color: colors.deepOcean, marginBottom: 7 }, field: { flexDirection: 'row', alignItems: 'center', minHeight: 58, borderWidth: 1.5, borderColor: palette.border, borderRadius: 17, backgroundColor: 'white', paddingHorizontal: 16 }, input: { flex: 1, minWidth: 0, marginLeft: 12, fontSize: 16, color: colors.deepOcean, paddingVertical: 16 }, error: { fontSize: 13, color: palette.error, marginTop: 6 },
-  link: { color: colors.audioTeal, fontWeight: '700', fontSize: 15 }, textLink: { minHeight: 44, justifyContent: 'center', alignItems: 'center', paddingVertical: 10 }, note: { color: palette.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 18 },
+  link: { color: colors.tealText, fontWeight: '700', fontSize: 15 }, textLink: { minHeight: 44, justifyContent: 'center', alignItems: 'center', paddingVertical: 10 }, note: { color: palette.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 18 },
 });

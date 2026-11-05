@@ -1,0 +1,21 @@
+{
+  "navigation": "Điều hướng chính",
+  "home": "Trang chủ",
+  "explore": "Khám phá",
+  "guide": "Hướng dẫn AI",
+  "trips": "Chuyến đi",
+  "placeholder": {
+    "explore": {
+      "title": "Khám phá {{city}}",
+      "subtitle": "Tìm địa điểm đã kiểm duyệt và xem trên bản đồ."
+    },
+    "guide": {
+      "title": "Hướng dẫn AI",
+      "subtitle": "Hỏi về một địa điểm, nhận câu trả lời kèm nguồn."
+    },
+    "trips": {
+      "title": "Chuyến đi của bạn",
+      "subtitle": "Kế hoạch 1–3 ngày ở một thành phố được lưu tại đây."
+    }
+  }
+}

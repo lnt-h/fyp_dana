@@ -1,0 +1,8 @@
+{
+  "location": "{{city}}, {{country}}",
+  "profile": "Hồ sơ",
+  "searchLabel": "Tìm địa điểm, câu chuyện và hoạt động",
+  "searchPlaceholder": "Địa điểm, câu chuyện, hoạt động...",
+  "sampleMarker": "Bảo tàng Chăm",
+  "gps": "Đưa bản đồ về vị trí của tôi"
+}

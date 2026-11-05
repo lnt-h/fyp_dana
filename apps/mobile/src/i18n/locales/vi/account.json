@@ -1,0 +1,82 @@
+{
+  "profile": {
+    "title": "Hồ sơ",
+    "kicker": "CHƯƠNG MỚI CỦA BẠN",
+    "coverTitle": "Thêm chút dấu ấn riêng.",
+    "badgeAccount": "TÀI KHOẢN CỦA BẠN",
+    "badgeGuest": "NHÀ KHÁM PHÁ",
+    "fallbackName": "Hồ sơ của bạn",
+    "guestName": "Chào bạn, nhà khám phá",
+    "fallbackEmail": "Thêm thông tin để hồ sơ thật sự là của bạn.",
+    "guestBody": "Câu chuyện Việt Nam của bạn chỉ mới bắt đầu.",
+    "edit": "Sửa hồ sơ",
+    "create": "Tạo tài khoản",
+    "sectionExplore": "CÁCH BẠN KHÁM PHÁ",
+    "preferences": "Sở thích du lịch",
+    "preferencesEmpty": "Chọn những điều bạn yêu thích",
+    "travelTypeEmpty": "Chưa chọn kiểu chuyến đi",
+    "sectionHome": "TUỲ CHỈNH CHO BẠN",
+    "settings": "Cài đặt",
+    "settingsSubtitle": "Trợ năng, quyền riêng tư và thông tin ứng dụng",
+    "noteAccount": "Hồ sơ và sở thích được lưu vào tài khoản của bạn.",
+    "noteGuest": "Sở thích của khách chỉ được giữ trong phiên này."
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "heading": "Tuỳ chỉnh cho thoải mái.",
+    "intro": "Vài điều chỉnh nhỏ cho hành trình dễ chịu hơn.",
+    "sectionAccessibility": "TRỢ NĂNG",
+    "reduceMotion": "Giảm chuyển động",
+    "reduceMotionSubtitle": "Dùng hiệu ứng chuyển màn hình đơn giản hơn. Cài đặt trợ năng của thiết bị cũng được tôn trọng.",
+    "sectionPersonalization": "CÁ NHÂN HOÁ",
+    "preferences": "Sở thích du lịch",
+    "preferencesSubtitle": "Sở thích và kiểu chuyến đi",
+    "sectionPrivacy": "QUYỀN RIÊNG TƯ & GIỚI THIỆU",
+    "data": "Dữ liệu của bạn",
+    "dataSubtitle": "Cách lưu thông tin tài khoản",
+    "dataBody": "Clerk quản lý danh tính và xác thực tài khoản. Khi đăng nhập, hồ sơ và sở thích du lịch được lưu vào tài khoản của bạn. Sở thích của khách chỉ nằm trong bộ nhớ cho tới khi mở lại ứng dụng. Ứng dụng chưa hỗ trợ xoá tài khoản.",
+    "legal": "Điều khoản & quyền riêng tư",
+    "legalBody": "Điều khoản dịch vụ và Chính sách quyền riêng tư chưa được công bố. Đây là bản phát triển, chỉ dùng để thử nghiệm.",
+    "about": "Về Gonarra",
+    "version": "Phiên bản {{version}}",
+    "aboutBody": "Khám phá, lên kế hoạch và trải nghiệm Hà Nội, TP. Hồ Chí Minh, Đà Nẵng, Hội An và Huế. Gonarra kết hợp chuyện địa phương với cảm hứng du lịch. Bạn đang dùng bản phát triển.",
+    "sectionSession": "PHIÊN NÀY",
+    "signOut": "Đăng xuất",
+    "resetGuest": "Đặt lại phiên khách",
+    "sessionSubtitle": "Kết thúc phiên trên thiết bị này",
+    "confirmBody": "Quay về màn hình Chào mừng? Thông tin tài khoản đã lưu vẫn được giữ. Sở thích của khách trên thiết bị này sẽ bị xoá.",
+    "confirm": "Xác nhận và quay về Chào mừng",
+    "sessionFailed": "Chưa kết thúc được phiên. Vui lòng thử lại.",
+    "keepExploring": "Tiếp tục khám phá"
+  },
+  "editProfile": {
+    "title": "Sửa hồ sơ",
+    "intro": "Một cái tên quen thuộc cho chuyến đi tới.",
+    "name": "Họ và tên",
+    "emailNote": "Email đăng nhập được hiển thị để bạn tham khảo.",
+    "missingName": "Nhập tên của bạn.",
+    "save": "Lưu thay đổi",
+    "create": "Tạo tài khoản"
+  },
+  "preferences": {
+    "title": "Sở thích du lịch",
+    "intro": "Không có một cách khám phá duy nhất. Hãy tìm cách của bạn.",
+    "save": "Lưu sở thích",
+    "interested": "Tôi quan tâm đến",
+    "interestedHint": "Chọn bao nhiêu tuỳ thích.",
+    "travelType": "Kiểu chuyến đi",
+    "travelTypeHint": "Bạn thường đi cùng ai?",
+    "interests": {
+      "Culture": "Văn hoá",
+      "Beach": "Biển",
+      "Food": "Ẩm thực",
+      "Nature": "Thiên nhiên"
+    },
+    "travelTypes": {
+      "Solo": "Một mình",
+      "Couple": "Cặp đôi",
+      "Family": "Gia đình",
+      "Friends": "Bạn bè"
+    }
+  }
+}

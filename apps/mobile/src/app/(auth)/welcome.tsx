@@ -6,8 +6,10 @@ import { Action, AuthShell, SocialActions, TextLink, palette } from '../../featu
 import { ProviderIcon } from '../../features/auth/components/AuthIcons';
 import { useAuth } from '@clerk/expo';
 import { Redirect } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 export default function WelcomeScreen() {
+  const { t } = useTranslation();
   const { isSignedIn } = useAuth();
   const { height } = useWindowDimensions();
   const compact = height < 750;
@@ -17,15 +19,15 @@ export default function WelcomeScreen() {
     <AuthShell>
       <View style={styles.brand}>
         <Wordmark width={176} />
-        <Text style={styles.tagline}>EXPLORE · PLAN · EXPERIENCE</Text>
+        <Text style={styles.tagline}>{t('auth.welcome.tagline')}</Text>
       </View>
       <View style={styles.destination} accessibilityElementsHidden aria-hidden importantForAccessibility="no-hide-descendants">
         <View style={[styles.heroFrame, { height: heroHeight }]}>
           <Image source={require('../../../assets/images/welcome/dragon-bridge-detail.png')} resizeMode="cover" style={styles.hero} />
           <LinearGradient colors={['transparent', 'rgba(3, 45, 63, 0.85)']} style={styles.heroShade} />
           <View style={styles.destinationCopy}>
-            <Text style={styles.eyebrow}>VIETNAM</Text>
-            <Text style={styles.destinationName}>Da Nang</Text>
+            <Text style={styles.eyebrow}>{t('auth.welcome.heroEyebrow')}</Text>
+            <Text style={styles.destinationName}>{t('auth.welcome.heroCity')}</Text>
             <View style={styles.accent} />
           </View>
         </View>
@@ -34,16 +36,16 @@ export default function WelcomeScreen() {
         </View>
       </View>
       <Text accessibilityRole="header" style={[styles.title, compact && styles.compactTitle]}>
-        Your Da Nang{'\n'}story starts here<Text style={styles.period}>.</Text>
+        {t('auth.welcome.title')}<Text style={styles.period}>.</Text>
       </Text>
-      <Text style={styles.subtitle}>Discover local stories. Make the day yours.</Text>
-      <Action title="Sign up with Email" icon={<ProviderIcon provider="email" />} onPress={() => router.push('/register')} />
+      <Text style={styles.subtitle}>{t('auth.welcome.subtitle')}</Text>
+      <Action title={t('auth.welcome.signUpEmail')} icon={<ProviderIcon provider="email" />} onPress={() => router.push('/register')} />
       <SocialActions />
       <View style={styles.footer}>
-        <Pressable accessibilityRole="link" accessibilityLabel="Already have an account? Sign in" onPress={() => router.push('/login')} style={({ pressed }) => [styles.signIn, pressed && { opacity: 0.7 }]}>
-          <Text style={styles.accountPrompt}>Already have an account? <Text style={styles.signInText}>Sign in</Text></Text>
+        <Pressable accessibilityRole="link" accessibilityLabel={t('auth.welcome.signInLabel')} onPress={() => router.push('/login')} style={({ pressed }) => [styles.signIn, pressed && { opacity: 0.7 }]}>
+          <Text style={styles.accountPrompt}>{t('auth.welcome.accountPrompt')} <Text style={styles.signInText}>{t('auth.welcome.signIn')}</Text></Text>
         </Pressable>
-        <TextLink title="Explore without an account  →" onPress={() => router.replace('/home')} />
+        <TextLink title={t('auth.welcome.explore')} onPress={() => router.replace('/home')} />
       </View>
     </AuthShell>
   );
@@ -69,5 +71,5 @@ const styles = StyleSheet.create({
   footer: { marginTop: 12, paddingBottom: 8 },
   signIn: { minHeight: 48, paddingVertical: 12, justifyContent: 'center', alignItems: 'center' },
   accountPrompt: { color: palette.muted, fontSize: 15, lineHeight: 22, textAlign: 'center' },
-  signInText: { color: palette.audioTeal, fontFamily: 'HankenGrotesk_700Bold' },
+  signInText: { color: palette.tealText, fontFamily: 'HankenGrotesk_700Bold' },
 });

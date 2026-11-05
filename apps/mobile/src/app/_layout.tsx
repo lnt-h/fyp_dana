@@ -1,3 +1,5 @@
+import '../i18n';
+
 import { ClerkProvider, useAuth, useSession } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { useFonts } from 'expo-font';
@@ -5,6 +7,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { HankenGrotesk_500Medium } from '@expo-google-fonts/hanken-grotesk/500Medium';
 import { HankenGrotesk_700Bold } from '@expo-google-fonts/hanken-grotesk/700Bold';
 import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { colors } from '../theme/colors';
 import { AccountProvider } from '../features/account/AccountContext';
@@ -17,10 +20,11 @@ if (!publishableKey) {
 }
 
 function AppStack() {
+  const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
   const { isLoaded, isSignedIn } = useAuth();
   const { session } = useSession();
-  if (!isLoaded) return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator accessibilityLabel="Loading your session" /></View>;
+  if (!isLoaded) return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator accessibilityLabel={t('common.loadingSession')} /></View>;
   const pendingTask = Boolean(session?.currentTask);
   return <Stack screenOptions={{ animation: reduceMotion ? 'none' : 'fade', contentStyle: { backgroundColor: colors.deepOcean }, headerShown: false }}>
     <Stack.Protected guard={pendingTask}><Stack.Screen name="auth-task" /></Stack.Protected>
@@ -29,19 +33,26 @@ function AppStack() {
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="sso-callback" />
-      <Stack.Screen name="home" />
+      <Stack.Screen name="(tabs)" />
       <Stack.Screen name="profile" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="travel-preferences" />
-      <Stack.Protected guard={Boolean(isSignedIn)}><Stack.Screen name="edit-profile" /></Stack.Protected>
+      <Stack.Protected guard={Boolean(isSignedIn)}>
+        <Stack.Screen name="edit-profile" />
+        <Stack.Screen name="plan/new" />
+        <Stack.Screen name="plan/[previewId]/index" />
+        <Stack.Screen name="plan/[previewId]/proposal" />
+        <Stack.Screen name="place/[placeId]" />
+      </Stack.Protected>
     </Stack.Protected>
   </Stack>;
 }
 
 export default function RootLayout() {
+  const { t } = useTranslation();
   const [fontsLoaded, fontError] = useFonts({ HankenGrotesk_500Medium, HankenGrotesk_700Bold });
   if (!fontsLoaded && !fontError) {
-    return <View style={{ flex: 1, backgroundColor: colors.deepOcean, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.white} accessibilityLabel="Loading Gonarra" /></View>;
+    return <View style={{ flex: 1, backgroundColor: colors.deepOcean, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.white} accessibilityLabel={t('common.loadingApp')} /></View>;
   }
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>

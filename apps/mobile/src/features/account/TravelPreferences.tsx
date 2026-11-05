@@ -1,4 +1,5 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { interestOptions, travelTypes, type Interest, type TravelType } from './AccountContext';
 import { palette } from '../auth/components/AuthUI';
 
@@ -12,26 +13,27 @@ export function TravelPreferences({ selected, onSelect, travelType, onTravelType
   selected: Interest[]; onSelect: (value: Interest[]) => void;
   travelType?: TravelType; onTravelType: (value: TravelType) => void;
 }) {
+  const { t } = useTranslation();
   return <>
-    <Text style={styles.section}>I’m interested in</Text>
-    <Text style={styles.hint}>Choose as many as you like.</Text>
+    <Text style={styles.section}>{t('account.preferences.interested')}</Text>
+    <Text style={styles.hint}>{t('account.preferences.interestedHint')}</Text>
     <View style={styles.grid}>{interestOptions.map(label => {
       const checked = selected.includes(label);
-      return <Pressable key={label} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{ checked }} aria-checked={checked}
+      return <Pressable key={label} accessibilityRole="checkbox" accessibilityLabel={t(`account.preferences.interests.${label}`)} accessibilityState={{ checked }} aria-checked={checked}
         onPress={() => onSelect(checked ? selected.filter(value => value !== label) : [...selected, label])} style={styles.tile}>
         <View style={[styles.frame, checked && styles.selected]}>
           <Image source={photos[label]} resizeMode="cover" style={styles.photo} />
           {checked && <View style={styles.check}><Text style={styles.tick}>✓</Text></View>}
         </View>
-        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.label}>{t(`account.preferences.interests.${label}`)}</Text>
       </Pressable>;
     })}</View>
-    <Text style={styles.section}>Travel type</Text>
-    <Text style={styles.hint}>Who do you usually explore with?</Text>
-    <View style={styles.types}>{travelTypes.map(type => <Pressable key={type} accessibilityRole="radio" accessibilityLabel={type}
+    <Text style={styles.section}>{t('account.preferences.travelType')}</Text>
+    <Text style={styles.hint}>{t('account.preferences.travelTypeHint')}</Text>
+    <View style={styles.types}>{travelTypes.map(type => <Pressable key={type} accessibilityRole="radio" accessibilityLabel={t(`account.preferences.travelTypes.${type}`)}
       accessibilityState={{ checked: type === travelType }} aria-checked={type === travelType} onPress={() => onTravelType(type)}
       style={[styles.chip, type === travelType && styles.chipSelected]}>
-      <Text style={[styles.label, type === travelType && styles.light]}>{type}</Text>
+      <Text style={[styles.label, type === travelType && styles.light]}>{t(`account.preferences.travelTypes.${type}`)}</Text>
     </Pressable>)}</View>
   </>;
 }
@@ -48,6 +50,6 @@ const styles = StyleSheet.create({
   tick: { color: palette.white, fontSize: 18, fontWeight: '700' },
   types: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
   chip: { paddingHorizontal: 15, minHeight: 46, borderRadius: 16, borderWidth: 1.5, borderColor: palette.border, justifyContent: 'center', backgroundColor: palette.white },
-  chipSelected: { backgroundColor: palette.audioTeal, borderColor: palette.audioTeal },
+  chipSelected: { backgroundColor: palette.tealText, borderColor: palette.tealText },
   light: { color: palette.white },
 });

@@ -1,0 +1,82 @@
+{
+  "profile": {
+    "title": "Profile",
+    "kicker": "YOUR NEXT CHAPTER",
+    "coverTitle": "A little more you.",
+    "badgeAccount": "YOUR ACCOUNT",
+    "badgeGuest": "EXPLORER",
+    "fallbackName": "Your profile",
+    "guestName": "Hello, explorer",
+    "fallbackEmail": "Add your details to make it yours.",
+    "guestBody": "Your Vietnam story is just beginning.",
+    "edit": "Edit profile",
+    "create": "Create an account",
+    "sectionExplore": "YOUR WAY TO EXPLORE",
+    "preferences": "Travel preferences",
+    "preferencesEmpty": "Choose the things you love",
+    "travelTypeEmpty": "Travel type not set",
+    "sectionHome": "MAKE YOURSELF AT HOME",
+    "settings": "Settings",
+    "settingsSubtitle": "Accessibility, privacy and app information",
+    "noteAccount": "Your profile and preferences are saved to your account.",
+    "noteGuest": "Guest preferences are kept for this session only."
+  },
+  "settings": {
+    "title": "Settings",
+    "heading": "Feel at home.",
+    "intro": "Small adjustments for a better journey.",
+    "sectionAccessibility": "ACCESSIBILITY",
+    "reduceMotion": "Reduce motion",
+    "reduceMotionSubtitle": "Use simpler screen transitions. Your device’s accessibility preference is also respected.",
+    "sectionPersonalization": "PERSONALIZATION",
+    "preferences": "Travel preferences",
+    "preferencesSubtitle": "Interests and travel type",
+    "sectionPrivacy": "PRIVACY & ABOUT",
+    "data": "Your data",
+    "dataSubtitle": "How your account details are stored",
+    "dataBody": "Clerk manages account identity and authentication. Signed-in profile details and travel preferences are saved to your account. Guest preferences stay in memory until the app restarts. Account deletion is not available in this app yet.",
+    "legal": "Terms & privacy",
+    "legalBody": "Terms of Service and Privacy Policy have not been published yet. This development version is for testing only.",
+    "about": "About Gonarra",
+    "version": "Version {{version}}",
+    "aboutBody": "Explore, plan and experience Hà Nội, Ho Chi Minh City, Đà Nẵng, Hội An and Huế. Gonarra brings local stories and travel inspiration together. You’re using a development version.",
+    "sectionSession": "THIS SESSION",
+    "signOut": "Sign out",
+    "resetGuest": "Reset guest session",
+    "sessionSubtitle": "End this session on this device",
+    "confirmBody": "Return to Welcome? Your saved account details will be kept. Guest preferences on this device will be cleared.",
+    "confirm": "Confirm and return to Welcome",
+    "sessionFailed": "Could not end the session. Please try again.",
+    "keepExploring": "Keep exploring"
+  },
+  "editProfile": {
+    "title": "Edit profile",
+    "intro": "A familiar name for your next adventure.",
+    "name": "Full name",
+    "emailNote": "Your sign-in email is shown here for reference.",
+    "missingName": "Enter your name.",
+    "save": "Save changes",
+    "create": "Create an account"
+  },
+  "preferences": {
+    "title": "Travel preferences",
+    "intro": "There’s no one way to explore. Find yours.",
+    "save": "Save preferences",
+    "interested": "I’m interested in",
+    "interestedHint": "Choose as many as you like.",
+    "travelType": "Travel type",
+    "travelTypeHint": "Who do you usually explore with?",
+    "interests": {
+      "Culture": "Culture",
+      "Beach": "Beach",
+      "Food": "Food",
+      "Nature": "Nature"
+    },
+    "travelTypes": {
+      "Solo": "Solo",
+      "Couple": "Couple",
+      "Family": "Family",
+      "Friends": "Friends"
+    }
+  }
+}

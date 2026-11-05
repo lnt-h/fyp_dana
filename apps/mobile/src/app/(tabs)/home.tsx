@@ -1,16 +1,17 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { useAccount } from '../features/account/AccountContext';
-import { AccountIcon } from '../features/account/AccountUI';
+import { useTranslation } from 'react-i18next';
+import { useAccount } from '../../features/account/AccountContext';
+import { AccountIcon } from '../../features/account/AccountUI';
 import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-import { Wordmark } from '../components/brand/BrandMarks';
-import { HomeMapBackdrop } from '../features/home/components/HomeMapBackdrop';
-import { HomeTabBar } from '../features/home/components/HomeTabBar';
-import { AudioMark } from '../features/onboarding/components/OnboardingMosaic';
-import { colors } from '../theme/colors';
+import { Wordmark } from '../../components/brand/BrandMarks';
+import { HomeMapBackdrop } from '../../features/home/components/HomeMapBackdrop';
+import { AudioMark } from '../../features/onboarding/components/OnboardingMosaic';
+import { defaultCity } from '../../lib/api/fixtures/hoi-an';
+import { colors } from '../../theme/colors';
 
 const designFrame = {
   height: 956,
@@ -18,19 +19,9 @@ const designFrame = {
 } as const;
 
 const images = {
-  beach: require('../../assets/images/places/beach.png'),
-  museum: require('../../assets/images/places/cham-sculpture.png'),
+  beach: require('../../../assets/images/places/beach.png'),
+  museum: require('../../../assets/images/places/cham-sculpture.png'),
 } satisfies Record<string, ImageSourcePropType>;
-
-function NotificationIcon({ size }: { size: number }) {
-  return (
-    <Svg height={size} viewBox="0 0 24 24" width={size}>
-      <Path d="M12.0201 2.91003C8.71009 2.91003 6.02009 5.60003 6.02009 8.91003V11.8C6.02009 12.41 5.76009 13.34 5.45009 13.86L4.30009 15.77C3.59009 16.95 4.08009 18.26 5.38009 18.7C9.69009 20.14 14.3401 20.14 18.6501 18.7C19.8601 18.3 20.3901 16.87 19.7301 15.77L18.5801 13.86C18.2801 13.34 18.0201 12.41 18.0201 11.8V8.91003C18.0201 5.61003 15.3201 2.91003 12.0201 2.91003Z" fill="none" stroke="#292D32" strokeLinecap="round" strokeWidth={2} />
-      <Path d="M13.8699 3.19994C13.5599 3.10994 13.2399 3.03994 12.9099 2.99994C11.9499 2.87994 11.0299 2.94994 10.1699 3.19994C10.4599 2.45994 11.1799 1.93994 12.0199 1.93994C12.8599 1.93994 13.5799 2.45994 13.8699 3.19994Z" fill="none" stroke="#292D32" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
-      <Path d="M15.02 19.0601C15.02 20.7101 13.67 22.0601 12.02 22.0601C11.2 22.0601 10.44 21.7201 9.90002 21.1801C9.36002 20.6401 9.02002 19.8801 9.02002 19.0601" fill="none" stroke="#292D32" strokeWidth={2} />
-    </Svg>
-  );
-}
 
 function LocationIcon({ size }: { size: number }) {
   return (
@@ -89,7 +80,9 @@ function MapMarker({ height, left, scale, source, top, width }: MarkerProps) {
 }
 
 export default function HomeScreen() {
+  const { t, i18n } = useTranslation();
   const { profile } = useAccount();
+  const cityName = i18n.resolvedLanguage === 'vi' ? defaultCity.name_vi : defaultCity.name_en;
   const { height, width } = useWindowDimensions();
   const scale = Math.min(width / designFrame.width, height / designFrame.height);
   const canvasWidth = designFrame.width * scale;
@@ -110,23 +103,13 @@ export default function HomeScreen() {
 
         <View style={[styles.location, { left: 20 * scale, top: 148 * scale }]}>
           <LocationIcon size={20 * scale} />
-          <Text style={[styles.locationText, { fontSize: 14 * scale, lineHeight: 20 * scale }]}>Da Nang, Viet Nam</Text>
-          <View style={[styles.weatherDot, { height: 4 * scale, width: 4 * scale }]} />
-          <Text style={[styles.sun, { fontSize: 18 * scale }]}>☀</Text>
-          <Text style={[styles.locationText, { fontSize: 14 * scale, lineHeight: 20 * scale }]}>26°C</Text>
+          <Text style={[styles.locationText, { fontSize: 14 * scale, lineHeight: 20 * scale }]}>
+            {t('home.location', { city: cityName, country: t('common.country') })}
+          </Text>
         </View>
 
         <Pressable
-          accessibilityLabel="Notifications"
-          accessibilityRole="button"
-          hitSlop={10}
-          style={[styles.notification, { height: 24 * scale, left: 330 * scale, top: 88 * scale, width: 24 * scale }]}
-        >
-          <NotificationIcon size={24 * scale} />
-        </Pressable>
-
-        <Pressable
-          accessibilityLabel="Profile"
+          accessibilityLabel={t('home.profile')}
           accessibilityRole="button"
           onPress={() => router.push('/profile')}
           style={[
@@ -145,7 +128,7 @@ export default function HomeScreen() {
         </Pressable>
 
         <Pressable
-          accessibilityLabel="Search places, stories and activities"
+          accessibilityLabel={t('home.searchLabel')}
           accessibilityRole="button"
           style={[
             styles.search,
@@ -167,7 +150,7 @@ export default function HomeScreen() {
               { fontSize: 14 * scale, lineHeight: 20 * scale, marginLeft: 10 * scale },
             ]}
           >
-            Places, stories and your move...
+            {t('home.searchPlaceholder')}
           </Text>
           <View
             style={[
@@ -198,11 +181,11 @@ export default function HomeScreen() {
             },
           ]}
         >
-          <Text style={[styles.markerLabelText, { fontSize: 10 * scale }]}>Cham Museum</Text>
+          <Text style={[styles.markerLabelText, { fontSize: 10 * scale }]}>{t('home.sampleMarker')}</Text>
         </View>
 
         <Pressable
-          accessibilityLabel="Center map on my location"
+          accessibilityLabel={t('home.gps')}
           accessibilityRole="button"
           style={[
             styles.gps,
@@ -241,10 +224,6 @@ export default function HomeScreen() {
               },
             ]}
           />
-        </View>
-
-        <View style={[styles.nav, { left: 56 * scale, top: 842 * scale }]}>
-          <HomeTabBar scale={scale} />
         </View>
       </View>
     </View>
@@ -313,15 +292,6 @@ const styles = StyleSheet.create({
   markerLabelText: {
     color: colors.white,
   },
-  nav: {
-    position: 'absolute',
-    zIndex: 4,
-  },
-  notification: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'absolute',
-  },
   screen: {
     backgroundColor: colors.white,
     flex: 1,
@@ -345,7 +315,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   searchPlaceholder: {
-    color: 'rgba(41,45,50,0.56)',
+    color: colors.textMuted,
     paddingRight: 54,
   },
   sheet: {
@@ -361,16 +331,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     backgroundColor: '#C9C9C9',
     position: 'absolute',
-  },
-  sun: {
-    color: colors.ink,
-    marginLeft: 6,
-    marginRight: 3,
-  },
-  weatherDot: {
-    backgroundColor: colors.ink,
-    borderRadius: 2,
-    marginLeft: 8,
   },
   wordmark: {
     position: 'absolute',

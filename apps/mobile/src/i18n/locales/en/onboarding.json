@@ -1,0 +1,19 @@
+{
+  "slides": {
+    "discover": "Discover local\nstories, anytime,\nat any stop!",
+    "plan": "Pin what you love, plan\nyour day, let the city\nsurprise you!",
+    "personalized": "Flow at your rhythm\nwith personalized\nAI picks!"
+  },
+  "skip": "Skip",
+  "skipLabel": "Skip onboarding",
+  "skipHint": "Skip the onboarding introduction",
+  "page": "Onboarding page {{current}} of {{total}}",
+  "backLabel": "Previous onboarding step",
+  "backHint": "Return to the previous onboarding step",
+  "next": "Next",
+  "nextLabel": "Next onboarding step",
+  "nextHint": "Continue to the next onboarding step",
+  "start": "Start Your Journey",
+  "startLabel": "Start your journey",
+  "startHint": "Complete onboarding and start your journey"
+}

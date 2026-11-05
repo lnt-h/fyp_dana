@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import Svg, { Path } from 'react-native-svg';
 import { ArrowIcon } from '../auth/components/AuthIcons';
 import { palette } from '../auth/components/AuthUI';
@@ -22,10 +23,11 @@ export function AccountIcon({ name }: { name: AccountIconName }) {
 }
 export function AccountShell({ title, children, fallback = '/profile' }: { title: string; children: ReactNode; fallback?: '/profile' | '/home' }) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   return <KeyboardAvoidingView style={a.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <StatusBar style="dark" />
     <View style={[a.header, { paddingTop: insets.top + 8 }]}>
-      <Pressable accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.canGoBack() ? router.back() : router.replace(fallback)} style={a.touch}><ArrowIcon back color={palette.deepOcean} /></Pressable>
+      <Pressable accessibilityLabel={t('common.goBack')} accessibilityRole="button" onPress={() => router.canGoBack() ? router.back() : router.replace(fallback)} style={a.touch}><ArrowIcon back color={palette.deepOcean} /></Pressable>
       <Text accessibilityRole="header" style={a.headerTitle}>{title}</Text><View style={a.touch} />
     </View>
     <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={[a.content, { paddingBottom: insets.bottom + 28 }]}>
