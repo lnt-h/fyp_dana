@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     clerk_jwks_url: AnyHttpUrl | None = None
     clerk_audience: str | None = None
     clerk_authorized_parties: str = ""
+    # Curator role (T-06): comma-separated Clerk user IDs (JWT `sub`) allowed on /v1/admin.
+    # Empty means nobody is a curator (default deny).
+    curator_clerk_user_ids: str = ""
 
     # Product scope (DEC-013): FYP release serves one enabled city.
     default_city_code: str = "da-nang"
@@ -70,6 +73,12 @@ class Settings(BaseSettings):
             value.strip()
             for value in self.clerk_authorized_parties.split(",")
             if value.strip()
+        )
+
+    @property
+    def curator_subjects(self) -> frozenset[str]:
+        return frozenset(
+            value.strip() for value in self.curator_clerk_user_ids.split(",") if value.strip()
         )
 
     @property
