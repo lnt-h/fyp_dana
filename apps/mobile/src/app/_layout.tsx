@@ -7,10 +7,12 @@ import { ActivityIndicator, View } from 'react-native';
 import { HankenGrotesk_500Medium } from '@expo-google-fonts/hanken-grotesk/500Medium';
 import { HankenGrotesk_700Bold } from '@expo-google-fonts/hanken-grotesk/700Bold';
 import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../theme/colors';
 import { AccountProvider } from '../features/account/AccountContext';
+import { SelectedCityProvider } from '../features/home/cityStore';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
@@ -55,8 +57,12 @@ export default function RootLayout() {
     return <View style={{ flex: 1, backgroundColor: colors.deepOcean, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.white} accessibilityLabel={t('common.loadingApp')} /></View>;
   }
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <AccountProvider><AppStack /></AccountProvider>
-    </ClerkProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+        <AccountProvider>
+          <SelectedCityProvider><AppStack /></SelectedCityProvider>
+        </AccountProvider>
+      </ClerkProvider>
+    </GestureHandlerRootView>
   );
 }

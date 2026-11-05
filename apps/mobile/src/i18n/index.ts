@@ -7,6 +7,7 @@ import enAuth from './locales/en/auth.json';
 import enCommon from './locales/en/common.json';
 import enGuide from './locales/en/guide.json';
 import enHome from './locales/en/home.json';
+import enHomeSheet from './locales/en/homeSheet.json';
 import enOnboarding from './locales/en/onboarding.json';
 import enPlace from './locales/en/place.json';
 import enPlanner from './locales/en/planner.json';
@@ -18,6 +19,7 @@ import viAuth from './locales/vi/auth.json';
 import viCommon from './locales/vi/common.json';
 import viGuide from './locales/vi/guide.json';
 import viHome from './locales/vi/home.json';
+import viHomeSheet from './locales/vi/homeSheet.json';
 import viOnboarding from './locales/vi/onboarding.json';
 import viPlace from './locales/vi/place.json';
 import viPlanner from './locales/vi/planner.json';
@@ -38,6 +40,7 @@ const en = {
   common: enCommon,
   guide: enGuide,
   home: enHome,
+  homeSheet: enHomeSheet,
   onboarding: enOnboarding,
   place: enPlace,
   planner: enPlanner,
@@ -52,6 +55,7 @@ const vi: Record<keyof typeof en, object> = {
   common: viCommon,
   guide: viGuide,
   home: viHome,
+  homeSheet: viHomeSheet,
   onboarding: viOnboarding,
   place: viPlace,
   planner: viPlanner,

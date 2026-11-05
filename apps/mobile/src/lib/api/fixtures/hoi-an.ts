@@ -334,11 +334,18 @@ export function hoiAnPreview(locale: Locale, variant: 'warning' | 'routeUnavaila
 
 /* ---------------------------------------------------------------- Trips (SCR-031, saved mode of SCR-024) */
 
+/**
+ * Dev-only: with EXPO_PUBLIC_FIXTURE_TRIP_TODAY=1 the saved Hội An trip starts today (Asia/Ho_Chi_Minh) so the Home
+ * "Today" card can be exercised. Itinerary times stay as authored; only the trip's start date moves.
+ */
+const todayInVietnam = () => new Intl.DateTimeFormat('en-CA', { day: '2-digit', month: '2-digit', timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric' }).format(new Date());
+export const HOI_AN_TRIP_START_DATE = process.env.EXPO_PUBLIC_FIXTURE_TRIP_TODAY === '1' ? todayInVietnam() : HOI_AN_START_DATE;
+
 /** Saved-trip summaries for the Trips list (API-013 items, newest first). */
 export const fixtureTrips: Trip[] = [
   {
     city_id: defaultCity.id, created_at: '2027-01-10T09:00:00+07:00', day_count: 2, id: HOI_AN_TRIP_ID, revision: 1,
-    saved_at: '2027-01-10T09:05:00+07:00', start_date: HOI_AN_START_DATE, status: 'SAVED', title: null, updated_at: '2027-01-10T09:05:00+07:00',
+    saved_at: '2027-01-10T09:05:00+07:00', start_date: HOI_AN_TRIP_START_DATE, status: 'SAVED', title: null, updated_at: '2027-01-10T09:05:00+07:00',
   },
   {
     city_id: fixtureCities[4].id, created_at: '2027-01-08T20:00:00+07:00', day_count: 1, id: HUE_TRIP_ID, revision: 1,
