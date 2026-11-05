@@ -22,14 +22,14 @@ import { PillButton } from '../../../features/planner/edit/EditUI';
 import { regenerationEnabled, showFixtureControls } from '../../../features/planner/edit/flags';
 import { RegenerateDaySheet } from '../../../features/planner/edit/RegenerateDaySheet';
 import { usePreviewEditor } from '../../../features/planner/edit/usePreviewEditor';
-import { HealthSummary } from '../../../features/planner/health/HealthSummary';
+import { HealthActionCard, HealthSummary } from '../../../features/planner/health/HealthSummary';
 import { PlacePicker, type PickerMode } from '../../../features/planner/picker/PlacePicker';
 import { useIsOffline } from '../../../features/home/useNetwork';
 import { collectIssues } from '../../../features/planner/health/reasons';
 import { ProposalMap } from '../../../features/planner/map/ProposalMap';
 import { DayCard } from '../../../features/planner/timeline/DayCard';
 import { DayTabs } from '../../../features/planner/timeline/DayTabs';
-import { ProposalHeader } from '../../../features/planner/timeline/ProposalHeader';
+import { HERO_RADIUS, ProposalHeader, proposalHeroHeight } from '../../../features/planner/timeline/ProposalHeader';
 import { SaveBar } from '../../../features/planner/timeline/SaveBar';
 import { dayDate, formatShortDate } from '../../../features/planner/timeline/format';
 import { PlannerIcon } from '../../../features/planner/timeline/icons';
@@ -60,17 +60,13 @@ export default function ProposalScreen() {
   if (state.status === 'loading') {
     return <View accessibilityLabel={t('proposal.loading')} accessibilityLiveRegion="polite" style={st.screen}>
       <StatusBar style="light" />
-      <Skeleton height={312} radius={0} />
+      <View style={st.skeletonHero}><Skeleton height={proposalHeroHeight(insets.top)} radius={0} /></View>
       <View style={[st.floatingBack, { top: insets.top + spacing.xs }]}>
         <CircleButton accessibilityLabel={t('common.goBack')} icon="back" onPress={goBack} size={44} />
       </View>
-      <View style={st.skeletonStats}>
-        {[0, 1, 2].map(index => <View key={index} style={st.skeletonStat}>
-          <Skeleton height={60} radius={30} width={60} />
-          <Skeleton height={16} width={56} />
-        </View>)}
-      </View>
+      <View style={st.skeletonMeta}><Skeleton height={18} width={160} /></View>
       <View style={st.skeletonBody}>
+        <Skeleton height={96} radius={radii.card} />
         <Skeleton height={24} width={120} />
         <Skeleton height={220} radius={radii.card} />
         <Skeleton height={88} radius={radii.card} />
@@ -201,8 +197,8 @@ function Proposal({ data, goBack, onPreview, previewId: routePreviewId }: { data
       : pending
         ? t('proposal.edit.saveWhilePending')
         : data.health === 'BLOCKED'
-          ? t('proposal.save.blocked')
-          : emptyDay ? t('proposal.save.emptyDay', { day: emptyDay.day_index }) : null;
+          ? t('proposal.save.blockedShort')
+          : emptyDay ? t('proposal.save.emptyDayShort', { day: emptyDay.day_index }) : null;
 
   function save() {
     // SCR-029: explicit Save through the confirm sheet (API-022, Idempotency-Key, expected revisions).
@@ -213,6 +209,25 @@ function Proposal({ data, goBack, onPreview, previewId: routePreviewId }: { data
   const openHealth = data.health
     ? () => (data.previewId ? router.push({ params: { previewId: data.previewId }, pathname: '/plan/[previewId]/health' }) : scrollToView(healthRef.current, 24))
     : undefined;
+
+  // "Review issues" on the Health card: the first affected stop (issues are sorted blocking first), else SCR-026.
+  const firstStopIssue = issues.find(issue => issue.dayIndex != null && issue.stopId);
+  function reviewIssues() {
+    if (firstStopIssue?.dayIndex != null && firstStopIssue.stopId) goToStop(firstStopIssue.dayIndex, firstStopIssue.stopId);
+    else openHealth?.();
+  }
+
+  function dateRange() {
+    if (!data.startDate || !days.length) return null;
+    const locale = currentLocale();
+    const start = dayDate(data.startDate, 1);
+    const end = dayDate(data.startDate, days.length);
+    const last = formatShortDate(end, locale);
+    if (start === end) return last;
+    // Same month: `16–17/01` (vi) or `16–17 Jan` (en).
+    if (start.slice(0, 7) === end.slice(0, 7)) return `${Number(start.slice(8, 10)).toString().padStart(locale === 'vi' ? 2 : 1, '0')}–${last}`;
+    return `${formatShortDate(start, locale)}–${last}`;
+  }
 
   /* ---------------------------------------------------------------- Edits (op lists only; the server recalculates) */
 
@@ -276,17 +291,25 @@ function Proposal({ data, goBack, onPreview, previewId: routePreviewId }: { data
       <View ref={contentRef} collapsable={false}>
         <ProposalHeader
           cityName={data.cityName}
+          dateRange={dateRange()}
           dayCount={days.length}
-          health={data.health}
           image={heroImage}
           imageLabel={heroLabel}
           onBack={goBack}
-          onOpenHealth={() => openHealth?.()}
           saved={saved}
           stopCount={stopCount}
           title={t('proposal.title', { city, count: days.length })}
         />
         <View style={st.inner}>
+          {data.health && <View style={[st.healthAction, st.pad]}>
+            <HealthActionCard
+              health={data.health}
+              issues={issues}
+              onReview={reviewIssues}
+              reviewTargetsStop={!!firstStopIssue}
+              updating={recalculating}
+            />
+          </View>}
           {day && <View style={st.section}>
             <SectionHeader style={st.pad} subtitle={days.length > 1 ? undefined : dateOf(day.day_index) ? t('proposal.day.tab', { date: dateOf(day.day_index), day: day.day_index }) : t('proposal.day.title', { day: day.day_index })} title={t('proposal.map.title')} />
             {days.length > 1 && <View style={st.tabs}><DayTabs activeDay={activeDay} dateOf={dateOf} days={days} onChange={showDay} /></View>}
@@ -447,8 +470,9 @@ const st = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   floatingBack: { position: 'absolute', left: spacing.md },
   touch: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  skeletonStats: { flexDirection: 'row', justifyContent: 'space-around', marginTop: spacing.lg },
-  skeletonStat: { alignItems: 'center', gap: spacing.xs },
+  skeletonHero: { borderBottomLeftRadius: HERO_RADIUS, borderBottomRightRadius: HERO_RADIUS, overflow: 'hidden' },
+  skeletonMeta: { paddingHorizontal: spacing.lg, marginTop: spacing.md },
+  healthAction: { marginTop: spacing.md },
   skeletonBody: { gap: spacing.md, padding: spacing.lg },
   errorTile: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.skyWash, alignItems: 'center', justifyContent: 'center' },
   errorTitle: { ...typography.headline, textAlign: 'center', marginTop: spacing.md },

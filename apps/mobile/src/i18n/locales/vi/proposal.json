@@ -126,7 +126,10 @@
     "blocked": "Kế hoạch đang bị chặn. Hãy sửa các vấn đề trong phần Tình trạng trước khi lưu.",
     "emptyDay": "Ngày {{day}} chưa có điểm dừng. Mỗi ngày cần ít nhất một điểm dừng để lưu.",
     "success": "Đã lưu chuyến đi. Đây là dữ liệu mẫu: chức năng lưu thật sẽ có khi kết nối API.",
-    "dismiss": "Đóng"
+    "dismiss": "Đóng",
+    "check": "Kiểm tra",
+    "blockedShort": "Kế hoạch bị chặn: hãy sửa vấn đề trước khi lưu.",
+    "emptyDayShort": "Ngày {{day}} chưa có điểm dừng nên chưa thể lưu."
   },
   "edit": {
     "toggle": "Chỉnh sửa",
@@ -310,5 +313,17 @@
     "ai_unavailable": "AI bận",
     "preview_expired": "Hết hạn"
   },
-  "book": "Đặt chỗ ở và hoạt động"
+  "book": "Đặt chỗ ở và hoạt động",
+  "eyebrow": "{{city}} · {{dates}}",
+  "healthCard": {
+    "WARNING": "Cần chú ý",
+    "BLOCKED": "Bị chặn",
+    "more_one": "Và {{count}} vấn đề khác",
+    "more_other": "Và {{count}} vấn đề khác",
+    "review": "Xem vấn đề",
+    "reviewStopHint": "Cuộn tới điểm dừng đầu tiên có vấn đề",
+    "reviewDetailHint": "Mở chi tiết tình trạng kế hoạch",
+    "good": "Kế hoạch ổn",
+    "goodA11y": "Tình trạng kế hoạch: ổn"
+  }
 }

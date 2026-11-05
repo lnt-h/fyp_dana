@@ -126,7 +126,10 @@
     "blocked": "This plan is blocked. Fix the issues under Plan Health before saving.",
     "emptyDay": "Day {{day}} has no stops. Every day needs at least one stop to save.",
     "success": "Trip saved. This is sample data: real saving arrives when the API is connected.",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "check": "Check",
+    "blockedShort": "Plan blocked: fix the issues before saving.",
+    "emptyDayShort": "Day {{day}} has no stops, so it can’t be saved yet."
   },
   "edit": {
     "toggle": "Edit",
@@ -310,5 +313,17 @@
     "ai_unavailable": "AI busy",
     "preview_expired": "Expired"
   },
-  "book": "Book stays and activities"
+  "book": "Book stays and activities",
+  "eyebrow": "{{city}} · {{dates}}",
+  "healthCard": {
+    "WARNING": "Needs attention",
+    "BLOCKED": "Blocked",
+    "more_one": "And {{count}} more issue",
+    "more_other": "And {{count}} more issues",
+    "review": "Review issues",
+    "reviewStopHint": "Scrolls to the first stop with an issue",
+    "reviewDetailHint": "Opens Plan Health details",
+    "good": "Plan looks good",
+    "goodA11y": "Plan Health: good"
+  }
 }

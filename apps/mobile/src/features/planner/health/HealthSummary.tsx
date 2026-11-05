@@ -63,6 +63,62 @@ export function HealthSummary({ health, issues, onGoToStop, onOpenDetail, updati
   </View>;
 }
 
+/** First sentence of a server reason, for the short summary on the action card. */
+function firstSentence(text: string) {
+  const match = text.match(/^.*?[.!?](?=\s|$)/);
+  return (match ? match[0] : text).trim();
+}
+
+/**
+ * Plan Health as an action right under the proposal hero. WARNING/BLOCKED: a card with a colour edge, icon + word,
+ * the first server reason and a "Review issues" action. GOOD: one quiet line, no card. Status and reasons are the
+ * server's (`plan_health`, conflicts); nothing here judges the plan.
+ */
+export function HealthActionCard({ health, issues, onReview, reviewTargetsStop, updating = false }: {
+  health: PlanHealth;
+  /** Already sorted by `collectIssues` (blocking first). */
+  issues: HealthIssue[];
+  /** Scrolls to the first affected stop, or opens SCR-026 when no stop is attached. */
+  onReview: () => void;
+  reviewTargetsStop: boolean;
+  updating?: boolean;
+}) {
+  const { t } = useTranslation();
+  if (health === 'GOOD') {
+    return <View accessible accessibilityLabel={t('proposal.healthCard.goodA11y')} style={[h.quiet, updating && h.updating]}>
+      <HealthGlyph health="GOOD" size={18} />
+      <Text style={h.quietText}>{t('proposal.healthCard.good')}</Text>
+    </View>;
+  }
+  const first = issues[0];
+  const reason = first ? firstSentence(first.message || t(`proposal.conflict.${first.type}`)) : null;
+  const more = Math.max(0, issues.length - 1);
+  const moreText = more > 0 ? t('proposal.healthCard.more', { count: more }) : null;
+  const word = t(`proposal.healthCard.${health}`);
+  return <View style={[h.card, updating && h.updating]}>
+    <View style={[h.edge, { backgroundColor: edgeColor[health] }]} />
+    <View style={h.actionInner}>
+      <View accessible accessibilityLabel={[word, reason, moreText].filter(Boolean).join('. ')}>
+        <View style={h.actionHead}>
+          <HealthGlyph health={health} size={20} />
+          <Text style={[h.actionWord, health === 'BLOCKED' && { color: palette.error }]}>{word}</Text>
+        </View>
+        {reason ? <Text numberOfLines={2} style={h.actionReason}>{reason}</Text> : null}
+        {moreText ? <Text style={h.actionMore}>{moreText}</Text> : null}
+      </View>
+      <Pressable
+        accessibilityHint={t(reviewTargetsStop ? 'proposal.healthCard.reviewStopHint' : 'proposal.healthCard.reviewDetailHint')}
+        accessibilityRole="button"
+        onPress={onReview}
+        style={({ pressed }) => [h.review, pressed && { opacity: 0.7 }]}
+      >
+        <Text style={h.reviewText}>{t('proposal.healthCard.review')}</Text>
+        <Icon color={colors.deepOcean} name="chevron-right" size={18} strokeWidth={2.2} />
+      </Pressable>
+    </View>
+  </View>;
+}
+
 function Issue({ issue, onGoToStop }: { issue: HealthIssue; onGoToStop: (dayIndex: number, stopId: Uuid) => void }) {
   const { t } = useTranslation();
   const isBlocking = issue.severity === 'BLOCKING';
@@ -120,5 +176,14 @@ const h = StyleSheet.create({
   updating: { opacity: 0.55 },
   detail: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, minHeight: 48, borderRadius: radii.action, backgroundColor: colors.deepOcean, marginTop: spacing.sm },
   detailText: { fontFamily: fonts.bold, fontSize: 15, color: colors.white },
+  actionInner: { flex: 1, gap: 4, paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
+  actionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  actionWord: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.ink },
+  actionReason: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: colors.ink, marginTop: 2 },
+  actionMore: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.textMuted, marginTop: 2 },
+  review: { flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf: 'flex-start', minHeight: MIN_TOUCH, paddingLeft: spacing.md, paddingRight: spacing.sm, marginTop: spacing.xxs, borderRadius: radii.pill, borderWidth: 1.5, borderColor: colors.deepOcean },
+  reviewText: { fontFamily: fonts.bold, fontSize: 14, color: colors.deepOcean },
+  quiet: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 24 },
+  quietText: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: colors.tealText },
   note: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 18, color: colors.textMuted, marginTop: spacing.sm },
 });

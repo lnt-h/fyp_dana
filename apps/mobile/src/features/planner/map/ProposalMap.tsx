@@ -93,8 +93,8 @@ export function ProposalMap({ day, places, selectedStopId, onSelect, onOpenPlace
               key={`${leg.from_stop_id}-${leg.to_stop_id}-${leg.availability}`}
               coordinates={[from.location, to.location]}
               lineDashPattern={measured ? undefined : [10, 8]}
-              strokeColor={measured ? colors.audioTeal : palette.error}
-              strokeWidth={measured ? 4 : 3}
+              strokeColor={measured ? colors.deepOcean : palette.error}
+              strokeWidth={3}
             />;
           })}
           {day.stops.map(stop => {
