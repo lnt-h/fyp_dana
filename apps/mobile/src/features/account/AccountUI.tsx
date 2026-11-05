@@ -4,8 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import Svg, { Path } from 'react-native-svg';
-import { CircleButton } from '../../components/ui';
+import { CircleButton, Icon, type IconName } from '../../components/ui';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { colors } from '../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../theme/spacing';
@@ -17,31 +16,30 @@ export const errorColor = colors.danger;
 const hairline = colors.hairline;
 const screenBg = colors.canvas;
 
-const c = (cx: number, cy: number, r: number) => `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`;
-const paths = {
-  person: 'M8 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0M4 21v-2a8 7 0 0 1 16 0v2',
-  edit: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
-  sliders: `M4 7h9M17 7h3M4 17h3M11 17h9${c(15, 7, 2)}${c(9, 17, 2)}`,
-  settings: 'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1ZM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8',
-  language: 'M3.5 5.5h9M8 3.5v2M10.5 5.5c0 4-2.8 7-6.5 8.5M5.8 9c1.2 2.2 3.3 3.8 6.2 4.6M12.5 20.5l4-9 4 9M14 17.5h5',
-  motion: 'M2 8h5M2 12h3M2 16h5M15 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14M15 8v4l3 2',
-  shield: 'M12 2l8 4v6c0 5-8 10-8 10S4 17 4 12V6ZM8 12l3 3 5-6',
-  doc: 'M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6',
-  info: `${c(12, 12, 9)}M12 11v5.5M12 7.8h.01`,
-  exit: 'M9 3H4v18h5M9 12h12M16 7l5 5-5 5',
-  trash: 'M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5M14 11v5',
-  device: 'M8 2.5h8a1.5 1.5 0 0 1 1.5 1.5v16a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 20V4A1.5 1.5 0 0 1 8 2.5zM11 18.5h2',
-  warning: 'M10.3 4.5a2 2 0 0 1 3.4 0l7.6 13a2 2 0 0 1-1.7 3H4.4a2 2 0 0 1-1.7-3zM12 9.5V14M12 17.2h.01',
-  check: 'M5 12.5l4.5 4.5L19 7.5',
-  chevron: 'M9 5l7 7-7 7',
-  chevronDown: 'M5 9l7 7 7-7',
-};
-export type AccountIconName = keyof typeof paths;
+/** Account glyph names → the shared Icon family (kept so call sites stay unchanged). */
+const accountIcons = {
+  person: 'person',
+  edit: 'edit',
+  sliders: 'sliders',
+  settings: 'settings',
+  language: 'language',
+  motion: 'motion',
+  shield: 'shield',
+  sparkle: 'sparkle',
+  doc: 'doc',
+  info: 'info',
+  exit: 'exit',
+  trash: 'trash',
+  device: 'device',
+  warning: 'warning',
+  check: 'check',
+  chevron: 'chevron-right',
+  chevronDown: 'chevron-down',
+} as const satisfies Record<string, IconName>;
+export type AccountIconName = keyof typeof accountIcons;
 
 export function AccountIcon({ name, color = colors.deepOcean, size = 22 }: { name: AccountIconName; color?: string; size?: number }) {
-  return <Svg width={size} height={size} viewBox="0 0 24 24" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-    <Path d={paths[name]} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>;
+  return <Icon color={color} name={accountIcons[name]} size={size} />;
 }
 
 type Fallback = '/profile' | '/home' | '/settings';
