@@ -300,10 +300,42 @@ paths:
       parameters:
         - name: city_id
           in: query
-          required: true
+          required: false
+          description: Optional; with neither city_id nor city_code the enabled city (`da-nang`) is used. A disabled or unknown city is a 422.
           schema:
             type: string
             format: uuid
+        - name: city_code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: area_code
+          in: query
+          required: false
+          description: Restrict to one travel area (ADR-012), e.g. `hoi-an-old-town`.
+          schema:
+            type: string
+        - name: bbox
+          in: query
+          required: false
+          description: "`min_lng,min_lat,max_lng,max_lat` in WGS84."
+          schema:
+            type: string
+        - name: near
+          in: query
+          required: false
+          description: "`lat,lng`; combine with radius_m."
+          schema:
+            type: string
+        - name: radius_m
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50000
+            default: 1000
         - name: q
           in: query
           required: false
@@ -315,6 +347,7 @@ paths:
         - name: category_code
           in: query
           required: false
+          description: Accepted in any case; responses always use the UPPER_CASE schema code.
           schema:
             type: string
         - name: sort
@@ -329,7 +362,7 @@ paths:
         - $ref: '#/components/parameters/Limit'
       responses:
         '200':
-          description: One page of matching places.
+          description: One page of matching places. A cursor reused with different filters is a 400 `invalid_cursor`.
           headers:
             X-Request-ID:
               $ref: '#/components/headers/XRequestID'
@@ -2189,6 +2222,27 @@ components:
           oneOf:
             - $ref: '#/components/schemas/GeoPoint'
             - type: 'null'
+        areas:
+          type: array
+          description: Travel areas of the city in sort order (ADR-012); the Hội An area codes belong to `da-nang`.
+          items:
+            $ref: '#/components/schemas/Area'
+    Area:
+      type: object
+      required: [code, city_id, name_vi, name_en, sort_order]
+      properties:
+        code:
+          type: string
+          examples: [hoi-an-old-town]
+        city_id:
+          type: string
+          format: uuid
+        name_vi:
+          type: string
+        name_en:
+          type: string
+        sort_order:
+          type: integer
     CityList:
       type: object
       required: [items]
@@ -2312,10 +2366,49 @@ components:
           format: date
         freshness:
           $ref: '#/components/schemas/Freshness'
+        source:
+          description: Most recent citation (convenience for the source line); null when there is none.
+          oneOf:
+            - $ref: '#/components/schemas/Citation'
+            - type: 'null'
         sources:
           type: array
           items:
             $ref: '#/components/schemas/Citation'
+    ClosureRule:
+      type: object
+      description: Curator-reviewed calendar rule (ADR-011 0.3); AI never writes these. params shape depends on rule_kind.
+      required: [id, applies_to, rule_kind, effect, severity, params]
+      properties:
+        id:
+          type: string
+          format: uuid
+        applies_to:
+          type: string
+          enum: [PLACE, AREA, CITY]
+        rule_kind:
+          type: string
+          enum: [WEEKLY, DATE, LUNAR_DATE, SEASON, TICKET_VALIDITY]
+        effect:
+          type: string
+          enum: [CLOSED, PARTIAL, EVENT, NOTICE]
+        severity:
+          type: string
+          enum: [BLOCKING, WARNING]
+        params:
+          type: object
+        note:
+          type: [string, 'null']
+          description: Note in the requested locale.
+        effective_from:
+          type: [string, 'null']
+          format: date
+        effective_to:
+          type: [string, 'null']
+          format: date
+        verified_at:
+          type: [string, 'null']
+          format: date
     PlaceDetail:
       allOf:
         - $ref: '#/components/schemas/PlaceSummary'
@@ -2352,6 +2445,15 @@ components:
               description: Every source whose data is shown (FR-008).
               items:
                 $ref: '#/components/schemas/Attribution'
+            area:
+              oneOf:
+                - $ref: '#/components/schemas/Area'
+                - type: 'null'
+            closure_rules:
+              type: array
+              description: Approved, not-ended rules for the place, its area and the city.
+              items:
+                $ref: '#/components/schemas/ClosureRule'
 
     # ---- Trips ----
     TripCreate:
