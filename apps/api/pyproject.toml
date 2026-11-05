@@ -92,6 +92,12 @@ source_modules = ["app.observability"]
 forbidden_modules = ["app.api", "app.main", "app.db", "app.repositories"]
 
 [[tool.importlinter.contracts]]
+name = "Catalog repositories do not import the HTTP layer or AI code"
+type = "forbidden"
+source_modules = ["app.catalog"]
+forbidden_modules = ["app.api", "app.main", "app.ai", "app.agents"]
+
+[[tool.importlinter.contracts]]
 name = "AI providers do not import the HTTP layer"
 type = "forbidden"
 source_modules = ["app.ai"]
