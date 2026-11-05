@@ -10,6 +10,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { Wordmark } from '../../components/brand/BrandMarks';
 import { HomeMapBackdrop } from '../../features/home/components/HomeMapBackdrop';
 import { AudioMark } from '../../features/onboarding/components/OnboardingMosaic';
+import { PlanCard } from '../../features/planner/input/PlanCard';
 import { defaultCity } from '../../lib/api/fixtures/hoi-an';
 import { colors } from '../../theme/colors';
 
@@ -224,6 +225,7 @@ export default function HomeScreen() {
               },
             ]}
           />
+          <PlanCard cityName={cityName} scale={scale} onPress={() => router.push('/plan/new')} />
         </View>
       </View>
     </View>

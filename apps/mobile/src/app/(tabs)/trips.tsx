@@ -1,8 +1,6 @@
-import { useTranslation } from 'react-i18next';
+import { TripsScreen } from '../../features/trips/TripsScreen';
 
-import { TabPlaceholder } from '../../features/tabs/TabPlaceholder';
-
-export default function TripsScreen() {
-  const { t } = useTranslation();
-  return <TabPlaceholder title={t('tabs.placeholder.trips.title')} subtitle={t('tabs.placeholder.trips.subtitle')} />;
+/** SCR-031 My trips (Trips tab). */
+export default function TripsTab() {
+  return <TripsScreen />;
 }

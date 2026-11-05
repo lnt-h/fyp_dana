@@ -1,1 +1,69 @@
-{}
+{
+  "loading": "Đang tải thẻ địa điểm…",
+  "notFoundTitle": "Địa điểm này không còn khả dụng",
+  "notFoundBody": "Địa điểm có thể đã bị gỡ khỏi danh sách đã kiểm duyệt của Gonarra.",
+  "errorTitle": "Có lỗi xảy ra. Thử lại.",
+  "retry": "Thử lại",
+  "noPhoto": "Chưa có ảnh của {{name}}",
+  "photoBy": "Ảnh: {{text}}",
+  "visitAbout": "khoảng {{count}} phút",
+  "driver": {
+    "cap": "Đưa cho tài xế xem",
+    "addressUnknown": "Địa chỉ: chưa rõ",
+    "a11y": "Đưa cho tài xế: {{name}}, {{address}}"
+  },
+  "facts": {
+    "title": "Thông tin thực tế",
+    "OPENING_HOURS": "Giờ mở cửa",
+    "ADMISSION_PRICE": "Giá vé",
+    "ADDRESS_VI": "Địa chỉ",
+    "ENTRANCE_LOCATION": "Lối vào",
+    "PAYMENT_METHODS": "Thanh toán",
+    "DRESS_CODE": "Trang phục",
+    "ACCESS_RULES": "Quy định ra vào",
+    "other": "Thông tin khác"
+  },
+  "unknown": "chưa rõ",
+  "notApplicable": "không áp dụng",
+  "stale": "Có thể đã cũ",
+  "source": {
+    "verified": "xác minh {{date}}",
+    "none": "Chưa có nguồn đã kiểm duyệt",
+    "expandHint": "Hiện chi tiết nguồn",
+    "collapseHint": "Ẩn chi tiết nguồn",
+    "titleLabel": "Tiêu đề",
+    "sectionLabel": "Mục",
+    "locatorLabel": "Vị trí trong nguồn",
+    "openPlace": "Mở thẻ địa điểm",
+    "verifiedLong": "Xác minh ngày {{date}}"
+  },
+  "sections": {
+    "OVERVIEW": "Tổng quan",
+    "HISTORY": "Lịch sử",
+    "HIGHLIGHTS": "Điểm nổi bật",
+    "VISIT_TIPS": "Mẹo tham quan",
+    "ETIQUETTE": "Ứng xử",
+    "ACCESS": "Đi lại và lối vào",
+    "FACT": "Thông tin thực tế"
+  },
+  "description": {
+    "title": "Giới thiệu",
+    "note": "Mô tả: nội dung do Gonarra biên soạn"
+  },
+  "media": {
+    "title": "Ảnh"
+  },
+  "attributions": {
+    "title": "Nguồn và ghi công"
+  },
+  "directions": "Chỉ đường",
+  "directionsHint": "Mở ứng dụng bản đồ",
+  "directionsFailed": "Không mở được ứng dụng bản đồ",
+  "askGuide": "Hỏi AI",
+  "quick": {
+    "hours": "Giờ mở cửa",
+    "visit": "Tham quan",
+    "price": "Vé vào cửa"
+  },
+  "share": "Chia sẻ địa điểm"
+}

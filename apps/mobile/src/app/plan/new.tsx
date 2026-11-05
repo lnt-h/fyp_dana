@@ -1,6 +1,6 @@
-import { View } from 'react-native';
+import { PlannerInputScreen } from '../../features/planner/input/PlannerInputScreen';
 
-// Placeholder route; replaced by the screen build (UI step 1–5).
-export default function Placeholder() {
-  return <View style={{ flex: 1 }} />;
+/** SCR-022 Planner input. */
+export default function NewPlanRoute() {
+  return <PlannerInputScreen />;
 }

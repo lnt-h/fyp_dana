@@ -1,6 +1,9 @@
-import { View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 
-// Placeholder route; replaced by the screen build (UI step 1–5).
-export default function Placeholder() {
-  return <View style={{ flex: 1 }} />;
+import { PlaceScreen } from '../../features/place/PlaceScreen';
+
+/** SCR-033 Place card (`/place/[placeId]`). */
+export default function PlaceRoute() {
+  const { placeId } = useLocalSearchParams<{ placeId: string }>();
+  return <PlaceScreen key={placeId} placeId={placeId} />;
 }

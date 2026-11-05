@@ -19,6 +19,7 @@ import type {
   GuideSession,
   Leg,
   Locale,
+  Media,
   Place,
   PlaceCard,
   PlaceDetail,
@@ -97,6 +98,28 @@ export const PLACE_IDS = {
   tanKy: placeIdOf(places.tanKy),
 } as const;
 
+/** Fixture photos (Wikimedia Commons; assets/images/fixtures/attribution.json). `url` is the ImageKit path. */
+const photo = (n: number, file: string, width_px: number, height_px: number, creator: string, license: string, license_code: string): Media => ({
+  alt_text: null,
+  attribution_text: `${creator} · ${license} · Wikimedia Commons`,
+  creator,
+  height_px,
+  license_code,
+  media_asset_id: id(0xa10 + n),
+  url: `gonarra/fixtures/${file}`,
+  width_px,
+});
+
+const placePhotos: Record<string, Media> = {
+  'bien-an-bang': photo(7, 'an-bang.jpg', 1400, 933, 'Alexkom000', 'CC BY 4.0', 'CC-BY-4.0'),
+  'cho-hoi-an': photo(4, 'cho-hoi-an.jpg', 1400, 933, 'Gary Todd', 'CC0', 'CC0-1.0'),
+  'chua-cau': photo(1, 'chua-cau.jpg', 1400, 1050, 'Chainwit.', 'CC BY 4.0', 'CC-BY-4.0'),
+  'hoi-quan-phuc-kien': photo(3, 'phuc-kien.jpg', 1400, 1050, 'Chainwit.', 'CC BY 4.0', 'CC-BY-4.0'),
+  'nha-co-tan-ky': photo(2, 'tan-ky.jpg', 1400, 929, 'P. Hughes', 'CC BY 4.0', 'CC-BY-4.0'),
+  'pho-den-long-song-hoai': photo(5, 'pho-den-long.jpg', 1400, 933, 'lumoplank', 'CC0', 'CC0-1.0'),
+  'rung-dua-bay-mau': photo(6, 'rung-dua-bay-mau.jpg', 1400, 935, 'Chester Ho', 'CC0', 'CC0-1.0'),
+};
+
 function summary(place: FixturePlace, locale: Locale): Place {
   return {
     catalog_publication_id: PUBLICATION_ID,
@@ -108,7 +131,7 @@ function summary(place: FixturePlace, locale: Locale): Place {
     name_vi: place.name_vi,
     short_description: byLocale(locale, place.short_vi, place.short_en),
     slug: place.slug,
-    thumbnail: null,
+    thumbnail: placePhotos[place.slug] ?? null,
     visit_minutes_suggested: place.visit,
   };
 }
@@ -166,11 +189,12 @@ export function fixturePlaceDetail(placeId: Uuid, locale: Locale): PlaceDetail |
   if (!place) return undefined;
   return {
     ...summary(place, locale),
-    attributions: [{ attribution_text: '© Fixture data — not reviewed', homepage_url: null, license_code: null, publisher: 'Gonarra fixtures' }],
+    attributions: [{ attribution_text: '© Fixture data — not reviewed', homepage_url: null, license_code: null, publisher: 'Gonarra fixtures' },
+      ...(placePhotos[place.slug] ? [{ attribution_text: placePhotos[place.slug].attribution_text, homepage_url: null, license_code: placePhotos[place.slug].license_code, publisher: 'Wikimedia Commons' }] : [])],
     description: byLocale(locale, place.short_vi, place.short_en),
     entrance_location: null,
     facts: factsFor(place),
-    media: [],
+    media: placePhotos[place.slug] ? [placePhotos[place.slug]] : [],
     name_en: place.name_en,
     publication_revision: 1,
     published_at: '2026-10-01T09:00:00+07:00',

@@ -1,8 +1,6 @@
-import { useTranslation } from 'react-i18next';
+import { GuideScreen } from '../../features/guide/GuideScreen';
 
-import { TabPlaceholder } from '../../features/tabs/TabPlaceholder';
-
-export default function GuideScreen() {
-  const { t } = useTranslation();
-  return <TabPlaceholder title={t('tabs.placeholder.guide.title')} subtitle={t('tabs.placeholder.guide.subtitle')} />;
+/** SCR-034 Guide chat tab (`/guide`, optional `placeId` param scopes the session). */
+export default function GuideRoute() {
+  return <GuideScreen />;
 }

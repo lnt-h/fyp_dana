@@ -1,1 +1,131 @@
-{}
+{
+  "title_one": "{{count}} ngày ở {{city}}",
+  "title_other": "{{count}} ngày ở {{city}}",
+  "tripFallback": "Chuyến đi của bạn",
+  "loading": "Đang tải đề xuất của bạn",
+  "error": {
+    "notFound": "Không tìm thấy lịch trình này",
+    "notFoundBody": "Bản nháp có thể đã hết hạn hoặc bị xoá.",
+    "generic": "Chưa tải được lịch trình",
+    "genericBody": "Kiểm tra kết nối mạng rồi thử lại.",
+    "retry": "Thử lại"
+  },
+  "status": {
+    "unsaved": "Chưa lưu",
+    "saved": "Đã lưu"
+  },
+  "cover": {
+    "photo": "Ảnh {{name}}",
+    "cityPhoto": "Ảnh {{city}}",
+    "credit": "Ảnh: {{credit}}"
+  },
+  "stats": {
+    "days": "Thời lượng",
+    "daysValue_one": "{{count}} ngày",
+    "daysValue_other": "{{count}} ngày",
+    "stops": "Điểm dừng",
+    "stopsValue_one": "{{count}} điểm",
+    "stopsValue_other": "{{count}} điểm",
+    "health": "Tình trạng",
+    "status": "Trạng thái",
+    "healthHint": "Xem chi tiết tình trạng kế hoạch",
+    "a11y": "{{days}} ngày, {{stops}} điểm dừng, tình trạng kế hoạch {{health}}"
+  },
+  "health": {
+    "title": "Tình trạng kế hoạch",
+    "GOOD": "Ổn",
+    "WARNING": "Cần chú ý",
+    "BLOCKED": "Bị chặn",
+    "badgeGood": "Ổn",
+    "badgeWarning_one": "Cần chú ý · {{count}} cảnh báo",
+    "badgeWarning_other": "Cần chú ý · {{count}} cảnh báo",
+    "badgeBlocked": "Bị chặn · {{blocking}} lỗi, {{warnings}} cảnh báo",
+    "summaryGood": "Ổn — có thể lưu",
+    "summaryWarning": "Cần chú ý — có thể lưu",
+    "summaryBlocked": "Bị chặn — chưa thể lưu",
+    "goodNote": "Mọi điểm dừng mở cửa vào giờ dự kiến, mọi chặng có tuyến đường và mỗi ngày kết thúc trong khung giờ.",
+    "recheckNote": "Tình trạng được tính lại sau mỗi thay đổi. Giờ mở cửa thực tế có thể thay đổi; hãy kiểm tra thẻ địa điểm trước khi đi.",
+    "mustFix": "Cần sửa",
+    "worthChecking": "Nên xem",
+    "severityBlocking": "Chặn",
+    "severityWarning": "Cảnh báo",
+    "detailStop": "Ngày {{day}} · #{{number}} {{name}}",
+    "detailDay": "Ngày {{day}}",
+    "goToStop": "Đến điểm dừng",
+    "goToStopA11y": "Đến điểm dừng {{number}}, {{name}}"
+  },
+  "conflict": {
+    "CLOSED_AT_PLANNED_TIME": "Đóng cửa vào giờ dự kiến",
+    "LEG_UNAVAILABLE": "Không có tuyến đường — không ước tính",
+    "DAY_WINDOW_EXCEEDED": "Vượt khung giờ trong ngày",
+    "OPENING_HOURS_UNKNOWN": "Giờ mở cửa: chưa rõ",
+    "FACT_STALE": "Giờ mở cửa có thể đã cũ",
+    "MUST_SEE_NOT_INCLUDED": "Không thể xếp một địa điểm bạn muốn đến"
+  },
+  "itinerary": {
+    "title": "Lịch trình theo ngày",
+    "subtitle": "Chạm vào điểm dừng để xem trên bản đồ"
+  },
+  "day": {
+    "tab": "Ngày {{day}} · {{date}}",
+    "tabA11y": "Ngày {{day}}, {{date}}, {{count}} điểm dừng",
+    "title": "Ngày {{day}}",
+    "stops_one": "{{count}} điểm dừng",
+    "stops_other": "{{count}} điểm dừng",
+    "blocking_one": "{{count}} cần sửa",
+    "blocking_other": "{{count}} cần sửa",
+    "warnings_one": "{{count}} cảnh báo",
+    "warnings_other": "{{count}} cảnh báo",
+    "expandHint": "Mở hoặc thu gọn lịch trình của ngày này",
+    "empty": "Ngày {{day}} chưa có điểm dừng",
+    "emptyBody": "Thêm địa điểm đã kiểm duyệt ở {{city}} hoặc tạo lại ngày này."
+  },
+  "stop": {
+    "minutes": "{{count}} phút",
+    "timeUnknown": "Chưa có giờ",
+    "a11y": "{{number}}, {{name}}, {{arrival}} đến {{departure}}, {{status}}",
+    "statusOk": "không có vấn đề",
+    "selectHint": "Chọn điểm dừng này trên bản đồ",
+    "selected": "Đang chọn",
+    "details": "Thẻ địa điểm",
+    "detailsA11y": "Mở thẻ địa điểm {{name}}",
+    "why": "Vì sao chọn?",
+    "whyHide": "Thu gọn",
+    "aiLabel": "Gợi ý của AI"
+  },
+  "leg": {
+    "WALK": "Đi bộ",
+    "DRIVE": "Đi xe",
+    "minutes": "{{count}} phút",
+    "hours": "{{hours}} giờ",
+    "hoursMinutes": "{{hours}} giờ {{minutes}} phút",
+    "unavailable": "Không có tuyến đường — không ước tính",
+    "a11y": "{{mode}}, {{distance}}, {{duration}}",
+    "unavailableA11y": "{{mode}}, không có dữ liệu tuyến đường, không ước tính"
+  },
+  "map": {
+    "title": "Bản đồ",
+    "a11y": "Bản đồ các điểm dừng của ngày {{day}}. Mọi thông tin trên bản đồ đều có trong lịch trình bên dưới.",
+    "pin": "Điểm dừng {{number}}, {{name}}, {{time}}",
+    "recenter": "Hiện tất cả điểm dừng trong ngày",
+    "previous": "Trước",
+    "next": "Sau",
+    "previousA11y": "Điểm dừng trước",
+    "nextA11y": "Điểm dừng sau",
+    "position": "Điểm dừng {{number}} · {{name}}",
+    "attributionGoogle": "Dữ liệu bản đồ © Google",
+    "attributionApple": "Bản đồ © Apple",
+    "noStops": "Ngày này chưa có điểm dừng",
+    "legendUnavailable": "Ngày có chặng không có tuyến đường bị đánh dấu \"Bị chặn\". Hãy đổi cách di chuyển hoặc thay điểm dừng."
+  },
+  "save": {
+    "action": "Lưu chuyến đi",
+    "saved": "Đã lưu",
+    "a11yHint": "Lưu đề xuất này thành chuyến đi của bạn",
+    "healthA11y": "Xem tình trạng kế hoạch",
+    "blocked": "Kế hoạch đang bị chặn. Hãy sửa các vấn đề trong phần Tình trạng trước khi lưu.",
+    "emptyDay": "Ngày {{day}} chưa có điểm dừng. Mỗi ngày cần ít nhất một điểm dừng để lưu.",
+    "success": "Đã lưu chuyến đi. Đây là dữ liệu mẫu: chức năng lưu thật sẽ có khi kết nối API.",
+    "dismiss": "Đóng"
+  }
+}

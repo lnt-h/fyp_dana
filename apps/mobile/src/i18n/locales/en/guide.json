@@ -1,1 +1,79 @@
-{}
+{
+  "title": "AI guide",
+  "subtitle": "Sourced answers about each place",
+  "picker": {
+    "title": "Ask about a reviewed place",
+    "body": "Pick one place and ask about it. Every answer lists its sources. If they are not enough, Gonarra says so.",
+    "choose": "Choose a place",
+    "loading": "Loading places…",
+    "error": "Could not load places. Try again.",
+    "retry": "Try again",
+    "empty": "No published places yet",
+    "a11yPlace": "Opens the Guide for {{name}}",
+    "minutes": "{{count}} min"
+  },
+  "context": {
+    "a11y": "Place: {{name}}",
+    "hint": "Choose another place",
+    "change": "Change place"
+  },
+  "clear": "Delete conversation",
+  "clearConfirmTitle": "Delete this conversation?",
+  "clearConfirmBody": "The messages in this conversation will be removed.",
+  "clearConfirm": "Delete",
+  "session": {
+    "loading": "Opening the Guide…",
+    "error": "Could not open the Guide. Try again.",
+    "notFound": "This place is no longer available"
+  },
+  "empty": {
+    "title": "What would you like to know about {{place}}?",
+    "body": "Every answer lists reviewed sources. If they are not enough, Gonarra says so."
+  },
+  "you": "You",
+  "assistant": "Guide",
+  "typing": "The Guide is answering",
+  "stage": {
+    "RETRIEVING": "Searching reviewed sources…",
+    "ANSWERING": "Writing the answer…"
+  },
+  "addingSources": "Adding sources…",
+  "sources": "Sources ({{count}})",
+  "aiLabel": "AI-generated from Gonarra's reviewed sources",
+  "insufficient": {
+    "title": "Not enough evidence to answer",
+    "body": "Gonarra's reviewed sources do not cover this, so I won't guess. Please ask on site or check an official channel."
+  },
+  "error": "Could not answer right now. Your question is kept. Try again.",
+  "notice": {
+    "title": "What is sent to AI?",
+    "body": "Your question goes to an external AI service (Google Gemini). Your account, contact details and precise location do not.",
+    "dismiss": "Got it"
+  },
+  "composer": {
+    "label": "Your question",
+    "placeholder": "Ask about {{place}}…",
+    "send": "Send",
+    "busy": "Wait for the current answer",
+    "counter": "{{count}}/{{max}}",
+    "disclaimer": "AI can make mistakes. Check the sources before you go."
+  },
+  "suggest": {
+    "hours": {
+      "label": "Opening hours?",
+      "question": "What are the opening hours here?"
+    },
+    "ticket": {
+      "label": "Tickets?",
+      "question": "Do I need a ticket here, and how much is it?"
+    },
+    "history": {
+      "label": "History?",
+      "question": "Briefly, what is the history of this place?"
+    },
+    "entrance": {
+      "label": "Entrance?",
+      "question": "Where is the entrance?"
+    }
+  }
+}

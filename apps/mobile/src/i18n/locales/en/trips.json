@@ -1,1 +1,80 @@
-{}
+{
+  "title": "Trips",
+  "subtitle_one": "{{count}} trip planned",
+  "subtitle_other": "{{count}} trips planned",
+  "subtitleEmpty": "Your saved trips and drafts live here",
+  "newTrip": "New trip",
+  "sections": {
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "count_one": "{{count}} trip",
+    "count_other": "{{count}} trips"
+  },
+  "card": {
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "title_one": "{{count}} day in {{city}}",
+    "title_other": "{{count}} days in {{city}}",
+    "saved": "Saved",
+    "draft": "Draft",
+    "today": "Today",
+    "view": "View",
+    "opening": "Opening…",
+    "label": "{{title}}, {{dates}}, {{status}}",
+    "hint": "Opens the trip",
+    "more": "More options for {{title}}",
+    "moreHint": "Long-press a trip to delete it"
+  },
+  "delete": {
+    "title": "Delete trip {{name}}?",
+    "body": "This cannot be undone.",
+    "confirm": "Delete",
+    "keep": "Keep",
+    "done": "Trip deleted"
+  },
+  "empty": {
+    "title": "No trips yet",
+    "body": "Plan 1–3 days in one of 5 cities.",
+    "action": "Plan a trip"
+  },
+  "error": {
+    "load": "Could not load trips. Try again",
+    "retry": "Try again",
+    "open": "Could not open this trip. Try again",
+    "notFound": "This trip is no longer available"
+  },
+  "guest": {
+    "title": "Sign in to see saved trips",
+    "body": "Your saved trips and drafts are kept with your account.",
+    "action": "Sign in"
+  },
+  "loading": "Loading trips",
+  "date": {
+    "day": "{{weekday}} {{d}} {{month}}",
+    "dayYear": "{{weekday}} {{d}} {{month}} {{year}}",
+    "range": "{{start}} – {{end}}"
+  },
+  "weekday": {
+    "sun": "Sun",
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat"
+  },
+  "month": {
+    "jan": "Jan",
+    "feb": "Feb",
+    "mar": "Mar",
+    "apr": "Apr",
+    "may": "May",
+    "jun": "Jun",
+    "jul": "Jul",
+    "aug": "Aug",
+    "sep": "Sep",
+    "oct": "Oct",
+    "nov": "Nov",
+    "dec": "Dec"
+  }
+}

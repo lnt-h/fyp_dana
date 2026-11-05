@@ -1,6 +1,6 @@
-import { View } from 'react-native';
+import { GenerationProgressScreen } from '../../../features/planner/progress/GenerationProgressScreen';
 
-// Placeholder route; replaced by the screen build (UI step 1–5).
-export default function Placeholder() {
-  return <View style={{ flex: 1 }} />;
+/** SCR-023 Generation progress (until `preview_ready`, then SCR-024 at `/plan/[previewId]/proposal`). */
+export default function PlanProgressRoute() {
+  return <GenerationProgressScreen />;
 }
