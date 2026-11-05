@@ -1,8 +1,40 @@
 {
-  "location": "{{city}}, {{country}}",
   "profile": "Profile",
-  "searchLabel": "Search places, stories and activities",
-  "searchPlaceholder": "Places, stories and your move...",
-  "sampleMarker": "Cham Museum",
-  "gps": "Center map on my location"
+  "city": {
+    "button": "{{city}}, {{country}}",
+    "buttonLabel": "Current city: {{city}}. Change city",
+    "title": "Choose a city",
+    "subtitle": "Gonarra covers 5 cities. Each trip covers one city.",
+    "loadError": "Could not load cities.",
+    "retry": "Try again",
+    "close": "Close"
+  },
+  "map": {
+    "label": "Map of {{city}}",
+    "gps": "Center map on my location",
+    "photoCredit": "Photo: {{credit}}",
+    "photoCredits": "Place photos are credited on each card",
+    "visitMinutes": "{{count}} min",
+    "openPlace": "Open place card for {{name}}",
+    "locationDenied": "Location permission is off. The map still works as usual.",
+    "locationFailed": "Could not get your location right now. Please try again later."
+  },
+  "search": {
+    "pillLabel": "Search places in {{city}}",
+    "placeholder": "Search places in {{city}}",
+    "offlineHint": "You are offline. Search needs a connection.",
+    "voice": "Ask by voice",
+    "clear": "Clear search",
+    "cancel": "Cancel",
+    "recent": "Recent searches",
+    "topics": "Browse by topic",
+    "searching": "Searching…",
+    "resultCount": "Results in {{city}}: {{count}}",
+    "emptyTitle": "No match for “{{q}}” in {{city}}",
+    "emptyTopicTitle": "No places in this topic in {{city}} yet",
+    "emptyBody": "Gonarra only shows reviewed places in the selected city. Try the Vietnamese or English name, or change city.",
+    "changeCity": "Change city",
+    "error": "Search is unavailable right now.",
+    "retry": "Try again"
+  }
 }

@@ -1,340 +1,323 @@
+import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAccount } from '../../features/account/AccountContext';
-import { AccountIcon } from '../../features/account/AccountUI';
-import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
+import { Keyboard, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import type MapView from 'react-native-maps';
+import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Wordmark } from '../../components/brand/BrandMarks';
-import { HomeMapBackdrop } from '../../features/home/components/HomeMapBackdrop';
-import { AudioMark } from '../../features/onboarding/components/OnboardingMosaic';
-import { PlanCard } from '../../features/planner/input/PlanCard';
-import { defaultCity } from '../../lib/api/fixtures/hoi-an';
+import { CircleButton, Icon } from '../../components/ui';
+import { useAccount } from '../../features/account/AccountContext';
+import { AccountIcon } from '../../features/account/AccountUI';
+import { SignInGate, type GateFeature } from '../../features/auth/SignInGate';
+import { CityButton } from '../../features/home/city/CityButton';
+import { CitySheet } from '../../features/home/city/CitySheet';
+import { useSelectedCity } from '../../features/home/cityStore';
+import { useTabBarClearance } from '../../features/home/components/HomeTabBar';
+import { HomeMap } from '../../features/home/map/HomeMap';
+import { PlacePreviewCard } from '../../features/home/map/PlacePreviewCard';
+import { cityRegion, framedRegion } from '../../features/home/map/region';
+import { useLocateMe } from '../../features/home/map/useLocateMe';
+import { SearchBody, SearchHeader } from '../../features/home/search/SearchPanel';
+import { SearchPill } from '../../features/home/search/SearchPill';
+import { HomeSheetContent } from '../../features/home/sections/HomeSheetContent';
+import { useIsOffline } from '../../features/home/useNetwork';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { searchPlaces } from '../../lib/api/source';
+import type { Place } from '../../lib/api/types';
 import { colors } from '../../theme/colors';
+import { elevation } from '../../theme/elevation';
+import { fonts } from '../../theme/typography';
 
-const designFrame = {
-  height: 956,
-  width: 440,
-} as const;
+const SNAP_POINTS = ['22%', '52%', '92%'];
+const HALF = 1;
+const FULL = 2;
+const MAX_MARKERS = 20;
+const MAX_RECENT = 5;
+const GUTTER = 20;
 
-const images = {
-  beach: require('../../../assets/images/places/beach.png'),
-  museum: require('../../../assets/images/places/cham-sculpture.png'),
-} satisfies Record<string, ImageSourcePropType>;
-
-function LocationIcon({ size }: { size: number }) {
-  return (
-    <Svg height={size} viewBox="0 0 20 20" width={size}>
-      <Path d="M17.1834 7.04171C16.3084 3.19171 12.9501 1.45837 10.0001 1.45837C7.05008 1.45837 3.68341 3.18337 2.80841 7.03337C1.83341 11.3334 4.46675 14.975 6.85008 17.2667C8.61675 18.9667 11.3834 18.9667 13.1417 17.2667C15.5251 14.975 18.1584 11.3417 17.1834 7.04171ZM10.0001 11.2167C8.55008 11.2167 7.37508 10.0417 7.37508 8.59171C7.37508 7.14171 8.55008 5.96671 10.0001 5.96671C11.4501 5.96671 12.6251 7.14171 12.6251 8.59171C12.6251 10.0417 11.4501 11.2167 10.0001 11.2167Z" fill={colors.ink} />
-    </Svg>
-  );
-}
-
-function SearchIcon({ size }: { size: number }) {
-  return (
-    <Svg height={size} viewBox="0 0 20 20" width={size}>
-      <Path d="M17.5001 9.58329C17.5001 13.9555 13.9557 17.5 9.58342 17.5C5.21116 17.5 1.66675 13.9555 1.66675 9.58329C1.66675 5.21104 5.21116 1.66663 9.58342 1.66663C13.9557 1.66663 17.5001 5.21104 17.5001 9.58329Z" fill="none" stroke="#292D32" strokeLinecap="round" strokeLinejoin="round" strokeOpacity={0.5} strokeWidth={1.5} />
-      <Path d="M18.3334 18.3333L16.6667 16.6666" fill="none" stroke="#292D32" strokeLinecap="round" strokeOpacity={0.5} strokeWidth={1.5} />
-    </Svg>
-  );
-}
-
-function GpsIcon({ size }: { size: number }) {
-  return (
-    <Svg height={size} viewBox="0 0 30 30" width={size}>
-      <Circle cx={15} cy={15} fill="none" r={9.375} stroke="#292D32" strokeWidth={2} />
-      <Circle cx={15} cy={15} fill="none" r={3.75} stroke="#292D32" strokeWidth={2} />
-      <Path d="M15 5V2.5M5 15H2.5M15 25V27.5M25 15H27.5" fill="none" stroke="#292D32" strokeLinecap="round" strokeWidth={2} />
-    </Svg>
-  );
-}
-
-type MarkerProps = {
-  height: number;
-  left: number;
-  scale: number;
-  source: ImageSourcePropType;
-  top: number;
-  width: number;
-};
-
-function MapMarker({ height, left, scale, source, top, width }: MarkerProps) {
-  return (
-    <View
-      style={[
-        styles.marker,
-        {
-          borderRadius: 12 * scale,
-          borderWidth: 2 * scale,
-          height: height * scale,
-          left: left * scale,
-          top: top * scale,
-          width: width * scale,
-        },
-      ]}
-    >
-      <Image resizeMode="cover" source={source} style={StyleSheet.absoluteFill} />
-    </View>
-  );
-}
+type CityPlaces = { cityId: string; items: Place[] };
 
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
-  const { profile } = useAccount();
-  const cityName = i18n.resolvedLanguage === 'vi' ? defaultCity.name_vi : defaultCity.name_en;
+  const insets = useSafeAreaInsets();
   const { height, width } = useWindowDimensions();
-  const scale = Math.min(width / designFrame.width, height / designFrame.height);
-  const canvasWidth = designFrame.width * scale;
-  const canvasLeft = (width - canvasWidth) / 2;
+  const aspect = width / height;
+  const reduced = useReducedMotion();
+  const offline = useIsOffline();
+  const clearance = useTabBarClearance();
+  const { isSignedIn, profile } = useAccount();
+  const { city } = useSelectedCity();
+  const cityName = city ? (i18n.resolvedLanguage === 'vi' ? city.name_vi : city.name_en) : null;
+
+  const mapRef = useRef<MapView>(null);
+  const sheetRef = useRef<BottomSheet>(null);
+  const sheetTop = useSharedValue(height);
+  const [sheetIndex, setSheetIndex] = useState(HALF);
+  const [initialRegion] = useState(() => cityRegion(city?.code, [], aspect));
+
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [cityPlaces, setCityPlaces] = useState<CityPlaces | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [citySheetOpen, setCitySheetOpen] = useState(false);
+  const [gate, setGate] = useState<GateFeature | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState('');
+  /** Recent queries for this session only: memory, never stored or logged. */
+  const [recent, setRecent] = useState<string[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
+  const { granted, locate } = useLocateMe();
+
+  // Markers: published places of the selected city (API-010, no q).
+  useEffect(() => {
+    if (!city) return;
+    let active = true;
+    setSelectedId(null);
+    searchPlaces(city.id)
+      .then(items => { if (active) setCityPlaces({ cityId: city.id, items }); })
+      .catch(() => { if (active) setCityPlaces({ cityId: city.id, items: [] }); });
+    return () => { active = false; };
+  }, [city]);
+
+  const places = useMemo(() => (cityPlaces && cityPlaces.cityId === city?.id ? cityPlaces.items : []), [city?.id, cityPlaces]);
+  const markers = useMemo(
+    () => (categoryFilter ? places.filter(place => place.category_code === categoryFilter) : places).slice(0, MAX_MARKERS),
+    [categoryFilter, places],
+  );
+  const selectedPlace = markers.find(place => place.id === selectedId) ?? null;
+
+  // Re-centre once the city's places are known (fallback centre when it has none yet).
+  const loadedFor = cityPlaces?.cityId === city?.id ? city?.id : undefined;
+  useEffect(() => {
+    if (!city || !loadedFor) return;
+    mapRef.current?.animateToRegion(cityRegion(city.code, places.map(place => place.location), aspect), reduced ? 0 : 600);
+    // Runs once per loaded city, not on resize or motion-setting changes.
+  }, [loadedFor]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const openPlace = useCallback((placeId: string) => {
+    router.push({ params: { placeId }, pathname: '/place/[placeId]' });
+  }, []);
+
+  function openSearch() {
+    if (offline) return;
+    if (!isSignedIn) { setGate('search'); return; }
+    setSelectedId(null);
+    setSearching(true);
+    sheetRef.current?.snapToIndex(FULL);
+  }
+
+  function closeSearch(snapBack: boolean) {
+    Keyboard.dismiss();
+    setSearching(false);
+    setQuery('');
+    if (snapBack) sheetRef.current?.snapToIndex(HALF);
+  }
+
+  function rememberQuery() {
+    const q = query.trim();
+    if (!q) return;
+    setRecent(previous => [q, ...previous.filter(item => item.toLowerCase() !== q.toLowerCase())].slice(0, MAX_RECENT));
+  }
+
+  function handleSheetChange(index: number) {
+    setSheetIndex(index);
+    if (index < FULL && searching) closeSearch(false);
+  }
+
+  async function handleLocate() {
+    const result = await locate();
+    if (!result) return;
+    if (!result.ok) { setToast(t(result.reason === 'denied' ? 'home.map.locationDenied' : 'home.map.locationFailed')); return; }
+    mapRef.current?.animateToRegion(framedRegion(result.point, 0.02, aspect), reduced ? 0 : 600);
+  }
+
+  // Floating map controls ride just above the sheet's top edge.
+  const floatStyle = useAnimatedStyle(() => ({ transform: [{ translateY: sheetTop.value }] }));
+  const showFloating = !searching && sheetIndex < FULL;
+  const credit = selectedPlace?.thumbnail?.attribution_text;
+  const initial = profile.name.trim()[0]?.toUpperCase();
 
   return (
     <View style={styles.screen}>
       <StatusBar style="dark" />
 
-      <View style={[styles.canvas, { height: designFrame.height * scale, left: canvasLeft, width: canvasWidth }]}>
-        <View style={[styles.map, { height: 458 * scale, width: canvasWidth }]}>
-          <HomeMapBackdrop height={458 * scale} width={canvasWidth} />
+      <HomeMap
+        accessibilityLabel={t('home.map.label', { city: cityName ?? '' })}
+        initialRegion={initialRegion}
+        mapRef={mapRef}
+        onSelect={setSelectedId}
+        places={markers}
+        selectedId={selectedId}
+        showsUserLocation={granted}
+      />
+
+      <LinearGradient
+        colors={['rgba(255,255,255,0.96)', 'rgba(255,255,255,0.7)', 'rgba(255,255,255,0)']}
+        pointerEvents="none"
+        style={[styles.scrim, { height: insets.top + 200 }]}
+      />
+
+      <View pointerEvents="box-none" style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <View pointerEvents="box-none" style={styles.topRow}>
+          <Wordmark width={128} />
+          <Pressable accessibilityLabel={t('home.profile')} accessibilityRole="button" onPress={() => router.push('/profile')} style={styles.avatar}>
+            <LinearGradient colors={['#BDEBFF', '#75C8DD']} style={StyleSheet.absoluteFill} />
+            {initial ? <Text style={styles.avatarText}>{initial}</Text> : <AccountIcon name="person" />}
+          </Pressable>
         </View>
-
-        <View style={[styles.wordmark, { left: 20 * scale, top: 84 * scale }]}>
-          <Wordmark width={128 * scale} />
-        </View>
-
-        <View style={[styles.location, { left: 20 * scale, top: 148 * scale }]}>
-          <LocationIcon size={20 * scale} />
-          <Text style={[styles.locationText, { fontSize: 14 * scale, lineHeight: 20 * scale }]}>
-            {t('home.location', { city: cityName, country: t('common.country') })}
-          </Text>
-        </View>
-
-        <Pressable
-          accessibilityLabel={t('home.profile')}
-          accessibilityRole="button"
-          onPress={() => router.push('/profile')}
-          style={[
-            styles.avatar,
-            {
-              borderRadius: 26 * scale,
-              height: 52 * scale,
-              left: 372 * scale,
-              top: 77 * scale,
-              width: 52 * scale,
-            },
-          ]}
-        >
-          <LinearGradient colors={['#BDEBFF', '#75C8DD']} style={StyleSheet.absoluteFill} />
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{profile.name.trim() ? <Text style={{ color: colors.deepOcean, fontFamily: 'HankenGrotesk_700Bold', fontSize: 20 }}>{profile.name.trim()[0].toUpperCase()}</Text> : <AccountIcon name="person" />}</View>
-        </Pressable>
-
-        <Pressable
-          accessibilityLabel={t('home.searchLabel')}
-          accessibilityRole="button"
-          style={[
-            styles.search,
-            {
-              borderRadius: 26 * scale,
-              height: 52 * scale,
-              left: 16 * scale,
-              paddingLeft: 10 * scale,
-              top: 176 * scale,
-              width: 408 * scale,
-            },
-          ]}
-        >
-          <SearchIcon size={20 * scale} />
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.searchPlaceholder,
-              { fontSize: 14 * scale, lineHeight: 20 * scale, marginLeft: 10 * scale },
-            ]}
-          >
-            {t('home.searchPlaceholder')}
-          </Text>
-          <View
-            style={[
-              styles.searchAudio,
-              {
-                height: 40 * scale,
-                right: 5 * scale,
-                top: 5 * scale,
-                width: 40 * scale,
-              },
-            ]}
-          >
-            <AudioMark size={40 * scale} />
+        <CityButton cityName={cityName} onPress={() => setCitySheetOpen(true)} />
+        <SearchPill cityName={cityName ?? ''} disabled={offline} onPress={openSearch} onVoice={openSearch} />
+        {offline ? (
+          <View style={styles.offlineHint}>
+            <Icon color={colors.ink} name="info" size={16} />
+            <Text style={styles.offlineText}>{t('home.search.offlineHint')}</Text>
           </View>
-        </Pressable>
-
-        <MapMarker height={58} left={58} scale={scale} source={images.beach} top={289} width={58} />
-        <MapMarker height={62} left={305} scale={scale} source={images.museum} top={251} width={58} />
-        <View
-          style={[
-            styles.markerLabel,
-            {
-              borderRadius: 4 * scale,
-              height: 25 * scale,
-              left: 293 * scale,
-              top: 313 * scale,
-              width: 83 * scale,
-            },
-          ]}
-        >
-          <Text style={[styles.markerLabelText, { fontSize: 10 * scale }]}>{t('home.sampleMarker')}</Text>
-        </View>
-
-        <Pressable
-          accessibilityLabel={t('home.gps')}
-          accessibilityRole="button"
-          style={[
-            styles.gps,
-            {
-              borderRadius: 24 * scale,
-              height: 48 * scale,
-              left: 376 * scale,
-              top: 360 * scale,
-              width: 48 * scale,
-            },
-          ]}
-        >
-          <GpsIcon size={30 * scale} />
-        </Pressable>
-
-        <View
-          style={[
-            styles.sheet,
-            {
-              borderTopLeftRadius: 40 * scale,
-              borderTopRightRadius: 40 * scale,
-              height: 515 * scale,
-              top: 441 * scale,
-              width: canvasWidth,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.sheetHandle,
-              {
-                borderRadius: 2 * scale,
-                height: 4 * scale,
-                top: 10 * scale,
-                width: 68 * scale,
-              },
-            ]}
-          />
-          <PlanCard cityName={cityName} scale={scale} onPress={() => router.push('/plan/new')} />
-        </View>
+        ) : null}
       </View>
+
+      {showFloating ? (
+        <Animated.View pointerEvents="box-none" style={[styles.floating, floatStyle]}>
+          <View pointerEvents="box-none" style={styles.floatingInner}>
+            {selectedPlace ? <PlacePreviewCard onOpen={openPlace} place={selectedPlace} /> : null}
+            <View pointerEvents="box-none" style={styles.controls}>
+              <View style={styles.credit}>
+                <Text numberOfLines={1} style={styles.creditText}>
+                  {credit ? t('home.map.photoCredit', { credit }) : t('home.map.photoCredits')}
+                </Text>
+              </View>
+              <CircleButton accessibilityLabel={t('home.map.gps')} icon="navigation" onPress={handleLocate} size={48} />
+            </View>
+          </View>
+        </Animated.View>
+      ) : null}
+
+      <BottomSheet
+        animatedPosition={sheetTop}
+        animateOnMount={!reduced}
+        backgroundStyle={styles.sheetBackground}
+        enableDynamicSizing={false}
+        handleIndicatorStyle={styles.handle}
+        index={HALF}
+        keyboardBehavior="extend"
+        keyboardBlurBehavior="restore"
+        onChange={handleSheetChange}
+        overrideReduceMotion={reduced ? ReduceMotion.Always : ReduceMotion.System}
+        ref={sheetRef}
+        snapPoints={SNAP_POINTS}
+        style={styles.sheet}
+      >
+        <BottomSheetScrollView
+          contentContainerStyle={{ paddingBottom: clearance }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          stickyHeaderIndices={searching ? [0] : undefined}
+        >
+          {searching && city ? [
+            <View key="header" style={styles.gutter}>
+              <SearchHeader
+                cityName={cityName ?? ''}
+                offline={offline}
+                onCancel={() => closeSearch(true)}
+                onChangeQuery={setQuery}
+                onSubmit={rememberQuery}
+                query={query}
+              />
+            </View>,
+            <View key="body" style={styles.gutter}>
+              <SearchBody
+                city={city}
+                offline={offline}
+                onChangeCity={() => setCitySheetOpen(true)}
+                onOpenPlace={place => { rememberQuery(); openPlace(place.id); }}
+                onPickRecent={setQuery}
+                query={query}
+                recent={recent}
+              />
+            </View>,
+          ] : (
+            <HomeSheetContent categoryFilter={categoryFilter} onCategoryChange={setCategoryFilter} onOpenPlace={openPlace} />
+          )}
+        </BottomSheetScrollView>
+      </BottomSheet>
+
+      {toast ? (
+        <View accessibilityLiveRegion="polite" pointerEvents="none" style={[styles.toast, elevation.md, { top: insets.top + 8 }]}>
+          <Text style={styles.toastText}>{toast}</Text>
+        </View>
+      ) : null}
+
+      <CitySheet onClose={() => setCitySheetOpen(false)} visible={citySheetOpen} />
+      <SignInGate feature={gate} onClose={() => setGate(null)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   avatar: {
+    alignItems: 'center',
     borderColor: colors.white,
+    borderRadius: 26,
     borderWidth: 2,
-    overflow: 'hidden',
-    position: 'absolute',
-    shadowColor: colors.ink,
-    shadowOffset: { height: 3, width: 0 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-  },
-  canvas: {
-    overflow: 'hidden',
-    position: 'absolute',
-    top: 0,
-  },
-  gps: {
-    alignItems: 'center',
-    backgroundColor: colors.white,
+    height: 52,
     justifyContent: 'center',
-    position: 'absolute',
-    shadowColor: colors.ink,
-    shadowOffset: { height: 4, width: 0 },
-    shadowOpacity: 0.14,
-    shadowRadius: 12,
+    overflow: 'hidden',
+    width: 52,
   },
-  location: {
+  avatarText: { color: colors.deepOcean, fontFamily: fonts.bold, fontSize: 20 },
+  controls: { alignItems: 'flex-end', flexDirection: 'row', gap: 12, justifyContent: 'space-between' },
+  credit: {
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    borderRadius: 8,
+    flexShrink: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  creditText: { color: colors.ink, fontFamily: fonts.medium, fontSize: 11, lineHeight: 15 },
+  floating: { height: 0, left: 0, position: 'absolute', right: 0, top: 0 },
+  floatingInner: { bottom: 12, gap: 12, left: GUTTER, position: 'absolute', right: GUTTER - 4 },
+  gutter: { backgroundColor: colors.white, paddingHorizontal: GUTTER },
+  handle: { backgroundColor: '#C9C9C9', height: 4, width: 68 },
+  header: { gap: 10, left: 0, paddingHorizontal: GUTTER - 4, position: 'absolute', right: 0, top: 0 },
+  offlineHint: {
     alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderRadius: 14,
     flexDirection: 'row',
-    position: 'absolute',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  locationText: {
-    color: colors.ink,
-  },
-  map: {
-    left: 0,
-    position: 'absolute',
-    top: 0,
-  },
-  marker: {
-    backgroundColor: colors.skyWash,
-    borderColor: colors.white,
-    overflow: 'hidden',
-    position: 'absolute',
-    shadowColor: colors.ink,
-    shadowOffset: { height: 4, width: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 7,
-  },
-  markerLabel: {
-    alignItems: 'center',
-    backgroundColor: colors.deepOcean,
-    justifyContent: 'center',
-    position: 'absolute',
-    shadowColor: colors.audioTeal,
-    shadowOffset: { height: 2, width: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-  },
-  markerLabelText: {
-    color: colors.white,
-  },
-  screen: {
-    backgroundColor: colors.white,
-    flex: 1,
-    overflow: 'hidden',
-  },
-  search: {
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderColor: '#A9D6DE',
-    borderWidth: 1,
-    flexDirection: 'row',
-    position: 'absolute',
-    shadowColor: colors.ink,
-    shadowOffset: { height: 2, width: 0 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-  },
-  searchAudio: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'absolute',
-  },
-  searchPlaceholder: {
-    color: colors.textMuted,
-    paddingRight: 54,
-  },
+  offlineText: { color: colors.ink, flexShrink: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
+  scrim: { left: 0, position: 'absolute', right: 0, top: 0 },
+  screen: { backgroundColor: colors.skyWash, flex: 1 },
   sheet: {
-    backgroundColor: colors.white,
-    left: 0,
-    position: 'absolute',
     shadowColor: colors.ink,
     shadowOffset: { height: -4, width: 0 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.08,
     shadowRadius: 14,
   },
-  sheetHandle: {
+  sheetBackground: { backgroundColor: colors.white, borderTopLeftRadius: 40, borderTopRightRadius: 40 },
+  toast: {
     alignSelf: 'center',
-    backgroundColor: '#C9C9C9',
+    backgroundColor: colors.deepOcean,
+    borderRadius: 16,
+    left: GUTTER,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     position: 'absolute',
+    right: GUTTER,
   },
-  wordmark: {
-    position: 'absolute',
-  },
+  toastText: { color: colors.white, fontFamily: fonts.medium, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  topRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingLeft: 4 },
 });

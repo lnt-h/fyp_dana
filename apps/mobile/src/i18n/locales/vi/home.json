@@ -1,8 +1,40 @@
 {
-  "location": "{{city}}, {{country}}",
   "profile": "Hồ sơ",
-  "searchLabel": "Tìm địa điểm, câu chuyện và hoạt động",
-  "searchPlaceholder": "Địa điểm, câu chuyện, hoạt động...",
-  "sampleMarker": "Bảo tàng Chăm",
-  "gps": "Đưa bản đồ về vị trí của tôi"
+  "city": {
+    "button": "{{city}}, {{country}}",
+    "buttonLabel": "Thành phố hiện tại: {{city}}. Đổi thành phố",
+    "title": "Chọn thành phố",
+    "subtitle": "Gonarra hỗ trợ 5 thành phố. Mỗi chuyến đi ở một thành phố.",
+    "loadError": "Không tải được danh sách thành phố.",
+    "retry": "Thử lại",
+    "close": "Đóng"
+  },
+  "map": {
+    "label": "Bản đồ {{city}}",
+    "gps": "Đưa bản đồ về vị trí của tôi",
+    "photoCredit": "Ảnh: {{credit}}",
+    "photoCredits": "Ảnh địa điểm có ghi nguồn trên từng thẻ",
+    "visitMinutes": "{{count}} phút",
+    "openPlace": "Mở thẻ địa điểm {{name}}",
+    "locationDenied": "Chưa có quyền vị trí. Bản đồ vẫn dùng bình thường.",
+    "locationFailed": "Chưa lấy được vị trí lúc này. Thử lại sau nhé."
+  },
+  "search": {
+    "pillLabel": "Tìm địa điểm ở {{city}}",
+    "placeholder": "Tìm địa điểm ở {{city}}",
+    "offlineHint": "Bạn đang ngoại tuyến. Tìm kiếm cần có kết nối.",
+    "voice": "Hỏi bằng giọng nói",
+    "clear": "Xoá nội dung tìm",
+    "cancel": "Huỷ",
+    "recent": "Tìm gần đây",
+    "topics": "Tìm theo chủ đề",
+    "searching": "Đang tìm…",
+    "resultCount": "Kết quả ở {{city}}: {{count}}",
+    "emptyTitle": "Không tìm thấy “{{q}}” ở {{city}}",
+    "emptyTopicTitle": "Chưa có địa điểm thuộc chủ đề này ở {{city}}",
+    "emptyBody": "Gonarra chỉ hiển thị địa điểm đã kiểm duyệt của thành phố đang chọn. Thử tên tiếng Việt, tên tiếng Anh, hoặc đổi thành phố.",
+    "changeCity": "Đổi thành phố",
+    "error": "Không tìm được lúc này.",
+    "retry": "Thử lại"
+  }
 }

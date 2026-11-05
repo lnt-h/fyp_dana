@@ -1,0 +1,47 @@
+import type { Region } from 'react-native-maps';
+
+import type { CityCode, GeoPoint } from '../../../lib/api/types';
+
+/**
+ * Fallback map centres (UI constants only, never sent anywhere or used as place data). Used while places load or when
+ * a city has no published places yet; otherwise the centre is the mean of the city's place coordinates.
+ */
+const FALLBACK_CENTERS: Record<CityCode, GeoPoint & { delta: number }> = {
+  'da-nang': { delta: 0.12, latitude: 16.0544, longitude: 108.2022 },
+  'ha-noi': { delta: 0.1, latitude: 21.0285, longitude: 105.8542 },
+  'ho-chi-minh-city': { delta: 0.12, latitude: 10.7769, longitude: 106.7009 },
+  'hoi-an': { delta: 0.06, latitude: 15.8801, longitude: 108.338 },
+  hue: { delta: 0.1, latitude: 16.4637, longitude: 107.5909 },
+};
+
+/**
+ * Vertical position (fraction of screen height from the top) where the focus point should appear: midway between the
+ * header over the map and the half-open sheet, so markers are not hidden under either.
+ */
+const FOCUS_FRACTION = 0.36;
+
+/** `aspect` = map width / height. Shifts a centre south so `point` shows at FOCUS_FRACTION instead of the middle of the map. */
+export function framedRegion(point: GeoPoint, delta: number, aspect: number): Region {
+  return {
+    latitude: point.latitude - (0.5 - FOCUS_FRACTION) * delta,
+    latitudeDelta: delta,
+    longitude: point.longitude,
+    longitudeDelta: delta * aspect,
+  };
+}
+
+/** Region showing all points (mean centre, padded span) or the city fallback when there are none. */
+export function cityRegion(code: CityCode | undefined, points: GeoPoint[], aspect: number): Region {
+  if (points.length === 0) {
+    const fallback = FALLBACK_CENTERS[code ?? 'hoi-an'];
+    return framedRegion(fallback, fallback.delta, aspect);
+  }
+  const mean = {
+    latitude: points.reduce((sum, p) => sum + p.latitude, 0) / points.length,
+    longitude: points.reduce((sum, p) => sum + p.longitude, 0) / points.length,
+  };
+  const lats = points.map(p => p.latitude);
+  const lngs = points.map(p => p.longitude);
+  const span = Math.max(Math.max(...lats) - Math.min(...lats), (Math.max(...lngs) - Math.min(...lngs)) / aspect);
+  return framedRegion(mean, Math.max(span * 3, 0.015), aspect);
+}
