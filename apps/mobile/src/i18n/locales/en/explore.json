@@ -1,0 +1,58 @@
+{
+  "title": "Explore",
+  "subtitle": "Reviewed places in {{city}}",
+  "city": {
+    "label": "City: {{city}}. Change city",
+    "loading": "Loading cities…"
+  },
+  "search": {
+    "placeholder": "Search places in {{city}}",
+    "label": "Search places in {{city}}",
+    "clear": "Clear search",
+    "guest": "Sign in to search places",
+    "offline": "Search is paused while you are offline"
+  },
+  "view": {
+    "label": "Layout",
+    "grid": "Grid view",
+    "list": "List view"
+  },
+  "categories": {
+    "label": "Categories",
+    "all": "All"
+  },
+  "featured": {
+    "title": "Featured in {{city}}",
+    "subtitle": "Reviewed picks to start with"
+  },
+  "all": {
+    "title": "All places",
+    "count_one": "{{count}} reviewed place",
+    "count_other": "{{count}} reviewed places"
+  },
+  "results": {
+    "searching": "Searching…",
+    "count_one": "{{count}} result in {{city}}",
+    "count_other": "{{count}} results in {{city}}"
+  },
+  "minutes": "{{count}} min",
+  "openHint": "Opens the place card",
+  "states": {
+    "loading": "Loading places",
+    "emptyQueryTitle": "No match for “{{q}}” in {{city}}",
+    "emptyQueryBody": "Gonarra only shows reviewed places in the selected city. Try the Vietnamese or English name, or change city.",
+    "emptyCategoryTitle": "No {{category}} places in {{city}} yet",
+    "emptyCategoryBody": "Try another category, or see every place in the city.",
+    "comingTitle": "Places in {{city}} are on the way…",
+    "comingBody": "Our curators are still reviewing places in {{city}}. Try another city in the meantime.",
+    "showAll": "Show all places",
+    "clearSearch": "Clear search",
+    "changeCity": "Change city",
+    "error": "Could not load places right now.",
+    "searchError": "Search is unavailable right now.",
+    "cityError": "Could not load cities.",
+    "retry": "Try again",
+    "offline": "You are offline. Search is paused and you are seeing the last places loaded.",
+    "offlineEmpty": "You are offline. Connect to load places."
+  }
+}

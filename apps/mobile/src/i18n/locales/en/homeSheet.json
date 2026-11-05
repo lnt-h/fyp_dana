@@ -1,0 +1,58 @@
+{
+  "offline": "You are offline. Search and planning need a connection. Saved trips still open.",
+  "greeting": {
+    "morning": "Good morning, {{name}} 👋",
+    "afternoon": "Good afternoon, {{name}} 👋",
+    "evening": "Good evening, {{name}} 👋",
+    "guest": "Hello there 👋",
+    "subtitle": "Ready to explore {{city}} today?",
+    "subtitleNoCity": "Where shall we go today?"
+  },
+  "plan": {
+    "kicker": "Trip planning assistant",
+    "title": "Plan 1–3 days in {{city}}",
+    "subtitle": "Built only from reviewed places",
+    "action": "Start",
+    "offlineHint": "Planning needs a connection",
+    "a11yHint": "Opens the trip planner"
+  },
+  "today": {
+    "kicker": "Today · Day {{day}}",
+    "next": "Next · {{time}}",
+    "done": "You're done for today",
+    "doneBody": "You've visited every stop planned for today. Time to rest!",
+    "directions": "Directions",
+    "viewPlan": "View itinerary",
+    "loading": "Loading today's itinerary",
+    "error": "Could not load today's itinerary.",
+    "retry": "Try again",
+    "directionsError": "Could not open a maps app."
+  },
+  "categories": {
+    "all": "All",
+    "label": "Filter by category"
+  },
+  "trips": {
+    "title": "Your trips",
+    "seeAll": "See all",
+    "card_one": "{{count}} day in {{city}}",
+    "card_other": "{{count}} days in {{city}}",
+    "loading": "Loading saved trips",
+    "error": "Could not load trips.",
+    "retry": "Try again",
+    "openError": "Could not open the trip. Please try again.",
+    "guest": "Sign in to see saved trips",
+    "guestHint": "Opens sign-in"
+  },
+  "explore": {
+    "title": "Explore {{city}}",
+    "titleNoCity": "Explore",
+    "minutes": "{{count}} min",
+    "loading": "Loading places",
+    "emptyTitle": "Places for {{city}} are on the way",
+    "emptyBody": "Our team is reviewing more places. Check back soon!",
+    "emptyFilter": "No places in this category yet.",
+    "error": "Could not load places.",
+    "retry": "Try again"
+  }
+}

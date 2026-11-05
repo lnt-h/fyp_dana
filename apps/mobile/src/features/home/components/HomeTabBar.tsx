@@ -1,18 +1,33 @@
 import { memo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useAuth } from '@clerk/expo';
+import type { BottomTabBarProps } from 'expo-router/js-tabs';
+import { useTranslation } from 'react-i18next';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { SignInGate, type GateFeature } from '../../auth/SignInGate';
 import { colors } from '../../../theme/colors';
 
-const tabs = ['home', 'explore', 'guide', 'trips'] as const;
-type Tab = (typeof tabs)[number];
+export const tabs = ['home', 'explore', 'guide', 'trips'] as const;
+export type Tab = (typeof tabs)[number];
 
-const tabLabels: Record<Tab, string> = {
-  explore: 'Explore',
-  guide: 'AI guide',
-  home: 'Home',
-  trips: 'Trips',
-};
+/** Tabs that are private features: guests see the sign-in gate instead (S-3, SCR-040). */
+const gatedTabs: Partial<Record<Tab, GateFeature>> = { guide: 'guide', trips: 'trips' };
+
+const isTab = (name: string): name is Tab => (tabs as readonly string[]).includes(name);
+
+/** Same 440 × 956 design frame as Home; the bar sits at y 842, 80 pt tall. */
+const designFrame = { height: 956, width: 440 } as const;
+function useDesignScale() {
+  const { height, width } = useWindowDimensions();
+  return { height, scale: Math.min(width / designFrame.width, height / designFrame.height) };
+}
+
+/** Bottom padding a tab screen needs so the floating bar never covers its content. */
+export function useTabBarClearance() {
+  const { height, scale } = useDesignScale();
+  return height - 842 * scale + 16;
+}
 
 type IconProps = {
   active: boolean;
@@ -92,16 +107,25 @@ function TabIcon({ active, tab }: IconProps) {
   );
 }
 
-type Props = {
-  scale: number;
-};
+export const HomeTabBar = memo(function HomeTabBar({ emitter, navigateToTab, state }: BottomTabBarProps) {
+  const { t } = useTranslation();
+  const { isSignedIn } = useAuth();
+  const { scale } = useDesignScale();
+  const [gate, setGate] = useState<GateFeature | null>(null);
+  const activeName = state.routes[state.index]?.name;
 
-export const HomeTabBar = memo(function HomeTabBar({ scale }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>('home');
+  function press(routeKey: string, tab: Tab, active: boolean) {
+    const gated = gatedTabs[tab];
+    if (gated && !isSignedIn) { setGate(gated); return; }
+    const event = emitter.emit({ canPreventDefault: true, target: routeKey, type: 'tabPress' });
+    if (!active && !event.defaultPrevented) navigateToTab(routeKey);
+  }
 
   return (
+    <View pointerEvents="box-none" style={[styles.float, { top: 842 * scale }]}>
     <View
-      accessibilityLabel="Primary navigation"
+      accessibilityLabel={t('tabs.navigation')}
+      accessibilityRole="tablist"
       style={[
         styles.container,
         {
@@ -113,17 +137,19 @@ export const HomeTabBar = memo(function HomeTabBar({ scale }: Props) {
         },
       ]}
     >
-      {tabs.map((tab) => {
-        const active = activeTab === tab;
+      {state.routes.map((route) => {
+        if (!isTab(route.name)) return null;
+        const tab = route.name;
+        const active = activeName === tab;
 
         return (
           <Pressable
-            accessibilityLabel={tabLabels[tab]}
+            accessibilityLabel={t(`tabs.${tab}`)}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
             hitSlop={4}
-            key={tab}
-            onPress={() => setActiveTab(tab)}
+            key={route.key}
+            onPress={() => press(route.key, tab, active)}
             style={({ pressed }) => [
               styles.tab,
               {
@@ -140,10 +166,18 @@ export const HomeTabBar = memo(function HomeTabBar({ scale }: Props) {
         );
       })}
     </View>
+    <SignInGate feature={gate} onClose={() => setGate(null)} />
+    </View>
   );
 });
 
 const styles = StyleSheet.create({
+  float: {
+    alignItems: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
   container: {
     alignItems: 'center',
     backgroundColor: 'rgba(211,220,225,0.88)',

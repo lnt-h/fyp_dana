@@ -1,0 +1,80 @@
+{
+  "title": "Chuyến đi",
+  "subtitle_one": "{{count}} chuyến đi đã lên kế hoạch",
+  "subtitle_other": "{{count}} chuyến đi đã lên kế hoạch",
+  "subtitleEmpty": "Chuyến đi đã lưu và bản nháp của bạn nằm ở đây",
+  "newTrip": "Chuyến đi mới",
+  "sections": {
+    "upcoming": "Sắp tới",
+    "past": "Đã qua",
+    "count_one": "{{count}} chuyến đi",
+    "count_other": "{{count}} chuyến đi"
+  },
+  "card": {
+    "days_one": "{{count}} ngày",
+    "days_other": "{{count}} ngày",
+    "title_one": "{{count}} ngày ở {{city}}",
+    "title_other": "{{count}} ngày ở {{city}}",
+    "saved": "Đã lưu",
+    "draft": "Bản nháp",
+    "today": "Hôm nay",
+    "view": "Xem",
+    "opening": "Đang mở…",
+    "label": "{{title}}, {{dates}}, {{status}}",
+    "hint": "Mở chuyến đi",
+    "more": "Tuỳ chọn khác cho {{title}}",
+    "moreHint": "Nhấn giữ một chuyến đi để xoá"
+  },
+  "delete": {
+    "title": "Xoá chuyến đi {{name}}?",
+    "body": "Không thể hoàn tác.",
+    "confirm": "Xoá",
+    "keep": "Giữ lại",
+    "done": "Đã xoá chuyến đi"
+  },
+  "empty": {
+    "title": "Chưa có chuyến đi nào",
+    "body": "Lên kế hoạch 1–3 ngày ở một trong 5 thành phố.",
+    "action": "Lên kế hoạch chuyến đi"
+  },
+  "error": {
+    "load": "Không tải được chuyến đi. Thử lại",
+    "retry": "Thử lại",
+    "open": "Không mở được chuyến đi. Thử lại",
+    "notFound": "Chuyến đi này không còn nữa"
+  },
+  "guest": {
+    "title": "Đăng nhập để xem chuyến đi đã lưu",
+    "body": "Chuyến đi đã lưu và bản nháp được giữ trong tài khoản của bạn.",
+    "action": "Đăng nhập"
+  },
+  "loading": "Đang tải chuyến đi",
+  "date": {
+    "day": "{{weekday}} {{dd}}/{{month}}",
+    "dayYear": "{{weekday}} {{dd}}/{{month}}/{{year}}",
+    "range": "{{start}} – {{end}}"
+  },
+  "weekday": {
+    "sun": "CN",
+    "mon": "T2",
+    "tue": "T3",
+    "wed": "T4",
+    "thu": "T5",
+    "fri": "T6",
+    "sat": "T7"
+  },
+  "month": {
+    "jan": "01",
+    "feb": "02",
+    "mar": "03",
+    "apr": "04",
+    "may": "05",
+    "jun": "06",
+    "jul": "07",
+    "aug": "08",
+    "sep": "09",
+    "oct": "10",
+    "nov": "11",
+    "dec": "12"
+  }
+}

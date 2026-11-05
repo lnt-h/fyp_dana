@@ -1,0 +1,69 @@
+{
+  "loading": "Loading place card…",
+  "notFoundTitle": "This place is no longer available",
+  "notFoundBody": "It may have been removed from Gonarra's reviewed places.",
+  "errorTitle": "Something went wrong. Try again.",
+  "retry": "Try again",
+  "noPhoto": "No photo of {{name}} yet",
+  "photoBy": "Photo: {{text}}",
+  "visitAbout": "about {{count}} min",
+  "driver": {
+    "cap": "Show your driver",
+    "addressUnknown": "Address unknown",
+    "a11y": "Show your driver: {{name}}, {{address}}"
+  },
+  "facts": {
+    "title": "Practical details",
+    "OPENING_HOURS": "Opening hours",
+    "ADMISSION_PRICE": "Admission",
+    "ADDRESS_VI": "Address",
+    "ENTRANCE_LOCATION": "Entrance",
+    "PAYMENT_METHODS": "Payment",
+    "DRESS_CODE": "Dress code",
+    "ACCESS_RULES": "Access rules",
+    "other": "Other detail"
+  },
+  "unknown": "unknown",
+  "notApplicable": "not applicable",
+  "stale": "May be out of date",
+  "source": {
+    "verified": "verified {{date}}",
+    "none": "No reviewed source yet",
+    "expandHint": "Shows the source details",
+    "collapseHint": "Hides the source details",
+    "titleLabel": "Title",
+    "sectionLabel": "Section",
+    "locatorLabel": "Where",
+    "openPlace": "Open the place card",
+    "verifiedLong": "Verified {{date}}"
+  },
+  "sections": {
+    "OVERVIEW": "Overview",
+    "HISTORY": "History",
+    "HIGHLIGHTS": "Highlights",
+    "VISIT_TIPS": "Visit tips",
+    "ETIQUETTE": "Etiquette",
+    "ACCESS": "Access",
+    "FACT": "Practical detail"
+  },
+  "description": {
+    "title": "About",
+    "note": "Description written by Gonarra"
+  },
+  "media": {
+    "title": "Photos"
+  },
+  "attributions": {
+    "title": "Sources and credits"
+  },
+  "directions": "Directions",
+  "directionsHint": "Opens your maps app",
+  "directionsFailed": "Could not open a maps app",
+  "askGuide": "Ask Guide",
+  "quick": {
+    "hours": "Opening hours",
+    "visit": "Visit",
+    "price": "Admission"
+  },
+  "share": "Share this place"
+}

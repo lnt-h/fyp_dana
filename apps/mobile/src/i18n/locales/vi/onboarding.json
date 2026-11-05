@@ -1,0 +1,19 @@
+{
+  "slides": {
+    "discover": "Khám phá chuyện\nđịa phương, mọi lúc,\nở mọi điểm dừng!",
+    "plan": "Ghim nơi bạn thích,\nlên lịch trình, để thành phố\nkhiến bạn bất ngờ!",
+    "personalized": "Đi theo nhịp riêng\nvới gợi ý AI\ndành cho bạn!"
+  },
+  "skip": "Bỏ qua",
+  "skipLabel": "Bỏ qua phần giới thiệu",
+  "skipHint": "Bỏ qua phần giới thiệu ứng dụng",
+  "page": "Trang giới thiệu {{current}} trên {{total}}",
+  "backLabel": "Bước giới thiệu trước",
+  "backHint": "Quay lại bước giới thiệu trước",
+  "next": "Tiếp",
+  "nextLabel": "Bước giới thiệu tiếp theo",
+  "nextHint": "Sang bước giới thiệu tiếp theo",
+  "start": "Bắt đầu hành trình",
+  "startLabel": "Bắt đầu hành trình",
+  "startHint": "Hoàn tất giới thiệu và bắt đầu hành trình của bạn"
+}

@@ -1,0 +1,58 @@
+{
+  "offline": "Bạn đang ngoại tuyến. Tìm kiếm và lập kế hoạch cần kết nối. Chuyến đã lưu vẫn mở được.",
+  "greeting": {
+    "morning": "Chào buổi sáng, {{name}} 👋",
+    "afternoon": "Chào buổi chiều, {{name}} 👋",
+    "evening": "Chào buổi tối, {{name}} 👋",
+    "guest": "Chào bạn 👋",
+    "subtitle": "Hôm nay khám phá {{city}} nhé?",
+    "subtitleNoCity": "Hôm nay mình đi đâu nhé?"
+  },
+  "plan": {
+    "kicker": "Trợ lý lên lịch trình",
+    "title": "Lên kế hoạch 1–3 ngày ở {{city}}",
+    "subtitle": "Chỉ dùng địa điểm đã kiểm duyệt",
+    "action": "Bắt đầu",
+    "offlineHint": "Cần kết nối mạng để lập kế hoạch",
+    "a11yHint": "Mở màn lập kế hoạch chuyến đi"
+  },
+  "today": {
+    "kicker": "Hôm nay · Ngày {{day}}",
+    "next": "Tiếp theo · {{time}}",
+    "done": "Đã xong lịch hôm nay",
+    "doneBody": "Bạn đã đi hết các điểm dừng của hôm nay. Nghỉ ngơi nhé!",
+    "directions": "Chỉ đường",
+    "viewPlan": "Xem lịch trình",
+    "loading": "Đang tải lịch trình hôm nay",
+    "error": "Không tải được lịch trình hôm nay.",
+    "retry": "Thử lại",
+    "directionsError": "Không mở được ứng dụng bản đồ."
+  },
+  "categories": {
+    "all": "Tất cả",
+    "label": "Lọc theo danh mục"
+  },
+  "trips": {
+    "title": "Chuyến đi của bạn",
+    "seeAll": "Xem tất cả",
+    "card_one": "{{count}} ngày ở {{city}}",
+    "card_other": "{{count}} ngày ở {{city}}",
+    "loading": "Đang tải chuyến đi đã lưu",
+    "error": "Không tải được chuyến đi.",
+    "retry": "Thử lại",
+    "openError": "Không mở được chuyến đi. Thử lại sau nhé.",
+    "guest": "Đăng nhập để xem chuyến đi đã lưu",
+    "guestHint": "Mở màn đăng nhập"
+  },
+  "explore": {
+    "title": "Khám phá {{city}}",
+    "titleNoCity": "Khám phá",
+    "minutes": "{{count}} phút",
+    "loading": "Đang tải địa điểm",
+    "emptyTitle": "Đang cập nhật địa điểm cho {{city}}",
+    "emptyBody": "Đội ngũ đang kiểm duyệt thêm địa điểm. Quay lại sau nhé!",
+    "emptyFilter": "Chưa có địa điểm nào trong danh mục này.",
+    "error": "Không tải được địa điểm.",
+    "retry": "Thử lại"
+  }
+}

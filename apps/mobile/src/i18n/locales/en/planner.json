@@ -1,0 +1,180 @@
+{
+  "title": "New trip",
+  "home": {
+    "title": "Plan 1–3 days in {{city}}",
+    "subtitle": "Built only from reviewed places",
+    "action": "Plan a trip"
+  },
+  "intro": {
+    "label": "Gonarra assistant",
+    "body": "Tell me a few details and I'll suggest a 1–3 day plan using reviewed places only."
+  },
+  "mode": {
+    "label": "How do you want to describe your trip?",
+    "form": "Form",
+    "describe": "Describe in words"
+  },
+  "prefilled": "Prefilled from your saved preferences",
+  "city": {
+    "label": "Where to?",
+    "photoCredit": "Photo: {{credit}}"
+  },
+  "date": {
+    "label": "Start date",
+    "placeholder": "Choose a date",
+    "pickerTitle": "Choose the start date",
+    "done": "Done"
+  },
+  "days": {
+    "label": "How many days?",
+    "option_one": "{{count}} day",
+    "option_other": "{{count}} days"
+  },
+  "hours": {
+    "label": "Daily hours",
+    "start": "Day starts at",
+    "end": "Day ends at",
+    "pickerStart": "Choose the start time",
+    "pickerEnd": "Choose the end time"
+  },
+  "pace": {
+    "label": "Pace",
+    "RELAXED": "Relaxed",
+    "BALANCED": "Balanced",
+    "PACKED": "Packed"
+  },
+  "interests": {
+    "label": "Interests",
+    "hint": "Choose any that fit.",
+    "loading": "Loading interests…"
+  },
+  "modes": {
+    "label": "Getting around",
+    "WALK": "Walk",
+    "DRIVE": "Drive"
+  },
+  "mustSee": {
+    "label": "Must-see places (optional)",
+    "add": "Add a place in {{city}}",
+    "remove": "Remove {{name}}",
+    "count": "{{count}} of 10 chosen",
+    "max": "You can add up to 10 places.",
+    "title": "Places in {{city}}",
+    "searchLabel": "Search places",
+    "searchPlaceholder": "Search by name",
+    "loading": "Loading places…",
+    "empty": "No published places match.",
+    "close": "Close",
+    "added": "Added"
+  },
+  "describe": {
+    "prompt": "What kind of trip do you want?",
+    "label": "Your trip",
+    "placeholder": "\"3 slow days in Hanoi, street food\"",
+    "hint": "Include the city, start date and number of days. You can switch to Form at any time.",
+    "counter": "{{count}} / 500"
+  },
+  "notice": {
+    "title": "What is sent to AI?",
+    "body": "Your request text goes to an external AI service (Google Gemini). Your account, contact details and precise location do not.",
+    "learnMore": "Learn more"
+  },
+  "submit": {
+    "create": "Create proposal",
+    "continue": "Continue",
+    "creating": "Creating…"
+  },
+  "validation": {
+    "startDate": "Choose a start date.",
+    "startPast": "The start date must be today or later.",
+    "days": "Choose 1, 2 or 3 days.",
+    "hours": "The end time must be after the start time.",
+    "modes": "Choose at least one way to get around.",
+    "text": "Describe your trip or use the form.",
+    "summary": "Check the highlighted fields."
+  },
+  "clarify": {
+    "question": {
+      "start_date": "Which day does your trip start?",
+      "city": "Which city are you visiting?",
+      "day_count": "How many days is your trip?"
+    },
+    "understood": "Understood: {{summary}}",
+    "disabledReason": "Answer the question above to continue.",
+    "edit": "Edit request"
+  },
+  "unsupported": {
+    "body": "This request is not supported yet. A trip is 1–3 days in one city: Hà Nội, TP.HCM, Đà Nẵng, Hội An or Huế.",
+    "pickCity": "Pick a city to continue",
+    "edit": "Edit request"
+  },
+  "weekday": {
+    "0": "Sun",
+    "1": "Mon",
+    "2": "Tue",
+    "3": "Wed",
+    "4": "Thu",
+    "5": "Fri",
+    "6": "Sat"
+  },
+  "progress": {
+    "title": "Creating your {{city}} proposal",
+    "titleFallback": "Creating your proposal",
+    "step": "Step {{current}} of {{total}}",
+    "stages": {
+      "VALIDATING_REQUEST": "Understanding your request",
+      "SELECTING_PLACES": "Choosing reviewed places",
+      "ROUTING": "Measuring travel times",
+      "SCHEDULING": "Ordering stops and times",
+      "CHECKING_HEALTH": "Checking opening hours"
+    },
+    "state": {
+      "done": "{{label}}, done",
+      "current": "{{label}}, in progress",
+      "pending": "{{label}}, not started"
+    },
+    "reassurance": "Usually under a minute. You can leave this screen; the proposal will wait for you.",
+    "slow": "Taking longer than usual…",
+    "cancel": "Cancel",
+    "missing": "This request is no longer available. Start a new trip.",
+    "newTrip": "New trip",
+    "clarifyTitle": "A little more detail needed",
+    "clarifyAction": "Answer and continue",
+    "heading": "Planning your trip…",
+    "subtitle_one": "{{count}} day in {{city}}",
+    "subtitle_other": "{{count}} days in {{city}}",
+    "status": {
+      "VALIDATING_REQUEST_0": "Reading your request…",
+      "VALIDATING_REQUEST_1": "Checking the city and trip length…",
+      "SELECTING_PLACES_0": "Sorting through reviewed places…",
+      "SELECTING_PLACES_1": "Picking spots that match your interests…",
+      "ROUTING_0": "Measuring the distance between stops…",
+      "ROUTING_1": "Working out real travel times…",
+      "SCHEDULING_0": "Fitting stops into each day…",
+      "SCHEDULING_1": "Setting a time for every stop…",
+      "CHECKING_HEALTH_0": "Cross-checking opening hours…",
+      "CHECKING_HEALTH_1": "Making sure the days are not too packed…"
+    }
+  },
+  "errors": {
+    "title": "Could not create a proposal.",
+    "kept": "Your request is kept.",
+    "code": "Code: {{code}}",
+    "retry": "Try again",
+    "edit": "Edit request",
+    "home": "Back to home",
+    "codes": {
+      "ai_unavailable": "The AI service is busy. Your saved trip is unchanged.",
+      "route_unavailable": "Could not recalculate travel times.",
+      "quota_exceeded": "You have used today's limit. Try again later.",
+      "validation_failed": "Check the highlighted fields.",
+      "unsupported_request": "This request is not supported yet.",
+      "not_found": "This item was not found.",
+      "preview_expired": "This draft expired.",
+      "preview_closed": "This draft is closed.",
+      "database_unavailable": "The service is briefly unavailable. Try again.",
+      "network": "No connection. Try again.",
+      "internal_error": "Something went wrong. Try again."
+    }
+  }
+}

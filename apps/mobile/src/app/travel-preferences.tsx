@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { Text } from 'react-native';
+import { Pressable, Text } from 'react-native';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { PrimaryButton } from '../components/ui';
 import { useAccount } from '../features/account/AccountContext';
 import { AccountShell, a } from '../features/account/AccountUI';
 import { TravelPreferences } from '../features/account/TravelPreferences';
 import { authErrorMessage } from '../features/auth/authErrors';
-import { Action, TextLink } from '../features/auth/components/AuthUI';
 
 export default function TravelPreferencesScreen() {
+  const { t } = useTranslation();
   const { profile, updateProfile } = useAccount();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -21,11 +23,12 @@ export default function TravelPreferencesScreen() {
     catch (error) { setNotice(authErrorMessage(error)); }
     finally { setBusy(false); }
   }
-  return <AccountShell title="Travel preferences">
-    <Text style={[a.body, { marginBottom: 20 }]}>There’s no one way to explore. Find yours.</Text>
+  return <AccountShell title={t('account.preferences.title')} lead={t('account.preferences.intro')}>
     <TravelPreferences selected={selected} onSelect={setSelected} travelType={travelType} onTravelType={setTravelType} />
-    {!!notice && <Text accessibilityLiveRegion="polite" style={a.body}>{notice}</Text>}
-    <Action title={busy ? "Saving…" : "Save preferences"} disabled={busy} onPress={() => void save()} />
-    <TextLink title="Cancel" onPress={close} />
+    {!!notice && <Text accessibilityLiveRegion="polite" style={a.error}>{notice}</Text>}
+    <PrimaryButton label={t('account.preferences.save')} loading={busy} onPress={() => void save()} style={{ marginTop: 8 }} />
+    <Pressable accessibilityRole="button" onPress={close} style={({ pressed }) => [a.textButton, pressed && a.pressed]}>
+      <Text style={a.textButtonLabel}>{t('common.cancel')}</Text>
+    </Pressable>
   </AccountShell>;
 }

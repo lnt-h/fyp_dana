@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Platform, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Svg, {
   Circle,
   Defs,
@@ -45,6 +46,7 @@ export function SplashLogo() {
 }
 
 export function LoadingDots() {
+  const { t } = useTranslation();
   const progress = useRef(
     Array.from({ length: loadingAnimation.dotCount }, () => new Animated.Value(0)),
   ).current;
@@ -89,7 +91,7 @@ export function LoadingDots() {
 
   return (
     <View
-      accessibilityLabel="Loading Gonarra"
+      accessibilityLabel={t('common.loadingApp')}
       accessibilityRole="progressbar"
       style={styles.loadingDots}
     >

@@ -1,0 +1,79 @@
+{
+  "title": "Hướng dẫn AI",
+  "subtitle": "Hỏi đáp có nguồn về từng địa điểm",
+  "picker": {
+    "title": "Hỏi về một địa điểm đã kiểm duyệt",
+    "body": "Chọn một địa điểm rồi đặt câu hỏi. Câu trả lời luôn kèm nguồn. Nếu nguồn không đủ, Gonarra sẽ nói rõ.",
+    "choose": "Chọn địa điểm",
+    "loading": "Đang tải địa điểm…",
+    "error": "Không tải được địa điểm. Thử lại.",
+    "retry": "Thử lại",
+    "empty": "Chưa có địa điểm nào được xuất bản",
+    "a11yPlace": "Mở Hướng dẫn cho {{name}}",
+    "minutes": "{{count}} phút"
+  },
+  "context": {
+    "a11y": "Địa điểm: {{name}}",
+    "hint": "Chọn địa điểm khác",
+    "change": "Đổi địa điểm"
+  },
+  "clear": "Xoá cuộc trò chuyện",
+  "clearConfirmTitle": "Xoá cuộc trò chuyện này?",
+  "clearConfirmBody": "Các tin nhắn trong cuộc trò chuyện này sẽ bị xoá.",
+  "clearConfirm": "Xoá",
+  "session": {
+    "loading": "Đang mở Hướng dẫn…",
+    "error": "Không mở được Hướng dẫn. Thử lại.",
+    "notFound": "Địa điểm này không còn khả dụng"
+  },
+  "empty": {
+    "title": "Bạn muốn biết gì về {{place}}?",
+    "body": "Mỗi câu trả lời đều kèm nguồn đã kiểm duyệt. Nếu nguồn chưa đủ, Gonarra sẽ nói rõ."
+  },
+  "you": "Bạn",
+  "assistant": "Hướng dẫn",
+  "typing": "Hướng dẫn đang trả lời",
+  "stage": {
+    "RETRIEVING": "Đang tìm trong nguồn đã kiểm duyệt…",
+    "ANSWERING": "Đang soạn câu trả lời…"
+  },
+  "addingSources": "Đang thêm nguồn…",
+  "sources": "Nguồn ({{count}})",
+  "aiLabel": "Do AI tạo từ nguồn đã kiểm duyệt của Gonarra",
+  "insufficient": {
+    "title": "Chưa đủ nguồn để trả lời",
+    "body": "Nguồn đã kiểm duyệt của Gonarra không đề cập điều này, nên tôi không đoán. Hãy hỏi tại chỗ hoặc kênh chính thức."
+  },
+  "error": "Không trả lời được lúc này. Câu hỏi của bạn vẫn còn. Thử lại.",
+  "notice": {
+    "title": "Gửi gì tới AI?",
+    "body": "Câu hỏi của bạn được gửi tới dịch vụ AI bên ngoài (Google Gemini). Tài khoản, liên hệ và vị trí chính xác của bạn thì không.",
+    "dismiss": "Đã hiểu"
+  },
+  "composer": {
+    "label": "Câu hỏi của bạn",
+    "placeholder": "Hỏi về {{place}}…",
+    "send": "Gửi",
+    "busy": "Đợi câu trả lời hiện tại",
+    "counter": "{{count}}/{{max}}",
+    "disclaimer": "AI có thể sai. Hãy xem nguồn trước khi đi."
+  },
+  "suggest": {
+    "hours": {
+      "label": "Giờ mở cửa?",
+      "question": "Ở đây mở cửa từ mấy giờ đến mấy giờ?"
+    },
+    "ticket": {
+      "label": "Vé vào cửa?",
+      "question": "Vào đây có cần mua vé không, giá bao nhiêu?"
+    },
+    "history": {
+      "label": "Lịch sử?",
+      "question": "Kể ngắn gọn lịch sử của nơi này."
+    },
+    "entrance": {
+      "label": "Lối vào?",
+      "question": "Lối vào ở đâu?"
+    }
+  }
+}

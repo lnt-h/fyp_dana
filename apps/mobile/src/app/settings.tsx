@@ -1,56 +1,49 @@
 import { useState } from 'react';
-import { Switch, Text, View } from 'react-native';
+import { Switch } from 'react-native';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useAccount } from '../features/account/AccountContext';
-import { AccountRow, AccountShell, a } from '../features/account/AccountUI';
-import { Action, TextLink, palette } from '../features/auth/components/AuthUI';
+import { AccountRow, AccountShell, ExpandableRow, GroupCard, SectionLabel, SessionConfirm } from '../features/account/AccountUI';
+import { colors } from '../theme/colors';
 
+/** SCR-010 Settings: the full list (Profile SCR-009 is the hub with shortcuts). */
 export default function SettingsScreen() {
-  const { reduceMotion, setReduceMotion, clearSession, isSignedIn } = useAccount();
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState('');
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [confirmReset, setConfirmReset] = useState(false);
-  function toggle(key: string) { setExpanded(expanded === key ? null : key); }
-  return <AccountShell title="Settings">
-    <Text style={[a.title, { marginBottom: 8 }]}>Feel at home.</Text>
-    <Text style={[a.body, { marginBottom: 26 }]}>Small adjustments for a better journey.</Text>
-    <Text style={a.section}>ACCESSIBILITY</Text>
-    <View style={a.card}>
-      <AccountRow icon="motion" title="Reduce motion" subtitle="Use simpler screen transitions. Your device’s accessibility preference is also respected."
-        trailing={<Switch accessibilityLabel="Reduce motion" value={reduceMotion} onValueChange={setReduceMotion} trackColor={{ false: '#D7E3EA', true: palette.audioTeal }} />} />
-    </View>
-    <Text style={a.section}>PERSONALIZATION</Text>
-    <View style={a.card}>
-      <AccountRow icon="compass" title="Travel preferences" subtitle="Interests and travel type" onPress={() => router.push('/travel-preferences')} />
-    </View>
-    <Text style={a.section}>PRIVACY & ABOUT</Text>
-    <View style={a.card}>
-      <AccountRow icon="shield" title="Your data" subtitle="How your account details are stored" onPress={() => toggle('data')} />
-      {expanded === 'data' && <Text style={[a.body, { paddingHorizontal: 20, paddingBottom: 20 }]}>Clerk manages account identity and authentication. Signed-in profile details and travel preferences are saved to your account. Guest preferences stay in memory until the app restarts. Account deletion is not available in this app yet.</Text>}
-      <View style={a.divider} />
-      <AccountRow icon="shield" title="Terms & privacy" onPress={() => toggle('legal')} />
-      {expanded === 'legal' && <Text style={[a.body, { paddingHorizontal: 20, paddingBottom: 20 }]}>Terms of Service and Privacy Policy have not been published yet. This development version is for testing only.</Text>}
-      <View style={a.divider} />
-      <AccountRow icon="info" title="About Gonarra" subtitle={`Version ${Constants.expoConfig?.version ?? '1.0.0'}`} onPress={() => toggle('about')} />
-      {expanded === 'about' && <Text style={[a.body, { paddingHorizontal: 20, paddingBottom: 20 }]}>Explore, plan and experience Da Nang. Gonarra brings local stories and travel inspiration together. You’re using a development version.</Text>}
-    </View>
-    <Text style={a.section}>THIS SESSION</Text>
-    <View style={a.card}>
-      <AccountRow icon="exit" title={isSignedIn ? 'Sign out' : 'Reset guest session'} subtitle="End this session on this device" onPress={() => setConfirmReset(true)} />
-      {confirmReset && <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-        <Text style={a.body}>Return to Welcome? Your saved account details will be kept. Guest preferences on this device will be cleared.</Text>
-        {!!notice && <Text accessibilityLiveRegion="polite" style={a.body}>{notice}</Text>}
-        <Action title={busy ? 'Please wait…' : 'Confirm and return to Welcome'} disabled={busy} onPress={async () => {
-          if (busy) return;
-          setBusy(true); setNotice('');
-          try { await clearSession(); router.dismissAll(); router.replace('/welcome'); }
-          catch { setNotice('Could not end the session. Please try again.'); }
-          finally { setBusy(false); }
-        }} />
-        <TextLink title="Keep exploring" onPress={() => setConfirmReset(false)} />
-      </View>}
-    </View>
+  const { t, i18n } = useTranslation();
+  const { reduceMotion, setReduceMotion, isSignedIn } = useAccount();
+  const [confirming, setConfirming] = useState(false);
+  const version = Constants.expoConfig?.version ?? '1.0.0';
+  const languageName = t(`account.common.languageName.${i18n.language === 'vi' ? 'vi' : 'en'}`);
+  return <AccountShell title={t('account.settings.title')} lead={t('account.settings.intro')}>
+    <SectionLabel>{t('account.settings.sectionAccessibility')}</SectionLabel>
+    <GroupCard>
+      <AccountRow icon="motion" title={t('account.common.reduceMotion')} subtitle={t('account.common.reduceMotionSubtitle')}
+        trailing={<Switch accessibilityLabel={t('account.common.reduceMotion')} value={reduceMotion} onValueChange={setReduceMotion} trackColor={{ false: '#D7E3EA', true: colors.audioTeal }} />} />
+    </GroupCard>
+
+    <SectionLabel>{t('account.settings.sectionPersonalization')}</SectionLabel>
+    <GroupCard>
+      <AccountRow icon="sliders" title={t('account.preferences.title')} subtitle={t('account.settings.preferencesSubtitle')} onPress={() => router.push('/travel-preferences')} />
+    </GroupCard>
+
+    <SectionLabel>{t('account.settings.sectionLanguage')}</SectionLabel>
+    <GroupCard>
+      <AccountRow icon="language" title={t('account.settings.appLanguage')} subtitle={languageName} onPress={() => router.push('/language')} />
+    </GroupCard>
+
+    <SectionLabel>{t('account.settings.sectionPrivacy')}</SectionLabel>
+    <GroupCard>
+      <ExpandableRow icon="sparkle" title={t('account.common.aiData')} subtitle={t('account.common.aiDataSubtitle')} body={t('account.common.aiDataBody')} />
+      <ExpandableRow icon="shield" title={t('account.settings.data')} subtitle={t('account.settings.dataSubtitle')} body={t('account.settings.dataBody')} />
+      <ExpandableRow icon="doc" title={t('account.common.legal')} badge={t('account.common.legalDraft')} body={t('account.common.legalBody')} />
+      <ExpandableRow icon="info" title={t('account.common.about')} subtitle={t('account.common.version', { version })} body={t('account.common.aboutBody')} />
+      {isSignedIn && <AccountRow danger icon="trash" title={t('account.profile.deleteAccount')} subtitle={t('account.common.deleteAccountSubtitle')} onPress={() => router.push('/delete-account')} />}
+    </GroupCard>
+
+    <SectionLabel>{t('account.settings.sectionSession')}</SectionLabel>
+    <GroupCard>
+      <AccountRow icon="exit" title={t(isSignedIn ? 'account.profile.signOut' : 'account.profile.resetGuest')} subtitle={t('account.settings.sessionSubtitle')} onPress={() => setConfirming(true)} />
+      {confirming && <SessionConfirm onCancel={() => setConfirming(false)} />}
+    </GroupCard>
   </AccountShell>;
 }

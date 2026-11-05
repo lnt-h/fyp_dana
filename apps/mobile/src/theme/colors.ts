@@ -8,5 +8,9 @@ export const colors = {
   sun: '#F6A623',
   teal: '#28B6B5',
   tealDark: '#0B8EA8',
+  /** Teal for text and links (5.14:1 on white, WCAG AA). Use audioTeal only for fills and strokes. */
+  tealText: '#00788F',
+  /** Muted body text (4.82:1 on white, 4.58:1 on #F5FAFC). */
+  textMuted: '#5E7585',
   white: '#FFFFFF',
 } as const;
