@@ -1152,6 +1152,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: partner
+          in: query
+          required: false
+          description: STAY partner; `agoda` by default. Links are deterministic search URLs; no partner API call.
+          schema:
+            type: string
+            enum: [agoda, booking_com]
         - $ref: '#/components/parameters/Locale'
       responses:
         '200':
@@ -1210,9 +1217,19 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Trip not found, or the feature flag is off (`feature_disabled`, GONARRA_STAY_PRICES_ENABLED).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '429':
           $ref: '#/components/responses/TooManyRequests'
+        '501':
+          description: Flag on but the LiteAPI adapter is not implemented yet (`not_implemented`); Could scope, cut first (DEC-003 rev. 1).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
@@ -1832,8 +1849,9 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     ValidationFailed:
       description: |
-        Body or parameter invalid (`validation_failed`, context.fields), out of scope (`unsupported_request`:
-        > 3 days, several cities, city not launched — FR-023), `place_not_in_city`, `publication_incomplete`
+        Body or parameter invalid (`validation_error`, context.fields), out of scope (`unsupported_request`:
+        > 3 days, several cities, city not launched — FR-023), `place_not_in_city`, `publication_incomplete`,
+        `day_overflow` (manual edit runs past midnight), `web_unverified_acknowledgement_required` (OQ-128)
         (context.missing).
       headers:
         X-Request-ID:
@@ -2946,10 +2964,10 @@ components:
         expected_trip_revision:
           type: integer
           minimum: 0
-        acknowledge_unverified_stops:
+        acknowledge_web_unverified:
           type: boolean
           default: false
-          description: Must be true to save a plan that contains a WEB_UNVERIFIED stop (OQ-128); otherwise 422 `unverified_stops_unacknowledged`.
+          description: Must be true to save a plan that contains a WEB_UNVERIFIED stop (OQ-128); otherwise 422 `web_unverified_acknowledgement_required`.
     PlanningStreamEvent:
       type: object
       description: |
