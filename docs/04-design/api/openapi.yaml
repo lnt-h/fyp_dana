@@ -1,10 +1,15 @@
 openapi: 3.1.0
 info:
   title: Gonarra API
-  version: 0.4.0
+  version: 1.0.0
   summary: Gonarra /v1 contract (REST + SSE) for the traveler app and the curator SPA.
   description: |
-    Document ID GONARRA-API, version 0.4, status Draft. Owner Lê Ngọc Tấn Hiền; approver trantrongminh
+    Document ID GONARRA-API, version 1.0, status Draft (re-baseline DEC-013..021, 2026-11-06: Đà Nẵng only
+    incl. the Hội An area; trust labels `VERIFIED` / `WEB_UNVERIFIED` on Stop, PlaceSummary, PlaceDetail and
+    Citation; web stops with `web_source`; research and writing stages on the planning stream; calendar and
+    web conflict types; `research_used` / `agent_run_id` on PlanPreview; Save acknowledgement for unverified
+    stops (OQ-128); city-level Guide sessions (ADR-010 1.0) with `SEARCHING_WEB` and `ANSWERED_WEB_UNVERIFIED`;
+    curator routes for web candidates, facts, closure rules and chunks). Previously version 0.4, status Draft. Owner Lê Ngọc Tấn Hiền; approver trantrongminh
     (pending). Date 2026-11-05 (0.3: curation `chunks[]` embedded on write, Guide Tier 1 evidence; SRC-100 A-028. 0.4: `City.centre`, curator
     queue and import-run fields, API-033 `import_run_id` filter; SRC-100 A-029). Produced with `design/apiDesign_prompt.md` v2.0 (kit commit `6996dae`, adapted copy
     `docs/00-governance/prompt-templates/design/apiDesign_prompt.md`). Narrative, rules and traceability: `docs/04-design/api/api-contract.md`.
@@ -242,7 +247,7 @@ paths:
         - $ref: '#/components/parameters/Locale'
       responses:
         '200':
-          description: Enabled cities (five at launch; not paginated).
+          description: Enabled cities (one at launch, `da-nang`, DEC-013; not paginated).
           headers:
             X-Request-ID:
               $ref: '#/components/headers/XRequestID'
@@ -609,7 +614,7 @@ paths:
               $ref: '#/components/schemas/PlanPreviewCreate'
             examples:
               ha02:
-                summary: HA-02 two days in Hội An (synthetic)
+                summary: HA-02 two days in the Hội An area of Đà Nẵng (synthetic)
                 value:
                   source: GENERATE
                   expected_trip_revision: 0
@@ -881,7 +886,7 @@ paths:
       operationId: createGuideSession
       x-api-id: API-024
       x-fr: [FR-056, FR-069, FR-074]
-      summary: Open a Guide session scoped to one published place (and optionally a trip)
+      summary: Open a city-level Guide session (scope CITY), or pin one published place (scope PLACE), optionally linked to a trip
       tags: [guide]
       security:
         - HTTPBearer: []
@@ -1954,6 +1959,32 @@ components:
     WorkflowState:
       type: string
       enum: [IMPORTED, MATCH_REVIEW, CONTENT_REVIEW, READY_TO_PUBLISH, PUBLISHED, RETIRED]
+    TrustLevel:
+      type: string
+      description: |
+        DEC-015 trust vocabulary. VERIFIED = published, curator-reviewed catalog content. WEB_UNVERIFIED = a
+        research-agent candidate with a source URL and fetched date, never a published place; rendered with the
+        UnverifiedBadge on every surface and shown "stale" after 7 days.
+      enum: [VERIFIED, WEB_UNVERIFIED]
+    WebSource:
+      type: object
+      description: Provenance of a WEB_UNVERIFIED stop or citation (ADR-014). Present only when trust_level is WEB_UNVERIFIED.
+      required: [url, fetched_at, candidate_id]
+      properties:
+        url:
+          type: string
+          format: uri
+        fetched_at:
+          type: string
+          format: date-time
+        candidate_id:
+          type: string
+          format: uuid
+          description: Row in web_place_candidates (curator queue).
+        places_check_outcome:
+          type: [string, 'null']
+          description: Gonarra's existence verdict from the Google Places check (FR-100), never the raw provider string.
+          enum: [EXISTS_OPERATIONAL, EXISTS_CLOSED, NOT_FOUND, OUTSIDE_CITY, SKIPPED, null]
     GeoPoint:
       type: object
       required: [latitude, longitude]
@@ -1985,11 +2016,28 @@ components:
           format: uri
     Citation:
       type: object
-      required: [source_revision_id, publisher, verified_at]
+      description: |
+        Every citation points to evidence that was supplied to the writer (ADR-010 1.0). evidence_kind FACT and
+        CHUNK are VERIFIED catalog content with verified_at; WEB is a labelled WEB_UNVERIFIED web fallback with
+        url and fetched_at and verified_at null.
+      required: [source_revision_id, publisher, trust_level, evidence_kind, verified_at]
       properties:
         source_revision_id:
           type: string
           format: uuid
+        trust_level:
+          $ref: '#/components/schemas/TrustLevel'
+        evidence_kind:
+          type: string
+          enum: [FACT, CHUNK, WEB]
+        url:
+          type: [string, 'null']
+          format: uri
+          description: Source URL for WEB evidence; null otherwise.
+        fetched_at:
+          type: [string, 'null']
+          format: date-time
+          description: When the page was fetched (WEB evidence); null otherwise.
         knowledge_chunk_id:
           type: [string, 'null']
           format: uuid
@@ -2007,8 +2055,9 @@ components:
         locator:
           type: [string, 'null']
         verified_at:
-          type: string
+          type: [string, 'null']
           format: date
+          description: Curator verification date for FACT and CHUNK evidence; null for WEB evidence.
     PageInfo:
       type: object
       required: [next_cursor]
@@ -2126,6 +2175,8 @@ components:
           format: uuid
         code:
           type: string
+          description: Stable city code. FYP release enables `da-nang` only (the Hội An area belongs to it, DEC-013).
+          examples: [da-nang]
         name_vi:
           type: string
         name_en:
@@ -2168,11 +2219,17 @@ components:
             $ref: '#/components/schemas/Category'
     PlaceSummary:
       type: object
-      required: [id, city_id, slug, category_code, name_vi, name, location, catalog_publication_id]
+      required: [id, city_id, slug, category_code, name_vi, name, location, catalog_publication_id, trust_level]
       properties:
         id:
           type: string
           format: uuid
+        trust_level:
+          $ref: '#/components/schemas/TrustLevel'
+          description: Always VERIFIED on catalog routes; only published places are returned here.
+        area_code:
+          type: [string, 'null']
+          description: Travel area within the city (e.g. hoi-an-old-town), ADR-012.
         city_id:
           type: string
           format: uuid
@@ -2413,18 +2470,29 @@ components:
             $ref: '#/components/schemas/Leg'
     Stop:
       type: object
-      required: [id, place_id, catalog_publication_id, ordinal, visit_minutes, is_locked, name_vi, name, location]
+      description: |
+        Exactly one shape (schema.sql ck_trip_stops_shape): VERIFIED carries place_id and catalog_publication_id;
+        WEB_UNVERIFIED carries web_source with both ids null and no facts.
+      required: [id, place_id, catalog_publication_id, trust_level, ordinal, visit_minutes, is_locked, name_vi, name, location]
       properties:
         id:
           type: string
           format: uuid
           description: Stable across preview revisions and into the saved trip_stops row.
+        trust_level:
+          $ref: '#/components/schemas/TrustLevel'
         place_id:
-          type: string
+          type: [string, 'null']
           format: uuid
+          description: Null for a WEB_UNVERIFIED stop.
         catalog_publication_id:
-          type: string
+          type: [string, 'null']
           format: uuid
+          description: Null for a WEB_UNVERIFIED stop.
+        web_source:
+          oneOf:
+            - $ref: '#/components/schemas/WebSource'
+            - type: 'null'
         ordinal:
           type: integer
           minimum: 1
@@ -2484,12 +2552,43 @@ components:
       properties:
         type:
           type: string
-          enum: [CLOSED_AT_PLANNED_TIME, LEG_UNAVAILABLE, DAY_WINDOW_EXCEEDED, OPENING_HOURS_UNKNOWN, FACT_STALE, MUST_SEE_NOT_INCLUDED]
+          description: |
+            Plan Health is code (ADR-011 0.3). Calendar rules: CLOSED_ON_DATE and LEG_MODE_RESTRICTED are
+            blocking; LUNAR_EVENT_CONFLICT, TICKET_VALIDITY and SEASONAL_WARNING are warnings. Web stops
+            (ADR-014): WEB_PLACE_UNVERIFIED caps the plan at WARNING; WEB_PLACE_UNRESOLVED is blocking.
+          enum:
+            - CLOSED_AT_PLANNED_TIME
+            - LEG_UNAVAILABLE
+            - DAY_WINDOW_EXCEEDED
+            - OPENING_HOURS_UNKNOWN
+            - FACT_STALE
+            - MUST_SEE_NOT_INCLUDED
+            - CLOSED_ON_DATE
+            - LEG_MODE_RESTRICTED
+            - LUNAR_EVENT_CONFLICT
+            - TICKET_VALIDITY
+            - SEASONAL_WARNING
+            - WEB_PLACE_UNVERIFIED
+            - WEB_PLACE_UNRESOLVED
         severity:
           type: string
           enum: [BLOCKING, WARNING]
         message:
           type: string
+        rule_id:
+          type: [string, 'null']
+          format: uuid
+          description: place_closure_rules row behind a calendar conflict; null otherwise.
+        date:
+          type: [string, 'null']
+          format: date
+          description: Trip date the conflict applies to; null when not date-specific.
+        stop_ids:
+          type: array
+          description: Stops involved (empty for day-level conflicts).
+          items:
+            type: string
+            format: uuid
     PlaceCard:
       type: object
       required: [stop_id, place_id, name_vi, name_en, address_vi, entrance, directions]
@@ -2652,6 +2751,14 @@ components:
           type: [string, 'null']
         corpus_revision:
           type: [integer, 'null']
+        research_used:
+          type: boolean
+          description: True when the research agent ran for this revision (ADR-014); such a plan contains or considered WEB_UNVERIFIED candidates.
+          default: false
+        agent_run_id:
+          type: [string, 'null']
+          format: uuid
+          description: Agno agent run correlation id (DEC-014); null for rule-based or manual revisions.
         created_at:
           type: string
           format: date-time
@@ -2737,6 +2844,10 @@ components:
         expected_trip_revision:
           type: integer
           minimum: 0
+        acknowledge_unverified_stops:
+          type: boolean
+          default: false
+          description: Must be true to save a plan that contains a WEB_UNVERIFIED stop (OQ-128); otherwise 422 `unverified_stops_unacknowledged`.
     PlanningStreamEvent:
       type: object
       description: |
@@ -2749,7 +2860,22 @@ components:
           enum: [progress, clarification_required, preview_ready, error]
         stage:
           type: string
-          enum: [VALIDATING_REQUEST, SELECTING_PLACES, ROUTING, SCHEDULING, CHECKING_HEALTH]
+          description: Stages in order (architecture §5). RESEARCHING and VERIFYING_WEB_PLACES appear only when the research agent runs.
+          enum: [VALIDATING_REQUEST, SELECTING_PLACES, RESEARCHING, VERIFYING_WEB_PLACES, ROUTING, SCHEDULING, CHECKING_HEALTH, WRITING]
+        agent:
+          type: [string, 'null']
+          description: Agent role active in this stage (selector, researcher, grounded_writer) or null for deterministic steps.
+          enum: [selector, researcher, grounded_writer, null]
+        detail:
+          type: object
+          description: Progress counters for the current stage.
+          properties:
+            catalog_candidates:
+              type: integer
+            web_candidates:
+              type: integer
+            verified:
+              type: integer
         preview_id:
           type: string
           format: uuid
@@ -2765,11 +2891,21 @@ components:
     # ---- Guide ----
     GuideSessionCreate:
       type: object
+      description: |
+        City-level Guide (ADR-010 1.0, DEC-017). scope CITY answers over the whole enabled city; scope PLACE pins
+        one published place (every approved fact and chunk of that publication). city_code defaults to the
+        enabled city; place_id is required only for scope PLACE.
       additionalProperties: false
-      required: [place_id, locale]
+      required: [scope, locale]
       properties:
-        place_id:
+        scope:
           type: string
+          enum: [CITY, PLACE]
+        city_code:
+          type: [string, 'null']
+          description: Defaults to `da-nang`.
+        place_id:
+          type: [string, 'null']
           format: uuid
         trip_id:
           type: [string, 'null']
@@ -2778,16 +2914,21 @@ components:
           $ref: '#/components/schemas/Locale'
     GuideSession:
       type: object
-      required: [id, place_id, locale, created_at]
+      required: [id, scope, city_code, place_id, locale, created_at]
       properties:
         id:
           type: string
           format: uuid
+        scope:
+          type: string
+          enum: [CITY, PLACE]
+        city_code:
+          type: string
         trip_id:
           type: [string, 'null']
           format: uuid
         place_id:
-          type: string
+          type: [string, 'null']
           format: uuid
         locale:
           $ref: '#/components/schemas/Locale'
@@ -2829,7 +2970,8 @@ components:
           type: string
         answer_status:
           type: [string, 'null']
-          enum: [ANSWERED, INSUFFICIENT_EVIDENCE, NOT_RECOGNISED, null]
+          description: ANSWERED_WEB_UNVERIFIED = answered from the labelled web fallback only (ADR-010 1.0); citations carry trust_level WEB_UNVERIFIED.
+          enum: [ANSWERED, ANSWERED_WEB_UNVERIFIED, INSUFFICIENT_EVIDENCE, NOT_RECOGNISED, null]
         citations:
           type: array
           items:
@@ -2859,7 +3001,8 @@ components:
           enum: [progress, text, result, error]
         stage:
           type: string
-          enum: [RETRIEVING, ANSWERING]
+          description: SEARCHING_WEB appears only when retrieval found no evidence and the web fallback runs (labelled WEB_UNVERIFIED).
+          enum: [VALIDATING, RETRIEVING, SEARCHING_WEB, ANSWERING]
         delta:
           type: string
         message:
