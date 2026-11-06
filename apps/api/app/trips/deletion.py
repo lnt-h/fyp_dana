@@ -26,10 +26,9 @@ where a cascade would also apply):
 A failure in B or C rolls back, marks the job FAILED with the exception class name only (never
 data) and leaves it for the next run.
 
-Known gap (needs a schema column, no migration here): a COMPLETED job keeps no Clerk subject, so
-``get_current_account`` cannot refuse a still-valid token of a purged subject and would map it to a
-fresh empty account. Deleting the Clerk user in step B revokes its sessions, which closes this in
-practice; a durable guard needs ``account_deletion_jobs.clerk_subject_sha256``.
+A COMPLETED job keeps no Clerk subject, only ``clerk_subject_sha256`` (written when the job is
+created, backfilled in step A for older jobs); ``get_account_allowing_deletion`` refuses a
+still-valid token whose subject hash matches a COMPLETED job instead of re-creating an account.
 """
 
 import logging
@@ -52,6 +51,7 @@ from app.models.planning import (
     PlanPreview,
     Trip,
 )
+from app.repositories.accounts import subject_sha256
 from app.security.clerk_backend import ClerkUserDeleter, clerk_user_deleter
 
 logger = logging.getLogger("gonarra.deletion")
@@ -123,6 +123,8 @@ async def run_job(
         if account_id is not None
         else None
     )
+    if subject is not None and job.clerk_subject_sha256 is None:
+        job.clerk_subject_sha256 = subject_sha256(subject)
     job.status = "IN_PROGRESS"
     job.attempt_count += 1
     job.failure_reason = None

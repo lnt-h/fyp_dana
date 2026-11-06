@@ -17,7 +17,7 @@ from app.db.session import get_db_session
 from app.errors import AppError
 from app.models.account import Account
 from app.models.planning import AccountDeletionJob
-from app.repositories.accounts import SQLAlchemyAccountRepository
+from app.repositories.accounts import DeletedSubjectError, SQLAlchemyAccountRepository
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -94,10 +94,17 @@ async def get_account_allowing_deletion(
     """The caller's account without the deletion guard.
 
     Only ``GET /v1/me/deletion`` and ``POST /v1/me/deletion`` use this directly; every other
-    authenticated route goes through :func:`get_current_account`.
+    authenticated route goes through :func:`get_current_account`. A subject whose deletion
+    COMPLETED is refused with 401 instead of being mapped to a fresh account.
     """
     repository = SQLAlchemyAccountRepository(session)
-    return await repository.get_or_create(user.subject)
+    try:
+        return await repository.get_or_create(user.subject)
+    except DeletedSubjectError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid session token",
+        ) from exc
 
 
 async def has_open_deletion_job(session: AsyncSession, account_id: uuid.UUID) -> bool:
@@ -134,8 +141,8 @@ async def get_current_account(
     """The caller's account; 409 ``deletion_in_progress`` once a deletion job is open
     (REQUESTED, IN_PROGRESS or FAILED), so no route can read or write an account being purged.
 
-    Note: after COMPLETED the account row is gone and the job keeps no subject, so a still-valid
-    token of a purged subject maps to a new empty account (see ``app.trips.deletion``).
+    After COMPLETED the account row is gone; the job keeps only ``clerk_subject_sha256``, which
+    :func:`get_account_allowing_deletion` uses to refuse a still-valid token of a purged subject.
     """
     if deletion_pending:
         raise deletion_in_progress()

@@ -17,7 +17,7 @@ from app.db.session import get_db_session
 from app.errors import AppError
 from app.models.account import Account
 from app.models.planning import AccountDeletionJob
-from app.repositories.accounts import SQLAlchemyAccountRepository
+from app.repositories.accounts import DeletedSubjectError, SQLAlchemyAccountRepository
 from app.security.clerk import (
     OPEN_DELETION_STATUSES,
     AuthenticatedUser,
@@ -44,7 +44,10 @@ async def get_curator_account(
     user: Annotated[AuthenticatedUser, Depends(require_curator)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> Account:
-    account = await SQLAlchemyAccountRepository(session).get_or_create(user.subject)
+    try:
+        account = await SQLAlchemyAccountRepository(session).get_or_create(user.subject)
+    except DeletedSubjectError as exc:
+        raise AppError(401, "authentication_required", "Invalid session token") from exc
     if await has_open_deletion_job(session, account.id):
         raise deletion_in_progress()
     return account

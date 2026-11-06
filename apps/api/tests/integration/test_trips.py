@@ -20,6 +20,11 @@ from app.db.session import get_db_session
 from app.main import create_app
 from app.models.account import Account
 from app.models.planning import AccountDeletionJob, PlanPreview, PreviewRevision, Trip
+from app.repositories.accounts import (
+    DeletedSubjectError,
+    SQLAlchemyAccountRepository,
+    subject_sha256,
+)
 from app.security.clerk import get_account_allowing_deletion
 from app.trips.deletion import run_deletion_jobs
 
@@ -382,6 +387,11 @@ async def test_deletion_job_and_purge(fx: Fixture) -> None:
     job = await db.get(AccountDeletionJob, job_id, populate_existing=True)
     assert job is not None
     assert job.status == "COMPLETED" and job.account_id is None and job.attempt_count == 1
+    assert job.clerk_subject_sha256 == subject_sha256(fx_subject)
+    # A still-valid token of the purged subject is refused instead of re-creating an account.
+    with pytest.raises(DeletedSubjectError):
+        await SQLAlchemyAccountRepository(db).get_or_create(fx_subject)
+    assert await db.scalar(select(func.count()).where(Account.clerk_user_id == fx_subject)) == 0
     # Catalog rows referenced by the purged trip are untouched.
     assert (
         await db.scalar(
