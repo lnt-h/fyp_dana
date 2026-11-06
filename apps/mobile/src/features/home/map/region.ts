@@ -10,7 +10,6 @@ const FALLBACK_CENTERS: Record<CityCode, GeoPoint & { delta: number }> = {
   'da-nang': { delta: 0.12, latitude: 16.0544, longitude: 108.2022 },
   'ha-noi': { delta: 0.1, latitude: 21.0285, longitude: 105.8542 },
   'ho-chi-minh-city': { delta: 0.12, latitude: 10.7769, longitude: 106.7009 },
-  'hoi-an': { delta: 0.06, latitude: 15.8801, longitude: 108.338 },
   hue: { delta: 0.1, latitude: 16.4637, longitude: 107.5909 },
 };
 
@@ -33,7 +32,7 @@ export function framedRegion(point: GeoPoint, delta: number, aspect: number): Re
 /** Region showing all points (mean centre, padded span) or the city fallback when there are none. */
 export function cityRegion(code: CityCode | undefined, points: GeoPoint[], aspect: number): Region {
   if (points.length === 0) {
-    const fallback = FALLBACK_CENTERS[code ?? 'hoi-an'];
+    const fallback = FALLBACK_CENTERS[code ?? 'da-nang'] ?? FALLBACK_CENTERS['da-nang'];
     return framedRegion(fallback, fallback.delta, aspect);
   }
   const mean = {

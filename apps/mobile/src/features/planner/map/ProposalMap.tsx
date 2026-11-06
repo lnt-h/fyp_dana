@@ -10,6 +10,7 @@ import { colors } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
 import { palette } from '../../auth/components/AuthUI';
+import { StopTrustBadge, isWebUnverified } from '../../place/components/SourceLine';
 import { formatTime } from '../timeline/format';
 import { isMeasured, isStopBlocked, type NumberedDay } from '../timeline/model';
 import type { StopPlace } from '../timeline/useProposal';
@@ -66,7 +67,8 @@ export function ProposalMap({ day, places, selectedStopId, onSelect, onOpenPlace
 
   const atStart = selectedIndex <= 0;
   const atEnd = selectedIndex < 0 || selectedIndex >= day.stops.length - 1;
-  const selectedImage = selected ? resolveImage(places[selected.place_id]?.thumbnail, { height: 48, width: 48 }) : null;
+  const selectedPlace = selected?.place_id ? places[selected.place_id] : undefined;
+  const selectedImage = selected ? resolveImage(selectedPlace?.thumbnail, { height: 48, width: 48 }) : null;
   const selectedTime = selected ? [formatTime(selected.planned_arrival), formatTime(selected.planned_departure)] : [];
 
   return <View>
@@ -100,9 +102,10 @@ export function ProposalMap({ day, places, selectedStopId, onSelect, onOpenPlace
             const isSelected = stop.id === selectedStopId;
             const blocked = isStopBlocked(stop);
             const fill = blocked ? palette.error : isSelected ? colors.tealText : colors.deepOcean;
+            const web = isWebUnverified(stop);
             return <Marker
               key={stop.id}
-              accessibilityLabel={t('proposal.map.pin', { name: stop.name, number: stop.number, time: formatTime(stop.planned_arrival) ?? t('proposal.stop.timeUnknown') })}
+              accessibilityLabel={[t('proposal.map.pin', { name: stop.name, number: stop.number, time: formatTime(stop.planned_arrival) ?? t('proposal.stop.timeUnknown') }), web ? t('place.trust.unverified') : null].filter(Boolean).join(', ')}
               accessibilityRole="button"
               anchor={{ x: 0.5, y: 1 }}
               coordinate={stop.location}
@@ -110,7 +113,7 @@ export function ProposalMap({ day, places, selectedStopId, onSelect, onOpenPlace
               zIndex={isSelected ? 10 : 1}
             >
               <View style={m.pinWrap}>
-                <View style={[m.pin, isSelected && m.pinSelected, { backgroundColor: fill }]}>
+                <View style={[m.pin, isSelected && m.pinSelected, web && m.pinWeb, { backgroundColor: fill }]}>
                   <Text style={[m.pinText, isSelected && m.pinTextSelected]}>{stop.number}</Text>
                 </View>
                 <View style={[m.tail, { borderTopColor: fill }]} />
@@ -137,21 +140,23 @@ export function ProposalMap({ day, places, selectedStopId, onSelect, onOpenPlace
         accessibilityHint={t('proposal.stop.detailsA11y', { name: selected.name })}
         accessibilityLiveRegion="polite"
         accessibilityRole="button"
-        onPress={() => onOpenPlace(selected.place_id)}
+        disabled={!selected.place_id}
+        onPress={() => { if (selected.place_id) onOpenPlace(selected.place_id); }}
         style={({ pressed }) => [m.current, pressed && { opacity: 0.75 }]}
       >
         <View style={m.currentThumb}>
           {selectedImage
             ? <Image contentFit="cover" placeholder={selectedImage.placeholder} source={selectedImage.source} style={StyleSheet.absoluteFill} transition={150} />
-            : <Icon color={colors.tealText} name={categoryIcon(places[selected.place_id]?.categoryCode)} size={22} />}
+            : <Icon color={colors.tealText} name={categoryIcon(selectedPlace?.categoryCode)} size={22} />}
         </View>
         <View style={m.currentCopy}>
           <Text numberOfLines={1} style={m.currentName}>{t('proposal.map.position', { name: selected.name, number: selected.number })}</Text>
           <Text numberOfLines={1} style={m.currentTime}>
             {selectedTime[0] && selectedTime[1] ? `${selectedTime[0]} – ${selectedTime[1]}` : t('proposal.stop.timeUnknown')}
           </Text>
+          <StopTrustBadge compact stop={selected} />
         </View>
-        <Icon color={colors.tealText} name="chevron-right" size={18} strokeWidth={2.2} />
+        {selected.place_id ? <Icon color={colors.tealText} name="chevron-right" size={18} strokeWidth={2.2} /> : null}
       </Pressable>
       <CircleButton accessibilityLabel={t('proposal.map.nextA11y')} disabled={atEnd} icon="chevron-right" onPress={() => step(1)} size={44} tone="tint" />
     </View>}
@@ -180,6 +185,8 @@ const m = StyleSheet.create({
   pinWrap: { alignItems: 'center', paddingHorizontal: 4, paddingTop: 4 },
   pin: { minWidth: 32, height: 32, borderRadius: 16, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: colors.white },
   pinSelected: { minWidth: 42, height: 42, borderRadius: 21, borderWidth: 3 },
+  /** WEB_UNVERIFIED stop: dashed sun ring (the callout and a11y label carry the word). */
+  pinWeb: { borderColor: colors.sun, borderStyle: 'dashed' },
   pinText: { color: colors.white, fontFamily: fonts.bold, fontSize: 14 },
   pinTextSelected: { fontSize: 17 },
   tail: { width: 0, height: 0, marginTop: -1, borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent' },

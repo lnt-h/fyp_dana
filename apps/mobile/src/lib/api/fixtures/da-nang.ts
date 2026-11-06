@@ -1,10 +1,13 @@
 /**
  * FIXTURE DATA — NOT CATALOG DATA.
  *
- * Hand-made sample responses for building UI before the API exists (EXPO_PUBLIC_USE_FIXTURES=1). Places are well-known
- * Hội An landmarks with approximate coordinates; times, distances, durations, hours, prices, addresses and citations are
+ * Hand-made sample responses served when EXPO_PUBLIC_API_URL is unset (see config.ts). Đà Nẵng only: the places are
+ * well-known landmarks of the Hội An area of Đà Nẵng (2025 merger) with approximate coordinates; times, distances, durations, hours, prices, addresses and citations are
  * rough illustrations, not Google Routes output and not reviewed facts. Nothing here may be imported into the catalog,
  * shown as verified or used as evidence. IDs are fixed fake UUIDs. Category codes are fixture codes (no seed exists yet).
+ *
+ * One stop (Làng rau Trà Quế) is a `WEB_UNVERIFIED` web candidate with a fake `.example` source URL, to exercise the
+ * trust label (architecture §5).
  *
  * Covers: Home/Explore (cities, categories, places), SCR-022 (preferences), SCR-023 (stream, see source.ts),
  * SCR-024/025 (preview, two variants), SCR-031 (trips), SCR-033 (place detail + place card), SCR-034 (Guide session,
@@ -37,17 +40,12 @@ const byLocale = (locale: Locale, vi: string, en: string) => (locale === 'vi' ? 
 
 /* ---------------------------------------------------------------- Cities and categories */
 
-/** Names match the schema.sql reference seed. */
+/** The FYP release enables Đà Nẵng only (DEC-013); other cities are roadmap and not served. */
 export const fixtureCities: City[] = [
-  { code: 'ha-noi', id: id(0x101), name_en: 'Ha Noi', name_vi: 'Hà Nội', time_zone: 'Asia/Ho_Chi_Minh' },
-  { code: 'ho-chi-minh-city', id: id(0x102), name_en: 'Ho Chi Minh City', name_vi: 'Thành phố Hồ Chí Minh', time_zone: 'Asia/Ho_Chi_Minh' },
-  { code: 'da-nang', id: id(0x103), name_en: 'Da Nang', name_vi: 'Đà Nẵng', time_zone: 'Asia/Ho_Chi_Minh' },
-  { code: 'hoi-an', id: id(0x104), name_en: 'Hoi An', name_vi: 'Hội An', time_zone: 'Asia/Ho_Chi_Minh' },
-  { code: 'hue', id: id(0x105), name_en: 'Hue', name_vi: 'Huế', time_zone: 'Asia/Ho_Chi_Minh' },
+  { centre: { latitude: 16.0544, longitude: 108.2022 }, code: 'da-nang', id: id(0x103), name_en: 'Da Nang', name_vi: 'Đà Nẵng', time_zone: 'Asia/Ho_Chi_Minh' },
 ];
 
-/** Default city until the city picker (SCR-020) exists; Hội An is built end to end first. */
-export const defaultCity = fixtureCities[3];
+export const defaultCity = fixtureCities[0];
 
 export const cityById = (cityId: Uuid) => fixtureCities.find(city => city.id === cityId);
 
@@ -124,6 +122,7 @@ function summary(place: FixturePlace, locale: Locale): Place {
   return {
     catalog_publication_id: PUBLICATION_ID,
     category_code: place.category_code,
+    trust_level: 'VERIFIED',
     city_id: defaultCity.id,
     id: placeIdOf(place),
     location: { latitude: place.latitude, longitude: place.longitude },
@@ -136,7 +135,7 @@ function summary(place: FixturePlace, locale: Locale): Place {
   };
 }
 
-/** API-010 `GET /v1/places?city_id&q` (Hội An only). `q` matches either name, accent-insensitively. */
+/** API-010 `GET /v1/places?city_id&q` (Đà Nẵng, Hội An area). `q` matches either name, accent-insensitively. */
 export function fixturePlaces(locale: Locale, q?: string): Place[] {
   const fold = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
   const query = q?.trim() ? fold(q) : '';
@@ -150,7 +149,7 @@ export function fixturePlaces(locale: Locale, q?: string): Place[] {
 const SOURCE_HERITAGE = id(0x802);
 const heritageCitation: Citation = {
   knowledge_chunk_id: null, locator: null, place_fact_id: null, publisher: 'Trung tâm Quản lý Bảo tồn Di sản Văn hóa Hội An',
-  section: null, source_revision_id: SOURCE_HERITAGE, title: null, verified_at: '2026-09-15',
+  section: null, source_revision_id: SOURCE_HERITAGE, title: null, trust_level: 'VERIFIED', evidence_kind: 'FACT', verified_at: '2026-09-15',
 };
 
 function fact(n: number, field_code: PlaceFact['field_code'], partial: Omit<PlaceFact, 'field_code' | 'place_fact_id' | 'sources'>): PlaceFact {
@@ -173,13 +172,13 @@ function factsFor(place: FixturePlace): PlaceFact[] {
     return [
       fact(base + 1, 'OPENING_HOURS', { freshness: 'CURRENT', knowledge_state: 'KNOWN', value: { intervals: [{ close: '21:30', open: '07:00' }] }, verified_at: '2026-09-15' }),
       fact(base + 2, 'ADMISSION_PRICE', { freshness: 'STALE', knowledge_state: 'KNOWN', value: { amount: '120000', currency: 'VND' }, verified_at: '2026-03-01' }),
-      fact(base + 3, 'ADDRESS_VI', { freshness: 'CURRENT', knowledge_state: 'KNOWN', value: { text: 'Đường Nguyễn Thị Minh Khai, phố cổ Hội An' }, verified_at: '2026-09-15' }),
+      fact(base + 3, 'ADDRESS_VI', { freshness: 'CURRENT', knowledge_state: 'KNOWN', value: { text: 'Đường Nguyễn Thị Minh Khai, phố cổ Hội An, Đà Nẵng' }, verified_at: '2026-09-15' }),
       fact(base + 4, 'ENTRANCE_LOCATION', { freshness: 'CURRENT', knowledge_state: 'UNKNOWN', value: null, verified_at: null }),
     ];
   }
   return [
     fact(base + 1, 'OPENING_HOURS', { freshness: 'CURRENT', knowledge_state: 'UNKNOWN', value: null, verified_at: null }),
-    fact(base + 3, 'ADDRESS_VI', { freshness: 'CURRENT', knowledge_state: 'KNOWN', value: { text: `${place.name_vi}, Hội An` }, verified_at: '2026-09-15' }),
+    fact(base + 3, 'ADDRESS_VI', { freshness: 'CURRENT', knowledge_state: 'KNOWN', value: { text: `${place.name_vi}, Hội An, Đà Nẵng` }, verified_at: '2026-09-15' }),
   ];
 }
 
@@ -259,30 +258,61 @@ function stop(key: keyof typeof places, locale: Locale, ordinal: number, date: s
     planned_arrival: at(date, arrive),
     planned_departure: at(date, depart),
     rationale,
+    trust_level: 'VERIFIED',
     visit_minutes: place.visit,
   };
+}
+
+/** Stop id of the `WEB_UNVERIFIED` fixture stop (not a catalog place: no place page, no place card). */
+export const WEB_STOP_ID = id(0x208);
+
+/** A web candidate found by the research agent: `place_id` and publication null, provenance in `web_source`. */
+function webStop(locale: Locale, ordinal: number, date: string, arrive: string, depart: string): Stop {
+  return {
+    catalog_publication_id: null,
+    conflicts: [],
+    id: WEB_STOP_ID,
+    is_locked: false,
+    location: { latitude: 15.90100, longitude: 108.33900 },
+    name: byLocale(locale, 'Làng rau Trà Quế', 'Tra Que Vegetable Village'),
+    name_vi: 'Làng rau Trà Quế',
+    ordinal,
+    place_id: null,
+    planned_arrival: at(date, arrive),
+    planned_departure: at(date, depart),
+    rationale: byLocale(locale, 'Tìm thấy trên web, chưa được kiểm duyệt.', 'Found on the web; not reviewed yet.'),
+    trust_level: 'WEB_UNVERIFIED',
+    visit_minutes: 60,
+    web_source: { candidate_id: id(0xb01), fetched_at: '2026-11-02T10:00:00+07:00', url: 'https://travel-notes.example/tra-que-vegetable-village' },
+  };
+}
+
+function drive(from: Stop, to: Stop, distance_m: number, duration_s: number): Leg {
+  return { availability: 'AVAILABLE', conflicts: [], distance_m, duration_s, from_stop_id: from.id, measured_at: MEASURED_AT, to_stop_id: to.id, travel_mode: 'DRIVE' };
 }
 
 function walk(from: Stop, to: Stop, distance_m: number, duration_s: number): Leg {
   return { availability: 'AVAILABLE', conflicts: [], distance_m, duration_s, from_stop_id: from.id, measured_at: MEASURED_AT, to_stop_id: to.id, travel_mode: 'WALK' };
 }
 
-export const HOI_AN_TRIP_ID = id(0x601);
-export const HUE_TRIP_ID = id(0x602);
-export const HOI_AN_PREVIEW_ID = id(0x501);
+export const FIXTURE_TRIP_ID = id(0x601);
+/** A second saved Đà Nẵng trip without fixture days. */
+export const FIXTURE_DAY_TRIP_ID = id(0x602);
+export const FIXTURE_PREVIEW_ID = id(0x501);
 /** Variant whose day-2 leg has no route: an unavailable leg makes the plan Blocked (screen-specs SCR-025). */
-export const HOI_AN_PREVIEW_ROUTE_UNAVAILABLE_ID = id(0x502);
-export const HOI_AN_START_DATE = '2027-01-16';
+export const FIXTURE_PREVIEW_ROUTE_UNAVAILABLE_ID = id(0x502);
+export const FIXTURE_START_DATE = '2027-01-16';
 
-function hoiAnDays(locale: Locale, routeUnavailable: boolean): Day[] {
-  const d1 = HOI_AN_START_DATE;
+function fixtureDays(locale: Locale, routeUnavailable: boolean): Day[] {
+  const d1 = FIXTURE_START_DATE;
   const d2 = '2027-01-17';
   const s1 = [
     stop('coveredBridge', locale, 1, d1, '08:00', '08:40', byLocale(locale, 'Biểu tượng của phố cổ, nên đến sớm khi còn vắng.', 'The old town’s landmark; best early, before the crowds.')),
     stop('tanKy', locale, 2, d1, '08:45', '09:25', byLocale(locale, 'Nhà cổ gần cầu, hợp với sở thích văn hoá.', 'A short walk from the bridge and fits your culture interest.')),
     stop('phucKien', locale, 3, d1, '09:30', '10:15', byLocale(locale, 'Hội quán tiêu biểu của người Hoa ở phố cổ.', 'A well-known Chinese assembly hall in the old town.')),
     stop('market', locale, 4, d1, '10:20', '11:30', byLocale(locale, 'Ăn trưa sớm với món địa phương.', 'An early lunch of local dishes.')),
-    stop('hoaiRiver', locale, 5, d1, '17:30', '19:00', byLocale(locale, 'Ngắm đèn lồng ven sông khi trời tối.', 'Lanterns along the river after dark.')),
+    webStop(locale, 5, d1, '14:30', '15:30'),
+    stop('hoaiRiver', locale, 6, d1, '17:30', '19:00', byLocale(locale, 'Ngắm đèn lồng ven sông khi trời tối.', 'Lanterns along the river after dark.')),
   ];
   const s2 = [
     stop('coconutForest', locale, 1, d2, '08:30', '10:00', byLocale(locale, 'Đi thuyền thúng trong rừng dừa nước.', 'A basket-boat ride through the water coconut palms.')),
@@ -297,30 +327,30 @@ function hoiAnDays(locale: Locale, routeUnavailable: boolean): Day[] {
   return [
     {
       day_index: 1, day_window_end: '20:00', day_window_start: '08:00', trip_day_id: null, stops: s1,
-      legs: [walk(s1[0], s1[1], 250, 240), walk(s1[1], s1[2], 300, 270), walk(s1[2], s1[3], 200, 180), walk(s1[3], s1[4], 650, 540)],
+      legs: [walk(s1[0], s1[1], 250, 240), walk(s1[1], s1[2], 300, 270), walk(s1[2], s1[3], 200, 180), drive(s1[3], s1[4], 3600, 600), drive(s1[4], s1[5], 3100, 540)],
     },
     { day_index: 2, day_window_end: '18:00', day_window_start: '08:00', trip_day_id: null, stops: s2, legs: [day2Leg] },
   ];
 }
 
 /**
- * Two-day Hội An preview. `warning` (default): Plan Health WARNING with one reason (opening hours unknown), all legs
+ * Two-day preview in the Hội An area of Đà Nẵng (day 1 includes one WEB_UNVERIFIED stop). `warning` (default): Plan Health WARNING with one reason (opening hours unknown), all legs
  * available. `routeUnavailable`: the day-2 leg is UNAVAILABLE (no distance/duration) and Plan Health is BLOCKED.
  */
-export function hoiAnPreview(locale: Locale, variant: 'warning' | 'routeUnavailable' = 'warning'): PlanPreview {
+export function fixturePreview(locale: Locale, variant: 'warning' | 'routeUnavailable' = 'warning'): PlanPreview {
   const routeUnavailable = variant === 'routeUnavailable';
   return {
     assumptions: [byLocale(locale, 'Đi bộ trong phố cổ, đi xe tới rừng dừa và biển.', 'Walking in the old town; driving to the coconut forest and the beach.')],
     base_trip_revision: 0,
     corpus_revision: 1,
     created_at: '2027-01-10T09:00:00+07:00',
-    days: hoiAnDays(locale, routeUnavailable),
+    days: fixtureDays(locale, routeUnavailable),
     expires_at: '2027-01-11T09:00:00+07:00',
     head_revision: 1,
     health_reasons: routeUnavailable
       ? [{ message: byLocale(locale, 'Không có tuyến đường', 'Route unavailable'), severity: 'BLOCKING', type: 'LEG_UNAVAILABLE' }]
       : [{ message: byLocale(locale, 'Giờ mở cửa: chưa rõ', 'Opening hours: unknown'), severity: 'WARNING', type: 'OPENING_HOURS_UNKNOWN' }],
-    id: routeUnavailable ? HOI_AN_PREVIEW_ROUTE_UNAVAILABLE_ID : HOI_AN_PREVIEW_ID,
+    id: routeUnavailable ? FIXTURE_PREVIEW_ROUTE_UNAVAILABLE_ID : FIXTURE_PREVIEW_ID,
     model_version: 'fixture',
     origin: 'GENERATED',
     parent_revision: null,
@@ -328,37 +358,37 @@ export function hoiAnPreview(locale: Locale, variant: 'warning' | 'routeUnavaila
     preview_revision: 1,
     prompt_version: 'fixture',
     status: 'ACTIVE',
-    trip_id: HOI_AN_TRIP_ID,
+    trip_id: FIXTURE_TRIP_ID,
   };
 }
 
 /* ---------------------------------------------------------------- Trips (SCR-031, saved mode of SCR-024) */
 
 /**
- * Dev-only: with EXPO_PUBLIC_FIXTURE_TRIP_TODAY=1 the saved Hội An trip starts today (Asia/Ho_Chi_Minh) so the Home
+ * Dev-only: with EXPO_PUBLIC_FIXTURE_TRIP_TODAY=1 the saved fixture trip starts today (Asia/Ho_Chi_Minh) so the Home
  * "Today" card can be exercised. Itinerary times stay as authored; only the trip's start date moves.
  */
 const todayInVietnam = () => new Intl.DateTimeFormat('en-CA', { day: '2-digit', month: '2-digit', timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric' }).format(new Date());
-export const HOI_AN_TRIP_START_DATE = process.env.EXPO_PUBLIC_FIXTURE_TRIP_TODAY === '1' ? todayInVietnam() : HOI_AN_START_DATE;
+export const FIXTURE_TRIP_START_DATE = process.env.EXPO_PUBLIC_FIXTURE_TRIP_TODAY === '1' ? todayInVietnam() : FIXTURE_START_DATE;
 
 /** Saved-trip summaries for the Trips list (API-013 items, newest first). */
 export const fixtureTrips: Trip[] = [
   {
-    city_id: defaultCity.id, created_at: '2027-01-10T09:00:00+07:00', day_count: 2, id: HOI_AN_TRIP_ID, revision: 1,
-    saved_at: '2027-01-10T09:05:00+07:00', start_date: HOI_AN_TRIP_START_DATE, status: 'SAVED', title: null, updated_at: '2027-01-10T09:05:00+07:00',
+    city_id: defaultCity.id, created_at: '2027-01-10T09:00:00+07:00', day_count: 2, id: FIXTURE_TRIP_ID, revision: 1,
+    saved_at: '2027-01-10T09:05:00+07:00', start_date: FIXTURE_TRIP_START_DATE, status: 'SAVED', title: null, updated_at: '2027-01-10T09:05:00+07:00',
   },
   {
-    city_id: fixtureCities[4].id, created_at: '2027-01-08T20:00:00+07:00', day_count: 1, id: HUE_TRIP_ID, revision: 1,
+    city_id: defaultCity.id, created_at: '2027-01-08T20:00:00+07:00', day_count: 1, id: FIXTURE_DAY_TRIP_ID, revision: 1,
     saved_at: '2027-01-08T20:10:00+07:00', start_date: '2027-02-20', status: 'SAVED', title: null, updated_at: '2027-01-08T20:10:00+07:00',
   },
 ];
 
-/** API-014 `GET /v1/trips/{trip_id}`: the saved Hội An trip carries the WARNING itinerary; Huế has no fixture days. */
+/** API-014 `GET /v1/trips/{trip_id}`: the two-day trip carries the WARNING itinerary; the day trip has no fixture days. */
 export function fixtureTripDetail(tripId: Uuid, locale: Locale): TripDetail | undefined {
   const trip = fixtureTrips.find(item => item.id === tripId);
   if (!trip) return undefined;
-  const days = tripId === HOI_AN_TRIP_ID
-    ? hoiAnDays(locale, false).map(day => ({ ...day, trip_day_id: id(0x650 + day.day_index) }))
+  const days = tripId === FIXTURE_TRIP_ID
+    ? fixtureDays(locale, false).map(day => ({ ...day, trip_day_id: id(0x650 + day.day_index) }))
     : [];
   return { ...trip, active_preview_id: null, days, planning_preferences: { allowed_modes: ['WALK', 'DRIVE'], pace: 'BALANCED' } };
 }
@@ -382,19 +412,19 @@ export function fixturePreferences(locale: Locale): Preferences {
 
 export const GUIDE_SESSION_ID = id(0x951);
 
-/** A Guide session about Chùa Cầu inside the saved Hội An trip. */
+/** A Guide session about Chùa Cầu inside the saved fixture trip. */
 export function fixtureGuideSession(locale: Locale): GuideSession {
-  return { created_at: '2027-01-16T08:09:00+07:00', expires_at: null, id: GUIDE_SESSION_ID, locale, place_id: PLACE_IDS.coveredBridge, trip_id: HOI_AN_TRIP_ID };
+  return { created_at: '2027-01-16T08:09:00+07:00', expires_at: null, id: GUIDE_SESSION_ID, locale, place_id: PLACE_IDS.coveredBridge, trip_id: FIXTURE_TRIP_ID };
 }
 
 const guideCitations: Citation[] = [
   {
     knowledge_chunk_id: id(0x701), locator: 'whc.unesco.org/en/list/948', place_fact_id: null, publisher: 'UNESCO World Heritage Centre',
-    section: 'HISTORY', source_revision_id: id(0x801), title: 'Hoi An Ancient Town', verified_at: '2026-10-01',
+    section: 'HISTORY', source_revision_id: id(0x801), title: 'Hoi An Ancient Town', trust_level: 'VERIFIED', evidence_kind: 'CHUNK', verified_at: '2026-10-01',
   },
   {
     knowledge_chunk_id: id(0x702), locator: null, place_fact_id: null, publisher: 'Trung tâm Quản lý Bảo tồn Di sản Văn hóa Hội An',
-    section: 'VISIT_TIPS', source_revision_id: SOURCE_HERITAGE, title: 'Chùa Cầu', verified_at: '2026-09-15',
+    section: 'VISIT_TIPS', source_revision_id: SOURCE_HERITAGE, title: 'Chùa Cầu', trust_level: 'VERIFIED', evidence_kind: 'CHUNK', verified_at: '2026-09-15',
   },
 ];
 

@@ -35,12 +35,15 @@
   "assistant": "Guide",
   "typing": "The Guide is answering",
   "stage": {
+    "VALIDATING": "Reading your question…",
     "RETRIEVING": "Searching reviewed sources…",
+    "SEARCHING_WEB": "Not enough reviewed sources; searching the web…",
     "ANSWERING": "Writing the answer…"
   },
   "addingSources": "Adding sources…",
   "sources": "Sources ({{count}})",
   "aiLabel": "AI-generated from Gonarra's reviewed sources",
+  "aiLabelWeb": "AI-generated from web pages Gonarra has not reviewed",
   "insufficient": {
     "title": "Not enough evidence to answer",
     "body": "Gonarra's reviewed sources do not cover this, so I won't guess. Please ask on site or check an official channel."

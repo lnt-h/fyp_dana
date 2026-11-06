@@ -125,7 +125,7 @@ function EditStopBody({ target, day, index, stop, days, places, allowedModes, pe
   const subtitle = arrival && departure
     ? t('proposal.sheet.subtitle', { day: day.day_index, number: index + 1, time: `${arrival} – ${departure}` })
     : t('proposal.sheet.subtitleNoTime', { day: day.day_index, number: index + 1 });
-  const place = places[stop.place_id];
+  const place = stop.place_id ? places[stop.place_id] : undefined;
   const image = resolveImage(place?.thumbnail, { height: 72, width: 72 });
   const otherDays = days.filter(item => item.day_index !== day.day_index);
   const disabled = offline || applying || blockedByPending;

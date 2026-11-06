@@ -1,15 +1,18 @@
 /**
  * Proposal editing data source: API-019 head read, API-020 `editPlanPreview`, API-021 `regeneratePlanDay`, and the
- * SCR-028 picker search (API-010 with `category_code`). With EXPO_PUBLIC_USE_FIXTURES=1 everything is served by the
- * FIXTURE below; otherwise calls throw until the API client lands (TASK-001).
+ * SCR-028 picker search (API-010 with `category_code`). Remote when `isRemoteEnabled()` (EXPO_PUBLIC_API_URL set, see
+ * config.ts); otherwise everything is served by the FIXTURE below.
  *
  * The client never computes times, distances, durations or Plan Health: it sends an op list (`edits[]`) and renders
  * whatever revision comes back.
  */
-import * as Crypto from 'expo-crypto';
 import { currentLocale } from '../../i18n';
-import { defaultCity, fixturePlaces } from './fixtures/hoi-an';
-import { ApiError, getPreview, searchPlaces, useFixtures } from './source';
+import { apiRequest } from './client';
+import { isRemoteEnabled } from './config';
+import { ApiError } from './errors';
+import { defaultCity, fixturePlaces } from './fixtures/da-nang';
+import { getPreview, newIdempotencyKey as freshIdempotencyKey, searchPlaces } from './source';
+import { runPlanningStream } from './streams';
 import type {
   Conflict,
   Day,
@@ -56,11 +59,7 @@ export const MAX_STOPS_PER_DAY = 20;
 
 /** A fresh `Idempotency-Key`; reuse the same key when retrying the same request. */
 export function newIdempotencyKey(): string {
-  return Crypto.randomUUID();
-}
-
-function notWired(): never {
-  throw new Error('API not wired yet (TASK-001)');
+  return freshIdempotencyKey();
 }
 
 function wait(ms: number, signal?: AbortSignal): Promise<boolean> {
@@ -76,7 +75,7 @@ function wait(ms: number, signal?: AbortSignal): Promise<boolean> {
 
 /** API-019 `GET /v1/plan-previews/{preview_id}`: the head revision (fixture: the edited head if one exists). */
 export async function getPreviewHead(previewId: Uuid): Promise<PlanPreview> {
-  if (!useFixtures) notWired();
+  if (isRemoteEnabled()) return getPreview(previewId);
   const head = fixtureHeads.get(previewId);
   if (head) { await wait(250); return clone(head); }
   const preview = await getPreview(previewId);
@@ -89,12 +88,14 @@ export async function getPreviewHead(previewId: Uuid): Promise<PlanPreview> {
  * with `ApiError` (409 `revision_conflict`, 410, 422, 503 `route_unavailable`) or a network `TypeError`.
  */
 export async function editPreview(previewId: Uuid, body: PlanPreviewEdit, idempotencyKey: string): Promise<PlanPreview> {
-  if (!useFixtures) notWired();
+  if (isRemoteEnabled()) {
+    return apiRequest<PlanPreview>(`/v1/plan-previews/${encodeURIComponent(previewId)}`, { body, idempotencyKey, method: 'PATCH', query: { locale: currentLocale() } });
+  }
   await wait(600);
   return fixtureEdit(previewId, body, idempotencyKey);
 }
 
-const regenerationStages: PlanningStage[] = ['VALIDATING_REQUEST', 'SELECTING_PLACES', 'ROUTING', 'SCHEDULING', 'CHECKING_HEALTH'];
+const regenerationStages: PlanningStage[] = ['VALIDATING_REQUEST', 'SELECTING_PLACES', 'ROUTING', 'SCHEDULING', 'CHECKING_HEALTH', 'WRITING'];
 
 /**
  * API-021 `POST /v1/plan-previews/{preview_id}/regenerate` in stream mode (`Accept: text/event-stream`): progress
@@ -107,7 +108,9 @@ export async function streamRegenerateDay(
   onEvent: (event: PlanningStreamEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  if (!useFixtures) notWired();
+  if (isRemoteEnabled()) {
+    return runPlanningStream(`/v1/plan-previews/${encodeURIComponent(previewId)}/regenerate`, { body, idempotencyKey, method: 'POST', signal }, onEvent);
+  }
   for (const stage of regenerationStages) {
     if (!(await wait(600, signal))) return;
     onEvent({ stage, type: 'progress' });
@@ -123,7 +126,11 @@ export async function streamRegenerateDay(
 
 /** API-010 `GET /v1/places?city_id&q&category_code` (published places of the trip's city only). */
 export async function searchCityPlaces(cityId: Uuid, q?: string, categoryCode?: string | null): Promise<Place[]> {
-  if (!useFixtures) notWired();
+  if (isRemoteEnabled()) {
+    const items = await searchPlaces(cityId, q, categoryCode);
+    items.forEach(place => placeCache.set(place.id, place));
+    return items;
+  }
   const query = q?.trim() || undefined;
   const base = await searchPlaces(cityId, query);
   const all = [...base, ...extraPlaces(currentLocale(), query).filter(place => place.city_id === cityId)];
@@ -216,7 +223,7 @@ const LEGS: Record<number, Record<TravelMode, [number, number]>[]> = {
 
 const at = (day: number, time: string) => `${DAY_DATES[day] ?? DAY_DATES[1]}T${time}:00+07:00`;
 
-/** FIXTURE: places that are not in hoi-an.ts but make the picker useful (no photos; approximate coordinates). */
+/** FIXTURE: places that are not in fixtures/da-nang.ts but make the picker useful (no photos; approximate coordinates). */
 type Extra = { pid: number; slug: string; category_code: string; name_vi: string; name_en: string; short_vi: string; short_en: string; lat: number; lng: number; visit: number };
 const EXTRAS: Extra[] = [
   { category_code: 'heritage', lat: 15.87712, lng: 108.32905, name_en: 'Hoi An Museum of History and Culture', name_vi: 'Bảo tàng Lịch sử Văn hoá Hội An', pid: 0x4a1, short_en: 'Small museum on the town’s trading history.', short_vi: 'Bảo tàng nhỏ về lịch sử thương cảng Hội An.', slug: 'bao-tang-lich-su-van-hoa', visit: 45 },
@@ -239,6 +246,7 @@ function extraPlaces(locale: Locale, q?: string): Place[] {
       catalog_publication_id: fid(0x301),
       category_code: place.category_code,
       city_id: defaultCity.id,
+      trust_level: 'VERIFIED' as const,
       id: fid(place.pid),
       location: { latitude: place.lat, longitude: place.lng },
       name: byLocale(locale, place.name_vi, place.name_en),
@@ -268,6 +276,7 @@ function stopForPlace(place: Place, visitMinutes?: number): Stop {
     ordinal: 0,
     place_id: place.id,
     rationale: null,
+    trust_level: 'VERIFIED',
     visit_minutes: visitMinutes ?? place.visit_minutes_suggested ?? 60,
   };
 }

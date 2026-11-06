@@ -1,0 +1,46 @@
+import type { ErrorDetail } from './types';
+
+/**
+ * Thrown for a non-2xx response; `error` is the Gonarra envelope body `{error:{code,message,retryable,request_id,context}}`
+ * (map `error.code` to copy, S-1). Network failures are not ApiErrors: `fetch` rejects with a `TypeError`.
+ */
+export class ApiError extends Error {
+  constructor(public readonly error: ErrorDetail, public readonly status: number) {
+    super(error.code);
+    this.name = 'ApiError';
+  }
+
+  get code(): string {
+    return this.error.code;
+  }
+
+  get retryable(): boolean {
+    return this.error.retryable ?? false;
+  }
+
+  get requestId(): string | null {
+    return this.error.request_id ?? null;
+  }
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+
+/** Parses an `ErrorResponse` body; null when the body is not the Gonarra envelope. */
+export function parseErrorEnvelope(body: unknown): ErrorDetail | null {
+  if (!isObject(body) || !isObject(body.error)) return null;
+  const { code, message, retryable, request_id, context } = body.error;
+  if (typeof code !== 'string') return null;
+  return {
+    code,
+    context: isObject(context) ? context : undefined,
+    message: typeof message === 'string' ? message : '',
+    request_id: typeof request_id === 'string' ? request_id : null,
+    retryable: typeof retryable === 'boolean' ? retryable : false,
+  };
+}
+
+/** Error for a response without a usable envelope (proxy page, empty body). 5xx and 429 count as retryable. */
+export function fallbackError(status: number, requestId: string | null): ErrorDetail {
+  const code = status === 401 ? 'unauthorized' : status === 404 ? 'not_found' : status === 429 ? 'quota_exceeded' : status >= 500 ? 'internal_error' : 'bad_request';
+  return { code, message: '', request_id: requestId, retryable: status >= 500 || status === 429 };
+}

@@ -24,12 +24,14 @@ jobs:
       - run: uv sync --locked --all-groups
       - run: uv run ruff check .
       - run: uv run mypy app
+      - run: uv run lint-imports
       - run: uv run pytest
       - run: uv run python scripts/export_openapi.py --check
       - name: Start PostgreSQL extensions
         working-directory: ${{ github.workspace }}
         run: docker compose up -d db --wait
       - run: uv run alembic upgrade head
+      - run: uv run python -m app.cli seed
       - run: uv run pytest -m integration
       - run: uv run alembic downgrade base && uv run alembic upgrade head
       - uses: docker/setup-qemu-action@v3

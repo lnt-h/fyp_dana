@@ -293,9 +293,12 @@
     "stage": {
       "VALIDATING_REQUEST": "Checking your request",
       "SELECTING_PLACES": "Choosing reviewed places",
+      "RESEARCHING": "Searching the web",
+      "VERIFYING_WEB_PLACES": "Checking web places",
       "ROUTING": "Getting routes",
       "SCHEDULING": "Fitting the day's times",
-      "CHECKING_HEALTH": "Checking Plan Health"
+      "CHECKING_HEALTH": "Checking Plan Health",
+      "WRITING": "Writing reasons"
     },
     "stageDone": "Done",
     "stageActive": "In progress",

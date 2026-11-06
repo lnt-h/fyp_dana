@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Icon, SecondaryButton, SectionHeader, Skeleton, categoryIcon, PhotoFallback } from '../../../components/ui';
 import { currentLocale } from '../../../i18n';
 import { listCategories, listCities, searchPlaces } from '../../../lib/api/source';
-import type { Category, City, Place } from '../../../lib/api/types';
+import { DEFAULT_CITY_CODE, type Category, type City, type Place } from '../../../lib/api/types';
 import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
@@ -28,7 +28,7 @@ export function GuidePlacePicker({ onPick }: { onPick: (placeId: string) => void
     let alive = true;
     setLoad({ state: 'loading' });
     (async () => {
-      const city = (await listCities()).find(item => item.code === 'hoi-an') ?? null;
+      const city = (await listCities()).find(item => item.code === DEFAULT_CITY_CODE) ?? null;
       return { city, places: city ? await searchPlaces(city.id) : [] };
     })()
       .then(({ city, places }) => { if (alive) setLoad({ city, places, state: 'ready' }); })

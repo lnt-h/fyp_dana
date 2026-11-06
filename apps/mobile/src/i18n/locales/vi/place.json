@@ -65,5 +65,11 @@
     "visit": "Tham quan",
     "price": "Vé vào cửa"
   },
-  "share": "Chia sẻ địa điểm"
+  "share": "Chia sẻ địa điểm",
+  "trust": {
+    "unverified": "Chưa kiểm duyệt",
+    "unverifiedHint": "Tìm thấy trên web, Gonarra chưa kiểm duyệt.",
+    "webSource": "{{host}} · lấy ngày {{date}}",
+    "webSourceUnknown": "Nguồn web"
+  }
 }

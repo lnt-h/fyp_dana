@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 
 import { colors } from '../theme/colors';
 import { AccountProvider } from '../features/account/AccountContext';
+import { ApiAuthBridge } from '../lib/api/ApiAuthBridge';
 import { SelectedCityProvider } from '../features/home/cityStore';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
@@ -66,6 +67,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+        <ApiAuthBridge />
         <AccountProvider>
           <SelectedCityProvider><AppStack /></SelectedCityProvider>
         </AccountProvider>

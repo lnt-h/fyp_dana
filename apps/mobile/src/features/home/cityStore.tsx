@@ -2,11 +2,11 @@ import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { listCities } from '../../lib/api/source';
-import type { City, CityCode } from '../../lib/api/types';
+import { DEFAULT_CITY_CODE, type City, type CityCode } from '../../lib/api/types';
 
 /** Device-local city choice (SCR-008/SCR-020). Not synced to Preferences yet (OQ-108). */
 const STORAGE_KEY = 'home.selectedCity';
-const DEFAULT_CITY: CityCode = 'hoi-an';
+const DEFAULT_CITY: CityCode = DEFAULT_CITY_CODE;
 
 type SelectedCityState = {
   /** Selected city once the list has loaded; null while loading or if the list failed. */

@@ -106,9 +106,9 @@ export function DayCard({ day, date, cityName, open, active, places, selectedSto
                 reorder: edit.editing,
               } : undefined}
               showLock={edit?.showLock}
-              onOpenDetails={() => onOpenPlace(stop.place_id)}
+              onOpenDetails={stop.place_id ? () => onOpenPlace(stop.place_id as string) : undefined}
               onSelect={() => onSelectStop(stop.id)}
-              place={places[stop.place_id]}
+              place={stop.place_id ? places[stop.place_id] : undefined}
               reducedMotion={reducedMotion}
               rowRef={view => registerRow(stop.id, view)}
               selected={stop.id === selectedStopId}

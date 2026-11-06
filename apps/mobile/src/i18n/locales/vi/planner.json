@@ -124,9 +124,12 @@
     "stages": {
       "VALIDATING_REQUEST": "Hiểu yêu cầu",
       "SELECTING_PLACES": "Chọn địa điểm đã kiểm duyệt",
+      "RESEARCHING": "Tìm thêm địa điểm trên web",
+      "VERIFYING_WEB_PLACES": "Kiểm tra địa điểm tìm trên web",
       "ROUTING": "Tính thời gian di chuyển",
       "SCHEDULING": "Xếp thứ tự và giờ",
-      "CHECKING_HEALTH": "Kiểm tra giờ mở cửa"
+      "CHECKING_HEALTH": "Kiểm tra giờ mở cửa",
+      "WRITING": "Viết lý do chọn từng điểm"
     },
     "state": {
       "done": "{{label}}, đã xong",
@@ -148,12 +151,18 @@
       "VALIDATING_REQUEST_1": "Đang kiểm tra thành phố và số ngày…",
       "SELECTING_PLACES_0": "Đang lọc những địa điểm đã kiểm duyệt…",
       "SELECTING_PLACES_1": "Đang chọn nơi hợp với sở thích của bạn…",
+      "RESEARCHING_0": "Đang tìm thêm gợi ý trên web…",
+      "RESEARCHING_1": "Đang đọc các trang tìm được…",
+      "VERIFYING_WEB_PLACES_0": "Đang kiểm tra từng địa điểm có thật…",
+      "VERIFYING_WEB_PLACES_1": "Địa điểm từ web sẽ được gắn nhãn chưa kiểm duyệt…",
       "ROUTING_0": "Đang đo quãng đường giữa các điểm…",
       "ROUTING_1": "Đang tính thời gian di chuyển thực tế…",
       "SCHEDULING_0": "Đang xếp các điểm vào từng ngày…",
       "SCHEDULING_1": "Đang sắp giờ cho từng điểm dừng…",
       "CHECKING_HEALTH_0": "Đang đối chiếu giờ mở cửa…",
-      "CHECKING_HEALTH_1": "Đang rà lại để lịch trình không quá dày…"
+      "CHECKING_HEALTH_1": "Đang rà lại để lịch trình không quá dày…",
+      "WRITING_0": "Đang viết lý do cho từng điểm dừng…",
+      "WRITING_1": "Sắp xong rồi…"
     }
   },
   "errors": {

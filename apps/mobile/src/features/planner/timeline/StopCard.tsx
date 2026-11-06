@@ -8,6 +8,7 @@ import { colors } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
 import { palette } from '../../auth/components/AuthUI';
+import { StopTrustBadge } from '../../place/components/SourceLine';
 import { formatTime } from './format';
 import { HealthGlyph, PlannerIcon } from './icons';
 import { isStopBlocked, type NumberedStop } from './model';
@@ -21,7 +22,8 @@ type Props = {
   selected: boolean;
   reducedMotion: boolean;
   onSelect: () => void;
-  onOpenDetails: () => void;
+  /** Opens the place page; omitted for a WEB_UNVERIFIED stop (no catalog place). */
+  onOpenDetails?: () => void;
   rowRef?: Ref<ComponentRef<typeof View>>;
   /** Editable draft: ⋯ opens the Edit stop sheet (SCR-027); `reorder` shows Move up/down (no drag-only path). */
   edit?: StopEditControls;
@@ -93,6 +95,7 @@ export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpe
           </View> : null}
         </View>
         <Text numberOfLines={2} style={r.name}>{stop.name}</Text>
+        <StopTrustBadge stop={stop} />
         <View style={r.metaRow}>
           <Icon color={colors.textMuted} name={categoryIcon(place?.categoryCode)} size={15} />
           <Text numberOfLines={1} style={r.meta}>{secondary}</Text>
@@ -132,7 +135,7 @@ export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpe
         >
           <Text style={r.actionText}>{t(showWhy ? 'proposal.stop.whyHide' : 'proposal.stop.why')}</Text>
         </Pressable>}
-        <Pressable
+        {onOpenDetails ? <Pressable
           accessibilityLabel={t('proposal.stop.detailsA11y', { name: stop.name })}
           accessibilityRole="button"
           onPress={onOpenDetails}
@@ -140,7 +143,7 @@ export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpe
         >
           <Text style={r.actionText}>{t('proposal.stop.details')}</Text>
           <Icon color={colors.tealText} name="chevron-right" size={16} strokeWidth={2.2} />
-        </Pressable>
+        </Pressable> : null}
       </View>
       {edit?.reorder ? <View style={r.reorder}>
         <ReorderButton

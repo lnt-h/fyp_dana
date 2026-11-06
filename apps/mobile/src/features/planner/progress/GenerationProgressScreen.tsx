@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Icon, PhotoFallback, PrimaryButton, SecondaryButton, type IconName } from '../../../components/ui';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { streamPlanning } from '../../../lib/api/source';
-import type { ClarificationRequired, ErrorDetail, PlanningStage } from '../../../lib/api/types';
+import { OPTIONAL_PLANNING_STAGES, PLANNING_STAGES, type ClarificationRequired, type ErrorDetail, type PlanningStage } from '../../../lib/api/types';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
 import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
@@ -18,18 +18,24 @@ import { AssistantAvatar, Banner, IntroCard, PlannerShell, UserBubble, p, tone }
 import { errorCopy, toErrorDetail } from './errorCopy';
 import { getPlanRequest } from './planRequestStore';
 
-const stages: PlanningStage[] = ['VALIDATING_REQUEST', 'SELECTING_PLACES', 'ROUTING', 'SCHEDULING', 'CHECKING_HEALTH'];
 const SLOW_AFTER_MS = 60_000;
 /** Status lines per stage; rotation is cosmetic and never advances a stage. */
 const STATUS_LINES = 2;
 const ROTATE_MS = 3200;
 const stageIcon: Record<PlanningStage, IconName> = {
   CHECKING_HEALTH: 'clock',
+  RESEARCHING: 'search',
   ROUTING: 'navigation',
   SCHEDULING: 'calendar',
   SELECTING_PLACES: 'map-pin',
   VALIDATING_REQUEST: 'check',
+  VERIFYING_WEB_PLACES: 'shield',
+  WRITING: 'edit',
 };
+
+/** Steps shown: every stage except the research ones, which appear only once the server reports them. */
+const visibleStages = (seenOptional: PlanningStage[]) =>
+  PLANNING_STAGES.filter(stage => !OPTIONAL_PLANNING_STAGES.includes(stage) || seenOptional.includes(stage));
 const ART_W = 196;
 const ART_H = 228;
 
@@ -43,8 +49,11 @@ export function GenerationProgressScreen() {
   const { t, i18n } = useTranslation();
   const reduceMotion = useReducedMotion();
   const request = getPlanRequest();
-  /** Index of the latest reported stage; the first row shows as current before any event (NFR-003). */
-  const [current, setCurrent] = useState(0);
+  /** Latest reported stage; the first row shows as current before any event (NFR-003). Stages never move back. */
+  const [reached, setReached] = useState<PlanningStage>(PLANNING_STAGES[0]);
+  const [seenOptional, setSeenOptional] = useState<PlanningStage[]>([]);
+  const stages = visibleStages(seenOptional);
+  const current = Math.max(0, stages.indexOf(reached));
   const [status, setStatus] = useState<Status>({ kind: 'running' });
   const [slow, setSlow] = useState(false);
   const controller = useRef<AbortController | null>(null);
@@ -56,17 +65,20 @@ export function GenerationProgressScreen() {
     controller.current?.abort();
     const abort = new AbortController();
     controller.current = abort;
-    setCurrent(0);
+    setReached(PLANNING_STAGES[0]);
+    setSeenOptional([]);
     setSlow(false);
     setStatus({ kind: 'running' });
     // The slow line is informational only; it never advances a stage.
     const slowTimer = setTimeout(() => !abort.signal.aborted && setSlow(true), SLOW_AFTER_MS);
-    streamPlanning(request.body, event => {
+    streamPlanning(request.trip.id, request.body, event => {
       if (abort.signal.aborted) return;
       switch (event.type) {
         case 'progress': {
-          const index = stages.indexOf(event.stage);
-          if (index >= 0) setCurrent(previous => Math.max(previous, index));
+          const stage = event.stage;
+          if (!PLANNING_STAGES.includes(stage)) break; // unknown stage from a newer server: ignore
+          if (OPTIONAL_PLANNING_STAGES.includes(stage)) setSeenOptional(previous => (previous.includes(stage) ? previous : [...previous, stage]));
+          setReached(previous => (PLANNING_STAGES.indexOf(stage) > PLANNING_STAGES.indexOf(previous) ? stage : previous));
           break;
         }
         case 'preview_ready':
