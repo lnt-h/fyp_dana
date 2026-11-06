@@ -53,9 +53,15 @@ ENTRANCE_FIELD: Final = "ENTRANCE_LOCATION"
 
 
 @dataclass(frozen=True)
-class AcceptResult:
+class IdempotentResult:
+    """A JSON response body plus whether it was replayed from ``idempotency_records``."""
+
     body: dict[str, Any]
     replayed: bool
+    status: int = 200
+
+
+AcceptResult = IdempotentResult
 
 
 def encode_cursor(sort: TripSort, trip: Trip) -> str:
@@ -203,28 +209,62 @@ class TripService:
             items=[TripSchema.model_validate(trip, from_attributes=True) for trip in page],
         )
 
-    async def create_trip(self, body: TripCreate) -> TripSchema:
-        city = await self.store.get_city(body.city_id)
-        if city is None or not city.is_enabled:
-            raise validation_failed(
-                "unsupported_request",
-                "Gonarra plans 1 to 3 days in one launch city.",
-                city_id=str(body.city_id),
-            )
-        trip = await self.store.add_trip(
-            Trip(
-                account_id=self.account_id,
-                city_id=city.id,
-                title=body.title,
-                start_date=body.start_date,
-                day_count=body.day_count,
-                status="DRAFT",
-                revision=0,
-                planning_preferences={},
-            )
+    async def _replay(self, operation: str, key: str, fingerprint: str) -> IdempotentResult | None:
+        """Claim ``key`` in the caller's transaction; a stored response means replay (or 409)."""
+        existing = await self.store.claim_idempotency(
+            self.account_id, operation, key, fingerprint, idempotency.expires_at()
         )
-        await self.store.commit()
-        return TripSchema.model_validate(trip, from_attributes=True)
+        if existing is None:
+            return None
+        stored = idempotency.replay_or_raise(existing, fingerprint)
+        return IdempotentResult(body=stored.body, replayed=True, status=stored.status)
+
+    async def create_trip(self, body: TripCreate, raw_key: str | None = None) -> IdempotentResult:
+        """API-013. An optional ``Idempotency-Key`` (TRIP_CREATE) replays the stored 201 body."""
+        key = idempotency.normalize_key(raw_key, required=False)
+        try:
+            if key is not None:
+                fingerprint = idempotency.request_fingerprint(
+                    self.account_id, body.model_dump(mode="json")
+                )
+                replay = await self._replay(idempotency.OP_TRIP_CREATE, key, fingerprint)
+                if replay is not None:
+                    await self.store.rollback()
+                    return replay
+            city = await self.store.get_city(body.city_id)
+            if city is None or not city.is_enabled:
+                raise validation_failed(
+                    "unsupported_request",
+                    "Gonarra plans 1 to 3 days in one launch city.",
+                    city_id=str(body.city_id),
+                )
+            trip = await self.store.add_trip(
+                Trip(
+                    account_id=self.account_id,
+                    city_id=city.id,
+                    title=body.title,
+                    start_date=body.start_date,
+                    day_count=body.day_count,
+                    status="DRAFT",
+                    revision=0,
+                    planning_preferences={},
+                )
+            )
+            response = TripSchema.model_validate(trip, from_attributes=True).model_dump(mode="json")
+            if key is not None:
+                await self.store.complete_idempotency(
+                    self.account_id,
+                    idempotency.OP_TRIP_CREATE,
+                    key,
+                    status=201,
+                    body=response,
+                    resource_id=trip.id,
+                )
+            await self.store.commit()
+        except BaseException:
+            await self.store.rollback()
+            raise
+        return IdempotentResult(body=response, replayed=False, status=201)
 
     async def trip_detail(self, trip: Trip, locale: Locale) -> TripDetail:
         _, time_zone = await self._time_zone(trip.city_id)
@@ -495,10 +535,29 @@ class TripService:
         return await self._preview_schema(preview, row, await self.resolve_locale(locale))
 
     async def edit_preview(
-        self, preview_id: uuid.UUID, body: PlanPreviewEdit, locale: Locale | None = None
-    ) -> PlanPreviewSchema:
-        """Append a MANUAL_EDIT revision against ``expected_revision`` (optimistic, ADR-009)."""
+        self,
+        preview_id: uuid.UUID,
+        body: PlanPreviewEdit,
+        locale: Locale | None = None,
+        raw_key: str | None = None,
+    ) -> IdempotentResult:
+        """Append a MANUAL_EDIT revision against ``expected_revision`` (optimistic, ADR-009).
+
+        Order: owner → idempotency replay (PREVIEW_EDIT, optional key) → open → expected revision.
+        The replay check precedes the revision check, so a retried edit whose first attempt
+        succeeded answers the stored 200 instead of 409 ``revision_conflict``.
+        """
+        key = idempotency.normalize_key(raw_key, required=False)
+        await self.owned_preview(preview_id)
         try:
+            if key is not None:
+                fingerprint = idempotency.request_fingerprint(
+                    preview_id, body.model_dump(mode="json")
+                )
+                replay = await self._replay(idempotency.OP_PREVIEW_EDIT, key, fingerprint)
+                if replay is not None:
+                    await self.store.rollback()
+                    return replay
             preview = await self.owned_preview(preview_id, for_update=True)
             self._ensure_open(preview)
             if body.expected_revision != preview.head_revision:
@@ -540,14 +599,24 @@ class TripService:
                     corpus_revision=parent.corpus_revision,
                 ),
             )
-            response = await self._preview_schema(
+            schema = await self._preview_schema(
                 preview, revision, await self.resolve_locale(locale)
             )
+            response = schema.model_dump(mode="json")
+            if key is not None:
+                await self.store.complete_idempotency(
+                    self.account_id,
+                    idempotency.OP_PREVIEW_EDIT,
+                    key,
+                    status=200,
+                    body=response,
+                    resource_id=preview.id,
+                )
             await self.store.commit()
         except BaseException:
             await self.store.rollback()
             raise
-        return response
+        return IdempotentResult(body=response, replayed=False)
 
     async def discard_preview(self, preview_id: uuid.UUID) -> None:
         try:
