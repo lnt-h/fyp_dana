@@ -110,6 +110,39 @@ source_modules = ["app.ai"]
 forbidden_modules = ["app.api", "app.main"]
 
 [[tool.importlinter.contracts]]
+name = "Routing does not import agents, AI providers or the HTTP layer"
+type = "forbidden"
+source_modules = ["app.routing"]
+forbidden_modules = ["app.api", "app.main", "app.agents", "app.ai.providers"]
+# Routing may use app.ai.quota (ROUTES_ELEMENTS ledger), which itself imports app.ai.providers;
+# the rule is about routing's own imports, so only direct imports are checked.
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Routing never imports the planner or the solver"
+type = "forbidden"
+source_modules = ["app.routing"]
+forbidden_modules = ["app.planning", "app.trips"]
+
+[[tool.importlinter.contracts]]
+name = "Solver is pure: no routing, DB, AI, agents or HTTP"
+type = "forbidden"
+source_modules = ["app.planning.solver"]
+forbidden_modules = [
+  "app.api",
+  "app.main",
+  "app.agents",
+  "app.ai",
+  "app.routing",
+  "app.db",
+  "app.models",
+  "app.repositories",
+  "app.catalog",
+  "app.curation",
+  "app.trips",
+]
+
+[[tool.importlinter.contracts]]
 name = "Trips and planning do not import the HTTP layer or agents"
 type = "forbidden"
 source_modules = ["app.trips", "app.planning"]
