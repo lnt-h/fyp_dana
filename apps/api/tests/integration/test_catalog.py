@@ -1,6 +1,6 @@
 """Catalog search, detail and preferences against the Compose database.
 
-Requires ``alembic upgrade head`` and ``python -m app.cli seed``. Every test runs inside one
+Requires ``alembic upgrade head``; conftest seeds reference data. Every test runs inside one
 outer transaction that is rolled back (the session joins it with savepoints), so nothing is left
 behind and parallel agents sharing the database are unaffected. Names carry a random token so
 assertions never depend on other rows in the catalog.

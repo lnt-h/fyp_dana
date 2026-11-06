@@ -31,6 +31,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: docker compose up -d db --wait
       - run: uv run alembic upgrade head
+      - run: uv run python -m app.cli seed
       - run: uv run pytest -m integration
       - run: uv run alembic downgrade base && uv run alembic upgrade head
       - uses: docker/setup-qemu-action@v3
