@@ -122,3 +122,19 @@ name = "Trips and planning do not import the HTTP layer or agents"
 type = "forbidden"
 source_modules = ["app.trips", "app.planning"]
 forbidden_modules = ["app.api", "app.main", "app.agents"]
+
+[[tool.importlinter.contracts]]
+name = "Calendar rules and Plan Health are pure code (no AI, HTTP, DB, curation or routing)"
+type = "forbidden"
+source_modules = ["app.planning.calendar", "app.planning.health"]
+forbidden_modules = [
+  "app.agents",
+  "app.ai",
+  "app.api",
+  "app.main",
+  "app.db",
+  "app.repositories",
+  "app.curation",
+  "app.routing",
+  "app.planning.workflows",
+]
