@@ -11,7 +11,7 @@
   "plan": {
     "kicker": "Trợ lý lên lịch trình",
     "title": "Lên kế hoạch 1–3 ngày ở {{city}}",
-    "subtitle": "Chỉ dùng địa điểm đã kiểm duyệt",
+    "subtitle": "Dựa trên địa điểm đã đối chiếu nguồn",
     "action": "Bắt đầu",
     "offlineHint": "Cần kết nối mạng để lập kế hoạch",
     "a11yHint": "Mở màn lập kế hoạch chuyến đi"
@@ -50,7 +50,7 @@
     "minutes": "{{count}} phút",
     "loading": "Đang tải địa điểm",
     "emptyTitle": "Đang cập nhật địa điểm cho {{city}}",
-    "emptyBody": "Đội ngũ đang kiểm duyệt thêm địa điểm. Quay lại sau nhé!",
+    "emptyBody": "Đang đối chiếu nguồn cho thêm địa điểm. Quay lại sau nhé!",
     "emptyFilter": "Chưa có địa điểm nào trong danh mục này.",
     "error": "Không tải được địa điểm.",
     "retry": "Thử lại"

@@ -35,7 +35,7 @@ import { dayDate, formatShortDate } from '../../../features/planner/timeline/for
 import { PlannerIcon } from '../../../features/planner/timeline/icons';
 import { useProposal, type ProposalData } from '../../../features/planner/timeline/useProposal';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
-import { SaveSheet } from '../../../features/save';
+import { SaveSheet, webUnverifiedStopNames } from '../../../features/save';
 import { HandoffSheet } from '../../../features/handoff';
 import { currentLocale } from '../../../i18n';
 import { MAX_STOPS_PER_DAY, type PreviewEditOperation } from '../../../lib/api/sourcePlanning';
@@ -75,7 +75,7 @@ export default function ProposalScreen() {
   }
 
   if (state.status === 'error') {
-    const notFound = state.code === 'not_found';
+    const notFound = state.code === 'resource_not_found';
     return <View style={[st.screen, st.center, { paddingTop: insets.top }]}>
       <StatusBar style="dark" />
       <View style={[st.floatingBack, { top: insets.top + spacing.xs }]}>
@@ -455,6 +455,7 @@ function Proposal({ data, goBack, onPreview, previewId: routePreviewId }: { data
         startDate: data.startDate ?? '',
         stopCount: days.reduce((sum, day) => sum + day.stops.length, 0),
         warningCount: data.healthReasons.filter(reason => reason.severity === 'WARNING').length,
+        webUnverifiedStops: webUnverifiedStopNames(days),
       }}
       tripId={data.tripId ?? previewId}
       tripRevision={1}

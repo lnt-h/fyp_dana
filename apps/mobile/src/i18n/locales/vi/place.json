@@ -1,7 +1,7 @@
 {
   "loading": "Đang tải thẻ địa điểm…",
   "notFoundTitle": "Địa điểm này không còn khả dụng",
-  "notFoundBody": "Địa điểm có thể đã bị gỡ khỏi danh sách đã kiểm duyệt của Gonarra.",
+  "notFoundBody": "Địa điểm có thể đã bị gỡ khỏi danh sách địa điểm đã đối chiếu nguồn của Gonarra.",
   "errorTitle": "Có lỗi xảy ra. Thử lại.",
   "retry": "Thử lại",
   "noPhoto": "Chưa có ảnh của {{name}}",
@@ -27,15 +27,15 @@
   "notApplicable": "không áp dụng",
   "stale": "Có thể đã cũ",
   "source": {
-    "verified": "xác minh {{date}}",
-    "none": "Chưa có nguồn đã kiểm duyệt",
+    "verified": "Đã đối chiếu nguồn · {{date}}",
+    "none": "Chưa có nguồn đã đối chiếu",
     "expandHint": "Hiện chi tiết nguồn",
     "collapseHint": "Ẩn chi tiết nguồn",
     "titleLabel": "Tiêu đề",
     "sectionLabel": "Mục",
     "locatorLabel": "Vị trí trong nguồn",
     "openPlace": "Mở thẻ địa điểm",
-    "verifiedLong": "Xác minh ngày {{date}}"
+    "verifiedLong": "Đã đối chiếu nguồn · {{date}}"
   },
   "sections": {
     "OVERVIEW": "Tổng quan",
@@ -67,8 +67,8 @@
   },
   "share": "Chia sẻ địa điểm",
   "trust": {
-    "unverified": "Chưa kiểm duyệt",
-    "unverifiedHint": "Tìm thấy trên web, Gonarra chưa kiểm duyệt.",
+    "unverified": "Chưa đối chiếu nguồn",
+    "unverifiedHint": "Tìm thấy trên web; Gonarra chưa đối chiếu với nguồn.",
     "webSource": "{{host}} · lấy ngày {{date}}",
     "webSourceUnknown": "Nguồn web"
   }

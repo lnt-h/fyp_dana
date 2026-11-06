@@ -1,7 +1,8 @@
 """``Idempotency-Key`` handling (ADR-009, FR-041, ASM-071).
 
 Scope: ``(account_id, operation, idempotency_key)`` — the primary key of ``idempotency_records``.
-The request fingerprint is the SHA-256 of the canonical JSON of the operation's target id and body,
+The request fingerprint is the SHA-256 of the canonical JSON of the operation's target id (the
+preview for Save/edit, the account for trip creation) and body,
 so the same key reused for a different preview or body answers 409 ``idempotency_key_reused``.
 Records live 24 h. Only successful responses are stored; a failed attempt rolls its claim back so a
 retry re-evaluates.
@@ -25,6 +26,10 @@ OP_TRIP_SAVE: Final = "TRIP_SAVE"
 OP_PREVIEW_CREATE: Final = "PREVIEW_CREATE"
 OP_DAY_REGENERATE: Final = "DAY_REGENERATE"
 OP_ACCOUNT_DELETE: Final = "ACCOUNT_DELETE"
+# Allowed by ck_idempotency_records_operation from migration 0006 on (optional key on
+# POST /v1/trips and PATCH /v1/plan-previews/{id}).
+OP_TRIP_CREATE: Final = "TRIP_CREATE"
+OP_PREVIEW_EDIT: Final = "PREVIEW_EDIT"
 
 
 @dataclass(frozen=True)

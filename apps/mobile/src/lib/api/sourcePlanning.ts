@@ -198,7 +198,7 @@ function seed(preview: PlanPreview) {
 async function headOrSeed(previewId: Uuid): Promise<PlanPreview> {
   const head = fixtureHeads.get(previewId);
   if (head) return head;
-  const preview = await getPreview(previewId).catch(() => { throw apiError(404, 'not_found', 'This item was not found'); });
+  const preview = await getPreview(previewId).catch(() => { throw apiError(404, 'resource_not_found', 'This item was not found'); });
   seed(preview);
   return fixtureHeads.get(previewId) as PlanPreview;
 }
@@ -226,12 +226,12 @@ const at = (day: number, time: string) => `${DAY_DATES[day] ?? DAY_DATES[1]}T${t
 /** FIXTURE: places that are not in fixtures/da-nang.ts but make the picker useful (no photos; approximate coordinates). */
 type Extra = { pid: number; slug: string; category_code: string; name_vi: string; name_en: string; short_vi: string; short_en: string; lat: number; lng: number; visit: number };
 const EXTRAS: Extra[] = [
-  { category_code: 'heritage', lat: 15.87712, lng: 108.32905, name_en: 'Hoi An Museum of History and Culture', name_vi: 'Bảo tàng Lịch sử Văn hoá Hội An', pid: 0x4a1, short_en: 'Small museum on the town’s trading history.', short_vi: 'Bảo tàng nhỏ về lịch sử thương cảng Hội An.', slug: 'bao-tang-lich-su-van-hoa', visit: 45 },
-  { category_code: 'heritage', lat: 15.87701, lng: 108.32742, name_en: 'Cantonese Assembly Hall', name_vi: 'Hội quán Quảng Đông', pid: 0x4a2, short_en: 'Assembly hall with a dragon fountain courtyard.', short_vi: 'Hội quán có sân rồng phun nước.', slug: 'hoi-quan-quang-dong', visit: 30 },
-  { category_code: 'heritage', lat: 15.87705, lng: 108.32655, name_en: 'Phung Hung Ancient House', name_vi: 'Nhà cổ Phùng Hưng', pid: 0x4a3, short_en: 'Two-storey merchant house near the bridge.', short_vi: 'Nhà buôn hai tầng gần Chùa Cầu.', slug: 'nha-co-phung-hung', visit: 30 },
-  { category_code: 'nature', lat: 15.88290, lng: 108.30860, name_en: 'Thanh Ha Pottery Village', name_vi: 'Làng gốm Thanh Hà', pid: 0x4a4, short_en: 'Riverside pottery village west of the old town.', short_vi: 'Làng gốm ven sông phía tây phố cổ.', slug: 'lang-gom-thanh-ha', visit: 75 },
-  { category_code: 'market', lat: 15.87655, lng: 108.32560, name_en: 'Hoi An Night Market', name_vi: 'Chợ đêm Hội An', pid: 0x4a5, short_en: 'Lantern-lit stalls on Nguyen Hoang street.', short_vi: 'Dãy hàng đèn lồng trên đường Nguyễn Hoàng.', slug: 'cho-dem-hoi-an', visit: 60 },
-  { category_code: 'beach', lat: 15.89520, lng: 108.36310, name_en: 'Cua Dai Beach', name_vi: 'Biển Cửa Đại', pid: 0x4a6, short_en: 'Long sandy beach east of the old town.', short_vi: 'Bãi cát dài phía đông phố cổ.', slug: 'bien-cua-dai', visit: 120 },
+  { category_code: 'MUSEUM', lat: 15.87712, lng: 108.32905, name_en: 'Hoi An Museum of History and Culture', name_vi: 'Bảo tàng Lịch sử Văn hoá Hội An', pid: 0x4a1, short_en: 'Small museum on the town’s trading history.', short_vi: 'Bảo tàng nhỏ về lịch sử thương cảng Hội An.', slug: 'bao-tang-lich-su-van-hoa', visit: 45 },
+  { category_code: 'HERITAGE', lat: 15.87701, lng: 108.32742, name_en: 'Cantonese Assembly Hall', name_vi: 'Hội quán Quảng Đông', pid: 0x4a2, short_en: 'Assembly hall with a dragon fountain courtyard.', short_vi: 'Hội quán có sân rồng phun nước.', slug: 'hoi-quan-quang-dong', visit: 30 },
+  { category_code: 'HERITAGE', lat: 15.87705, lng: 108.32655, name_en: 'Phung Hung Ancient House', name_vi: 'Nhà cổ Phùng Hưng', pid: 0x4a3, short_en: 'Two-storey merchant house near the bridge.', short_vi: 'Nhà buôn hai tầng gần Chùa Cầu.', slug: 'nha-co-phung-hung', visit: 30 },
+  { category_code: 'CRAFT_VILLAGE', lat: 15.88290, lng: 108.30860, name_en: 'Thanh Ha Pottery Village', name_vi: 'Làng gốm Thanh Hà', pid: 0x4a4, short_en: 'Riverside pottery village west of the old town.', short_vi: 'Làng gốm ven sông phía tây phố cổ.', slug: 'lang-gom-thanh-ha', visit: 75 },
+  { category_code: 'MARKET', lat: 15.87655, lng: 108.32560, name_en: 'Hoi An Night Market', name_vi: 'Chợ đêm Hội An', pid: 0x4a5, short_en: 'Lantern-lit stalls on Nguyen Hoang street.', short_vi: 'Dãy hàng đèn lồng trên đường Nguyễn Hoàng.', slug: 'cho-dem-hoi-an', visit: 60 },
+  { category_code: 'BEACH', lat: 15.89520, lng: 108.36310, name_en: 'Cua Dai Beach', name_vi: 'Biển Cửa Đại', pid: 0x4a6, short_en: 'Long sandy beach east of the old town.', short_vi: 'Bãi cát dài phía đông phố cổ.', slug: 'bien-cua-dai', visit: 120 },
 ];
 
 function fold(value: string) {
@@ -361,13 +361,13 @@ async function fixtureEdit(previewId: Uuid, body: PlanPreviewEdit, idempotencyKe
   if (fault) throw faultError(fault);
   if (head.status !== 'ACTIVE') throw apiError(410, 'preview_closed', 'This draft is closed');
   if (body.expected_revision !== head.head_revision) throw apiError(409, 'revision_conflict', 'This draft changed elsewhere');
-  if (!body.edits.length || body.edits.length > MAX_EDITS_PER_REQUEST) throw apiError(422, 'validation_failed', 'Check the highlighted fields', false, { fields: ['edits'] });
+  if (!body.edits.length || body.edits.length > MAX_EDITS_PER_REQUEST) throw apiError(422, 'validation_error', 'Check the highlighted fields', false, { fields: ['edits'] });
 
   const locale = currentLocale();
   const pool = cityPool(locale);
   const days: Day[] = clone(head.days);
   const modeOverrides = new Map<string, TravelMode>();
-  const invalid = (field: string) => apiError(422, 'validation_failed', 'Check the highlighted fields', false, { fields: [field] });
+  const invalid = (field: string) => apiError(422, 'validation_error', 'Check the highlighted fields', false, { fields: [field] });
   const find = (stopId: Uuid) => {
     for (const day of days) {
       const index = day.stops.findIndex(stop => stop.id === stopId);
@@ -442,7 +442,7 @@ function fixtureRegenerate(previewId: Uuid, body: RegenerateDayRequest, idempote
   const replay = idempotentReplies.get(idempotencyKey);
   if (replay) return clone(replay);
   const head = fixtureHeads.get(previewId);
-  if (!head) throw apiError(404, 'not_found', 'This item was not found');
+  if (!head) throw apiError(404, 'resource_not_found', 'This item was not found');
   const fault = takeFault();
   if (fault === 'revision_conflict') { simulateOtherDevice(head); throw faultError(fault); }
   if (fault) throw faultError(fault);
@@ -451,7 +451,7 @@ function fixtureRegenerate(previewId: Uuid, body: RegenerateDayRequest, idempote
   const locale = body.locale ?? currentLocale();
   const days: Day[] = clone(head.days);
   const day = days.find(item => item.day_index === body.day_index);
-  if (!day) throw apiError(422, 'validation_failed', 'Check the highlighted fields', false, { fields: ['day_index'] });
+  if (!day) throw apiError(422, 'validation_error', 'Check the highlighted fields', false, { fields: ['day_index'] });
   const locked = new Set([...(body.locked_stop_ids ?? []), ...day.stops.filter(stop => stop.is_locked).map(stop => stop.id)]);
   const taken = new Set(days.flatMap(item => item.stops.filter(stop => item !== day || locked.has(stop.id)).map(stop => stop.place_id)));
   // FIXTURE "selection": rotate through the city pool by revision so each regeneration shows a different set.

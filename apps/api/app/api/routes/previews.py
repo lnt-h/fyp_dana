@@ -156,12 +156,18 @@ async def edit_plan_preview(
     body: PlanPreviewEdit,
     service: Service,
     idempotency_key: IdempotencyKeyHeader = None,
-) -> PlanPreview:
-    """Manual edit: no AI, no routing, no solver (M3). Re-timing is a sequential shift."""
-    # Validated per the contract; replay safety comes from expected_revision (a repeated edit
-    # answers 409). idempotency_records has no PREVIEW_EDIT operation.
-    idempotency.normalize_key(idempotency_key, required=False)
-    return await service.edit_preview(preview_id, body)
+) -> JSONResponse:
+    """Manual edit: no AI, no routing, no solver (M3). Re-timing is a sequential shift.
+
+    Optional ``Idempotency-Key`` (PREVIEW_EDIT): a retry with the same key and body answers the
+    stored 200 with ``Idempotent-Replayed: true`` instead of 409 ``revision_conflict``."""
+    result = await service.edit_preview(preview_id, body, raw_key=idempotency_key)
+    headers = (
+        {idempotency.REPLAYED_HEADER: "true" if result.replayed else "false"}
+        if idempotency_key is not None
+        else None
+    )
+    return JSONResponse(status_code=result.status, content=result.body, headers=headers)
 
 
 @router.delete(

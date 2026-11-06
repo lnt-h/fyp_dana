@@ -1,3 +1,4 @@
+import uuid
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Annotated, Any
@@ -7,13 +8,16 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
 from jwt.exceptions import PyJWTError
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
 from app.config import Settings, get_settings
 from app.db.session import get_db_session
+from app.errors import AppError
 from app.models.account import Account
-from app.repositories.accounts import SQLAlchemyAccountRepository
+from app.models.planning import AccountDeletionJob
+from app.repositories.accounts import DeletedSubjectError, SQLAlchemyAccountRepository
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -80,9 +84,66 @@ def require_owner(owner_subject: str, user: AuthenticatedUser) -> None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
 
 
-async def get_current_account(
+OPEN_DELETION_STATUSES = ("REQUESTED", "IN_PROGRESS", "FAILED")
+
+
+async def get_account_allowing_deletion(
     user: Annotated[AuthenticatedUser, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> Account:
+    """The caller's account without the deletion guard.
+
+    Only ``GET /v1/me/deletion`` and ``POST /v1/me/deletion`` use this directly; every other
+    authenticated route goes through :func:`get_current_account`. A subject whose deletion
+    COMPLETED is refused with 401 instead of being mapped to a fresh account.
+    """
     repository = SQLAlchemyAccountRepository(session)
-    return await repository.get_or_create(user.subject)
+    try:
+        return await repository.get_or_create(user.subject)
+    except DeletedSubjectError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid session token",
+        ) from exc
+
+
+async def has_open_deletion_job(session: AsyncSession, account_id: uuid.UUID) -> bool:
+    """One lookup, served by the partial unique index on open jobs
+    (``uq_account_deletion_jobs_account_id_open``)."""
+    statement = select(
+        exists().where(
+            AccountDeletionJob.account_id == account_id,
+            AccountDeletionJob.status.in_(OPEN_DELETION_STATUSES),
+        )
+    )
+    return bool(await session.scalar(statement))
+
+
+def deletion_in_progress() -> AppError:
+    return AppError(
+        409,
+        "deletion_in_progress",
+        "This account is being deleted; only the deletion status is available.",
+    )
+
+
+async def get_deletion_pending(
+    account: Annotated[Account, Depends(get_account_allowing_deletion)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> bool:
+    return await has_open_deletion_job(session, account.id)
+
+
+async def get_current_account(
+    account: Annotated[Account, Depends(get_account_allowing_deletion)],
+    deletion_pending: Annotated[bool, Depends(get_deletion_pending)],
+) -> Account:
+    """The caller's account; 409 ``deletion_in_progress`` once a deletion job is open
+    (REQUESTED, IN_PROGRESS or FAILED), so no route can read or write an account being purged.
+
+    After COMPLETED the account row is gone; the job keeps only ``clerk_subject_sha256``, which
+    :func:`get_account_allowing_deletion` uses to refuse a still-valid token of a purged subject.
+    """
+    if deletion_pending:
+        raise deletion_in_progress()
+    return account

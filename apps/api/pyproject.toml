@@ -16,6 +16,7 @@ dependencies = [
   "psycopg[binary]>=3.2,<4",
   "pydantic-settings>=2.7,<3",
   "pyjwt[crypto]>=2.10,<3",
+  "pyyaml>=6.0",
   "sqlalchemy[asyncio]>=2.0.37,<3",
   "sse-starlette>=2.1",
   "tavily-python>=0.5",
@@ -33,6 +34,7 @@ dev = [
   "pytest-cov>=6,<8",
   "pytest-httpx>=0.35",
   "ruff>=0.9,<1",
+  "types-pyyaml>=6.0",
 ]
 
 [tool.pytest.ini_options]
@@ -104,13 +106,68 @@ source_modules = ["app.curation"]
 forbidden_modules = ["app.api", "app.main", "app.agents"]
 
 [[tool.importlinter.contracts]]
+name = "Ingestion does not import the HTTP layer or agents"
+type = "forbidden"
+source_modules = ["app.ingestion"]
+forbidden_modules = ["app.api", "app.main", "app.agents"]
+
+[[tool.importlinter.contracts]]
 name = "AI providers do not import the HTTP layer"
 type = "forbidden"
 source_modules = ["app.ai"]
 forbidden_modules = ["app.api", "app.main"]
 
 [[tool.importlinter.contracts]]
+name = "Routing does not import agents, AI providers or the HTTP layer"
+type = "forbidden"
+source_modules = ["app.routing"]
+forbidden_modules = ["app.api", "app.main", "app.agents", "app.ai.providers"]
+# Routing may use app.ai.quota (ROUTES_ELEMENTS ledger), which itself imports app.ai.providers;
+# the rule is about routing's own imports, so only direct imports are checked.
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Routing never imports the planner or the solver"
+type = "forbidden"
+source_modules = ["app.routing"]
+forbidden_modules = ["app.planning", "app.trips"]
+
+[[tool.importlinter.contracts]]
+name = "Solver is pure: no routing, DB, AI, agents or HTTP"
+type = "forbidden"
+source_modules = ["app.planning.solver"]
+forbidden_modules = [
+  "app.api",
+  "app.main",
+  "app.agents",
+  "app.ai",
+  "app.routing",
+  "app.db",
+  "app.models",
+  "app.repositories",
+  "app.catalog",
+  "app.curation",
+  "app.trips",
+]
+
+[[tool.importlinter.contracts]]
 name = "Trips and planning do not import the HTTP layer or agents"
 type = "forbidden"
 source_modules = ["app.trips", "app.planning"]
 forbidden_modules = ["app.api", "app.main", "app.agents"]
+
+[[tool.importlinter.contracts]]
+name = "Calendar rules and Plan Health are pure code (no AI, HTTP, DB, curation or routing)"
+type = "forbidden"
+source_modules = ["app.planning.calendar", "app.planning.health"]
+forbidden_modules = [
+  "app.agents",
+  "app.ai",
+  "app.api",
+  "app.main",
+  "app.db",
+  "app.repositories",
+  "app.curation",
+  "app.routing",
+  "app.planning.workflows",
+]

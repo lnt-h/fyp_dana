@@ -55,8 +55,8 @@ export function CitationDetail({ citation, onOpen }: { citation: Citation; onOpe
 }
 
 /**
- * One source: `ⓘ {publisher}, {title} · verified {date}` + stale badge. Tapping expands the title, section and locator.
- * A `WEB_UNVERIFIED` source shows the *Unverified* badge with host + fetched date instead (stale after 7 days).
+ * One source: `ⓘ {publisher}, {title} · Source-checked · {date}` + stale badge (DEC-022: automated source checks, no human review). Tapping expands the title, section and locator.
+ * A `WEB_UNVERIFIED` source shows the *Not source-checked* badge with host + fetched date instead (stale after 7 days).
  * `onOpen` adds an "open place card" link inside the expanded block (Guide → SCR-033).
  */
 export function SourceLine({ citation, stale, onOpen }: { citation: Citation; stale?: boolean; onOpen?: () => void }) {

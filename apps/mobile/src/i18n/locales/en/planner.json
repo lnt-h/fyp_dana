@@ -2,12 +2,12 @@
   "title": "New trip",
   "home": {
     "title": "Plan 1–3 days in {{city}}",
-    "subtitle": "Built only from reviewed places",
+    "subtitle": "Built from source-checked places",
     "action": "Plan a trip"
   },
   "intro": {
     "label": "Gonarra assistant",
-    "body": "Tell me a few details and I'll suggest a 1–3 day plan using reviewed places only."
+    "body": "Tell me a few details and I'll suggest a 1–3 day plan from source-checked places. Anything found on the web is clearly labelled."
   },
   "mode": {
     "label": "How do you want to describe your trip?",
@@ -123,7 +123,7 @@
     "step": "Step {{current}} of {{total}}",
     "stages": {
       "VALIDATING_REQUEST": "Understanding your request",
-      "SELECTING_PLACES": "Choosing reviewed places",
+      "SELECTING_PLACES": "Choosing source-checked places",
       "RESEARCHING": "Searching the web for more places",
       "VERIFYING_WEB_PLACES": "Checking places found on the web",
       "ROUTING": "Measuring travel times",
@@ -149,12 +149,12 @@
     "status": {
       "VALIDATING_REQUEST_0": "Reading your request…",
       "VALIDATING_REQUEST_1": "Checking the city and trip length…",
-      "SELECTING_PLACES_0": "Sorting through reviewed places…",
+      "SELECTING_PLACES_0": "Sorting through source-checked places…",
       "SELECTING_PLACES_1": "Picking spots that match your interests…",
       "RESEARCHING_0": "Looking for more ideas on the web…",
       "RESEARCHING_1": "Reading the pages that were found…",
       "VERIFYING_WEB_PLACES_0": "Checking that each place really exists…",
-      "VERIFYING_WEB_PLACES_1": "Web places will be labelled as unverified…",
+      "VERIFYING_WEB_PLACES_1": "Web places will be labelled Not source-checked…",
       "ROUTING_0": "Measuring the distance between stops…",
       "ROUTING_1": "Working out real travel times…",
       "SCHEDULING_0": "Fitting stops into each day…",
@@ -176,14 +176,15 @@
       "ai_unavailable": "The AI service is busy. Your saved trip is unchanged.",
       "route_unavailable": "Could not recalculate travel times.",
       "quota_exceeded": "You have used today's limit. Try again later.",
-      "validation_failed": "Check the highlighted fields.",
+      "validation_error": "Check the highlighted fields.",
       "unsupported_request": "This request is not supported yet.",
-      "not_found": "This item was not found.",
+      "resource_not_found": "This item was not found.",
       "preview_expired": "This draft expired.",
       "preview_closed": "This draft is closed.",
       "database_unavailable": "The service is briefly unavailable. Try again.",
       "network": "No connection. Try again.",
-      "internal_error": "Something went wrong. Try again."
+      "internal_error": "Something went wrong. Try again.",
+      "authentication_required": "Your session ended. Sign in again to continue."
     }
   }
 }

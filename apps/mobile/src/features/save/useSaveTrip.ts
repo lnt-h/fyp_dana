@@ -13,6 +13,8 @@ export type SaveState =
   | { status: 'conflict'; currentRevision: number }
   | { status: 'interrupted' }
   | { status: 'expired' }
+  /** 422 `web_unverified_acknowledgement_required` (OQ-128): show the acknowledgement step, then save again with it. */
+  | { status: 'ackRequired' }
   | { status: 'error' };
 
 /**
@@ -68,6 +70,10 @@ export function useSaveTrip({ previewId, previewRevision, tripRevision }: { prev
             attempt.current = null;
             next = { status: 'expired' };
             break;
+          case 'web_unverified_acknowledgement_required':
+            attempt.current = null;
+            next = { status: 'ackRequired' };
+            break;
           case 'idempotency_in_progress':
             next = { status: 'interrupted' };
             break;
@@ -86,14 +92,23 @@ export function useSaveTrip({ previewId, previewRevision, tripRevision }: { prev
     if (mounted.current) setState(next);
   }, [previewId]);
 
-  /** First Save (or Save again after a generic error). */
-  const save = useCallback(() => run({ expected_preview_revision: previewRevision, expected_trip_revision: tripRevision }), [previewRevision, run, tripRevision]);
+  /**
+   * First Save (or Save again after a generic error). `acknowledgeWebUnverified` is true only after the user confirmed
+   * the acknowledgement step for a plan with a WEB_UNVERIFIED stop (OQ-128); the field is always sent.
+   */
+  const save = useCallback((acknowledgeWebUnverified = false) => run({
+    acknowledge_web_unverified: acknowledgeWebUnverified, expected_preview_revision: previewRevision, expected_trip_revision: tripRevision,
+  }), [previewRevision, run, tripRevision]);
 
   /** Same body, same key: a replay never creates a second saved version (FR-041). */
-  const retry = useCallback(() => run(lastBody.current ?? { expected_preview_revision: previewRevision, expected_trip_revision: tripRevision }), [previewRevision, run, tripRevision]);
+  const retry = useCallback(() => run(lastBody.current ?? {
+    acknowledge_web_unverified: false, expected_preview_revision: previewRevision, expected_trip_revision: tripRevision,
+  }), [previewRevision, run, tripRevision]);
 
   /** After the user confirms replacing the other device's save: re-send accept with the newer trip revision (SCR-029). */
-  const saveReplacing = useCallback((currentRevision: number) => run({ expected_preview_revision: previewRevision, expected_trip_revision: currentRevision }), [previewRevision, run]);
+  const saveReplacing = useCallback((currentRevision: number) => run({
+    acknowledge_web_unverified: lastBody.current?.acknowledge_web_unverified ?? false, expected_preview_revision: previewRevision, expected_trip_revision: currentRevision,
+  }), [previewRevision, run]);
 
   const reset = useCallback(() => setState({ status: 'idle' }), []);
 

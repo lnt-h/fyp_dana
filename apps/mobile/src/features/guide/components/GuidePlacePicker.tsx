@@ -17,8 +17,8 @@ type Load = { state: 'loading' } | { state: 'ready'; places: Place[]; city: City
 
 const THUMB = 76;
 
-/** No place selected: explainer + Hội An places (Hội An is built end to end first). A session is always one place. */
-export function GuidePlacePicker({ onPick }: { onPick: (placeId: string) => void }) {
+/** Place picker: explainer, a "whole city" entry (city session) and the city's places (place session). */
+export function GuidePlacePicker({ onPick, onPickCity }: { onPick: (placeId: string) => void; onPickCity?: () => void }) {
   const { t, i18n } = useTranslation();
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [categories, setCategories] = useState<Category[]>([]);
@@ -48,6 +48,20 @@ export function GuidePlacePicker({ onPick }: { onPick: (placeId: string) => void
         <Text style={p.introBody}>{t('guide.picker.body')}</Text>
       </View>
     </View>
+
+    {onPickCity && <Pressable
+      accessibilityLabel={t('guide.picker.wholeCity', { city: cityName ?? '' })}
+      accessibilityRole="button"
+      onPress={onPickCity}
+      style={({ pressed }) => [p.row, p.cityRow, pressed && p.pressed]}
+    >
+      <View style={[p.thumb, p.cityThumb]}><Icon color={colors.tealText} name="map-pin" size={28} /></View>
+      <View style={p.copy}>
+        <Text numberOfLines={1} style={p.name}>{t('guide.picker.wholeCity', { city: cityName ?? '' })}</Text>
+        <Text numberOfLines={2} style={p.description}>{t('guide.picker.wholeCityBody')}</Text>
+      </View>
+      <View style={p.chevron}><Icon color={colors.deepOcean} name="chevron-right" size={18} /></View>
+    </Pressable>}
 
     <SectionHeader style={p.section} subtitle={cityName} title={t('guide.picker.choose')} />
 
@@ -110,6 +124,8 @@ function PlaceRow({ place, category, onPress }: { place: Place; category?: Categ
 }
 
 const p = StyleSheet.create({
+  cityRow: { marginTop: spacing.md },
+  cityThumb: { alignItems: 'center', justifyContent: 'center' },
   chevron: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
   copy: { flex: 1, gap: 4, minWidth: 0 },
   description: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 19 },

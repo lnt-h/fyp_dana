@@ -52,7 +52,10 @@
     "detailStop": "Ngày {{day}} · #{{number}} {{name}}",
     "detailDay": "Ngày {{day}}",
     "goToStop": "Đến điểm dừng",
-    "goToStopA11y": "Đến điểm dừng {{number}}, {{name}}"
+    "goToStopA11y": "Đến điểm dừng {{number}}, {{name}}",
+    "onDate": "Ngày {{date}}",
+    "affects": "Ảnh hưởng: {{stops}}",
+    "affectedStop": "Ngày {{day}} #{{number}} {{name}}"
   },
   "conflict": {
     "CLOSED_AT_PLANNED_TIME": "Đóng cửa vào giờ dự kiến",
@@ -60,7 +63,14 @@
     "DAY_WINDOW_EXCEEDED": "Vượt khung giờ trong ngày",
     "OPENING_HOURS_UNKNOWN": "Giờ mở cửa: chưa rõ",
     "FACT_STALE": "Giờ mở cửa có thể đã cũ",
-    "MUST_SEE_NOT_INCLUDED": "Không thể xếp một địa điểm bạn muốn đến"
+    "MUST_SEE_NOT_INCLUDED": "Không thể xếp một địa điểm bạn muốn đến",
+    "CLOSED_ON_DATE": "Đóng cửa vào ngày này",
+    "LEG_MODE_RESTRICTED": "Không đi được bằng phương tiện này",
+    "LUNAR_EVENT_CONFLICT": "Trùng ngày lễ âm lịch",
+    "TICKET_VALIDITY": "Vé có thể không dùng được cho lịch này",
+    "SEASONAL_WARNING": "Lưu ý theo mùa",
+    "WEB_PLACE_UNVERIFIED": "Tìm trên web, chưa đối chiếu nguồn",
+    "WEB_PLACE_UNRESOLVED": "Không xác nhận được địa điểm từ web"
   },
   "itinerary": {
     "title": "Lịch trình theo ngày",
@@ -78,7 +88,7 @@
     "warnings_other": "{{count}} cảnh báo",
     "expandHint": "Mở hoặc thu gọn lịch trình của ngày này",
     "empty": "Ngày {{day}} chưa có điểm dừng",
-    "emptyBody": "Thêm địa điểm đã kiểm duyệt ở {{city}} hoặc tạo lại ngày này."
+    "emptyBody": "Thêm địa điểm đã đối chiếu nguồn ở {{city}} hoặc tạo lại ngày này."
   },
   "stop": {
     "minutes": "{{count}} phút",
@@ -176,13 +186,14 @@
     "revision_conflict": "Bản nháp đã thay đổi ở nơi khác.",
     "preview_expired": "Bản nháp đã hết hạn.",
     "preview_closed": "Bản nháp đã đóng.",
-    "validation_failed": "Không thể áp dụng thay đổi này cho kế hoạch hiện tại.",
+    "validation_error": "Không thể áp dụng thay đổi này cho kế hoạch hiện tại.",
     "place_not_in_city": "Địa điểm không thuộc thành phố của chuyến đi.",
     "quota_exceeded": "Bạn đã dùng hết lượt hôm nay. Thử lại sau.",
     "idempotency_in_progress": "Đang xử lý yêu cầu trước…",
     "database_unavailable": "Dịch vụ tạm gián đoạn. Thử lại.",
-    "not_found": "Không tìm thấy mục này.",
-    "internal_error": "Có lỗi xảy ra. Thử lại."
+    "resource_not_found": "Không tìm thấy mục này.",
+    "internal_error": "Có lỗi xảy ra. Thử lại.",
+    "authentication_required": "Phiên đăng nhập đã hết. Hãy đăng nhập lại để tiếp tục."
   },
   "sheet": {
     "subtitle": "Ngày {{day}} · điểm dừng {{number}} · {{time}}",
@@ -231,7 +242,7 @@
     "replacing": "Thay cho {{name}}",
     "search": "Tìm địa điểm ở {{city}}",
     "clear": "Xoá tìm kiếm",
-    "scope": "Chỉ hiển thị địa điểm đã kiểm duyệt ở {{city}}.",
+    "scope": "Chỉ hiển thị địa điểm đã đối chiếu nguồn ở {{city}}.",
     "categories": "Nhóm địa điểm",
     "all": "Tất cả",
     "choose": "Chọn",
@@ -292,7 +303,7 @@
     "progressBody": "Các ngày khác và điểm giữ cố định giữ nguyên.",
     "stage": {
       "VALIDATING_REQUEST": "Kiểm tra yêu cầu",
-      "SELECTING_PLACES": "Chọn địa điểm đã kiểm duyệt",
+      "SELECTING_PLACES": "Chọn địa điểm đã đối chiếu nguồn",
       "RESEARCHING": "Tìm trên web",
       "VERIFYING_WEB_PLACES": "Kiểm tra địa điểm từ web",
       "ROUTING": "Lấy tuyến đường",

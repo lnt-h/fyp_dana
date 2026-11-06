@@ -4,7 +4,7 @@
  * Hand-made sample responses served when EXPO_PUBLIC_API_URL is unset (see config.ts). Đà Nẵng only: the places are
  * well-known landmarks of the Hội An area of Đà Nẵng (2025 merger) with approximate coordinates; times, distances, durations, hours, prices, addresses and citations are
  * rough illustrations, not Google Routes output and not reviewed facts. Nothing here may be imported into the catalog,
- * shown as verified or used as evidence. IDs are fixed fake UUIDs. Category codes are fixture codes (no seed exists yet).
+ * shown as verified or used as evidence. IDs are fixed fake UUIDs. Category codes follow the API seed (UPPER_CASE).
  *
  * One stop (Làng rau Trà Quế) is a `WEB_UNVERIFIED` web candidate with a fake `.example` source URL, to exercise the
  * trust label (architecture §5).
@@ -49,12 +49,20 @@ export const defaultCity = fixtureCities[0];
 
 export const cityById = (cityId: Uuid) => fixtureCities.find(city => city.id === cityId);
 
+/** Category seed (apps/api `CATEGORIES`, UPPER_CASE codes). */
 export const fixtureCategories: Category[] = [
-  { code: 'heritage', name_en: 'Heritage', name_vi: 'Di sản', sort_order: 1 },
-  { code: 'market', name_en: 'Markets & food', name_vi: 'Chợ & ẩm thực', sort_order: 2 },
-  { code: 'nature', name_en: 'Nature', name_vi: 'Thiên nhiên', sort_order: 3 },
-  { code: 'beach', name_en: 'Beaches', name_vi: 'Biển', sort_order: 4 },
-  { code: 'evening', name_en: 'Evening walks', name_vi: 'Dạo buổi tối', sort_order: 5 },
+  { code: 'HERITAGE', name_en: 'Heritage & historic sites', name_vi: 'Di sản & di tích', sort_order: 1 },
+  { code: 'MUSEUM', name_en: 'Museums', name_vi: 'Bảo tàng', sort_order: 2 },
+  { code: 'RELIGIOUS_SITE', name_en: 'Pagodas, temples & churches', name_vi: 'Chùa, đền & nhà thờ', sort_order: 3 },
+  { code: 'BEACH', name_en: 'Beaches', name_vi: 'Biển', sort_order: 4 },
+  { code: 'NATURE', name_en: 'Nature', name_vi: 'Thiên nhiên', sort_order: 5 },
+  { code: 'VIEWPOINT', name_en: 'Viewpoints', name_vi: 'Điểm ngắm cảnh', sort_order: 6 },
+  { code: 'MARKET', name_en: 'Markets', name_vi: 'Chợ', sort_order: 7 },
+  { code: 'FOOD', name_en: 'Food', name_vi: 'Ẩm thực', sort_order: 8 },
+  { code: 'CAFE', name_en: 'Cafés', name_vi: 'Cà phê', sort_order: 9 },
+  { code: 'NIGHTLIFE', name_en: 'Evening & nightlife', name_vi: 'Về đêm', sort_order: 10 },
+  { code: 'THEME_PARK', name_en: 'Theme parks', name_vi: 'Khu vui chơi', sort_order: 11 },
+  { code: 'CRAFT_VILLAGE', name_en: 'Craft villages', name_vi: 'Làng nghề', sort_order: 12 },
 ];
 
 /* ---------------------------------------------------------------- Places */
@@ -73,13 +81,13 @@ type FixturePlace = {
 };
 
 const places = {
-  coveredBridge: { pid: 0x401, slug: 'chua-cau', category_code: 'heritage', name_vi: 'Chùa Cầu', name_en: 'Japanese Covered Bridge', short_vi: 'Cây cầu có mái che, biểu tượng của phố cổ.', short_en: 'The roofed bridge that symbolises the old town.', latitude: 15.87702, longitude: 108.32601, visit: 40 },
-  tanKy: { pid: 0x402, slug: 'nha-co-tan-ky', category_code: 'heritage', name_vi: 'Nhà cổ Tấn Ký', name_en: 'Tan Ky Ancient House', short_vi: 'Nhà buôn cổ bằng gỗ trên phố Nguyễn Thái Học.', short_en: 'A wooden merchant house on Nguyen Thai Hoc street.', latitude: 15.87668, longitude: 108.32808, visit: 40 },
-  phucKien: { pid: 0x403, slug: 'hoi-quan-phuc-kien', category_code: 'heritage', name_vi: 'Hội quán Phúc Kiến', name_en: 'Fujian Assembly Hall', short_vi: 'Hội quán của cộng đồng người Hoa Phúc Kiến.', short_en: 'The assembly hall of the Fujian Chinese community.', latitude: 15.87745, longitude: 108.33075, visit: 45 },
-  market: { pid: 0x404, slug: 'cho-hoi-an', category_code: 'market', name_vi: 'Chợ Hội An', name_en: 'Hoi An Central Market', short_vi: 'Chợ trung tâm bên sông Hoài, nhiều món ăn địa phương.', short_en: 'The central market by the Hoai River, full of local food.', latitude: 15.87692, longitude: 108.33186, visit: 70 },
-  hoaiRiver: { pid: 0x405, slug: 'pho-den-long-song-hoai', category_code: 'evening', name_vi: 'Phố đèn lồng ven sông Hoài', name_en: 'Hoai River lantern quarter', short_vi: 'Bờ sông rực đèn lồng khi trời tối.', short_en: 'The riverbank lit by lanterns after dark.', latitude: 15.87628, longitude: 108.32705, visit: 90 },
-  coconutForest: { pid: 0x406, slug: 'rung-dua-bay-mau', category_code: 'nature', name_vi: 'Rừng dừa Bảy Mẫu', name_en: 'Bay Mau Coconut Forest', short_vi: 'Rừng dừa nước, đi thuyền thúng.', short_en: 'Water coconut palms explored by basket boat.', latitude: 15.88570, longitude: 108.36830, visit: 90 },
-  anBang: { pid: 0x407, slug: 'bien-an-bang', category_code: 'beach', name_vi: 'Biển An Bàng', name_en: 'An Bang Beach', short_vi: 'Bãi biển gần phố cổ, nhiều quán ven biển.', short_en: 'A beach near the old town with seaside cafés.', latitude: 15.91390, longitude: 108.34050, visit: 130 },
+  coveredBridge: { pid: 0x401, slug: 'chua-cau', category_code: 'HERITAGE', name_vi: 'Chùa Cầu', name_en: 'Japanese Covered Bridge', short_vi: 'Cây cầu có mái che, biểu tượng của phố cổ.', short_en: 'The roofed bridge that symbolises the old town.', latitude: 15.87702, longitude: 108.32601, visit: 40 },
+  tanKy: { pid: 0x402, slug: 'nha-co-tan-ky', category_code: 'HERITAGE', name_vi: 'Nhà cổ Tấn Ký', name_en: 'Tan Ky Ancient House', short_vi: 'Nhà buôn cổ bằng gỗ trên phố Nguyễn Thái Học.', short_en: 'A wooden merchant house on Nguyen Thai Hoc street.', latitude: 15.87668, longitude: 108.32808, visit: 40 },
+  phucKien: { pid: 0x403, slug: 'hoi-quan-phuc-kien', category_code: 'HERITAGE', name_vi: 'Hội quán Phúc Kiến', name_en: 'Fujian Assembly Hall', short_vi: 'Hội quán của cộng đồng người Hoa Phúc Kiến.', short_en: 'The assembly hall of the Fujian Chinese community.', latitude: 15.87745, longitude: 108.33075, visit: 45 },
+  market: { pid: 0x404, slug: 'cho-hoi-an', category_code: 'MARKET', name_vi: 'Chợ Hội An', name_en: 'Hoi An Central Market', short_vi: 'Chợ trung tâm bên sông Hoài, nhiều món ăn địa phương.', short_en: 'The central market by the Hoai River, full of local food.', latitude: 15.87692, longitude: 108.33186, visit: 70 },
+  hoaiRiver: { pid: 0x405, slug: 'pho-den-long-song-hoai', category_code: 'NIGHTLIFE', name_vi: 'Phố đèn lồng ven sông Hoài', name_en: 'Hoai River lantern quarter', short_vi: 'Bờ sông rực đèn lồng khi trời tối.', short_en: 'The riverbank lit by lanterns after dark.', latitude: 15.87628, longitude: 108.32705, visit: 90 },
+  coconutForest: { pid: 0x406, slug: 'rung-dua-bay-mau', category_code: 'NATURE', name_vi: 'Rừng dừa Bảy Mẫu', name_en: 'Bay Mau Coconut Forest', short_vi: 'Rừng dừa nước, đi thuyền thúng.', short_en: 'Water coconut palms explored by basket boat.', latitude: 15.88570, longitude: 108.36830, visit: 90 },
+  anBang: { pid: 0x407, slug: 'bien-an-bang', category_code: 'BEACH', name_vi: 'Biển An Bàng', name_en: 'An Bang Beach', short_vi: 'Bãi biển gần phố cổ, nhiều quán ven biển.', short_en: 'A beach near the old town with seaside cafés.', latitude: 15.91390, longitude: 108.34050, visit: 130 },
 } satisfies Record<string, FixturePlace>;
 
 const placeList: FixturePlace[] = Object.values(places);
@@ -182,13 +190,13 @@ function factsFor(place: FixturePlace): PlaceFact[] {
   ];
 }
 
-/** API-011 `GET /v1/places/{place_id}`; undefined for an unknown id (→ 404 `not_found`). */
+/** API-011 `GET /v1/places/{place_id}`; undefined for an unknown id (→ 404 `resource_not_found`). */
 export function fixturePlaceDetail(placeId: Uuid, locale: Locale): PlaceDetail | undefined {
   const place = placeList.find(item => placeIdOf(item) === placeId);
   if (!place) return undefined;
   return {
     ...summary(place, locale),
-    attributions: [{ attribution_text: '© Fixture data — not reviewed', homepage_url: null, license_code: null, publisher: 'Gonarra fixtures' },
+    attributions: [{ attribution_text: '© Fixture data — not source-checked', homepage_url: null, license_code: null, publisher: 'Gonarra fixtures' },
       ...(placePhotos[place.slug] ? [{ attribution_text: placePhotos[place.slug].attribution_text, homepage_url: null, license_code: placePhotos[place.slug].license_code, publisher: 'Wikimedia Commons' }] : [])],
     description: byLocale(locale, place.short_vi, place.short_en),
     entrance_location: null,
@@ -280,7 +288,7 @@ function webStop(locale: Locale, ordinal: number, date: string, arrive: string, 
     place_id: null,
     planned_arrival: at(date, arrive),
     planned_departure: at(date, depart),
-    rationale: byLocale(locale, 'Tìm thấy trên web, chưa được kiểm duyệt.', 'Found on the web; not reviewed yet.'),
+    rationale: byLocale(locale, 'Tìm thấy trên web, chưa đối chiếu nguồn.', 'Found on the web; not source-checked.'),
     trust_level: 'WEB_UNVERIFIED',
     visit_minutes: 60,
     web_source: { candidate_id: id(0xb01), fetched_at: '2026-11-02T10:00:00+07:00', url: 'https://travel-notes.example/tra-que-vegetable-village' },
@@ -349,12 +357,16 @@ export function fixturePreview(locale: Locale, variant: 'warning' | 'routeUnavai
     head_revision: 1,
     health_reasons: routeUnavailable
       ? [{ message: byLocale(locale, 'Không có tuyến đường', 'Route unavailable'), severity: 'BLOCKING', type: 'LEG_UNAVAILABLE' }]
-      : [{ message: byLocale(locale, 'Giờ mở cửa: chưa rõ', 'Opening hours: unknown'), severity: 'WARNING', type: 'OPENING_HOURS_UNKNOWN' }],
+      : [
+        { message: byLocale(locale, 'Giờ mở cửa: chưa rõ', 'Opening hours: unknown'), severity: 'WARNING', type: 'OPENING_HOURS_UNKNOWN' },
+        { severity: 'WARNING', stop_ids: [WEB_STOP_ID], type: 'WEB_PLACE_UNVERIFIED' },
+      ],
     id: routeUnavailable ? FIXTURE_PREVIEW_ROUTE_UNAVAILABLE_ID : FIXTURE_PREVIEW_ID,
     model_version: 'fixture',
     origin: 'GENERATED',
     parent_revision: null,
     plan_health: routeUnavailable ? 'BLOCKED' : 'WARNING',
+    research_used: true,
     preview_revision: 1,
     prompt_version: 'fixture',
     status: 'ACTIVE',
@@ -401,7 +413,7 @@ export function fixturePreferences(locale: Locale): Preferences {
     allowed_modes: ['WALK', 'DRIVE'],
     day_end_time: '20:00',
     day_start_time: '08:00',
-    interest_category_codes: ['heritage', 'market'],
+    interest_category_codes: ['HERITAGE', 'MARKET'],
     locale,
     pace: 'BALANCED',
     updated_at: null,
@@ -414,7 +426,7 @@ export const GUIDE_SESSION_ID = id(0x951);
 
 /** A Guide session about Chùa Cầu inside the saved fixture trip. */
 export function fixtureGuideSession(locale: Locale): GuideSession {
-  return { created_at: '2027-01-16T08:09:00+07:00', expires_at: null, id: GUIDE_SESSION_ID, locale, place_id: PLACE_IDS.coveredBridge, trip_id: FIXTURE_TRIP_ID };
+  return { city_code: 'da-nang', created_at: '2027-01-16T08:09:00+07:00', expires_at: null, id: GUIDE_SESSION_ID, locale, place_id: PLACE_IDS.coveredBridge, scope: 'PLACE', trip_id: FIXTURE_TRIP_ID };
 }
 
 const guideCitations: Citation[] = [

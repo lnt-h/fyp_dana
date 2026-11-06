@@ -1,10 +1,21 @@
+import hashlib
 from typing import Protocol
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
+from app.models.planning import AccountDeletionJob
+
+
+class DeletedSubjectError(Exception):
+    """The Clerk subject belongs to an account whose deletion job COMPLETED (BR-021)."""
+
+
+def subject_sha256(clerk_user_id: str) -> str:
+    """Hex SHA-256 of a Clerk subject, stored on deletion jobs instead of the subject itself."""
+    return hashlib.sha256(clerk_user_id.encode("utf-8")).hexdigest()
 
 
 class AccountRepository(Protocol):
@@ -16,6 +27,29 @@ class SQLAlchemyAccountRepository:
         self._session = session
 
     async def get_or_create(self, clerk_user_id: str) -> Account:
+        """Map a Clerk subject to its account, creating it on first sight.
+
+        Raises :class:`DeletedSubjectError` instead of re-creating an account for a subject whose
+        deletion completed (``account_deletion_jobs.clerk_subject_sha256``, partial index on
+        COMPLETED), so a still-valid token of a purged user cannot start a fresh account.
+        """
+        existing = await self._session.scalar(
+            select(Account).where(Account.clerk_user_id == clerk_user_id)
+        )
+        if existing is not None:
+            return existing
+
+        deleted = await self._session.scalar(
+            select(
+                exists().where(
+                    AccountDeletionJob.status == "COMPLETED",
+                    AccountDeletionJob.clerk_subject_sha256 == subject_sha256(clerk_user_id),
+                )
+            )
+        )
+        if deleted:
+            raise DeletedSubjectError
+
         statement = (
             insert(Account)
             .values(clerk_user_id=clerk_user_id)

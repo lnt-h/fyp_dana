@@ -1,0 +1,43 @@
+{
+  "head": {
+    "vars": ["item", "coord", "labelVi", "labelEn", "descVi", "descEn", "articleVi", "articleEn", "classLabels", "aliasesVi", "aliasesEn"]
+  },
+  "results": {
+    "bindings": [
+      {
+        "item": {"type": "uri", "value": "http://www.wikidata.org/entity/Q1091054"},
+        "coord": {"datatype": "http://www.opengis.net/ont/geosparql#wktLiteral", "type": "literal", "value": "Point(108.32624 15.87713)"},
+        "labelVi": {"xml:lang": "vi", "type": "literal", "value": "Chùa Cầu"},
+        "labelEn": {"xml:lang": "en", "type": "literal", "value": "Japanese Covered Bridge"},
+        "descVi": {"xml:lang": "vi", "type": "literal", "value": "cây cầu cổ ở Hội An"},
+        "descEn": {"xml:lang": "en", "type": "literal", "value": "covered bridge in Hội An, Vietnam"},
+        "articleVi": {"type": "uri", "value": "https://vi.wikipedia.org/wiki/Ch%C3%B9a_C%E1%BA%A7u"},
+        "articleEn": {"type": "uri", "value": "https://en.wikipedia.org/wiki/Japanese_Covered_Bridge"},
+        "classLabels": {"type": "literal", "value": "covered bridge|tourist attraction"},
+        "aliasesVi": {"type": "literal", "value": "Lai Viễn Kiều|Cầu Nhật Bản"},
+        "aliasesEn": {"type": "literal", "value": "Chua Cau"}
+      },
+      {
+        "item": {"type": "uri", "value": "http://www.wikidata.org/entity/Q18277260"},
+        "coord": {"datatype": "http://www.opengis.net/ont/geosparql#wktLiteral", "type": "literal", "value": "Point(108.2779 16.1003)"},
+        "labelVi": {"xml:lang": "vi", "type": "literal", "value": "Chùa Linh Ứng (Sơn Trà)"},
+        "classLabels": {"type": "literal", "value": "Buddhist temple|mountain"},
+        "aliasesVi": {"type": "literal", "value": ""},
+        "aliasesEn": {"type": "literal", "value": ""}
+      },
+      {
+        "item": {"type": "uri", "value": "http://www.wikidata.org/entity/Q55555555"},
+        "coord": {"datatype": "http://www.opengis.net/ont/geosparql#wktLiteral", "type": "literal", "value": "Point(108.245 16.06)"},
+        "labelEn": {"xml:lang": "en", "type": "literal", "value": "Some Beach Hotel"},
+        "classLabels": {"type": "literal", "value": "hotel"},
+        "aliasesVi": {"type": "literal", "value": ""},
+        "aliasesEn": {"type": "literal", "value": ""}
+      },
+      {
+        "item": {"type": "uri", "value": "http://www.wikidata.org/entity/L123"},
+        "coord": {"type": "literal", "value": "Point(108.2 16.0)"},
+        "classLabels": {"type": "literal", "value": "museum"}
+      }
+    ]
+  }
+}

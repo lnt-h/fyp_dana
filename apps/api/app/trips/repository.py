@@ -14,6 +14,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
+from app.models.account import Account
 from app.models.catalog import (
     CatalogPublication,
     FactEvidence,
@@ -36,6 +37,7 @@ from app.models.planning import (
     TripStop,
 )
 from app.models.reference import City, FactField
+from app.repositories.accounts import subject_sha256
 from app.trips.snapshot import PlanSnapshot, PublishedPlace, SnapshotDay, SnapshotLeg, SnapshotStop
 
 TripSort = Literal["-updated_at", "start_date"]
@@ -687,7 +689,13 @@ class SQLAlchemyTripStore:
         )
 
     async def add_deletion_job(self, account_id: uuid.UUID) -> AccountDeletionJob:
-        job = AccountDeletionJob(account_id=account_id)
+        subject = await self.session.scalar(
+            select(Account.clerk_user_id).where(Account.id == account_id)
+        )
+        job = AccountDeletionJob(
+            account_id=account_id,
+            clerk_subject_sha256=subject_sha256(subject) if subject is not None else None,
+        )
         self.session.add(job)
         await self.session.flush()
         await self.session.refresh(job)

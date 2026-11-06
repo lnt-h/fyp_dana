@@ -71,7 +71,7 @@ function wait(ms: number, signal?: AbortSignal): Promise<boolean> {
   });
 }
 
-const notFound = () => new ApiError({ code: 'not_found', message: 'This item was not found', retryable: false }, 404);
+const notFound = () => new ApiError({ code: 'resource_not_found', message: 'This item was not found', retryable: false }, 404);
 
 const enc = encodeURIComponent;
 
@@ -152,11 +152,14 @@ export async function getTrip(tripId: Uuid): Promise<TripDetail> {
   return trip;
 }
 
-/** API-024 `POST /v1/ai/sessions` (fixture: always the Chùa Cầu session, whatever place is passed). */
+/** API-024 `POST /v1/ai/sessions`, `scope` CITY (+ `city_code`) or PLACE (+ `place_id`). Fixture: the Chùa Cầu session's history whatever the scope. */
 export async function createGuideSession(input: GuideSessionCreate): Promise<GuideSession> {
   if (isRemoteEnabled()) return apiRequest<GuideSession>('/v1/ai/sessions', { body: input, method: 'POST' });
   await wait(200);
-  return { ...fixtureGuideSession(input.locale), place_id: input.place_id, trip_id: input.trip_id ?? null };
+  const session = fixtureGuideSession(input.locale);
+  return input.scope === 'CITY'
+    ? { ...session, city_code: input.city_code, place_id: null, scope: 'CITY', trip_id: input.trip_id ?? null }
+    : { ...session, place_id: input.place_id, scope: 'PLACE', trip_id: input.trip_id ?? null };
 }
 
 /** API-027 `GET /v1/ai/sessions/{session_id}/messages` (first page, ordered by seq). */

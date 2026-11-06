@@ -1,6 +1,6 @@
 {
   "title": "Khám phá",
-  "subtitle": "Địa điểm đã kiểm duyệt ở {{city}}",
+  "subtitle": "Địa điểm đã đối chiếu nguồn ở {{city}}",
   "city": {
     "label": "Thành phố: {{city}}. Đổi thành phố",
     "loading": "Đang tải thành phố…"
@@ -27,8 +27,8 @@
   },
   "all": {
     "title": "Tất cả địa điểm",
-    "count_one": "{{count}} địa điểm đã kiểm duyệt",
-    "count_other": "{{count}} địa điểm đã kiểm duyệt"
+    "count_one": "{{count}} địa điểm đã đối chiếu nguồn",
+    "count_other": "{{count}} địa điểm đã đối chiếu nguồn"
   },
   "results": {
     "searching": "Đang tìm…",
@@ -40,11 +40,11 @@
   "states": {
     "loading": "Đang tải địa điểm",
     "emptyQueryTitle": "Không tìm thấy “{{q}}” ở {{city}}",
-    "emptyQueryBody": "Gonarra chỉ hiển thị địa điểm đã kiểm duyệt của thành phố đang chọn. Thử tên tiếng Việt, tên tiếng Anh, hoặc đổi thành phố.",
+    "emptyQueryBody": "Gonarra chỉ hiển thị địa điểm đã đối chiếu nguồn của thành phố đang chọn. Thử tên tiếng Việt, tên tiếng Anh, hoặc đổi thành phố.",
     "emptyCategoryTitle": "Chưa có địa điểm {{category}} ở {{city}}",
     "emptyCategoryBody": "Thử danh mục khác, hoặc xem mọi địa điểm trong thành phố.",
     "comingTitle": "Đang cập nhật địa điểm ở {{city}}…",
-    "comingBody": "Biên tập viên vẫn đang kiểm duyệt địa điểm ở {{city}}. Trong lúc chờ, bạn thử thành phố khác nhé.",
+    "comingBody": "Gonarra vẫn đang đối chiếu nguồn cho các địa điểm ở {{city}}. Trong lúc chờ, bạn thử thành phố khác nhé.",
     "showAll": "Xem tất cả địa điểm",
     "clearSearch": "Xoá tìm kiếm",
     "changeCity": "Đổi thành phố",

@@ -338,7 +338,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Open a Guide session scoped to one published place (and optionally a trip) */
+        /** Open a city-level Guide session (scope CITY), or pin one published place (scope PLACE), optionally linked to a trip */
         post: operations["createGuideSession"];
         delete?: never;
         options?: never;
@@ -477,70 +477,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/admin/candidates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List candidate places for review */
-        get: operations["adminListCandidates"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/candidates/{place_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read a candidate with localizations, facts, evidence and publication history */
-        get: operations["adminGetCandidate"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Review a candidate — bilingual content, sourced facts, sectioned chunks, AI-draft confirmation
-         * @description Partial update against `expected_content_revision`; increments places.content_revision. Each item of
-         *     `chunks[]` is one narrative section per locale (ADR-010 0.3); a new or changed chunk (by content hash) is
-         *     embedded synchronously through the AI gateway and stored with `embedding_model` (ADR-012 0.3). If the
-         *     gateway is unavailable the chunk is still saved with `embedding_state: PENDING` and `warnings[]` names it;
-         *     it cannot be approved until embedded (`cli embed --pending` or a later save).
-         */
-        patch: operations["adminReviewCandidate"];
-        trace?: never;
-    };
-    "/v1/admin/candidates/{place_id}/publish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Publish a complete candidate as a new catalog publication
-         * @description Refuses with 422 `publication_incomplete` naming missing VI/EN content, fact sources, attribution entries
-         *     or unconfirmed AI drafts (`context.missing`). Records reviewer and time (FR-015). Chunks are already
-         *     embedded on write (ADR-012 0.3); the publication pins the latest approved corpus revision (ADR-010).
-         */
-        post: operations["adminPublishCandidate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/admin/places/{place_id}/unpublish": {
         parameters: {
             query?: never;
@@ -555,61 +491,6 @@ export interface paths {
          * @description Saved trips keep their pinned publication; new previews exclude the place.
          */
         post: operations["adminUnpublishPlace"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/imports": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List catalog import runs
-         * @description Imports are executed by the Typer CLI (ADR-012); the admin SPA reads their outcome (OQ-070).
-         */
-        get: operations["adminListImportRuns"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/imports/{import_run_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read one import run with counts */
-        get: operations["adminGetImportRun"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/sources": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List evidence sources with licence and attribution */
-        get: operations["adminListSources"];
-        put?: never;
-        /** Register a source with licence and attribution text */
-        post: operations["adminCreateSource"];
         delete?: never;
         options?: never;
         head?: never;
@@ -698,8 +579,30 @@ export interface components {
          * @enum {string}
          */
         Freshness: "CURRENT" | "STALE";
-        /** @enum {string} */
-        WorkflowState: "IMPORTED" | "MATCH_REVIEW" | "CONTENT_REVIEW" | "READY_TO_PUBLISH" | "PUBLISHED" | "RETIRED";
+        /**
+         * @description DEC-015 trust vocabulary. VERIFIED = published, curator-reviewed catalog content. WEB_UNVERIFIED = a
+         *     research-agent candidate with a source URL and fetched date, never a published place; rendered with the
+         *     UnverifiedBadge on every surface and shown "stale" after 7 days.
+         * @enum {string}
+         */
+        TrustLevel: "VERIFIED" | "WEB_UNVERIFIED";
+        /** @description Provenance of a WEB_UNVERIFIED stop or citation (ADR-014). Present only when trust_level is WEB_UNVERIFIED. */
+        WebSource: {
+            /** Format: uri */
+            url: string;
+            /** Format: date-time */
+            fetched_at: string;
+            /**
+             * Format: uuid
+             * @description Row in web_place_candidates (curator queue).
+             */
+            candidate_id: string;
+            /**
+             * @description Gonarra's existence verdict from the Google Places check (FR-100), never the raw provider string.
+             * @enum {string|null}
+             */
+            places_check_outcome?: "EXISTS_OPERATIONAL" | "EXISTS_CLOSED" | "NOT_FOUND" | "OUTSIDE_CITY" | "SKIPPED" | null;
+        };
         GeoPoint: {
             latitude: number;
             longitude: number;
@@ -713,9 +616,27 @@ export interface components {
             /** Format: uri */
             homepage_url?: string | null;
         };
+        /**
+         * @description Every citation points to evidence that was supplied to the writer (ADR-010 1.0). evidence_kind FACT and
+         *     CHUNK are VERIFIED catalog content with verified_at; WEB is a labelled WEB_UNVERIFIED web fallback with
+         *     url and fetched_at and verified_at null.
+         */
         Citation: {
             /** Format: uuid */
             source_revision_id: string;
+            trust_level: components["schemas"]["TrustLevel"];
+            /** @enum {string} */
+            evidence_kind: "FACT" | "CHUNK" | "WEB";
+            /**
+             * Format: uri
+             * @description Source URL for WEB evidence; null otherwise.
+             */
+            url?: string | null;
+            /**
+             * Format: date-time
+             * @description When the page was fetched (WEB evidence); null otherwise.
+             */
+            fetched_at?: string | null;
             /** Format: uuid */
             knowledge_chunk_id?: string | null;
             /**
@@ -728,8 +649,11 @@ export interface components {
             publisher: string;
             title?: string | null;
             locator?: string | null;
-            /** Format: date */
-            verified_at: string;
+            /**
+             * Format: date
+             * @description Curator verification date for FACT and CHUNK evidence; null for WEB evidence.
+             */
+            verified_at: string | null;
         };
         PageInfo: {
             /** @description Null on the last page. */
@@ -778,6 +702,10 @@ export interface components {
         City: {
             /** Format: uuid */
             id: string;
+            /**
+             * @description Stable city code. FYP release enables `da-nang` only (the Hội An area belongs to it, DEC-013).
+             * @example da-nang
+             */
             code: string;
             name_vi: string;
             name_en: string;
@@ -785,6 +713,17 @@ export interface components {
             time_zone: string;
             /** @description Map centre for a day or view with no stops (OQ-109); centroid of `cities.boundary`, null when no boundary is recorded. */
             centre?: components["schemas"]["GeoPoint"] | null;
+            /** @description Travel areas of the city in sort order (ADR-012); the Hội An area codes belong to `da-nang`. */
+            areas?: components["schemas"]["Area"][];
+        };
+        Area: {
+            /** @example hoi-an-old-town */
+            code: string;
+            /** Format: uuid */
+            city_id: string;
+            name_vi: string;
+            name_en: string;
+            sort_order: number;
         };
         CityList: {
             items: components["schemas"]["City"][];
@@ -801,6 +740,10 @@ export interface components {
         PlaceSummary: {
             /** Format: uuid */
             id: string;
+            /** @description Always VERIFIED on catalog routes; only published places are returned here. */
+            trust_level: components["schemas"]["TrustLevel"];
+            /** @description Travel area within the city (e.g. hoi-an-old-town), ADR-012. */
+            area_code?: string | null;
             /** Format: uuid */
             city_id: string;
             slug: string;
@@ -845,7 +788,31 @@ export interface components {
             /** Format: date */
             valid_until?: string | null;
             freshness: components["schemas"]["Freshness"];
+            /** @description Most recent citation (convenience for the source line); null when there is none. */
+            source?: components["schemas"]["Citation"] | null;
             sources: components["schemas"]["Citation"][];
+        };
+        /** @description Curator-reviewed calendar rule (ADR-011 0.3); AI never writes these. params shape depends on rule_kind. */
+        ClosureRule: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            applies_to: "PLACE" | "AREA" | "CITY";
+            /** @enum {string} */
+            rule_kind: "WEEKLY" | "DATE" | "LUNAR_DATE" | "SEASON" | "TICKET_VALIDITY";
+            /** @enum {string} */
+            effect: "CLOSED" | "PARTIAL" | "EVENT" | "NOTICE";
+            /** @enum {string} */
+            severity: "BLOCKING" | "WARNING";
+            params: Record<string, never>;
+            /** @description Note in the requested locale. */
+            note?: string | null;
+            /** Format: date */
+            effective_from?: string | null;
+            /** Format: date */
+            effective_to?: string | null;
+            /** Format: date */
+            verified_at?: string | null;
         };
         PlaceDetail: components["schemas"]["PlaceSummary"] & {
             name_en: string;
@@ -860,6 +827,9 @@ export interface components {
             media?: components["schemas"]["Media"][];
             /** @description Every source whose data is shown (FR-008). */
             attributions: components["schemas"]["Attribution"][];
+            area?: components["schemas"]["Area"] | null;
+            /** @description Approved, not-ended rules for the place, its area and the city. */
+            closure_rules?: components["schemas"]["ClosureRule"][];
         };
         TripCreate: {
             /** Format: uuid */
@@ -913,16 +883,28 @@ export interface components {
             stops: components["schemas"]["Stop"][];
             legs: components["schemas"]["Leg"][];
         };
+        /**
+         * @description Exactly one shape (schema.sql ck_trip_stops_shape): VERIFIED carries place_id and catalog_publication_id;
+         *     WEB_UNVERIFIED carries web_source with both ids null and no facts.
+         */
         Stop: {
             /**
              * Format: uuid
              * @description Stable across preview revisions and into the saved trip_stops row.
              */
             id: string;
-            /** Format: uuid */
-            place_id: string;
-            /** Format: uuid */
-            catalog_publication_id: string;
+            trust_level: components["schemas"]["TrustLevel"];
+            /**
+             * Format: uuid
+             * @description Null for a WEB_UNVERIFIED stop.
+             */
+            place_id: string | null;
+            /**
+             * Format: uuid
+             * @description Null for a WEB_UNVERIFIED stop.
+             */
+            catalog_publication_id: string | null;
+            web_source?: components["schemas"]["WebSource"] | null;
             ordinal: number;
             /** Format: date-time */
             planned_arrival?: string | null;
@@ -952,11 +934,28 @@ export interface components {
             conflicts?: components["schemas"]["Conflict"][];
         };
         Conflict: {
-            /** @enum {string} */
-            type: "CLOSED_AT_PLANNED_TIME" | "LEG_UNAVAILABLE" | "DAY_WINDOW_EXCEEDED" | "OPENING_HOURS_UNKNOWN" | "FACT_STALE" | "MUST_SEE_NOT_INCLUDED";
+            /**
+             * @description Plan Health is code (ADR-011 0.3). Calendar rules: CLOSED_ON_DATE and LEG_MODE_RESTRICTED are
+             *     blocking; LUNAR_EVENT_CONFLICT, TICKET_VALIDITY and SEASONAL_WARNING are warnings. Web stops
+             *     (ADR-014): WEB_PLACE_UNVERIFIED caps the plan at WARNING; WEB_PLACE_UNRESOLVED is blocking.
+             * @enum {string}
+             */
+            type: "CLOSED_AT_PLANNED_TIME" | "LEG_UNAVAILABLE" | "DAY_WINDOW_EXCEEDED" | "OPENING_HOURS_UNKNOWN" | "FACT_STALE" | "MUST_SEE_NOT_INCLUDED" | "CLOSED_ON_DATE" | "LEG_MODE_RESTRICTED" | "LUNAR_EVENT_CONFLICT" | "TICKET_VALIDITY" | "SEASONAL_WARNING" | "WEB_PLACE_UNVERIFIED" | "WEB_PLACE_UNRESOLVED";
             /** @enum {string} */
             severity: "BLOCKING" | "WARNING";
             message?: string;
+            /**
+             * Format: uuid
+             * @description place_closure_rules row behind a calendar conflict; null otherwise.
+             */
+            rule_id?: string | null;
+            /**
+             * Format: date
+             * @description Trip date the conflict applies to; null when not date-specific.
+             */
+            date?: string | null;
+            /** @description Stops involved (empty for day-level conflicts). */
+            stop_ids?: string[];
         };
         PlaceCard: {
             /** Format: uuid */
@@ -1034,6 +1033,16 @@ export interface components {
             model_version?: string | null;
             prompt_version?: string | null;
             corpus_revision?: number | null;
+            /**
+             * @description True when the research agent ran for this revision (ADR-014); such a plan contains or considered WEB_UNVERIFIED candidates.
+             * @default false
+             */
+            research_used: boolean;
+            /**
+             * Format: uuid
+             * @description Agno agent run correlation id (DEC-014); null for rule-based or manual revisions.
+             */
+            agent_run_id?: string | null;
             /** Format: date-time */
             created_at?: string;
         };
@@ -1071,6 +1080,11 @@ export interface components {
         AcceptPreviewRequest: {
             expected_preview_revision: number;
             expected_trip_revision: number;
+            /**
+             * @description Must be true to save a plan that contains a WEB_UNVERIFIED stop (OQ-128); otherwise 422 `web_unverified_acknowledgement_required`.
+             * @default false
+             */
+            acknowledge_web_unverified: boolean;
         };
         /**
          * @description One SSE `data:` payload; the SSE `event:` name equals `type`. Terminal events are preview_ready,
@@ -1079,8 +1093,22 @@ export interface components {
         PlanningStreamEvent: {
             /** @enum {string} */
             type: "progress" | "clarification_required" | "preview_ready" | "error";
-            /** @enum {string} */
-            stage?: "VALIDATING_REQUEST" | "SELECTING_PLACES" | "ROUTING" | "SCHEDULING" | "CHECKING_HEALTH";
+            /**
+             * @description Stages in order (architecture §5). RESEARCHING and VERIFYING_WEB_PLACES appear only when the research agent runs.
+             * @enum {string}
+             */
+            stage?: "VALIDATING_REQUEST" | "SELECTING_PLACES" | "RESEARCHING" | "VERIFYING_WEB_PLACES" | "ROUTING" | "SCHEDULING" | "CHECKING_HEALTH" | "WRITING";
+            /**
+             * @description Agent role active in this stage (selector, researcher, grounded_writer) or null for deterministic steps.
+             * @enum {string|null}
+             */
+            agent?: "selector" | "researcher" | "grounded_writer" | null;
+            /** @description Progress counters for the current stage. */
+            detail?: {
+                catalog_candidates?: number;
+                web_candidates?: number;
+                verified?: number;
+            };
             /** Format: uuid */
             preview_id?: string;
             preview_revision?: number;
@@ -1088,9 +1116,18 @@ export interface components {
             clarification?: components["schemas"]["ClarificationRequired"];
             error?: components["schemas"]["ErrorDetail"];
         };
+        /**
+         * @description City-level Guide (ADR-010 1.0, DEC-017). scope CITY answers over the whole enabled city; scope PLACE pins
+         *     one published place (every approved fact and chunk of that publication). city_code defaults to the
+         *     enabled city; place_id is required only for scope PLACE.
+         */
         GuideSessionCreate: {
+            /** @enum {string} */
+            scope: "CITY" | "PLACE";
+            /** @description Defaults to `da-nang`. */
+            city_code?: string | null;
             /** Format: uuid */
-            place_id: string;
+            place_id?: string | null;
             /** Format: uuid */
             trip_id?: string | null;
             locale: components["schemas"]["Locale"];
@@ -1098,10 +1135,13 @@ export interface components {
         GuideSession: {
             /** Format: uuid */
             id: string;
+            /** @enum {string} */
+            scope: "CITY" | "PLACE";
+            city_code: string;
             /** Format: uuid */
             trip_id?: string | null;
             /** Format: uuid */
-            place_id: string;
+            place_id: string | null;
             locale: components["schemas"]["Locale"];
             /** Format: date-time */
             expires_at?: string | null;
@@ -1122,8 +1162,11 @@ export interface components {
             /** @enum {string|null} */
             input_mode?: "TEXT" | "VOICE_TRANSCRIPT" | "PHOTO" | null;
             content: string;
-            /** @enum {string|null} */
-            answer_status?: "ANSWERED" | "INSUFFICIENT_EVIDENCE" | "NOT_RECOGNISED" | null;
+            /**
+             * @description ANSWERED_WEB_UNVERIFIED = answered from the labelled web fallback only (ADR-010 1.0); citations carry trust_level WEB_UNVERIFIED.
+             * @enum {string|null}
+             */
+            answer_status?: "ANSWERED" | "ANSWERED_WEB_UNVERIFIED" | "INSUFFICIENT_EVIDENCE" | "NOT_RECOGNISED" | null;
             citations?: components["schemas"]["Citation"][];
             /** Format: date-time */
             created_at: string;
@@ -1138,8 +1181,11 @@ export interface components {
         GuideStreamEvent: {
             /** @enum {string} */
             type: "progress" | "text" | "result" | "error";
-            /** @enum {string} */
-            stage?: "RETRIEVING" | "ANSWERING";
+            /**
+             * @description SEARCHING_WEB appears only when retrieval found no evidence and the web fallback runs (labelled WEB_UNVERIFIED).
+             * @enum {string}
+             */
+            stage?: "VALIDATING" | "RETRIEVING" | "SEARCHING_WEB" | "ANSWERING";
             delta?: string;
             message?: components["schemas"]["GuideMessage"];
             error?: components["schemas"]["ErrorDetail"];
@@ -1233,132 +1279,6 @@ export interface components {
             /** @enum {string|null} */
             save_outcome?: "SAVED" | "NOT_SAVED" | "SAVE_REFUSED" | null;
         };
-        CandidateSummary: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            city_id: string;
-            slug: string;
-            category_code: string;
-            workflow_state: components["schemas"]["WorkflowState"];
-            name_vi?: string | null;
-            name_en?: string | null;
-            content_revision: number;
-            has_ai_draft?: boolean;
-            /** @description Provider and release of the import run that created or last matched this candidate, e.g. `overture 2026-10-22.0` (OQ-112); null for manual or CSV-only candidates. */
-            provider_release?: string | null;
-            /** @description Number of publication-gate violations (`fn_publication_gate_violations`); 0 means ready to publish (OQ-112). */
-            gate_missing_count?: number;
-            /** Format: date-time */
-            updated_at: string;
-        };
-        CandidatePage: components["schemas"]["PageInfo"] & {
-            items: components["schemas"]["CandidateSummary"][];
-        };
-        Localization: {
-            /** Format: uuid */
-            id?: string;
-            locale: components["schemas"]["Locale"];
-            name: string;
-            short_description?: string | null;
-            description?: string | null;
-            /** @enum {string} */
-            translation_origin: "ORIGINAL" | "HUMAN_TRANSLATION" | "AI_DRAFT";
-            /** @enum {string} */
-            review_state: "DRAFT" | "APPROVED" | "REJECTED" | "SUPERSEDED";
-            /** Format: date-time */
-            reviewed_at?: string | null;
-        };
-        CandidateFact: {
-            /** Format: uuid */
-            id?: string;
-            field_code: string;
-            knowledge_state: components["schemas"]["KnowledgeState"];
-            value?: Record<string, never> | string | null;
-            /** Format: date */
-            verified_at?: string | null;
-            /** @enum {string} */
-            review_state: "DRAFT" | "APPROVED" | "REJECTED" | "SUPERSEDED";
-            /** @enum {string} */
-            conflict_state?: "NONE" | "OPEN" | "RESOLVED";
-            source_revision_ids: string[];
-        };
-        CandidateDetail: components["schemas"]["CandidateSummary"] & {
-            location?: components["schemas"]["GeoPoint"];
-            visit_minutes_min?: number | null;
-            visit_minutes_suggested?: number | null;
-            visit_minutes_max?: number | null;
-            localizations: components["schemas"]["Localization"][];
-            aliases?: {
-                locale: components["schemas"]["Locale"];
-                alias: string;
-                /** @enum {string} */
-                review_state?: "DRAFT" | "APPROVED" | "REJECTED";
-            }[];
-            facts: components["schemas"]["CandidateFact"][];
-            /** @description Narrative chunks of the latest corpus revision, one per section and locale (ADR-010 0.3). */
-            chunks?: components["schemas"]["KnowledgeChunk"][];
-            /** @description Non-blocking review warnings, e.g. CHUNK_EMBEDDING_PENDING with the chunk id (ADR-012 0.3). */
-            warnings?: {
-                code: string;
-                /** Format: uuid */
-                knowledge_chunk_id?: string | null;
-            }[];
-            publications: components["schemas"]["CatalogPublication"][];
-        };
-        /**
-         * @description Citation unit of the Guide corpus (ADR-010 0.3).
-         * @enum {string}
-         */
-        ChunkSection: "OVERVIEW" | "HISTORY" | "HIGHLIGHTS" | "VISIT_TIPS" | "ETIQUETTE" | "ACCESS";
-        ChunkInput: {
-            locale: components["schemas"]["Locale"];
-            section: components["schemas"]["ChunkSection"];
-            /** @description Original narrative text for this section; never operational facts (hours, prices, addresses). */
-            content: string;
-            source_revision_ids: string[];
-            /**
-             * @description DRAFT (default) or APPROVED; approval is refused while the embedding is pending.
-             * @enum {string}
-             */
-            review_state?: "DRAFT" | "APPROVED";
-        };
-        KnowledgeChunk: {
-            /** Format: uuid */
-            id: string;
-            locale: components["schemas"]["Locale"];
-            section: components["schemas"]["ChunkSection"];
-            corpus_revision: number;
-            content: string;
-            content_sha256?: string;
-            source_revision_ids?: string[];
-            /** @enum {string} */
-            review_state: "DRAFT" | "APPROVED" | "RETIRED";
-            /**
-             * @description EMBEDDED when `embedding` and `embedding_model` are stored; PENDING after a gateway failure.
-             * @enum {string}
-             */
-            embedding_state: "EMBEDDED" | "PENDING";
-            embedding_model?: string | null;
-            /** Format: date-time */
-            created_at?: string;
-        };
-        CandidateReview: {
-            expected_content_revision: number;
-            category_code?: string;
-            visit_minutes_min?: number;
-            visit_minutes_suggested?: number;
-            visit_minutes_max?: number;
-            localizations?: components["schemas"]["Localization"][];
-            facts?: components["schemas"]["CandidateFact"][];
-            /** @description One narrative chunk per section and locale; replaces the section's chunk in the next corpus revision and is embedded on write (ADR-012 0.3). */
-            chunks?: components["schemas"]["ChunkInput"][];
-            /** @description Locales whose AI_DRAFT content the curator confirms field by field (FR-019). */
-            confirm_ai_draft_locales?: components["schemas"]["Locale"][];
-        };
-        PublishRequest: {
-            expected_content_revision: number;
-        };
         UnpublishRequest: {
             state_reason: string;
         };
@@ -1372,77 +1292,32 @@ export interface components {
             publication_revision: number;
             /** @enum {string} */
             state: "PUBLISHED" | "SUPERSEDED" | "WITHDRAWN";
-            /** Format: uuid */
-            published_by_account_id: string;
+            /**
+             * Format: uuid
+             * @description Null when the publishing account was deleted.
+             */
+            published_by_account_id: string | null;
+            /** @description Approved corpus revision pinned by this publication (ADR-010). */
+            corpus_revision?: number | null;
             /** Format: date-time */
             published_at: string;
             /** Format: date-time */
             state_changed_at?: string | null;
             state_reason?: string | null;
         };
-        ImportRun: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            data_provider_id: string;
-            /** Format: uuid */
-            provider_policy_id?: string;
-            /** Format: uuid */
-            city_id: string;
-            release_id: string;
-            importer_version: string;
-            /** @enum {string} */
-            status: "RUNNING" | "SUCCEEDED" | "FAILED";
-            record_count?: number | null;
-            accepted_count?: number | null;
-            rejected_count?: number | null;
-            /** @description Records skipped because they matched an existing candidate or place (OQ-112). */
-            duplicate_count?: number | null;
-            /** @description Machine-readable reason when `status` is FAILED, e.g. NO_ACTIVE_POLICY, CHECKSUM_MISMATCH, READ_ERROR, OUTSIDE_BOUNDING_BOX (OQ-112); null otherwise. */
-            failure_code?: string | null;
-            /** Format: date-time */
-            started_at: string;
-            /** Format: date-time */
-            completed_at?: string | null;
-        };
-        ImportRunPage: components["schemas"]["PageInfo"] & {
-            items: components["schemas"]["ImportRun"][];
-        };
-        SourceCreate: {
-            /** Format: uuid */
-            data_provider_id?: string | null;
-            publisher: string;
-            /** @enum {string} */
-            source_kind: "OFFICIAL" | "OPEN_DATA" | "REFERENCE" | "OWN_OBSERVATION";
-            /** Format: uri */
-            homepage_url?: string | null;
-            license_code?: string | null;
-            attribution_text: string;
-        };
-        Source: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            data_provider_id?: string | null;
-            publisher: string;
-            /** @enum {string} */
-            source_kind: "OFFICIAL" | "OPEN_DATA" | "REFERENCE" | "OWN_OBSERVATION";
-            /** Format: uri */
-            homepage_url?: string | null;
-            license_code?: string | null;
-            attribution_text: string;
-            /** Format: date-time */
-            created_at: string;
-        };
-        SourcePage: components["schemas"]["PageInfo"] & {
-            items: components["schemas"]["Source"][];
-        };
         CitySummary: {
             /** Format: uuid */
             city_id: string;
             code: string;
+            is_enabled: boolean;
             published_count: number;
             candidate_count: number;
+            pending_web_candidate_count: number;
+            /** @description Release-gate view (≥ 100 published, ≥ 30 in the Hội An area codes). */
+            published_by_area: {
+                area_code: string;
+                published_count: number;
+            }[];
         };
         CitySummaryList: {
             items: components["schemas"]["CitySummary"][];
@@ -1459,7 +1334,7 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description Missing, invalid, expired or foreign-issuer token (`unauthenticated`). */
+        /** @description Missing, invalid, expired or foreign-issuer token (`authentication_required`). */
         Unauthorized: {
             headers: {
                 "X-Request-ID": components["headers"]["XRequestID"];
@@ -1479,7 +1354,7 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description Resource absent or owned by another account (`not_found`); ownership is not disclosed. */
+        /** @description Resource absent or owned by another account (`resource_not_found`); ownership is not disclosed. */
         NotFound: {
             headers: {
                 "X-Request-ID": components["headers"]["XRequestID"];
@@ -1492,6 +1367,8 @@ export interface components {
         /**
          * @description `revision_conflict` (context.current_revision), `idempotency_key_reused` (same key, different body),
          *     `idempotency_in_progress`, `plan_blocked` (context.reasons), `trip_not_saved`, `deletion_in_progress`.
+         *     `deletion_in_progress` applies to every authenticated route while an account deletion job is open
+         *     (except GET/POST /v1/me/deletion).
          */
         Conflict: {
             headers: {
@@ -1513,8 +1390,9 @@ export interface components {
             };
         };
         /**
-         * @description Body or parameter invalid (`validation_failed`, context.fields), out of scope (`unsupported_request`:
-         *     > 3 days, several cities, city not launched — FR-023), `place_not_in_city`, `publication_incomplete`
+         * @description Body or parameter invalid (`validation_error`, context.fields), out of scope (`unsupported_request`:
+         *     > 3 days, several cities, city not launched — FR-023), `place_not_in_city`, `publication_incomplete`,
+         *     `day_overflow` (manual edit runs past midnight), `web_unverified_acknowledgement_required` (OQ-128)
          *     (context.missing).
          */
         ValidationFailed: {
@@ -1678,6 +1556,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            409: components["responses"]["Conflict"];
             /** @description Service Unavailable */
             503: {
                 headers: {
@@ -1709,6 +1588,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -1736,6 +1616,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
             422: components["responses"]["ValidationFailed"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -1807,7 +1688,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Enabled cities (five at launch; not paginated). */
+            /** @description Enabled cities (one at launch, `da-nang`, DEC-013; not paginated). */
             200: {
                 headers: {
                     "X-Request-ID": components["headers"]["XRequestID"];
@@ -1818,6 +1699,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -1841,15 +1723,26 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
     searchPlaces: {
         parameters: {
-            query: {
-                city_id: string;
+            query?: {
+                /** @description Optional; with neither city_id nor city_code the enabled city (`da-nang`) is used. A disabled or unknown city is a 422. */
+                city_id?: string;
+                city_code?: string;
+                /** @description Restrict to one travel area (ADR-012), e.g. `hoi-an-old-town`. */
+                area_code?: string;
+                /** @description `min_lng,min_lat,max_lng,max_lat` in WGS84. */
+                bbox?: string;
+                /** @description `lat,lng`; combine with radius_m. */
+                near?: string;
+                radius_m?: number;
                 /** @description Search text; omitted lists the city's places. */
                 q?: string;
+                /** @description Accepted in any case; responses always use the UPPER_CASE schema code. */
                 category_code?: string;
                 sort?: "relevance" | "name";
                 /** @description Content language; defaults to the account preference, then vi. Vietnamese names are always returned (FR-076). */
@@ -1864,7 +1757,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description One page of matching places. */
+            /** @description One page of matching places. A cursor reused with different filters is a 400 `invalid_cursor`. */
             200: {
                 headers: {
                     "X-Request-ID": components["headers"]["XRequestID"];
@@ -1876,6 +1769,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
             422: components["responses"]["ValidationFailed"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -1906,6 +1800,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -1936,6 +1831,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -1999,6 +1895,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -2088,6 +1985,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -2168,6 +2066,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             410: components["responses"]["Gone"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -2193,6 +2092,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -2342,6 +2242,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             422: components["responses"]["ValidationFailed"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -2369,6 +2270,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -2393,6 +2295,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -2424,6 +2327,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -2488,6 +2392,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
             413: components["responses"]["PayloadTooLarge"];
             415: components["responses"]["UnsupportedMediaType"];
             422: components["responses"]["ValidationFailed"];
@@ -2501,6 +2406,8 @@ export interface operations {
                 kind: components["schemas"]["HandoffKind"];
                 /** @description Required when kind is ACTIVITY. */
                 stop_id?: string;
+                /** @description STAY partner; `agoda` by default. Links are deterministic search URLs; no partner API call. */
+                partner?: "agoda" | "booking_com";
                 /** @description Content language; defaults to the account preference, then vi. Vietnamese names are always returned (FR-076). */
                 locale?: components["parameters"]["Locale"];
             };
@@ -2557,8 +2464,26 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
+            /** @description Trip not found, or the feature flag is off (`feature_disabled`, GONARRA_STAY_PRICES_ENABLED). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            409: components["responses"]["Conflict"];
             429: components["responses"]["TooManyRequests"];
+            /** @description Flag on but the LiteAPI adapter is not implemented yet (`not_implemented`); Could scope, cut first (DEC-003 rev. 1). */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -2587,140 +2512,6 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            422: components["responses"]["ValidationFailed"];
-            503: components["responses"]["ServiceUnavailable"];
-        };
-    };
-    adminListCandidates: {
-        parameters: {
-            query?: {
-                city_id?: string;
-                workflow_state?: components["schemas"]["WorkflowState"];
-                /** @description Only candidates with an import record from this run (OQ-112). */
-                import_run_id?: string;
-                q?: string;
-                sort?: "-updated_at" | "name";
-                /** @description Opaque cursor from a previous page's next_cursor. */
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description One page of candidates. */
-            200: {
-                headers: {
-                    "X-Request-ID": components["headers"]["XRequestID"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidatePage"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            503: components["responses"]["ServiceUnavailable"];
-        };
-    };
-    adminGetCandidate: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                place_id: components["parameters"]["PlaceId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Candidate detail. */
-            200: {
-                headers: {
-                    "X-Request-ID": components["headers"]["XRequestID"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateDetail"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            503: components["responses"]["ServiceUnavailable"];
-        };
-    };
-    adminReviewCandidate: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Client-generated UUID; scoped by account and operation; retained 24 h (ASM-071). */
-                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
-            };
-            path: {
-                place_id: components["parameters"]["PlaceId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CandidateReview"];
-            };
-        };
-        responses: {
-            /** @description Updated candidate. */
-            200: {
-                headers: {
-                    "X-Request-ID": components["headers"]["XRequestID"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateDetail"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            422: components["responses"]["ValidationFailed"];
-            503: components["responses"]["ServiceUnavailable"];
-        };
-    };
-    adminPublishCandidate: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID; scoped by account and operation; retained 24 h (ASM-071). */
-                "Idempotency-Key": components["parameters"]["IdempotencyKeyRequired"];
-            };
-            path: {
-                place_id: components["parameters"]["PlaceId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PublishRequest"];
-            };
-        };
-        responses: {
-            /** @description Published. */
-            201: {
-                headers: {
-                    "X-Request-ID": components["headers"]["XRequestID"];
-                    "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CatalogPublication"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["ValidationFailed"];
             503: components["responses"]["ServiceUnavailable"];
@@ -2761,125 +2552,6 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
-    adminListImportRuns: {
-        parameters: {
-            query?: {
-                city_id?: string;
-                /** @description Opaque cursor from a previous page's next_cursor. */
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description One page of import runs, newest first. */
-            200: {
-                headers: {
-                    "X-Request-ID": components["headers"]["XRequestID"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportRunPage"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            503: components["responses"]["ServiceUnavailable"];
-        };
-    };
-    adminGetImportRun: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                import_run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Import run. */
-            200: {
-                headers: {
-                    "X-Request-ID": components["headers"]["XRequestID"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportRun"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            503: components["responses"]["ServiceUnavailable"];
-        };
-    };
-    adminListSources: {
-        parameters: {
-            query?: {
-                /** @description Opaque cursor from a previous page's next_cursor. */
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description One page of sources. */
-            200: {
-                headers: {
-                    "X-Request-ID": components["headers"]["XRequestID"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SourcePage"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            503: components["responses"]["ServiceUnavailable"];
-        };
-    };
-    adminCreateSource: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Client-generated UUID; scoped by account and operation; retained 24 h (ASM-071). */
-                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SourceCreate"];
-            };
-        };
-        responses: {
-            /** @description Source created. */
-            201: {
-                headers: {
-                    "X-Request-ID": components["headers"]["XRequestID"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Source"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            409: components["responses"]["Conflict"];
-            422: components["responses"]["ValidationFailed"];
-            503: components["responses"]["ServiceUnavailable"];
-        };
-    };
     adminGetCitySummary: {
         parameters: {
             query?: never;
@@ -2901,6 +2573,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

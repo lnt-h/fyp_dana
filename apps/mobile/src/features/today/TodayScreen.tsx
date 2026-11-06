@@ -64,7 +64,7 @@ export function TodayScreen({ tripId }: { tripId: Uuid }) {
   useEffect(() => {
     if (!placeIds) return;
     let active = true;
-    Promise.all(placeIds.split(',').map(id => getPlace(id).then(place => [id, place.thumbnail] as const).catch(() => [id, null] as const)))
+    Promise.all(placeIds.split(',').map(id => getPlace(id).then(place => [id, place.thumbnail ?? null] as const).catch(() => [id, null] as const)))
       .then(entries => { if (active) setThumbs(Object.fromEntries(entries)); });
     return () => { active = false; };
   }, [placeIds]);

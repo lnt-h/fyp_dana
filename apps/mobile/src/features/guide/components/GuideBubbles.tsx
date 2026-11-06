@@ -19,7 +19,7 @@ type Stage = Extract<GuideStreamEvent, { type: 'progress' }>['stage'];
 export const isCitedAnswer = (message: GuideMessage) =>
   (message.answer_status === 'ANSWERED' || message.answer_status === 'ANSWERED_WEB_UNVERIFIED') && (message.citations?.length ?? 0) > 0;
 
-/** Web-fallback answer (ADR-010): evidence came from pages Gonarra has not reviewed. */
+/** Web-fallback answer (ADR-010): evidence came from web pages that are not source-checked. */
 const isWebAnswer = (message: GuideMessage) => message.answer_status === 'ANSWERED_WEB_UNVERIFIED';
 
 export function TravelerBubble({ content }: { content: string }) {
@@ -38,7 +38,7 @@ function AssistantRow({ children }: { children: ReactNode }) {
 }
 
 /** Final assistant message: cited answer with sources, or the insufficient-evidence bubble (no answer text). */
-export function AssistantBubble({ message, onOpenPlace }: { message: GuideMessage; onOpenPlace: () => void }) {
+export function AssistantBubble({ message, onOpenPlace }: { message: GuideMessage; onOpenPlace?: () => void }) {
   const { t } = useTranslation();
   if (!isCitedAnswer(message)) {
     return <AssistantRow>
@@ -65,7 +65,7 @@ export function AssistantBubble({ message, onOpenPlace }: { message: GuideMessag
 }
 
 /** Compact numbered source chips; tapping one expands its detail (publisher, section, locator, verified date). */
-function SourceChips({ citations, onOpenPlace }: { citations: Citation[]; onOpenPlace: () => void }) {
+function SourceChips({ citations, onOpenPlace }: { citations: Citation[]; onOpenPlace?: () => void }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState<number | null>(null);
   const locale = currentLocale();

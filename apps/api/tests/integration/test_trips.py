@@ -1,6 +1,7 @@
 """T-08 against the migrated Compose database. Everything runs inside one outer transaction that
 is rolled back at the end (service commits release savepoints), so nothing is left behind."""
 
+import logging
 import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -14,12 +15,17 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.db.session import get_db_session
 from app.main import create_app
 from app.models.account import Account
 from app.models.planning import AccountDeletionJob, PlanPreview, PreviewRevision, Trip
-from app.security.clerk import get_current_account
+from app.repositories.accounts import (
+    DeletedSubjectError,
+    SQLAlchemyAccountRepository,
+    subject_sha256,
+)
+from app.security.clerk import get_account_allowing_deletion
 from app.trips.deletion import run_deletion_jobs
 
 pytestmark = pytest.mark.integration
@@ -132,8 +138,9 @@ async def fx(session: AsyncSession) -> Fixture:
 
     app.dependency_overrides[get_db_session] = db_session
     account_id, clerk_user_id = account.id, account.clerk_user_id
-    # A transient copy per request, like get_current_account in its own session.
-    app.dependency_overrides[get_current_account] = lambda: Account(
+    # A transient copy per request, like get_current_account in its own session. The deletion
+    # guard (get_current_account) still runs its real query against this session.
+    app.dependency_overrides[get_account_allowing_deletion] = lambda: Account(
         id=account_id, clerk_user_id=clerk_user_id
     )
     return Fixture(db, account, city_id, pubs, candidate_id, app)
@@ -214,6 +221,7 @@ async def test_trip_preview_edit_and_save_flow(fx: Fixture) -> None:
         )
         assert created.status_code == 201, created.text
         trip_id = uuid.UUID(created.json()["id"])
+        await fx.session.refresh(fx.account)  # expired by the replay/409 rollbacks
         preview, stops = await _preview(fx, trip_id)
         preview_id = preview.id  # ORM objects expire on the service's rollbacks
 
@@ -339,8 +347,21 @@ async def test_foreign_trip_is_not_found(fx: Fixture) -> None:
     assert response.json()["error"]["code"] == "resource_not_found"
 
 
+class _FakeClerk:
+    def __init__(self, failures: int = 0) -> None:
+        self.failures = failures
+        self.deleted: list[str] = []
+
+    async def delete_user(self, user_id: str) -> None:
+        if self.failures:
+            self.failures -= 1
+            raise RuntimeError("clerk unavailable")
+        self.deleted.append(user_id)
+
+
 async def test_deletion_job_and_purge(fx: Fixture) -> None:
     account_id = fx.account.id
+    fx_subject = fx.account.clerk_user_id
     candidate_id = fx.candidate_id
     async with await _client(fx) as client:
         created = await client.post(
@@ -355,8 +376,10 @@ async def test_deletion_job_and_purge(fx: Fixture) -> None:
         again = await client.post("/v1/me/deletion", json={"confirm": True})
         assert again.json()["id"] == str(job_id)
 
-    report = await run_deletion_jobs(fx.session, job_ids={job_id})
+    clerk = _FakeClerk()
+    report = await run_deletion_jobs(fx.session, job_ids={job_id}, user_deleter=clerk)
     assert report.completed == [job_id]
+    assert clerk.deleted == [fx_subject]
     db = fx.session
     assert await db.scalar(select(func.count()).where(Account.id == account_id)) == 0
     assert await db.scalar(select(func.count()).where(Trip.account_id == account_id)) == 0
@@ -364,6 +387,11 @@ async def test_deletion_job_and_purge(fx: Fixture) -> None:
     job = await db.get(AccountDeletionJob, job_id, populate_existing=True)
     assert job is not None
     assert job.status == "COMPLETED" and job.account_id is None and job.attempt_count == 1
+    assert job.clerk_subject_sha256 == subject_sha256(fx_subject)
+    # A still-valid token of the purged subject is refused instead of re-creating an account.
+    with pytest.raises(DeletedSubjectError):
+        await SQLAlchemyAccountRepository(db).get_or_create(fx_subject)
+    assert await db.scalar(select(func.count()).where(Account.clerk_user_id == fx_subject)) == 0
     # Catalog rows referenced by the purged trip are untouched.
     assert (
         await db.scalar(
@@ -371,3 +399,102 @@ async def test_deletion_job_and_purge(fx: Fixture) -> None:
         )
         == 1
     )
+
+
+async def test_open_deletion_job_blocks_routes_with_real_lookup(fx: Fixture) -> None:
+    async with await _client(fx) as client:
+        assert (await client.get("/v1/trips")).status_code == 200
+        assert (await client.post("/v1/me/deletion", json={"confirm": True})).status_code == 202
+        blocked = await client.get("/v1/trips")
+        assert blocked.status_code == 409
+        assert blocked.json()["error"]["code"] == "deletion_in_progress"
+        assert (await client.get("/v1/me/preferences")).status_code == 409
+        assert (await client.get("/v1/me/deletion")).status_code == 200
+
+
+async def test_clerk_failure_keeps_data_and_retry_completes(fx: Fixture) -> None:
+    account_id, subject = fx.account.id, fx.account.clerk_user_id
+    async with await _client(fx) as client:
+        requested = await client.post("/v1/me/deletion", json={"confirm": True})
+        job_id = uuid.UUID(requested.json()["id"])
+    clerk = _FakeClerk(failures=1)
+
+    first = await run_deletion_jobs(fx.session, job_ids={job_id}, user_deleter=clerk)
+    assert first.failed == [job_id]
+    job = await fx.session.get(AccountDeletionJob, job_id, populate_existing=True)
+    assert job is not None and job.status == "FAILED" and job.failure_reason == "RuntimeError"
+    assert job.account_id == account_id
+    assert await fx.session.scalar(select(func.count()).where(Account.id == account_id)) == 1
+    async with await _client(fx) as client:  # still guarded while FAILED
+        assert (await client.get("/v1/trips")).status_code == 409
+
+    second = await run_deletion_jobs(fx.session, job_ids={job_id}, user_deleter=clerk)
+    assert second.completed == [job_id]
+    assert clerk.deleted == [subject]
+    job = await fx.session.get(AccountDeletionJob, job_id, populate_existing=True)
+    assert job is not None and job.status == "COMPLETED" and job.attempt_count == 2
+    assert await fx.session.scalar(select(func.count()).where(Account.id == account_id)) == 0
+
+
+async def test_deletion_without_clerk_secret_completes_and_warns(
+    fx: Fixture, caplog: pytest.LogCaptureFixture
+) -> None:
+    subject = fx.account.clerk_user_id
+    async with await _client(fx) as client:
+        requested = await client.post("/v1/me/deletion", json={"confirm": True})
+        job_id = uuid.UUID(requested.json()["id"])
+    settings = Settings(_env_file=None, clerk_secret_key=None)  # type: ignore[call-arg]
+    with caplog.at_level(logging.WARNING, logger="gonarra.deletion"):
+        report = await run_deletion_jobs(fx.session, job_ids={job_id}, settings=settings)
+    assert report.completed == [job_id]
+    messages = [r.getMessage() for r in caplog.records if "clerk_not_configured" in r.getMessage()]
+    assert messages and str(job_id) in messages[0]
+    assert subject not in caplog.text
+
+
+async def _operation_allowed(session: AsyncSession, operation: str) -> bool:
+    definition = await session.scalar(
+        text(
+            "SELECT pg_get_constraintdef(oid) FROM pg_constraint"
+            " WHERE conname = 'ck_idempotency_records_operation'"
+        )
+    )
+    return definition is not None and f"'{operation}'" in definition
+
+
+@pytest.fixture
+async def widened_operations(fx: Fixture) -> Fixture:
+    """Skip until migration 0006 allows TRIP_CREATE and PREVIEW_EDIT in the CHECK."""
+    for operation in ("TRIP_CREATE", "PREVIEW_EDIT"):
+        if not await _operation_allowed(fx.session, operation):
+            pytest.skip(f"idempotency_records CHECK does not allow {operation} (migration 0006)")
+    return fx
+
+
+async def test_create_and_edit_idempotency_persist(widened_operations: Fixture) -> None:
+    fx = widened_operations
+    account_id = fx.account.id
+    body = {"city_id": str(fx.city_id), "start_date": "2026-12-01", "day_count": 1}
+    key = {"Idempotency-Key": str(uuid.uuid4())}
+    async with await _client(fx) as client:
+        first = await client.post("/v1/trips", json=body, headers=key)
+        second = await client.post("/v1/trips", json=body, headers=key)
+        assert first.status_code == second.status_code == 201, first.text
+        assert second.headers["idempotent-replayed"] == "true"
+        assert second.json()["id"] == first.json()["id"]
+        reused = await client.post("/v1/trips", json={**body, "day_count": 2}, headers=key)
+        assert reused.json()["error"]["code"] == "idempotency_key_reused"
+        trip_id = uuid.UUID(first.json()["id"])
+        count = await fx.session.scalar(select(func.count()).where(Trip.account_id == account_id))
+        assert count == 1
+
+        await fx.session.refresh(fx.account)  # expired by the replay/409 rollbacks
+        preview, stops = await _preview(fx, trip_id)
+        preview_id = preview.id
+        edit = {"expected_revision": 2, "edits": [{"op": "LOCK_STOP", "stop_id": stops[0]["id"]}]}
+        edit_key = {"Idempotency-Key": str(uuid.uuid4())}
+        edited = await client.patch(f"/v1/plan-previews/{preview_id}", json=edit, headers=edit_key)
+        assert edited.status_code == 200, edited.text
+        replay = await client.patch(f"/v1/plan-previews/{preview_id}", json=edit, headers=edit_key)
+        assert replay.status_code == 200 and replay.headers["idempotent-replayed"] == "true"
+        assert replay.json() == edited.json()

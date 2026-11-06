@@ -28,7 +28,7 @@
     "reduceMotionSubtitle": "Simpler screen transitions. Your device’s accessibility setting is also respected.",
     "aiData": "What is sent to AI",
     "aiDataSubtitle": "What is and isn’t shared",
-    "aiDataBody": "Your planning request text and Guide questions are sent to an external AI service (Google Gemini). Your account, contact details and precise location are not. The AI only ranks reviewed places and writes explanations; Gonarra itself works out the schedule, times and distances.",
+    "aiDataBody": "Your planning request text and Guide questions are sent to an external AI service (Google Gemini). Your account, contact details and precise location are not. The AI only ranks source-checked places and writes explanations; Gonarra itself works out the schedule, times and distances.",
     "legal": "Terms & privacy",
     "legalDraft": "Draft",
     "legalBody": "Draft — not in effect. The official Terms of Service and Privacy Policy have not been published yet. This development version is for testing only.",

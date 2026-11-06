@@ -2,12 +2,12 @@
   "title": "Chuyến đi mới",
   "home": {
     "title": "Lên kế hoạch 1–3 ngày ở {{city}}",
-    "subtitle": "Chỉ dùng địa điểm đã kiểm duyệt",
+    "subtitle": "Dựa trên địa điểm đã đối chiếu nguồn",
     "action": "Lên kế hoạch chuyến đi"
   },
   "intro": {
     "label": "Trợ lý Gonarra",
-    "body": "Cho mình biết vài thông tin, mình sẽ gợi ý lịch trình 1–3 ngày chỉ từ những địa điểm đã kiểm duyệt."
+    "body": "Cho mình biết vài thông tin, mình sẽ gợi ý lịch trình 1–3 ngày từ những địa điểm đã đối chiếu nguồn. Địa điểm tìm trên web luôn được gắn nhãn rõ."
   },
   "mode": {
     "label": "Bạn muốn mô tả chuyến đi theo cách nào?",
@@ -123,7 +123,7 @@
     "step": "Bước {{current}}/{{total}}",
     "stages": {
       "VALIDATING_REQUEST": "Hiểu yêu cầu",
-      "SELECTING_PLACES": "Chọn địa điểm đã kiểm duyệt",
+      "SELECTING_PLACES": "Chọn địa điểm đã đối chiếu nguồn",
       "RESEARCHING": "Tìm thêm địa điểm trên web",
       "VERIFYING_WEB_PLACES": "Kiểm tra địa điểm tìm trên web",
       "ROUTING": "Tính thời gian di chuyển",
@@ -149,12 +149,12 @@
     "status": {
       "VALIDATING_REQUEST_0": "Đang đọc kỹ yêu cầu của bạn…",
       "VALIDATING_REQUEST_1": "Đang kiểm tra thành phố và số ngày…",
-      "SELECTING_PLACES_0": "Đang lọc những địa điểm đã kiểm duyệt…",
+      "SELECTING_PLACES_0": "Đang lọc những địa điểm đã đối chiếu nguồn…",
       "SELECTING_PLACES_1": "Đang chọn nơi hợp với sở thích của bạn…",
       "RESEARCHING_0": "Đang tìm thêm gợi ý trên web…",
       "RESEARCHING_1": "Đang đọc các trang tìm được…",
       "VERIFYING_WEB_PLACES_0": "Đang kiểm tra từng địa điểm có thật…",
-      "VERIFYING_WEB_PLACES_1": "Địa điểm từ web sẽ được gắn nhãn chưa kiểm duyệt…",
+      "VERIFYING_WEB_PLACES_1": "Địa điểm từ web sẽ được gắn nhãn Chưa đối chiếu nguồn…",
       "ROUTING_0": "Đang đo quãng đường giữa các điểm…",
       "ROUTING_1": "Đang tính thời gian di chuyển thực tế…",
       "SCHEDULING_0": "Đang xếp các điểm vào từng ngày…",
@@ -176,14 +176,15 @@
       "ai_unavailable": "Dịch vụ AI đang bận. Chuyến đã lưu của bạn không thay đổi.",
       "route_unavailable": "Không tính lại được thời gian di chuyển.",
       "quota_exceeded": "Bạn đã dùng hết lượt hôm nay. Thử lại sau.",
-      "validation_failed": "Kiểm tra lại các trường được đánh dấu.",
+      "validation_error": "Kiểm tra lại các trường được đánh dấu.",
       "unsupported_request": "Chưa hỗ trợ yêu cầu này.",
-      "not_found": "Không tìm thấy mục này.",
+      "resource_not_found": "Không tìm thấy mục này.",
       "preview_expired": "Bản nháp đã hết hạn.",
       "preview_closed": "Bản nháp đã đóng.",
       "database_unavailable": "Dịch vụ tạm gián đoạn. Thử lại.",
       "network": "Không có kết nối. Thử lại.",
-      "internal_error": "Có lỗi xảy ra. Thử lại."
+      "internal_error": "Có lỗi xảy ra. Thử lại.",
+      "authentication_required": "Phiên đăng nhập đã hết. Hãy đăng nhập lại để tiếp tục."
     }
   }
 }

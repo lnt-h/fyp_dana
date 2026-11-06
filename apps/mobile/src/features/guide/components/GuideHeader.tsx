@@ -19,7 +19,7 @@ export function GuideAvatar({ size = 48 }: { size?: number }) {
   </View>;
 }
 
-/** SCR-034 header: eyebrow "Trả lời từ nguồn đã kiểm duyệt", title "Hỏi đáp địa điểm" and (in a chat) the clear button. */
+/** SCR-034 header: eyebrow "Trả lời kèm nguồn đã đối chiếu" (DEC-022), title and (in a chat) the clear button. */
 export function GuideHeader({ onClear, clearDisabled }: { onClear?: () => void; clearDisabled?: boolean }) {
   const { t } = useTranslation();
   return <View style={h.row}>

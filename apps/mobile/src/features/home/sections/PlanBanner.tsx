@@ -14,7 +14,7 @@ import { fonts, typography } from '../../../theme/typography';
 const HEIGHT = 196;
 
 /**
- * SCR-008 Plan entry (replaces the old PlanCard): city photo with a dark scrim, kicker, title, reviewed-places line and
+ * SCR-008 Plan entry (replaces the old PlanCard): city photo with a dark scrim, kicker, title, source-checked-places line and
  * a white "Bắt đầu →" pill. The whole banner is one button; offline it is disabled with a hint.
  */
 export function PlanBanner({ cityCode, cityName, offline, onStart }: { cityCode: CityCode | null; cityName: string; offline: boolean; onStart: () => void }) {

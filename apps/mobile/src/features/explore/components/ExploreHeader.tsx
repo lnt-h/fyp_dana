@@ -12,7 +12,7 @@ import { MAX_QUERY } from '../useExploreData';
 export type ResultView = 'grid' | 'list';
 const border = colors.hairline;
 
-/** Large title, city pill (opens SCR-020) and the reviewed-places subtitle. */
+/** Large title, city pill (opens SCR-020) and the source-checked-places subtitle. */
 export function ExploreTitle({ cityName, onPickCity }: { cityName: string | null; onPickCity: () => void }) {
   const { t } = useTranslation();
   return (

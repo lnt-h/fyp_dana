@@ -52,7 +52,10 @@
     "detailStop": "Day {{day}} · #{{number}} {{name}}",
     "detailDay": "Day {{day}}",
     "goToStop": "Go to stop",
-    "goToStopA11y": "Go to stop {{number}}, {{name}}"
+    "goToStopA11y": "Go to stop {{number}}, {{name}}",
+    "onDate": "On {{date}}",
+    "affects": "Affects: {{stops}}",
+    "affectedStop": "Day {{day}} #{{number}} {{name}}"
   },
   "conflict": {
     "CLOSED_AT_PLANNED_TIME": "Closed at planned time",
@@ -60,7 +63,14 @@
     "DAY_WINDOW_EXCEEDED": "Day window exceeded",
     "OPENING_HOURS_UNKNOWN": "Opening hours: unknown",
     "FACT_STALE": "Hours may be out of date",
-    "MUST_SEE_NOT_INCLUDED": "A must-see place could not be included"
+    "MUST_SEE_NOT_INCLUDED": "A must-see place could not be included",
+    "CLOSED_ON_DATE": "Closed on this date",
+    "LEG_MODE_RESTRICTED": "This travel mode is not allowed here",
+    "LUNAR_EVENT_CONFLICT": "Lunar calendar event on this date",
+    "TICKET_VALIDITY": "Ticket may not be valid for this plan",
+    "SEASONAL_WARNING": "Seasonal notice",
+    "WEB_PLACE_UNVERIFIED": "Found on the web, not source-checked",
+    "WEB_PLACE_UNRESOLVED": "Web place could not be confirmed"
   },
   "itinerary": {
     "title": "Day-by-day itinerary",
@@ -78,7 +88,7 @@
     "warnings_other": "{{count}} warnings",
     "expandHint": "Expands or collapses this day's plan",
     "empty": "Day {{day}} has no stops yet",
-    "emptyBody": "Add a reviewed {{city}} place or regenerate this day."
+    "emptyBody": "Add a source-checked {{city}} place or regenerate this day."
   },
   "stop": {
     "minutes": "{{count}} min",
@@ -176,13 +186,14 @@
     "revision_conflict": "This draft changed elsewhere.",
     "preview_expired": "This draft expired.",
     "preview_closed": "This draft is closed.",
-    "validation_failed": "This change can't be applied to the current plan.",
+    "validation_error": "This change can't be applied to the current plan.",
     "place_not_in_city": "This place is not in the trip's city.",
     "quota_exceeded": "You have used today's limit. Try again later.",
     "idempotency_in_progress": "Previous request still running…",
     "database_unavailable": "The service is briefly unavailable. Try again.",
-    "not_found": "This item was not found.",
-    "internal_error": "Something went wrong. Try again."
+    "resource_not_found": "This item was not found.",
+    "internal_error": "Something went wrong. Try again.",
+    "authentication_required": "Your session ended. Sign in again to continue."
   },
   "sheet": {
     "subtitle": "Day {{day}} · stop {{number}} · {{time}}",
@@ -231,7 +242,7 @@
     "replacing": "Instead of {{name}}",
     "search": "Search places in {{city}}",
     "clear": "Clear search",
-    "scope": "Only reviewed places in {{city}} are shown.",
+    "scope": "Only source-checked places in {{city}} are shown.",
     "categories": "Categories",
     "all": "All",
     "choose": "Choose",
@@ -292,9 +303,9 @@
     "progressBody": "Other days and locked stops stay as they are.",
     "stage": {
       "VALIDATING_REQUEST": "Checking your request",
-      "SELECTING_PLACES": "Choosing reviewed places",
+      "SELECTING_PLACES": "Choosing source-checked places",
       "RESEARCHING": "Searching the web",
-      "VERIFYING_WEB_PLACES": "Checking web places",
+      "VERIFYING_WEB_PLACES": "Checking places found on the web",
       "ROUTING": "Getting routes",
       "SCHEDULING": "Fitting the day's times",
       "CHECKING_HEALTH": "Checking Plan Health",
