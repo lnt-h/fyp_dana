@@ -1,0 +1,82 @@
+# Gonarra operator calendar for Đà Nẵng (DEC-016, DEC-022). Owner-maintained.
+#
+# Loaded with `uv run python -m app.cli closure-rules load` (also part of `pipeline run`).
+# Every rule is stored APPROVED, reviewed by the system account, with the source
+# "Gonarra operator calendar" (OWN_OBSERVATION). The load is a sync: identical rules are kept,
+# changed rules are added as new rows, and approved rules from this calendar that are no longer
+# listed here are RETIRED. params are validated per rule_kind (app/curation/closure_rules.py):
+#   Every kind also accepts optional from/to ("HH:MM" window within the day) and
+#   restricted_modes: [WALK, DRIVE, TWO_WHEELER] (travel modes not allowed during the window).
+#   WEEKLY          {weekdays: [1..7] (ISO, 1 = Monday)}
+#   DATE            {dates: [YYYY-MM-DD, ...]} or {month_day: [MM-DD, ...]} (yearly)
+#   LUNAR_DATE      {lunar_days: [1..30], lunar_months: [1..12] | omitted for every month}
+#   SEASON          {from_month_day: MM-DD, to_month_day: MM-DD}
+#   TICKET_VALIDITY {valid_same_day: true} or {valid_hours: N}
+# Targets: applies_to CITY (no target), AREA (area_code) or PLACE (place_slug of a Đà Nẵng place).
+# severity defaults to BLOCKING for CLOSED and WARNING otherwise.
+city: da-nang
+source:
+  publisher: Gonarra operator calendar
+  licence: Gonarra-internal
+  attribution: Gonarra operator calendar
+rules:
+  - applies_to: CITY
+    rule_kind: DATE
+    effect: PARTIAL
+    severity: WARNING
+    params:
+      dates: ["2027-02-05", "2027-02-06", "2027-02-07", "2027-02-08", "2027-02-09"]
+    effective_from: "2027-02-05"
+    effective_to: "2027-02-09"
+    note_vi: "Tết Đinh Mùi 2027 (29 tháng Chạp – mùng 4 Tết): nhiều cửa hàng, quán ăn và chợ đóng cửa hoặc mở cửa ngắn; điểm tham quan có thể đông."
+    note_en: "Tết 2027 (Lunar New Year's Eve to the 4th day): many shops, restaurants and markets close or keep short hours; sights may be crowded."
+  - applies_to: CITY
+    rule_kind: LUNAR_DATE
+    effect: NOTICE
+    severity: WARNING
+    params:
+      lunar_days: [1, 2, 3]
+      lunar_months: [1]
+    note_vi: "Mùng 1–3 Tết Nguyên Đán: giờ mở cửa thay đổi, nên kiểm tra trước khi đi."
+    note_en: "First three days of the Lunar New Year: opening hours change; check before you go."
+  - applies_to: AREA
+    area_code: hoi-an-old-town
+    rule_kind: LUNAR_DATE
+    effect: EVENT
+    severity: WARNING
+    params:
+      lunar_days: [14]
+    note_vi: "Đêm phố cổ Hội An (14 âm lịch): tắt đèn điện, thả đèn hoa đăng; phố cổ rất đông vào buổi tối."
+    note_en: "Hội An lantern night (14th lunar day): electric lights off, lanterns on the river; the Old Town is very crowded in the evening."
+  - applies_to: AREA
+    area_code: hoi-an-old-town
+    rule_kind: TICKET_VALIDITY
+    effect: NOTICE
+    severity: WARNING
+    params:
+      valid_same_day: true
+    note_vi: "Vé tham quan phố cổ Hội An chỉ có giá trị trong ngày mua; nên gom các điểm phố cổ vào cùng một ngày."
+    note_en: "The Hội An Old Town ticket is valid only on the day of purchase; keep Old Town stops on the same day."
+  - applies_to: AREA
+    area_code: da-nang-center
+    rule_kind: WEEKLY
+    effect: EVENT
+    severity: WARNING
+    params:
+      weekdays: [6, 7]
+      from: "21:00"
+      to: "21:20"
+    note_vi: "Cầu Rồng phun lửa và phun nước lúc 21:00 tối thứ Bảy và Chủ nhật; khu vực quanh cầu đông và hạn chế xe."
+    note_en: "The Dragon Bridge breathes fire and water at 21:00 on Saturdays and Sundays; the area around the bridge is crowded."
+  - applies_to: AREA
+    area_code: hoi-an-old-town
+    rule_kind: WEEKLY
+    effect: PARTIAL
+    severity: WARNING
+    params:
+      weekdays: [1, 2, 3, 4, 5, 6, 7]
+      from: "15:00"
+      to: "22:00"
+      restricted_modes: [DRIVE, TWO_WHEELER]
+    note_vi: "Phố cổ Hội An cấm ô tô và xe máy trong khung giờ đi bộ (khoảng 15:00–22:00); nên đi bộ hoặc đạp xe trong phố cổ."
+    note_en: "Hội An Old Town is closed to cars and motorbikes during walking hours (about 15:00–22:00); walk or cycle inside the Old Town."

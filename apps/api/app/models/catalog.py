@@ -121,7 +121,10 @@ class PlaceAlias(Base):
             ondelete="CASCADE",
         ),
         UniqueConstraint(
-            "place_id", "alias_normalized", name="uq_place_aliases_place_id_alias_normalized"
+            "place_id",
+            "locale",
+            "alias_normalized",
+            name="uq_place_aliases_place_id_locale_alias_normalized",
         ),
     )
 

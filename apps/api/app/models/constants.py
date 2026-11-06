@@ -1,4 +1,4 @@
-"""Enumerations enforced by TEXT + CHECK constraints in the migrations (schema.sql 1.0, 0004).
+"""Enumerations enforced by TEXT + CHECK constraints in the migrations (schema.sql 1.0, 0004, 0006).
 
 Each tuple equals the IN-list of the named CHECK constraint; tests/test_models.py and
 tests/integration/test_schema.py keep them in sync. To extend a value set, write a migration that
@@ -21,6 +21,7 @@ PROVIDER_KINDS: Final = (
     "AI_SERVICE",
     "WEB_SEARCH",
     "WEB_CONTENT",
+    "OPERATOR_DATA",
 )
 POLICY_STATUSES: Final = ("DRAFT", "ACTIVE", "RETIRED")
 PERSISTENCE_CLASSES: Final = ("ALLOW_CANONICAL", "ALLOW_EPHEMERAL", "ALLOW_IDENTIFIER_ONLY", "DENY")
@@ -88,6 +89,9 @@ AUDIT_ACTIONS: Final = (
     "POLICY_CHANGE",
     "WEB_PROMOTE",
     "WEB_REJECT",
+    "AUTO_APPROVE",
+    "AUTO_PUBLISH",
+    "AUTO_REJECT",
 )
 IMPORT_RUN_STATUSES: Final = ("RUNNING", "SUCCEEDED", "FAILED")
 IMPORT_VALIDATION_STATUSES: Final = ("ACCEPTED", "REJECTED")
@@ -101,7 +105,15 @@ PREVIEW_STATUSES: Final = ("ACTIVE", "SAVED", "DISCARDED", "EXPIRED")
 PREVIEW_ORIGINS: Final = ("GENERATED", "MANUAL_EDIT", "DAY_REGENERATED", "REPAIRED")
 PLAN_HEALTH_LEVELS: Final = ("GOOD", "WARNING", "BLOCKED")
 GUIDE_MESSAGE_ROLES: Final = ("TRAVELER", "ASSISTANT")
-IDEMPOTENCY_OPERATIONS: Final = ("TRIP_SAVE", "PREVIEW_CREATE", "DAY_REGENERATE", "ACCOUNT_DELETE")
+IDEMPOTENCY_OPERATIONS: Final = (
+    "TRIP_SAVE",
+    "PREVIEW_CREATE",
+    "DAY_REGENERATE",
+    "ACCOUNT_DELETE",
+    "TRIP_CREATE",
+    "PREVIEW_EDIT",
+    "PUBLISH",
+)
 IDEMPOTENCY_STATES: Final = ("IN_PROGRESS", "COMPLETED")
 DELETION_JOB_STATUSES: Final = ("REQUESTED", "IN_PROGRESS", "COMPLETED", "FAILED")
 
