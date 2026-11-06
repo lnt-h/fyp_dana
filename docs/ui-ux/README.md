@@ -1,5 +1,11 @@
 # Gonarra UI/UX Design Specification
 
+> **DEC-022 (2026-11-06):** curator review is removed. The curator admin (`apps/admin`), its screens SCR-101..SCR-105 and the
+> wireframes `a01-candidate-queue.html`, `a02-place-review.html`, `a03-import-runs.html` are **withdrawn** (kept as history,
+> IDs not reused). `VERIFIED` means "passed Gonarra's automated source checks"; traveler copy reads "Source-checked · <date>" /
+> "Đã đối chiếu nguồn · <date>" and never claims human review (copy strings in this document updated accordingly). The
+> binding sources are `docs/decisions.md` (DEC-022) and `docs/requirements.md` 1.1.
+
 ## Document control
 
 | Field | Value |
@@ -512,7 +518,7 @@ published with name and time; failure path: refusal naming each missing item; 40
 | Good / Warning / Blocked | Ổn / Cần chú ý / Bị chặn | Good / Warning / Blocked |
 | unknown | chưa rõ | unknown |
 | May be out of date | Có thể đã cũ | May be out of date |
-| verified {date} | xác minh {date} | verified {date} |
+| source-checked {date} | đối chiếu nguồn {date} | source-checked {date} |
 | Not enough evidence to answer | Chưa đủ nguồn để trả lời | Not enough evidence to answer |
 | Closed at planned time | Đóng cửa vào giờ dự kiến | Closed at planned time |
 | Route unavailable | Không có tuyến đường | Route unavailable |

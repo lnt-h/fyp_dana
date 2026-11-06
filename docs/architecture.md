@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.0 (condensed from SAD 0.3, blueprint 0.2 and the structure views; full text at git tag `docs-sdlc-full`) |
+| Version | 1.1 (1.0 condensed from SAD 0.3, blueprint 0.2 and the structure views, full text at git tag `docs-sdlc-full`; 1.1 applies DEC-022: no curator review, automated publication gate, no admin SPA) |
 | Date | 2026-11-06 |
 | Owner | Lê Ngọc Tấn Hiền |
 | Approver | trantrongminh, FYP mentor ([Pending], M0 gate) |
-| Decision basis | SRC-105 DEC-013..DEC-021; ADR-001..ADR-014 |
+| Decision basis | DEC-013..DEC-022 (`docs/decisions.md`); ADR-001..ADR-014 |
 | Scope | Đà Nẵng only (Hội An is an area inside Đà Nẵng); VI and EN equal; free tier only |
 
 ## 1. System context
@@ -15,7 +15,7 @@
 flowchart LR
   subgraph clients["Clients"]
     MOB["apps/mobile · Expo, React Native"]
-    ADM["apps/admin · React + Vite curator SPA"]
+    OPS["Operator · Typer CLI + 2 /v1/admin routes"]
   end
   API["apps/api · FastAPI modular monolith<br/>Agno agents + deterministic orchestrator"]
   DB[("PostgreSQL 16<br/>PostGIS · pgvector · pg_trgm")]
@@ -27,22 +27,23 @@ flowchart LR
     WEB["Public web pages · fetch"]
     ROUTES["Google Routes · distance, duration"]
     PLACES["Google Places · existence, status"]
+    OD["Open data · Wikidata, OSM, Wikipedia extracts"]
   end
   PART["Booking partner links · Agoda, Booking.com, Klook, 12Go"]
   MOB -->|"/v1 REST + SSE"| API
-  ADM -->|"/v1/admin REST"| API
+  OPS -->|"CLI in API image · unpublish, city summary"| API
   MOB -->|"deep link"| PART
-  MOB & ADM -.->|"sign-in"| CLERK
+  MOB & OPS -.->|"sign-in"| CLERK
   API -->|"JWKS"| CLERK
   API --> DB
-  API --> GEM & GROQ & TAV & WEB & ROUTES & PLACES
+  API --> GEM & GROQ & TAV & WEB & ROUTES & PLACES & OD
 ```
 
 Gonarra's responsibility ends at the saved itinerary, on-site information and the handoff link. No in-app booking or payment, flights, multi-city trips, check-in or GPS arrival, audio tours, turn-by-turn navigation or background location.
 
 ## 2. Deployables and modules
 
-Three deployables coupled only through the HTTP contract `/v1` (ADR-001). `apps/api` is a modular monolith (Python 3.12, SQLAlchemy 2 async, Alembic, Typer CLI). `apps/mobile` is Expo + Expo Router + Clerk with generated OpenAPI types, a TanStack Query cache, an SSE client and a Zustand draft store for unsaved edits. `apps/admin` is a React + Vite SPA for the curator (places, facts, chunks, closure rules, web-candidate queue).
+Two deployables coupled only through the HTTP contract `/v1` (ADR-001; `apps/admin` removed by DEC-022, task T-07 cancelled). `apps/api` is a modular monolith (Python 3.12, SQLAlchemy 2 async, Alembic, Typer CLI). `apps/mobile` is Expo + Expo Router + Clerk with generated OpenAPI types, a TanStack Query cache, an SSE client and a Zustand draft store for unsaved edits. There is no curator UI: catalog content enters through the automated ingestion pipeline (CLI) and the deterministic publication gate; the owner, as **operator**, has only two `/v1/admin` routes — emergency unpublish and the release-gate city summary — behind the allow-list `GONARRA_CURATOR_CLERK_USER_IDS`.
 
 ```text
 apps/api/app/
@@ -54,11 +55,15 @@ apps/api/app/
   research/    tavily.py, fetch.py, extract.py, places_check.py, candidates_repo.py
   providers/   policies.py, google_places.py
   catalog/     repositories: places, facts, chunks, publications, aliases, areas, closure_rules
-  api/routes/  planning.py, guide.py, research_admin.py ; api/sse.py
+  ingestion/   cli.py (Typer), sources/{wikidata,osm,wikipedia,csv_sheet}.py, normalize.py, embed.py,
+               closure_rules_loader.py (YAML → place_closure_rules), promote_web.py (auto-promotion)
+  curation/    auto_publish.py (deterministic publication gate, actor system:gonarra-pipeline), gate_checks.py
+  api/routes/  planning.py, guide.py, operator.py (unpublish, city summary) ; api/sse.py
+apps/api/data/closure_rules/da-nang.yaml   # owner-maintained, versioned in git; AI never writes it
 apps/api/evals/  golden/*.yaml, score_itinerary.py, test_*.py (pytest marker `eval`)
 ```
 
-Import rules (enforced by `import-linter`): `planning.solver`, `planning.calendar`, `planning.health` and `routing` never import `agents` or `ai`; `agents` imports only `ai` and `agents.schemas`; only `planning.workflows` and `guide.workflow` import both agents and repositories; `api` imports workflows only. Provider SDKs live only in their adapter. Domain, scheduling, validation and authorization logic never live in prompts or model output.
+Import rules (enforced by `import-linter`): `planning.solver`, `planning.calendar`, `planning.health` and `routing` never import `agents` or `ai`; `agents` imports only `ai` and `agents.schemas`; `curation` never imports `agents` or `ai` (publishing is code only); only `planning.workflows` and `guide.workflow` import both agents and repositories; `api` imports workflows only. Provider SDKs live only in their adapter. Domain, scheduling, validation and authorization logic never live in prompts or model output.
 
 ## 3. AI architecture (ADR-013, ADR-014, ADR-010, ADR-011)
 
@@ -117,9 +122,9 @@ Every model, search or Places call first reserves budget in `ai_quota_ledger` (`
 
 Caps: per account/day 10 proposals and 40 questions; global/day Flash 200, Flash-Lite 600, Groq 800, Tavily 25/day and 700/month (300 reserved for the study), Places 150/day. Caches (all PostgreSQL, TTLs tied to provider policies): `routes_matrix_cache` pairwise (from, to, mode) 30 d with fixed day-start anchors (never user GPS) and WALK only for pairs ≤ 2.5 km; `research_cache` 7 d; `places_lookup_cache` location ≤ 30 d, outcome 24 h; `query_embedding_cache` 90 d. CLI `routes warm` pre-fills about 3 000 DRIVE and 400 WALK elements for 50 places and 4 anchors.
 
-### 3.4 Research safety net (ADR-014)
+### 3.4 Research safety net (ADR-014, DEC-022)
 
-Policy is catalog-first: the researcher runs only on a thin pool or unmet asks (threshold OQ-127). Every web-found place passes `places_check` (existence and status, minimal field mask), is stored as a `web_place_candidates` row with `coordinate_source`, source URL and `fetched_at`, and enters the curator queue. In a plan it is a real, saveable stop labelled `WEB_UNVERIFIED`; the plan's Plan Health is capped at WARNING (`WEB_PLACE_UNVERIFIED`), and a candidate that fails the check is `WEB_PLACE_UNRESOLVED` (blocking). A model may propose a candidate; it may never publish a place or author a displayed fact. The research agent is behind a feature flag and is turned off for the study if its precision is below the threshold (OQ-128, RSK-012).
+Policy is catalog-first: the researcher runs only on a thin pool or unmet asks (threshold OQ-127). Every web-found place passes `places_check` (existence and status, minimal field mask) and is stored as a `web_place_candidates` row with `coordinate_source`, source URL and `fetched_at`. In a plan it is a real, saveable stop labelled `WEB_UNVERIFIED`; the plan's Plan Health is capped at WARNING (`WEB_PLACE_UNVERIFIED`), and a candidate that fails the check is `WEB_PLACE_UNRESOLVED` (blocking). There is no curator queue: when `places_check` returns `EXISTS_OPERATIONAL` inside the Đà Nẵng boundary, `ingestion/promote_web.py` auto-promotes the candidate into the ingestion pipeline (an `IMPORTED` place plus its Google `place_id` identity, idempotent per candidate); it becomes `VERIFIED` only if the automated publication gate later passes it. Any other outcome leaves the candidate request-scoped and `WEB_UNVERIFIED`. A model may propose a candidate; it never publishes a place (publishing is `curation/auto_publish.py`) and never authors a free-form displayed fact; any future model-extracted fact must carry a verbatim quote that code finds in the fetched page text. The research agent is behind a feature flag and is turned off for the study if its precision is below the threshold (OQ-128, RSK-012).
 
 ### 3.5 City-level Guide retrieval (ADR-010 1.0)
 
@@ -127,21 +132,22 @@ Evidence per question: three retrieval legs over approved content of the enabled
 
 ### 3.6 Plan Health calendar rules (ADR-011 0.3)
 
-`place_closure_rules` are curator-reviewed rows (AI never writes them). For each trip date, `planning/calendar/windows.py` expands rules into an effective window per place: `WEEKLY` (weekday closures), `DATE` (fixed dates or ranges), `LUNAR_DATE` (pure-Python Vietnamese lunar calendar, UTC+7, golden tests Tết 2026-02-17 and 2027-02-06; Hội An lantern night = lunar 14th pending OQ-125), `SEASON` (month ranges), `TICKET_VALIDITY` (same-day Old Town ticket). Effects: `CLOSED` or `PARTIAL` narrow the window; `EVENT` and `NOTICE` add warnings. The solver receives the effective window; the validator emits `CLOSED_ON_DATE` and `LEG_MODE_RESTRICTED` (blocking) and `LUNAR_EVENT_CONFLICT`, `TICKET_VALIDITY`, `SEASONAL_WARNING` (warning) with `rule_id`, `date` and `stop_ids[]`.
+`place_closure_rules` are loaded by CLI from the owner-maintained, git-versioned `apps/api/data/closure_rules/da-nang.yaml` (DEC-022; AI never writes them; the load records the file's git revision). For each trip date, `planning/calendar/windows.py` expands rules into an effective window per place: `WEEKLY` (weekday closures), `DATE` (fixed dates or ranges), `LUNAR_DATE` (pure-Python Vietnamese lunar calendar, UTC+7, golden tests Tết 2026-02-17 and 2027-02-06; Hội An lantern night = lunar 14th pending OQ-125), `SEASON` (month ranges), `TICKET_VALIDITY` (same-day Old Town ticket). Effects: `CLOSED` or `PARTIAL` narrow the window; `EVENT` and `NOTICE` add warnings. The solver receives the effective window; the validator emits `CLOSED_ON_DATE` and `LEG_MODE_RESTRICTED` (blocking) and `LUNAR_EVENT_CONFLICT`, `TICKET_VALIDITY`, `SEASONAL_WARNING` (warning) with `rule_id`, `date` and `stop_ids[]`.
 
 ## 4. Data
 
-Contract: [`docs/data/schema.sql`](data/schema.sql); summary and retention: [`docs/data/data-model.md`](data/data-model.md). Invariants:
+Contract: [`docs/data/schema.sql`](data/schema.sql) (summary and retention document `docs/data/data-model.md` not yet written). Invariants:
 
-- Planner candidates are published places of the enabled city (`vw_published_places`); only published places carry `VERIFIED`.
+- Planner candidates are published places of the enabled city (`vw_published_places`); only published places carry `VERIFIED`, which means "passed the automated publication gate" (DEC-022), never "human-reviewed".
+- Publications are written only by the automated gate (`curation/auto_publish.py`, actor `system:gonarra-pipeline`, seeded account) or reversed by the operator's unpublish; the gate requires VI and EN content, an in-boundary location, a category, an attributed source revision for every shown fact and a recorded licence. Re-running it on unchanged input creates no new publication.
 - Web stops reference `web_place_candidates`; `trip_stops` carries exactly one shape (published place + publication, or web candidate) with `trust_level`. `vw_trip_stop_trust` upgrades the effective trust once a candidate is promoted and published.
-- AI never writes `place_facts`, `place_closure_rules` or publications; models produce drafts and candidates only.
+- AI never writes `place_facts`, `place_closure_rules` or publications; models produce web candidates only. Unknown facts stay unknown.
 - Provider policies are default-deny: an unknown provider, field or purpose combination is never persisted (ADR-006). Google Places keeps only `place_id` canonically.
 - Previews are immutable revisions; Save is explicit, optimistic and idempotent (ADR-009).
 
 ## 5. API
 
-Contract: [`docs/api/openapi.yaml`](api/openapi.yaml) 1.0.0 (REST + SSE under `/v1`; curator routes under `/v1/admin`). Every error uses the shared envelope with `X-Request-ID`; replayable operations carry an `Idempotency-Key` scoped by owner and operation.
+Contract: [`docs/api/openapi.yaml`](api/openapi.yaml) 1.0.0 (REST + SSE under `/v1`). Under DEC-022 only two `/v1/admin` operator routes remain: API-037 `POST /v1/admin/places/{place_id}/unpublish` and API-042 `GET /v1/admin/cities/summary`; the curator routes API-033..036, API-038..041 and API-043..063 (candidates, review, publish, imports, sources, facts, closure rules, chunks, web-candidate queue) are withdrawn and must be removed from the authoritative 1.0.0 contract (on branch `feat/ai-foundation`) in the next API change. Every error uses the shared envelope with `X-Request-ID`; replayable operations carry an `Idempotency-Key` scoped by owner and operation.
 
 | Stream | Stages (in order) | Terminal events |
 |---|---|---|
@@ -154,12 +160,12 @@ Trust label contract. `Stop`, `PlaceSummary`, `PlaceDetail` and `Citation` carry
 
 | `trust_level` | Payload | Mobile rendering |
 |---|---|---|
-| `VERIFIED` | `place_id`, `catalog_publication_id`, facts with source and `verified_at` | Normal card; source line "Verified · <date>"; stale (> 180 d) shown as a warning |
+| `VERIFIED` (= passed Gonarra's automated source checks, DEC-022) | `place_id`, `catalog_publication_id`, facts with source and `verified_at` (date of the source check) | Normal card; source line "Source-checked · <date>" / "Đã đối chiếu nguồn · <date>"; stale (> 180 d) shown as a warning; no copy ever says "Verified", "reviewed" or "Đã kiểm duyệt" |
 | `WEB_UNVERIFIED` | `place_id` null, `web_source{url, fetched_at, candidate_id}`, no facts | `UnverifiedBadge` on every surface (timeline, map pin, place card, citation); source line shows the host and fetched date, "stale" after 7 days; Save of a plan containing one requires acknowledgement (OQ-128); Plan Health shows WARNING |
 
 ## 6. Security and privacy
 
-- Clerk RS256 JWTs are verified server-side (issuer, exp/nbf/iat, subject, authorized party) and mapped to an internal account UUID; client-supplied owner IDs never authorize (ADR-005). Curator role is checked on every `/v1/admin` route.
+- Clerk RS256 JWTs are verified server-side (issuer, exp/nbf/iat, subject, authorized party) and mapped to an internal account UUID; client-supplied owner IDs never authorize (ADR-005). The operator allow-list (`GONARRA_CURATOR_CLERK_USER_IDS`) is checked on both `/v1/admin` routes.
 - Ownership is checked before any read, model call, search or provider call; foreign nested IDs are refused.
 - BR-046 extended: no account IDs, contact data or precise location reach Gemini, Groq, Tavily or fetched pages. The `Redactor` is a correctness gate under free-tier data terms (RSK-002, OQ-123).
 - Logs never contain tokens, prompts, questions, transcripts, raw provider bodies or precise locations; `ai_invocations` stores metadata only (model, purpose, outcome, latency, tokens, `run_id`, `agent_name`, `tool_calls`).
@@ -169,7 +175,7 @@ Trust label contract. `Stop`, `PlaceSummary`, `PlaceDetail` and `Citation` carry
 
 ## 7. Hosting and CI
 
-Local development and the study run on one host with Docker Compose (Caddy TLS, API, PostGIS/pgvector image). ADR-002 (AWS ap-southeast-1, EC2 t4g + RDS, S3, ECR, SSM, no NAT or ALB) is re-affirmed as the default on paper; the final hosting decision is deferred to OQ-129 before M2. Images are built for arm64 and amd64. Scheduled jobs (deletion retry, preview expiry, cache sweeps, `routes warm`) are Typer commands of the API image on a timer; no workers, queues or Redis.
+Local development and the study run on one host with Docker Compose (Caddy TLS, API, PostGIS/pgvector image). ADR-002 (AWS ap-southeast-1, EC2 t4g + RDS, S3, ECR, SSM, no NAT or ALB) is re-affirmed as the default on paper; the final hosting decision is deferred to OQ-129 before M2. Images are built for arm64 and amd64. Scheduled jobs (ingestion pipeline run and publication gate, deletion retry, preview expiry, cache sweeps, `routes warm`) are Typer commands of the API image on a timer; no workers, queues or Redis.
 
 CI (`.github/workflows/ci.yml`): `uv run ruff check .`, `uv run mypy app`, `uv run pytest` (agents mocked by dependency overrides), `pytest -m integration` (Compose DB, migration round-trip), `scripts/export_openapi.py --check`, `import-linter`, multi-arch image build; mobile `npm run typecheck` and `npm run check:dependencies`. `pytest -m eval` runs nightly or on dispatch against real providers: selection validity 100%, hallucinated-place rate 0, calendar-conflict recall 100%, determinism, citation validity ≥ 95%, `INSUFFICIENT_EVIDENCE` precision/recall ≥ 90%, Agno `Case(expected_tool_calls=("tavily_search",))` and `AccuracyEval` with a Groq or Flash-Lite judge; results committed as JSON.
 
@@ -182,7 +188,8 @@ CI (`.github/workflows/ci.yml`): `uv run ruff check .`, `uv run mypy app`, `uv r
 | QAS-04/05 | Authorization and AI boundary | 0 cross-account disclosures; 0 identifiers or coordinates in recorded AI, search or fetch payloads |
 | QAS-06 | Grounding | MET-007 ≥ 95% supported claims; MET-008 ≥ 90% correct refusals; MET-014 trust label noticed |
 | QAS-07 | Performance | proposal p95 ≤ 60 s, first progress p95 ≤ 2 s at ≤ 15 concurrent users |
-| RSK-012 | Web-found places wrong and followed | Label on every surface, Places check, WARNING cap, curator queue, flag off if precision < threshold |
+| RSK-012 | Web-found places wrong and followed | Label on every surface, Places check, WARNING cap, auto-promotion only on `EXISTS_OPERATIONAL` inside the boundary and through the gate, flag off if precision < threshold |
+| RSK-105 | No human review weakens the source-checked claim | "Source-checked" copy only; attributed source revision per fact; verbatim-quote rule; mentor decision OQ-131 |
 | RSK-013 | Tavily or Groq quota exhausted during the study | Daily and monthly ceilings in adapters, 300 Tavily credits reserved, sessions over ≥ 2 days |
 | RSK-014 | Agno API churn | Exact pin `agno==3.1.12`, imports isolated in `ai/` and `agents/`, day-1 spike |
 | RSK-003 | Gemini Flash RPD is the binding limit | Ledger, caches, Flash-Lite and Groq chains, harness runs on Groq on study days |
@@ -192,19 +199,19 @@ CI (`.github/workflows/ci.yml`): `uv run ruff check .`, `uv run mypy app`, `uv r
 
 | ADR | Title | Status |
 |---|---|---|
-| [ADR-001](adr/ADR-001-modular-monolith-http-api.md) | Modular monolith API with three deployables over `/v1` | Proposed; re-affirmed 2026-11-06 |
+| [ADR-001](adr/ADR-001-modular-monolith-http-api.md) | Modular monolith API with separate clients over `/v1` | Proposed; re-affirmed 2026-11-06; `apps/admin` removed (DEC-022) |
 | [ADR-002](adr/ADR-002-aws-ec2-rds-hosting.md) | AWS EC2 (Docker Compose) + RDS hosting | Proposed; re-affirmed as default, final decision OQ-129 |
 | [ADR-003](adr/ADR-003-postgresql-postgis-pgvector.md) | PostgreSQL 16 + PostGIS + pgvector single store | Proposed; re-affirmed |
 | [ADR-004](adr/ADR-004-gemini-bounded-proposal-engine.md) | Gemini as a bounded proposal engine | Superseded by ADR-013 (2026-11-06, DEC-014) |
-| [ADR-005](adr/ADR-005-clerk-identity.md) | Clerk identity, server-side JWT verification | Proposed; re-affirmed |
+| [ADR-005](adr/ADR-005-clerk-identity.md) | Clerk identity, server-side JWT verification | Proposed; re-affirmed; curator role → operator allow-list (DEC-022) |
 | [ADR-006](adr/ADR-006-runtime-only-provider-data.md) | Runtime-only provider data policy | Proposed, 0.2 (Tavily, web pages, Groq; Places identifier-only) |
 | [ADR-007](adr/ADR-007-on-device-speech.md) | On-device STT/TTS | Proposed; re-affirmed |
 | [ADR-008](adr/ADR-008-photo-identification-300m.md) | Photo identification within 300 m | Proposed; re-affirmed |
 | [ADR-009](adr/ADR-009-revisioned-previews-explicit-save.md) | Revisioned previews, explicit Save | Proposed; re-affirmed |
 | [ADR-010](adr/ADR-010-grounded-guide-retrieval.md) | Grounded Guide, city-level hybrid retrieval | Proposed, 1.0 (DEC-017) |
 | [ADR-011](adr/ADR-011-or-tools-scheduling.md) | OR-Tools multi-day scheduling with calendar windows | Accepted by owner, 0.3 (DEC-016) |
-| [ADR-012](adr/ADR-012-cli-ingestion-embedding.md) | CLI ingestion, embeddings on write, Đà Nẵng bbox | Accepted by owner, 0.4 (DEC-013, DEC-015) |
+| [ADR-012](adr/ADR-012-cli-ingestion-embedding.md) | Automated ingestion pipeline, publication gate, YAML closure rules | Accepted by owner, 0.5 (DEC-022) |
 | [ADR-013](adr/ADR-013-agno-multi-agent-planner.md) | Agno multi-agent planner with a deterministic orchestrator | Proposed (DEC-014) |
-| [ADR-014](adr/ADR-014-research-agent-trust-labels.md) | Runtime research agent and trust labels | Proposed (DEC-015) |
+| [ADR-014](adr/ADR-014-research-agent-trust-labels.md) | Runtime research agent and trust labels | Proposed (DEC-015, DEC-022) |
 
 Agents draft; the mentor approves at M0. No status above is an approval.

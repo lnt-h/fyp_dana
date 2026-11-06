@@ -13,7 +13,7 @@ its checklist and approved by the FYP mentor.
 
 1. [Business requirements (BRD)](02-requirements/BRD.md): why, objectives, scope and business requirements.
 2. [Product requirements (PRD)](03-analysis/PRD.md) and [user stories](03-analysis/user-stories.md): what to build.
-3. [Software architecture (SAD)](04-design/architecture/SAD.md) and the [architecture decision records](04-design/adr/): how it is built and why.
+3. [Software architecture (SAD)](04-design/architecture/SAD.md) and the [architecture decision records](adr/): how it is built and why.
 
 ## Folder structure
 

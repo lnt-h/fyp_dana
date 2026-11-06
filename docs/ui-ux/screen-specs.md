@@ -1,5 +1,11 @@
 # Gonarra Screen Specifications
 
+> **DEC-022 (2026-11-06):** curator review is removed. The curator admin (`apps/admin`), its screens SCR-101..SCR-105 and the
+> wireframes `a01-candidate-queue.html`, `a02-place-review.html`, `a03-import-runs.html` are **withdrawn** (kept as history,
+> IDs not reused). `VERIFIED` means "passed Gonarra's automated source checks"; traveler copy reads "Source-checked · <date>" /
+> "Đã đối chiếu nguồn · <date>" and never claims human review (copy strings in this document updated accordingly). The
+> binding sources are `docs/decisions.md` (DEC-022) and `docs/requirements.md` 1.1.
+
 ## Document control
 
 | Field | Value |
@@ -49,7 +55,7 @@ Conventions:
   1 km, else `4.6 km`; money `1.250.000 ₫` / `VND 1,250,000`. A fact with `knowledge_state = UNKNOWN` reads *chưa rõ /
   unknown*, never blank or zero (FR-006). A fact with `freshness = STALE` (verified more than 180 days ago, FR-007)
   carries the badge *Có thể đã cũ / May be out of date* next to its source line. Every source line reads
-  `{publisher} · xác minh {verified_at}` / `{publisher} · verified {verified_at}`. Attribution text (`attribution_text`)
+  `{publisher} · đối chiếu nguồn {verified_at}` / `{publisher} · source-checked {verified_at}`. Attribution text (`attribution_text`)
   is shown on every screen that shows that source's data (FR-008).
 
 ### Shared rules referenced by every screen
@@ -155,7 +161,7 @@ slide 2, Next/Start pill 60 pt high `ink` with arrow.
 
 **Data shown.** Static copy only. To-be copy keys `onboarding.slide1..3`: *Khám phá câu chuyện địa phương, ở mọi điểm
 dừng / Discover local stories at every stop*; *Ghim nơi bạn thích, xếp ngày của bạn / Pin what you love, plan your day*;
-*Đi theo nhịp của bạn với gợi ý AI từ địa điểm đã kiểm duyệt / Flow at your rhythm with AI picks from reviewed places*.
+*Đi theo nhịp của bạn với gợi ý AI từ địa điểm đã đối chiếu nguồn / Flow at your rhythm with AI picks from source-checked places*.
 
 **Actions.** Next → next slide (220 ms fade; 0 under reduced motion); Back → previous; Skip / Start → SCR-003.
 
@@ -312,7 +318,7 @@ border #A9D6DE, icon + placeholder + `AudioMark` 40 pt mic (hidden when `FEATURE
 the build; to-be: published places of the city with `thumbnail`, label `deepOcean`). GPS button 48 pt (centres on the
 device location; foreground, one-shot, optional). Bottom sheet from y 441, radius 40, handle 68 × 4 #C9C9C9, content:
 **Plan card** (sparkle icon, *Lên kế hoạch 1–3 ngày ở {city} / Plan 1–3 days in {city}*, subtitle *Chỉ dùng địa
-điểm đã kiểm duyệt / Built only from reviewed places*, `Action` primary *Lên kế hoạch chuyến đi / Plan a trip*),
+điểm đã đối chiếu nguồn / Built only from source-checked places*, `Action` primary *Lên kế hoạch chuyến đi / Plan a trip*),
 **Saved trips** section cap + up to 3 `AccountRow`s (icon trips; title `{city} · {day_count} ngày/days`; subtitle date
 range; chevron) + `TextLink` *Xem tất cả / See all* when more exist. `HomeTabBar` 328 × 80 floating at y 842.
 
@@ -537,7 +543,7 @@ Explore tab adds a category chip row (API-009) above the list and `HomeTabBar` b
 | State | Treatment | vi-VN / en-US |
 |---|---|---|
 | Loading | 3 skeleton rows; status *Đang tìm… / Searching…* | — |
-| Empty | `EmptyState` card with search glyph, title, body and `Action` secondary | Không tìm thấy "{q}" ở {city} / No match for "{q}" in {city} · Gonarra chỉ hiển thị địa điểm đã kiểm duyệt của thành phố đang chọn. Thử tên tiếng Việt, tên tiếng Anh, hoặc đổi thành phố. / Gonarra only shows reviewed places in the selected city. Try the Vietnamese or English name, or change city. · Đổi thành phố / Change city |
+| Empty | `EmptyState` card with search glyph, title, body and `Action` secondary | Không tìm thấy "{q}" ở {city} / No match for "{q}" in {city} · Gonarra chỉ hiển thị địa điểm đã đối chiếu nguồn của thành phố đang chọn. Thử tên tiếng Việt, tên tiếng Anh, hoặc đổi thành phố. / Gonarra only shows source-checked places in the selected city. Try the Vietnamese or English name, or change city. · Đổi thành phố / Change city |
 | Error | Banner, map usable | Không tìm được lúc này. Thử lại / Search is unavailable right now. Try again |
 | Offline | Banner; input disabled | S-2 |
 | Blocked (guest) | SCR-040 on first keystroke | — |
@@ -645,7 +651,7 @@ Title *Đang tạo đề xuất cho {city} / Creating your {city} proposal*. Ste
 | `stage` | vi-VN | en-US |
 |---|---|---|
 | VALIDATING_REQUEST | Hiểu yêu cầu | Understanding your request |
-| SELECTING_PLACES | Chọn địa điểm đã kiểm duyệt | Choosing reviewed places |
+| SELECTING_PLACES | Chọn địa điểm đã đối chiếu nguồn | Choosing source-checked places |
 | ROUTING | Tính thời gian di chuyển | Measuring travel times |
 | SCHEDULING | Xếp thứ tự và giờ | Ordering stops and times |
 | CHECKING_HEALTH | Kiểm tra giờ mở cửa | Checking opening hours |
@@ -738,7 +744,7 @@ unavailable variant. Sticky `Action` primary *Lưu chuyến đi / Save trip* wit
 | State | Treatment | vi-VN / en-US |
 |---|---|---|
 | Loading | Skeleton stop cards (first open); after an edit, badge *↻ Đang tính lại… / Recalculating…* and Save disabled with *Có thể lưu khi tính lại xong. / You can save when recalculation finishes.* (NFR-004 ≤ 5 s p95) | — |
-| Empty day | `EmptyState` *Ngày {i} chưa có điểm dừng / Day {i} has no stops yet* · *Thêm địa điểm đã kiểm duyệt ở {city} hoặc tạo lại ngày này. / Add a reviewed {city} place or regenerate this day.* · `＋ Thêm điểm dừng / Add a stop` → SCR-028 | — |
+| Empty day | `EmptyState` *Ngày {i} chưa có điểm dừng / Day {i} has no stops yet* · *Thêm địa điểm đã đối chiếu nguồn ở {city} hoặc tạo lại ngày này. / Add a source-checked {city} place or regenerate this day.* · `＋ Thêm điểm dừng / Add a stop` → SCR-028 | — |
 | Unknown / Stale | Warning badges on the stop (never blank) | fact.unknown / fact.stale |
 | Blocked | Red left edge on the stop + reason; health badge counts; Save disabled | — |
 | Error (edit) | `Banner` error above the list; edit kept (US-019 AC2) | Không tính lại được thời gian di chuyển. Thay đổi của bạn vẫn còn trong bản nháp. Thử lại / Could not recalculate travel times. Your change is kept in this draft. Try again |
@@ -819,7 +825,7 @@ blocking issue(s), {w} warnings · Day {i}* (per-day tabs when > 1 day). Section
 `IssueCard`s with `Badge` *⛔ Chặn / Blocking*, title (conflict type), detail line *Ngày {i} · #{ordinal} {name} ·
 đến {arrival}, đóng {closes}, rời {departure} / Day {i} · #{ordinal} {name} · arrive …, closes …, leave …*, actions
 (fix shortcut primary small, *Đến điểm dừng / Go to stop* secondary small). Section **Nên xem / Worth checking**
-(WARNING): same card with *⚠ Cảnh báo / Warning*; FACT_STALE detail *giờ mở cửa xác minh {n} ngày trước / hours
+(WARNING): same card with *⚠ Cảnh báo / Warning*; FACT_STALE detail *giờ mở cửa đối chiếu nguồn {n} ngày trước / hours
 verified {n} days ago*. Good state: summary card + explanation *Mọi điểm dừng mở cửa vào giờ dự kiến, mọi chặng có tuyến
 đường, ngày kết thúc trước {day_window_end}. / Every stop is open at its planned time, every leg has a route, and each
 day ends before {day_window_end}.* + note *Tình trạng được tính lại sau mỗi thay đổi. Giờ mở cửa thực tế có thể thay
@@ -908,7 +914,7 @@ Exit: *Chọn / Choose* → applies the edit (SCR-024 recalculating) or adds a c
 
 **Layout (top → bottom).** Header: back, title *Thêm điểm dừng vào ngày {i} / Add a stop to day {i}*, *Thay điểm dừng
 {ordinal} / Replace stop {ordinal}* or *Nhất định phải đến / Must-see places*. Search `Field` *Tìm địa điểm ở {city} /
-Search places in {city}*. Scope line *Chỉ hiển thị địa điểm đã kiểm duyệt ở {city}. / Only reviewed places in {city}
+Search places in {city}*. Scope line *Chỉ hiển thị địa điểm đã đối chiếu nguồn ở {city}. / Only source-checked places in {city}
 are shown.* Result rows: glyph tile, primary name, secondary `{other name} · {visit_minutes_suggested} phút/min`,
 `Action` small *Chọn / Choose*. Places already in the day are listed with a *Đã có trong ngày / Already in this day*
 badge and a disabled button.
@@ -1109,7 +1115,7 @@ one pin at `entrance_location` or `location`, attribution *Map data © Google*. 
 secondary `{other name} · {category} · khoảng {visit_minutes_suggested} phút / about {n} min`. **DriverPanel**
 (`deepOcean` card, white text ≥ 18 pt): cap *ĐƯA CHO TÀI XẾ / SHOW YOUR DRIVER*, `name_vi` (24 bold), `address_vi` value
 or *Địa chỉ: chưa rõ / Address unknown*. **Facts** (`FactRow` definition list): *Giờ mở cửa / Opening hours* value +
-`SourceLine` *ⓘ {publisher} · xác minh {date}* + stale badge; *Hôm nay / Today* live row *Đang mở theo Google (trực tiếp)
+`SourceLine` *ⓘ {publisher} · đối chiếu nguồn {date}* + stale badge; *Hôm nay / Today* live row *Đang mở theo Google (trực tiếp)
 / Open now per Google (live)* or *Đang đóng theo Google / Closed per Google* with `retrieved_at` and Google attribution
 (hidden when `live_status` absent); *Giá vé / Admission*; *Lối vào / Entrance* value or *Lối vào: chưa rõ / Entrance:
 unknown*; other operational facts (`PAYMENT_METHODS`, `DRESS_CODE`, `ACCESS_RULES`) when KNOWN. Description
@@ -1159,7 +1165,7 @@ place name; images have `alt_text`.
 
 ### SCR-034 Guide chat (text)
 
-**Purpose and stories.** Ask about one published place; answers always carry ≥ 1 reviewed source with its verified
+**Purpose and stories.** Ask about one published place; answers always carry ≥ 1 checked source with its verified
 date or the `insufficient_evidence` outcome; first-use AI notice (US-025, US-026, US-035, US-032; FR-056..FR-058,
 FR-070, FR-074, FR-078; NFR-005, NFR-006). Wireframe m09.
 
@@ -1171,10 +1177,10 @@ place picker (SCR-028 in "choose a place" mode, city-scoped); guest → SCR-040.
 (44 pt). **ContextBadge** chip `⛩ {place name} · {city}` with chevron (tap → choose another place; required: a session
 is always scoped to one place). Thread (scrollable, newest at the bottom): `ChatBubble` traveler (right, `skyWash`),
 `ChatBubble` assistant (left, white, border) with body text, **SourceLine** block *Nguồn / Sources* listing each
-citation `ⓘ {publisher}{, title} · xác minh {verified_at}` + stale badge when older than 180 days, *🔊 Đọc to / Read
+citation `ⓘ {publisher}{, title} · đối chiếu nguồn {verified_at}` + stale badge when older than 180 days, *🔊 Đọc to / Read
 aloud* toggle (flag). Insufficient-evidence bubble: heading *Chưa đủ nguồn để trả lời / Not enough evidence to answer*
-and body *Nguồn đã kiểm duyệt của Gonarra không đề cập điều này, nên tôi không đoán. Hãy hỏi tại chỗ hoặc kênh chính
-thức. / Gonarra's reviewed sources do not cover this, so I won't guess. Please ask on site or check an official channel.*
+and body *Nguồn đã đối chiếu của Gonarra không đề cập điều này, nên tôi không đoán. Hãy hỏi tại chỗ hoặc kênh chính
+thức. / Gonarra's checked sources do not cover this, so I won't guess. Please ask on site or check an official channel.*
 (no answer text). First-use AI notice `Banner` above the composer (same text as SCR-022 but *Câu hỏi của bạn / Your
 question*). **Composer**: 📷 camera (flag), text `Field` placeholder *Hỏi về {place}… / Ask about {place}…*, ◉ mic
 (flag), Send (44 pt). `HomeTabBar` (AI guide active).
@@ -1185,7 +1191,7 @@ question*). **Composer**: 📷 camera (flag), text `Field` placeholder *Hỏi v�
 |---|---|
 | Session | API-024 create / API-025 `GET /v1/ai/sessions/{session_id}` → `place_id`, `trip_id`, `locale`, `expires_at` |
 | Messages | API-027 `GET /v1/ai/sessions/{session_id}/messages?limit=50` → `items[].role`, `input_mode`, `content`, `answer_status`, `citations[]` (`publisher`, `title`, `locator`, `verified_at`, `knowledge_chunk_id`, `place_fact_id`), `created_at` |
-| Streaming | API-028 stream `progress.stage` (RETRIEVING → *Đang tìm trong nguồn đã kiểm duyệt… / Searching reviewed sources…*, ANSWERING), `text.delta`, `result.message` |
+| Streaming | API-028 stream `progress.stage` (RETRIEVING → *Đang tìm trong nguồn đã đối chiếu… / Searching checked sources…*, ANSWERING), `text.delta`, `result.message` |
 | Place name | API-011 for the session's `place_id` |
 
 **Actions.**
@@ -1207,7 +1213,7 @@ question*). **Composer**: 📷 camera (flag), text `Field` placeholder *Hỏi v�
 | State | Treatment | vi-VN / en-US |
 |---|---|---|
 | Loading | Streaming bubble with caret and *Đang thêm nguồn… / Adding sources…* at the end; Send disabled until `result` | — |
-| Empty (new conversation) | ✦ glyph, title *Hỏi về một địa điểm đã kiểm duyệt / Ask about a reviewed place*, body *Câu trả lời luôn kèm nguồn. Nếu nguồn không đủ, Gonarra sẽ nói rõ. / Every answer lists its sources. If they are not enough, Gonarra says so.*, chips *Mấy giờ đóng cửa? / When does it close?*, *Có phải mua vé? / Do I need a ticket?*, *Lối vào ở đâu? / Where is the entrance?* | — |
+| Empty (new conversation) | ✦ glyph, title *Hỏi về một địa điểm đã đối chiếu nguồn / Ask about a source-checked place*, body *Câu trả lời luôn kèm nguồn. Nếu nguồn không đủ, Gonarra sẽ nói rõ. / Every answer lists its sources. If they are not enough, Gonarra says so.*, chips *Mấy giờ đóng cửa? / When does it close?*, *Có phải mua vé? / Do I need a ticket?*, *Lối vào ở đâu? / Where is the entrance?* | — |
 | No place selected | Context chip reads *Chọn địa điểm / Choose a place*; composer disabled with hint | Chọn một địa điểm để hỏi / Choose a place to ask |
 | Insufficient evidence | As above; `answer_status = INSUFFICIENT_EVIDENCE` | — |
 | Stale | Badge on the source line | Có thể đã cũ / May be out of date |
@@ -1297,16 +1303,16 @@ SCR-021; ✕ → SCR-034.
 được lưu. Chỉ dùng một lần định vị để tìm địa điểm gần bạn; vị trí không được gửi tới AI. / The photo is not stored. One
 location fix is used to find nearby places; it is not sent to AI.*
 
-*Analyzing:* captured photo thumbnail, spinner, *Đang so khớp với địa điểm đã kiểm duyệt gần bạn… / Matching against
-reviewed places near you…*
+*Analyzing:* captured photo thumbnail, spinner, *Đang so khớp với địa điểm đã đối chiếu nguồn gần bạn… / Matching against
+source-checked places near you…*
 
 *Result sheet (matched):* thumbnail; cap *Kết quả gần nhất trong bán kính 300 m / Best match within 300 m*; result row
-(`AccountRow`): glyph, primary name, secondary `{other name} · {category} · địa điểm đã kiểm duyệt / reviewed place`;
+(`AccountRow`): glyph, primary name, secondary `{other name} · {category} · địa điểm đã đối chiếu nguồn / source-checked place`;
 `Action` primary *Mở thẻ địa điểm / Open place card*, secondary *✦ Hỏi về nơi này / Ask about it*, `TextLink` *Không
 phải nơi này / Not this place* (→ Search by name); privacy line.
 
-*Not recognised:* thumbnail; title *Không nhận ra địa điểm / Not recognised*; body *Không có địa điểm đã kiểm duyệt nào
-trong 300 m khớp với ảnh này. Bạn có thể tìm theo tên. / No reviewed place within 300 m matches this photo. You can search
+*Not recognised:* thumbnail; title *Không nhận ra địa điểm / Not recognised*; body *Không có địa điểm đã đối chiếu nguồn nào
+trong 300 m khớp với ảnh này. Bạn có thể tìm theo tên. / No source-checked place within 300 m matches this photo. You can search
 by name instead.*; `Action` *Tìm theo tên / Search by name*, secondary *Chụp lại / Retake*.
 
 *Permission denied:* title *Cần quyền máy ảnh và vị trí / Camera and location are needed*; body *Tính năng này chỉ dùng

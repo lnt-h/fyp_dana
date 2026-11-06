@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed (mentor approval at M0). Re-affirmed 2026-11-06 (DEC-019, DEC-021) |
+| Status | Proposed (mentor approval at M0). Re-affirmed 2026-11-06 (DEC-019, DEC-021); 1.1: curator role → operator allow-list (DEC-022) |
 | Date | 2026-11-04 (1.0: 2026-11-06) |
-| Version | 1.0 |
+| Version | 1.1 |
 | Owner / decider | Lê Ngọc Tấn Hiền |
 | Approver | trantrongminh, FYP mentor ([Pending]) |
 | Decision source | CON-005, DEP-006; implemented in `apps/api/app/security/clerk.py` |
 
 ## Context
 
-Travelers and the curator sign in on mobile and web. The foundation already verifies Clerk RS256 JWTs and maps
+Travelers sign in on mobile; the owner (operator) signs in only to call the two `/v1/admin` operator routes (DEC-022; no curator web app). The foundation already verifies Clerk RS256 JWTs and maps
 the subject to an internal account UUID (`GET /v1/me`). Private data is owner-scoped and must be deletable within
 24 h. Contact details must never reach AI, search or page-fetch providers.
 
@@ -20,7 +20,7 @@ the subject to an internal account UUID (`GET /v1/me`). Private data is owner-sc
 - Clerk manages credentials and sessions; tokens are kept in SecureStore on mobile.
 - The API verifies signature, issuer, exp/nbf/iat, subject and audience/authorized party; the internal account UUID
   is the owner key on every private row; client-supplied owner IDs never authorize.
-- The curator role is checked server-side on every `/v1/admin` route.
+- The operator allow-list (`GONARRA_CURATOR_CLERK_USER_IDS`, concept renamed from "curator" to "operator" by DEC-022) is checked server-side on every `/v1/admin` route.
 - Account deletion deletes private rows in one transaction, revokes sessions and deletes the Clerk user last; a
   failed step is retried by the jobs runner until done within 24 h.
 

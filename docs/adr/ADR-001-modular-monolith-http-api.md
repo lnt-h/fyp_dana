@@ -1,10 +1,10 @@
-# ADR-001 — Modular monolith API with three deployables over HTTP API `/v1`
+# ADR-001 — Modular monolith API with separate client deployables over HTTP API `/v1`
 
 | Field | Value |
 |---|---|
-| Status | Proposed (mentor approval at M0). Re-affirmed 2026-11-06 (DEC-021) |
+| Status | Proposed (mentor approval at M0). Re-affirmed 2026-11-06 (DEC-021); 1.1: `apps/admin` removed (DEC-022) |
 | Date | 2026-11-04 (1.0: 2026-11-06) |
-| Version | 1.0 |
+| Version | 1.1 (1.0 → 1.1: DEC-022 removes the admin SPA; two deployables remain; `/v1/admin` reduced to two operator routes) |
 | Owner / decider | Lê Ngọc Tấn Hiền |
 | Approver | trantrongminh, FYP mentor ([Pending]) |
 | Decision source | DEC-006 (SRC-100), CON-004; module layout DEC-014 (SRC-105) |
@@ -17,21 +17,21 @@ already one FastAPI service. Microservices, queues and Redis are out without a p
 
 ## Decision
 
-- Three deployables: `apps/api` (FastAPI), `apps/mobile` (Expo), `apps/admin` (React + Vite). They share only the
+- Two deployables (rev. 1.1, DEC-022; `apps/admin` withdrawn): `apps/api` (FastAPI) and `apps/mobile` (Expo). They share only the
   versioned contract `/v1` (REST + SSE); `apps/api/openapi.json` is generated and drift-checked in CI; clients
   generate types with `openapi-typescript`.
 - `apps/api/app` is a modular monolith: `ai/`, `agents/`, `planning/`, `routing/`, `guide/`, `research/`,
-  `providers/`, `catalog/`, `api/` (see `docs/architecture.md` §2). Modules call each other through Python
+  `providers/`, `catalog/`, `ingestion/`, `curation/` (automated publication gate), `api/` (see `docs/architecture.md` §2). Modules call each other through Python
   interfaces, never another module's tables; provider SDKs live only in their adapter.
 - Import rules are enforced by `import-linter`: solver, calendar, health and routing never import agents or AI;
   only workflows import both agents and repositories; `api` imports workflows only.
-- Curator endpoints live under `/v1/admin` and require the curator role.
+- Operator endpoints (rev. 1.1: only emergency unpublish and the city summary) live under `/v1/admin` and require the operator allow-list `GONARRA_CURATOR_CLERK_USER_IDS`. There are no curator review endpoints (DEC-022).
 
 ## Options
 
 | Option | Verdict | Why |
 |---|---|---|
-| A. Modular monolith API + separate mobile and admin clients over `/v1` | **Chosen** | One process to deploy and debug; in-process calls; clear contract; fits a 2 GiB host |
+| A. Modular monolith API + separate clients over `/v1` (mobile; admin client withdrawn by DEC-022) | **Chosen** | One process to deploy and debug; in-process calls; clear contract; fits a 2 GiB host |
 | B. Microservices per module | Rejected | Distributed failure modes and cost with no load that needs them |
 | C. Admin pages rendered by the API | Rejected | Breaks client/server separation (CON-004) |
 | D. Clients read the database directly | Rejected | Bypasses owner checks and provider-secret rules |
