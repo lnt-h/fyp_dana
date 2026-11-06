@@ -1,6 +1,6 @@
 {
   "title": "Explore",
-  "subtitle": "Reviewed places in {{city}}",
+  "subtitle": "Source-checked places in {{city}}",
   "city": {
     "label": "City: {{city}}. Change city",
     "loading": "Loading cities…"
@@ -23,12 +23,12 @@
   },
   "featured": {
     "title": "Featured in {{city}}",
-    "subtitle": "Reviewed picks to start with"
+    "subtitle": "Source-checked picks to start with"
   },
   "all": {
     "title": "All places",
-    "count_one": "{{count}} reviewed place",
-    "count_other": "{{count}} reviewed places"
+    "count_one": "{{count}} source-checked place",
+    "count_other": "{{count}} source-checked places"
   },
   "results": {
     "searching": "Searching…",
@@ -40,11 +40,11 @@
   "states": {
     "loading": "Loading places",
     "emptyQueryTitle": "No match for “{{q}}” in {{city}}",
-    "emptyQueryBody": "Gonarra only shows reviewed places in the selected city. Try the Vietnamese or English name, or change city.",
+    "emptyQueryBody": "Gonarra only shows source-checked places in the selected city. Try the Vietnamese or English name, or change city.",
     "emptyCategoryTitle": "No {{category}} places in {{city}} yet",
     "emptyCategoryBody": "Try another category, or see every place in the city.",
     "comingTitle": "Places in {{city}} are on the way…",
-    "comingBody": "Our curators are still reviewing places in {{city}}. Try another city in the meantime.",
+    "comingBody": "Gonarra is still checking the sources for places in {{city}}. Try another city in the meantime.",
     "showAll": "Show all places",
     "clearSearch": "Clear search",
     "changeCity": "Change city",

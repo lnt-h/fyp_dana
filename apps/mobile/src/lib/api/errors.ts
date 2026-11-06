@@ -25,13 +25,25 @@ export class ApiError extends Error {
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
+/**
+ * Contract 1.0 error codes (openapi.yaml responses): 401 `authentication_required`, 404 `resource_not_found`, 422
+ * `validation_error`. Pre-1.0 servers sent the left-hand names; they are normalised so screens match one code each.
+ */
+const LEGACY_CODES: Record<string, string> = {
+  not_found: 'resource_not_found',
+  unauthorized: 'authentication_required',
+  validation_failed: 'validation_error',
+};
+
+export const normalizeErrorCode = (code: string): string => LEGACY_CODES[code] ?? code;
+
 /** Parses an `ErrorResponse` body; null when the body is not the Gonarra envelope. */
 export function parseErrorEnvelope(body: unknown): ErrorDetail | null {
   if (!isObject(body) || !isObject(body.error)) return null;
   const { code, message, retryable, request_id, context } = body.error;
   if (typeof code !== 'string') return null;
   return {
-    code,
+    code: normalizeErrorCode(code),
     context: isObject(context) ? context : undefined,
     message: typeof message === 'string' ? message : '',
     request_id: typeof request_id === 'string' ? request_id : null,
@@ -41,6 +53,6 @@ export function parseErrorEnvelope(body: unknown): ErrorDetail | null {
 
 /** Error for a response without a usable envelope (proxy page, empty body). 5xx and 429 count as retryable. */
 export function fallbackError(status: number, requestId: string | null): ErrorDetail {
-  const code = status === 401 ? 'unauthorized' : status === 404 ? 'not_found' : status === 429 ? 'quota_exceeded' : status >= 500 ? 'internal_error' : 'bad_request';
+  const code = status === 401 ? 'authentication_required' : status === 404 ? 'resource_not_found' : status === 422 ? 'validation_error' : status === 429 ? 'quota_exceeded' : status >= 500 ? 'internal_error' : 'bad_request';
   return { code, message: '', request_id: requestId, retryable: status >= 500 || status === 429 };
 }

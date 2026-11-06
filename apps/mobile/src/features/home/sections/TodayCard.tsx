@@ -93,7 +93,7 @@ export function TodayCard({ trip, cityCode, onOpenPlace }: { trip: Trip; cityCod
     if (!nextPlaceId) return;
     let active = true;
     getPlace(nextPlaceId)
-      .then(place => { if (active) setThumb(place.thumbnail); })
+      .then(place => { if (active) setThumb(place.thumbnail ?? null); })
       .catch(() => undefined);
     return () => { active = false; };
   }, [nextPlaceId]);

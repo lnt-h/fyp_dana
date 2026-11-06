@@ -6,6 +6,8 @@ import { colors } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
 import { palette } from '../../auth/components/AuthUI';
+import { currentLocale } from '../../../i18n';
+import { formatDate } from '../../place/format';
 import { HealthGlyph } from '../timeline/icons';
 import { HealthBadge } from './HealthBadge';
 import type { HealthIssue } from './reasons';
@@ -128,6 +130,10 @@ function Issue({ issue, onGoToStop }: { issue: HealthIssue; onGoToStop: (dayInde
     : issue.dayIndex ? t('proposal.health.detailDay', { day: issue.dayIndex }) : null;
   // Server-composed detail (e.g. closing time); shown only when it adds to the title.
   const message = issue.message && issue.message !== title ? issue.message : null;
+  const onDate = issue.date ? t('proposal.health.onDate', { date: formatDate(issue.date, currentLocale()) }) : null;
+  const affects = issue.affectedStops?.length
+    ? t('proposal.health.affects', { stops: issue.affectedStops.map(stop => t('proposal.health.affectedStop', { day: stop.dayIndex, name: stop.name, number: stop.number })).join('; ') })
+    : null;
   const { dayIndex, stopId } = issue;
   return <View style={[h.issue, isBlocking && h.issueBlocking]}>
     <View style={h.issueHead}>
@@ -136,7 +142,9 @@ function Issue({ issue, onGoToStop }: { issue: HealthIssue; onGoToStop: (dayInde
     </View>
     <Text style={h.issueTitle}>{title}</Text>
     {!!message && <Text style={h.issueBody}>{message}</Text>}
+    {!!onDate && <Text style={h.issueBody}>{onDate}</Text>}
     {!!detail && <Text style={h.issueBody}>{detail}</Text>}
+    {!!affects && <Text style={h.issueBody}>{affects}</Text>}
     {dayIndex != null && stopId ? <Pressable
       accessibilityRole="button"
       accessibilityLabel={t('proposal.health.goToStopA11y', { name: issue.stopName, number: issue.stopNumber })}

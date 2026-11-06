@@ -7,7 +7,7 @@ import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View 
 import { Icon, PrimaryButton, SecondaryButton, type IconName, PhotoFallback } from '../../components/ui';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { stayPricesEnabled } from '../../lib/api/sourceTrips';
-import type { City, CityCode, Conflict, HandoffKind, PlanHealth, PlanPreview, Trip, TripDetail, Uuid } from '../../lib/api/types';
+import type { City, CityCode, Conflict, HandoffKind, PlanHealth, PlanPreview, Stop, Trip, TripDetail, Uuid } from '../../lib/api/types';
 import { CITY_IMAGES } from '../../lib/images/cityImages';
 import { resolveImage } from '../../lib/images/imagekit';
 import { colors } from '../../theme/colors';
@@ -32,6 +32,8 @@ export type SaveSummary = {
   dayCount: number;
   stopCount: number;
   warningCount: number;
+  /** Names of `WEB_UNVERIFIED` stops; non-empty means Save needs the acknowledgement step (OQ-128). */
+  webUnverifiedStops?: string[];
 };
 
 /** Counts from the preview the user is looking at (no recomputation of health). */
@@ -43,7 +45,13 @@ export function saveSummaryFromPreview(preview: PlanPreview, trip: Pick<Trip, 's
     startDate: trip.start_date,
     stopCount: preview.days.reduce((sum, day) => sum + day.stops.length, 0),
     warningCount: (preview.health_reasons ?? []).filter(reason => reason.severity === 'WARNING').length,
+    webUnverifiedStops: webUnverifiedStopNames(preview.days),
   };
+}
+
+/** Names of the plan's `WEB_UNVERIFIED` stops (found on the web, not source-checked). */
+export function webUnverifiedStopNames(days: { stops: Pick<Stop, 'name' | 'trust_level'>[] }[]): string[] {
+  return days.flatMap(day => day.stops).filter(stop => stop.trust_level === 'WEB_UNVERIFIED').map(stop => stop.name);
 }
 
 export type SaveSheetProps = {
@@ -87,6 +95,8 @@ export function SaveSheet(props: SaveSheetProps) {
   const { state, save, retry, saveReplacing, reset } = useSaveTrip({ previewId, previewRevision, tripRevision });
   const [view, setView] = useState<View_>({ name: 'save' });
   const [confirmReplace, setConfirmReplace] = useState(false);
+  /** Acknowledgement step for WEB_UNVERIFIED stops is open (OQ-128). */
+  const [ackOpen, setAckOpen] = useState(false);
   const heading = useRef<ComponentRef<typeof Text>>(null);
   const reported = useRef<TripDetail | null>(null);
 
@@ -95,6 +105,7 @@ export function SaveSheet(props: SaveSheetProps) {
     if (!visible) return;
     setView({ name: 'save' });
     setConfirmReplace(false);
+    setAckOpen(false);
     if (state.status !== 'success' && state.status !== 'saving') reset();
     const timer = setTimeout(() => {
       if (heading.current) AccessibilityInfo.sendAccessibilityEvent(heading.current, 'focus');
@@ -220,6 +231,45 @@ export function SaveSheet(props: SaveSheetProps) {
     );
   }
 
+  /* ------------------------------------------------------------ Acknowledge WEB_UNVERIFIED stops (OQ-128) */
+  if (!saving && (ackOpen || state.status === 'ackRequired')) {
+    const names = summary.webUnverifiedStops ?? [];
+    const back = () => { setAckOpen(false); if (state.status === 'ackRequired') reset(); };
+    return (
+      <SheetFrame
+        accessibilityLabel={t('save.ack.title')}
+        footer={
+          <>
+            <PrimaryButton disabled={offline} label={t('save.ack.confirm')} onPress={() => { setAckOpen(false); void save(true); }} style={styles.button} />
+            <SecondaryButton label={t('save.ack.back')} onPress={back} style={styles.button} />
+          </>
+        }
+        onRequestClose={back}
+        visible={visible}
+      >
+        <View accessibilityRole="alert" style={styles.stateHead}>
+          <View style={[styles.stateIcon, { backgroundColor: colors.warnBg }]}>
+            <Icon color={warnText} name="info" size={28} />
+          </View>
+          <Text style={styles.kicker}>{t('save.ack.kicker')}</Text>
+          <Text accessibilityRole="header" ref={heading} style={[styles.title, styles.centerText]}>{t('save.ack.title')}</Text>
+          <Text style={styles.stateBody}>{names.length ? t('save.ack.body', { count: names.length }) : t('save.ack.bodyGeneric')}</Text>
+        </View>
+        {names.length ? (
+          <View style={styles.ackList}>
+            {names.map((name, index) => (
+              <View key={`${name}-${index}`} style={styles.metaRow}>
+                <Icon color={colors.accentText} name="info" size={16} />
+                <Text style={styles.ackName}>{name}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        <Text style={styles.note}>{t('save.ack.note')}</Text>
+      </SheetFrame>
+    );
+  }
+
   /* ------------------------------------------------------------ Expired */
   if (state.status === 'expired') {
     return (
@@ -244,7 +294,8 @@ export function SaveSheet(props: SaveSheetProps) {
   const interrupted = state.status === 'interrupted';
   const conflict = state.status === 'conflict' ? state : null;
   const primaryLabel = saving ? t('save.confirm.saving') : interrupted ? t('save.interrupted.retry') : t('save.confirm.save');
-  const onPrimary = interrupted ? retry : save;
+  const needsAck = (summary.webUnverifiedStops?.length ?? 0) > 0;
+  const onPrimary = interrupted ? retry : needsAck ? async () => setAckOpen(true) : () => save(false);
 
   return (
     <SheetFrame
@@ -424,6 +475,8 @@ function ProgressBar() {
 }
 
 const styles = StyleSheet.create({
+  ackList: { backgroundColor: colors.surfaceTint, borderRadius: radii.inset, gap: spacing.xs, padding: spacing.md },
+  ackName: { color: colors.ink, flex: 1, fontFamily: fonts.bold, fontSize: 15, lineHeight: 20 },
   banner: { borderRadius: radii.inset, gap: spacing.xs, padding: spacing.md },
   bannerActions: { gap: spacing.xs, marginTop: spacing.xs },
   bannerBody: { color: colors.ink, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
@@ -438,6 +491,7 @@ const styles = StyleSheet.create({
   card: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.card, flexDirection: 'row', gap: spacing.md, padding: spacing.sm },
   cardText: { flex: 1, gap: 4 },
   cardTitle: { ...typography.bodyStrong, fontSize: 17 },
+  centerText: { textAlign: 'center' },
   disabled: { opacity: 0.45 },
   entry: { alignItems: 'center', backgroundColor: colors.white, borderColor: colors.hairline, borderRadius: radii.card, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 72, padding: spacing.sm },
   entryPressed: { backgroundColor: colors.surfaceTint },

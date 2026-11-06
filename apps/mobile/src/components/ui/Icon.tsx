@@ -188,29 +188,45 @@ export function Icon({ name, size = 24, color = colors.ink, strokeWidth = 1.75, 
   );
 }
 
-/** Category code → icon. Evening walks use the lantern; unknown codes fall back to the map pin. */
+/**
+ * Category code (API UPPER_CASE, e.g. `HERITAGE`) → icon. Pre-1.0 lower-case codes are accepted via `normalizeCategoryCode`;
+ * unknown codes fall back to the map pin.
+ */
 export function categoryIcon(code: string | null | undefined): IconName {
-  switch (code) {
-    case 'heritage':
-    case 'history':
-    case 'museum':
-    case 'temple':
+  switch (normalizeCategoryCode(code)) {
+    case 'HERITAGE':
+    case 'MUSEUM':
+    case 'RELIGIOUS_SITE':
+    case 'CRAFT_VILLAGE':
       return 'heritage';
-    case 'market':
+    case 'MARKET':
       return 'market';
-    case 'food':
-    case 'cafe':
+    case 'FOOD':
+    case 'CAFE':
       return 'food';
-    case 'nature':
+    case 'NATURE':
+    case 'VIEWPOINT':
       return 'nature';
-    case 'beach':
+    case 'BEACH':
       return 'beach';
-    case 'evening':
-    case 'nightlife':
+    case 'NIGHTLIFE':
       return 'lantern';
+    case 'THEME_PARK':
+      return 'sparkle';
     default:
       return 'map-pin';
   }
+}
+
+/** Fixture/legacy lower-case codes (heritage, beach, market, nature, evening, …) → contract category codes. */
+const LEGACY_CATEGORY: Record<string, string> = {
+  beach: 'BEACH', cafe: 'CAFE', evening: 'NIGHTLIFE', food: 'FOOD', heritage: 'HERITAGE', history: 'HERITAGE', market: 'MARKET',
+  museum: 'MUSEUM', nature: 'NATURE', nightlife: 'NIGHTLIFE', temple: 'RELIGIOUS_SITE',
+};
+
+export function normalizeCategoryCode(code: string | null | undefined): string | null {
+  if (!code) return null;
+  return LEGACY_CATEGORY[code] ?? code;
 }
 
 /** Travel mode → icon (contract TravelMode plus roadmap modes). */

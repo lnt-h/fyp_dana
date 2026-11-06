@@ -1,9 +1,12 @@
 /**
  * App-facing domain types. Field names are the contract's snake_case names. The raw contract types are generated into
- * `schema.d.ts` (`npm run gen:api`, openapi-typescript) from docs/04-design/api/openapi.yaml; this file narrows them
- * (string enums, per-op unions) and adds the architecture 1.0 trust-label fields (`trust_level`, `web_source`, new
- * stream stages) that the 0.4 contract file does not carry yet. Marked "1.0 (not yet in openapi.yaml)" below.
+ * `schema.d.ts` (`npm run gen:api`, openapi-typescript) from docs/04-design/api/openapi.yaml (1.0.0). Most types here
+ * are aliases of the generated schemas; app-level types remain only where the app needs a narrower shape (city codes,
+ * 1–3 day counts, fact value shapes, discriminated stream events, scoped Guide session bodies).
  */
+import type { components } from './schema';
+
+type Schemas = components['schemas'];
 
 /** UUID string. */
 export type Uuid = string;
@@ -12,13 +15,16 @@ export type IsoDate = string;
 /** ISO 8601 date-time with offset, e.g. `2027-01-16T08:00:00+07:00`. */
 export type IsoDateTime = string;
 /** `HH:MM`, 24-hour (LocalTime). */
-export type LocalTime = string;
+export type LocalTime = Schemas['LocalTime'];
 
-export type Locale = 'vi' | 'en';
-export type TravelMode = 'WALK' | 'DRIVE';
-export type Pace = 'RELAXED' | 'BALANCED' | 'PACKED';
-export type TripStatus = 'DRAFT' | 'SAVED';
-export type PlanHealth = 'GOOD' | 'WARNING' | 'BLOCKED';
+export type Locale = Schemas['Locale'];
+export type TravelMode = Schemas['TravelMode'];
+export type Pace = Schemas['Pace'];
+export type TripStatus = Schemas['TripStatus'];
+export type PlanHealth = Schemas['PlanHealth'];
+export type KnowledgeState = Schemas['KnowledgeState'];
+/** STALE when verified_at is more than 180 days before today (ASM-008). */
+export type Freshness = Schemas['Freshness'];
 
 /**
  * City `code` values (schema.sql `ck_cities_code_format`, kebab-case). The FYP release enables Đà Nẵng only; Hội An is
@@ -30,94 +36,59 @@ export type CityCode = 'da-nang' | 'ha-noi' | 'ho-chi-minh-city' | 'hue';
 export const DEFAULT_CITY_CODE: CityCode = 'da-nang';
 
 /**
- * 1.0 (not yet in openapi.yaml): trust label on stops, places and citations (architecture §5, FR-098). `VERIFIED` =
- * published catalog place / reviewed source; `WEB_UNVERIFIED` = found on the web by the research agent, not reviewed.
+ * Trust label on stops, places and citations (architecture §5, FR-098, DEC-022). `VERIFIED` = passed Gonarra's
+ * automated source checks ("Source-checked"); `WEB_UNVERIFIED` = found on the web by the research agent, not
+ * source-checked. There is no human review.
  */
-export type TrustLevel = 'VERIFIED' | 'WEB_UNVERIFIED';
+export type TrustLevel = Schemas['TrustLevel'];
 
-/** 1.0 (not yet in openapi.yaml): provenance of a `WEB_UNVERIFIED` stop. */
-export type WebSource = {
-  url: string;
-  fetched_at: IsoDateTime;
-  candidate_id: Uuid;
-};
+/** Provenance of a `WEB_UNVERIFIED` stop. */
+export type WebSource = Schemas['WebSource'];
 
-export type KnowledgeState = 'KNOWN' | 'UNKNOWN' | 'NOT_APPLICABLE';
-/** STALE when verified_at is more than 180 days before today (ASM-008). */
-export type Freshness = 'CURRENT' | 'STALE';
+export type PageInfo = Schemas['PageInfo'];
+export type Money = Schemas['Money'];
+export type Attribution = Schemas['Attribution'];
+export type GeoPoint = Schemas['GeoPoint'];
+export type Media = Schemas['Media'];
+/** Named area of a city (e.g. Hội An inside Đà Nẵng). */
+export type Area = Schemas['Area'];
+export type ClosureRule = Schemas['ClosureRule'];
 
-export type PageInfo = {
-  /** Null on the last page. */
-  next_cursor: string | null;
-};
-
-export type Money = {
-  /** Decimal string, e.g. `120000`. */
-  amount: string;
-  /** ISO 4217, e.g. `VND`. */
-  currency: string;
-};
-
-export type Attribution = {
-  publisher: string;
-  attribution_text: string;
-  license_code?: string | null;
-  homepage_url?: string | null;
-};
-
-export type City = {
-  id: Uuid;
+/** `City`, narrowed to the known city codes and the single time zone. */
+export type City = Omit<Schemas['City'], 'code' | 'time_zone'> & {
   code: CityCode;
-  name_vi: string;
-  name_en: string;
   time_zone: 'Asia/Ho_Chi_Minh';
-  /** Map centre for a view with no stops (OQ-109); null when no boundary is recorded. */
-  centre?: GeoPoint | null;
 };
 
-export type GeoPoint = {
-  latitude: number;
-  longitude: number;
-};
+/**
+ * Category codes (schema.sql seed; API returns UPPER_CASE). `category_code` stays `string` on places so a new server
+ * category does not break parsing; screens map unknown codes to a generic icon/label.
+ */
+export type CategoryCode =
+  | 'HERITAGE'
+  | 'MUSEUM'
+  | 'RELIGIOUS_SITE'
+  | 'BEACH'
+  | 'NATURE'
+  | 'VIEWPOINT'
+  | 'MARKET'
+  | 'FOOD'
+  | 'CAFE'
+  | 'NIGHTLIFE'
+  | 'THEME_PARK'
+  | 'CRAFT_VILLAGE';
 
-export type Media = {
-  media_asset_id: Uuid;
-  url: string;
-  width_px?: number | null;
-  height_px?: number | null;
-  alt_text?: string | null;
-  creator?: string | null;
-  license_code: string;
-  attribution_text: string;
-};
+export const CATEGORY_CODES: readonly CategoryCode[] = [
+  'HERITAGE', 'MUSEUM', 'RELIGIOUS_SITE', 'BEACH', 'NATURE', 'VIEWPOINT', 'MARKET', 'FOOD', 'CAFE', 'NIGHTLIFE', 'THEME_PARK', 'CRAFT_VILLAGE',
+];
+
+export const isCategoryCode = (code: string | null | undefined): code is CategoryCode =>
+  !!code && (CATEGORY_CODES as readonly string[]).includes(code);
 
 /** `PlaceSummary` in the contract (API-010 items). */
-export type Place = {
-  id: Uuid;
-  city_id: Uuid;
-  slug: string;
-  category_code: string;
-  /** Vietnamese name, always present (FR-076). */
-  name_vi: string;
-  /** Name in the requested locale. */
-  name: string;
-  short_description?: string | null;
-  location: GeoPoint;
-  visit_minutes_suggested?: number | null;
-  catalog_publication_id: Uuid;
-  thumbnail: Media | null;
-  /** 1.0: always `VERIFIED` for a published place; absent from 0.4 servers. */
-  trust_level?: TrustLevel;
-};
-
-export type PlaceSummaryPage = PageInfo & { items: Place[] };
-
-export type Category = {
-  code: string;
-  name_vi: string;
-  name_en: string;
-  sort_order: number;
-};
+export type Place = Schemas['PlaceSummary'];
+export type PlaceSummaryPage = Schemas['PlaceSummaryPage'];
+export type Category = Schemas['Category'];
 
 /** `fact_fields.code` seed (schema.sql). */
 export type FactFieldCode =
@@ -139,230 +110,81 @@ export type TextValue = { text: string };
 export type LocationValue = GeoPoint;
 export type FactValue = HoursValue | MoneyValue | TextValue | LocationValue;
 
-/** One operational fact. UNKNOWN is never collapsed into an empty value (FR-006); `value` only when KNOWN. */
-export type PlaceFact = {
-  place_fact_id?: Uuid;
+/**
+ * One operational fact. UNKNOWN is never collapsed into an empty value (FR-006); `value` only when KNOWN. Narrows the
+ * contract's untyped `value` to the provisional shapes above.
+ */
+export type PlaceFact = Omit<Schemas['PlaceFact'], 'field_code' | 'value'> & {
   field_code: FactFieldCode | (string & {});
-  knowledge_state: KnowledgeState;
   value?: FactValue | string | null;
-  verified_at?: IsoDate | null;
-  valid_until?: IsoDate | null;
-  freshness: Freshness;
-  sources: Citation[];
 };
 
 /** `PlaceDetail` (API-011 `GET /v1/places/{place_id}`). */
-export type PlaceDetail = Place & {
-  name_en: string;
-  description?: string | null;
-  visit_minutes_min?: number | null;
-  visit_minutes_max?: number | null;
-  entrance_location?: GeoPoint | null;
-  publication_revision: number;
-  published_at?: IsoDateTime;
-  facts: PlaceFact[];
-  media?: Media[];
-  /** Every source whose data is shown (FR-008). */
-  attributions: Attribution[];
-};
+export type PlaceDetail = Omit<Schemas['PlaceDetail'], 'facts'> & { facts: PlaceFact[] };
 
 /** `PlaceCard` (API-017, a stop of a trip). */
-export type PlaceCard = {
-  stop_id: Uuid;
-  place_id: Uuid;
-  catalog_publication_id?: Uuid;
-  name_vi: string;
-  name_en: string;
+export type PlaceCard = Omit<Schemas['PlaceCard'], 'address_vi' | 'entrance'> & {
   /** Vietnamese address for a driver, or UNKNOWN (FR-052). */
   address_vi: PlaceFact;
-  /** Verified entrance location, or UNKNOWN (FR-053). */
+  /** Source-checked entrance location, or UNKNOWN (FR-053). */
   entrance: PlaceFact;
-  directions: {
-    target: 'ENTRANCE' | 'PLACE_POSITION';
-    google_maps_url: string;
-    apple_maps_url: string;
-  };
-  /** Runtime-only Google Places data; omitted when unavailable (ADR-006). Never stored. */
-  live_status?: {
-    open_now?: boolean | null;
-    retrieved_at: IsoDateTime;
-    attribution_text: string;
-  };
-  attributions?: Attribution[];
 };
 
-export type ConflictType =
-  | 'CLOSED_AT_PLANNED_TIME'
-  | 'LEG_UNAVAILABLE'
-  | 'DAY_WINDOW_EXCEEDED'
-  | 'OPENING_HOURS_UNKNOWN'
-  | 'FACT_STALE'
-  | 'MUST_SEE_NOT_INCLUDED';
+/** Plan Health conflict (13 types; calendar rules carry `rule_id`/`date`, web stops carry `stop_ids`). */
+export type Conflict = Schemas['Conflict'];
+export type ConflictType = Conflict['type'];
 
-export type Conflict = {
-  type: ConflictType;
-  severity: 'BLOCKING' | 'WARNING';
-  message?: string;
-};
+export const CONFLICT_TYPES: readonly ConflictType[] = [
+  'CLOSED_AT_PLANNED_TIME', 'LEG_UNAVAILABLE', 'DAY_WINDOW_EXCEEDED', 'OPENING_HOURS_UNKNOWN', 'FACT_STALE', 'MUST_SEE_NOT_INCLUDED',
+  'CLOSED_ON_DATE', 'LEG_MODE_RESTRICTED', 'LUNAR_EVENT_CONFLICT', 'TICKET_VALIDITY', 'SEASONAL_WARNING', 'WEB_PLACE_UNVERIFIED',
+  'WEB_PLACE_UNRESOLVED',
+];
 
-export type Stop = {
-  /** Stable across preview revisions and into the saved trip_stops row. */
-  id: Uuid;
-  /** Published place; null for a `WEB_UNVERIFIED` stop (1.0). */
-  place_id: Uuid | null;
-  /** Null for a `WEB_UNVERIFIED` stop (1.0). */
-  catalog_publication_id: Uuid | null;
-  /** 1.0 (not yet in openapi.yaml). */
-  trust_level: TrustLevel;
-  /** 1.0: present only when `trust_level` is `WEB_UNVERIFIED`. */
-  web_source?: WebSource | null;
-  ordinal: number;
-  planned_arrival?: IsoDateTime | null;
-  planned_departure?: IsoDateTime | null;
-  visit_minutes: number;
-  is_locked: boolean;
-  name_vi: string;
-  name: string;
-  location: GeoPoint;
-  /** AI-written reason for the selection (preview only). */
-  rationale?: string | null;
-  conflicts?: Conflict[];
-};
+/** Itinerary stop; `place_id`/`catalog_publication_id` are null for a `WEB_UNVERIFIED` stop. */
+export type Stop = Schemas['Stop'];
+export type Leg = Schemas['Leg'];
+export type LegAvailability = Leg['availability'];
 
-export type LegAvailability = 'AVAILABLE' | 'UNAVAILABLE' | 'EXPIRED';
+type DayIndex = 1 | 2 | 3;
 
-export type Leg = {
-  from_stop_id: Uuid;
-  to_stop_id: Uuid;
-  travel_mode: TravelMode;
-  availability: LegAvailability;
-  /** Google Routes only; null when unavailable. */
-  distance_m?: number | null;
-  duration_s?: number | null;
-  measured_at?: IsoDateTime | null;
-  conflicts?: Conflict[];
-};
+/** `ItineraryDay` in the contract; `day_index` narrowed to 1–3 (one trip = 1–3 days). */
+export type Day = Omit<Schemas['ItineraryDay'], 'day_index'> & { day_index: DayIndex };
 
-/** `ItineraryDay` in the contract. */
-export type Day = {
-  /** Null inside a preview snapshot. */
-  trip_day_id?: Uuid | null;
-  day_index: 1 | 2 | 3;
-  day_window_start?: LocalTime;
-  day_window_end?: LocalTime;
-  stops: Stop[];
-  legs: Leg[];
-};
-
-export type PlanningPreferences = {
-  pace?: Pace;
-  interest_category_codes?: string[];
-  allowed_modes?: TravelMode[];
-  day_start_time?: LocalTime;
-  day_end_time?: LocalTime;
-  must_see_place_ids?: Uuid[];
-};
+export type PlanningPreferences = Schemas['PlanningPreferences'];
 
 /** API-004 `GET /v1/me/preferences`. */
-export type Preferences = {
-  locale: Locale;
-  pace?: Pace | null;
-  interest_category_codes: string[];
-  allowed_modes: TravelMode[];
-  day_start_time?: LocalTime | null;
-  day_end_time?: LocalTime | null;
-  ai_notice_acknowledged_at?: IsoDateTime | null;
-  updated_at?: IsoDateTime | null;
-};
+export type Preferences = Schemas['Preferences'];
 
 /** API-012 `POST /v1/trips` body. */
-export type TripCreate = {
-  city_id: Uuid;
-  title?: string | null;
-  start_date: IsoDate;
-  day_count: 1 | 2 | 3;
-};
+export type TripCreate = Omit<Schemas['TripCreate'], 'day_count'> & { day_count: DayIndex };
 
-export type Trip = {
-  id: Uuid;
-  city_id: Uuid;
-  title?: string | null;
-  start_date: IsoDate;
-  day_count: 1 | 2 | 3;
-  status: TripStatus;
-  revision: number;
-  saved_at?: IsoDateTime | null;
-  created_at: IsoDateTime;
-  updated_at: IsoDateTime;
-};
+export type Trip = Omit<Schemas['Trip'], 'day_count'> & { day_count: DayIndex };
 
 export type TripPage = PageInfo & { items: Trip[] };
 
-export type TripDetail = Trip & {
-  planning_preferences?: PlanningPreferences | null;
+export type TripDetail = Trip & Omit<Schemas['TripDetail'], keyof Schemas['Trip'] | 'days'> & {
   /** Saved itinerary; empty for a DRAFT trip. */
   days: Day[];
-  active_preview_id?: Uuid | null;
 };
 
-export type PlanPreviewCreate = {
-  source: 'GENERATE' | 'SAVED_ITINERARY';
-  expected_trip_revision: number;
-  locale: Locale;
-  request_text?: string | null;
-  preferences?: PlanningPreferences;
-};
+export type PlanPreviewCreate = Schemas['PlanPreviewCreate'];
+export type ClarificationRequired = Schemas['ClarificationRequired'];
 
-export type ClarificationRequired = {
-  outcome: 'CLARIFICATION_REQUIRED';
-  missing_fields: ('city' | 'start_date' | 'day_count')[];
-  message: string;
-};
+export type PlanPreview = Omit<Schemas['PlanPreview'], 'days'> & { days: Day[] };
 
-export type PlanPreview = {
-  id: Uuid;
-  trip_id: Uuid;
-  base_trip_revision: number;
-  head_revision: number;
-  /** Revision represented by this body. */
-  preview_revision: number;
-  parent_revision?: number | null;
-  status: 'ACTIVE' | 'SAVED' | 'DISCARDED' | 'EXPIRED';
-  origin: 'GENERATED' | 'MANUAL_EDIT' | 'DAY_REGENERATED' | 'REPAIRED';
-  plan_health: PlanHealth;
-  health_reasons?: Conflict[];
-  expires_at: IsoDateTime;
-  days: Day[];
-  assumptions?: string[];
-  model_version?: string | null;
-  prompt_version?: string | null;
-  corpus_revision?: number | null;
-  created_at?: IsoDateTime;
-};
+/** API-022 body. `acknowledge_web_unverified` must be true when the plan holds a WEB_UNVERIFIED stop (OQ-128). */
+export type AcceptPreviewRequest = Schemas['AcceptPreviewRequest'];
 
-export type ErrorDetail = {
-  code: string;
-  message: string;
-  retryable?: boolean;
-  request_id?: string | null;
-  context?: Record<string, unknown>;
-};
+export type ErrorDetail = Schemas['ErrorDetail'];
+export type ErrorResponse = Schemas['ErrorResponse'];
 
-export type ErrorResponse = { error: ErrorDetail };
+type PlanningStreamSchema = Schemas['PlanningStreamEvent'];
 
 /**
  * Planning stream stages in order (architecture §5). RESEARCHING and VERIFYING_WEB_PLACES run only when the catalog pool
- * is thin; WRITING writes rationales. 1.0: those three are not yet in openapi.yaml.
+ * is thin; WRITING writes rationales.
  */
-export type PlanningStage =
-  | 'VALIDATING_REQUEST'
-  | 'SELECTING_PLACES'
-  | 'RESEARCHING'
-  | 'VERIFYING_WEB_PLACES'
-  | 'ROUTING'
-  | 'SCHEDULING'
-  | 'CHECKING_HEALTH'
-  | 'WRITING';
+export type PlanningStage = NonNullable<PlanningStreamSchema['stage']>;
 
 export const PLANNING_STAGES: readonly PlanningStage[] = [
   'VALIDATING_REQUEST', 'SELECTING_PLACES', 'RESEARCHING', 'VERIFYING_WEB_PLACES', 'ROUTING', 'SCHEDULING', 'CHECKING_HEALTH', 'WRITING',
@@ -371,80 +193,44 @@ export const PLANNING_STAGES: readonly PlanningStage[] = [
 /** Stages that appear only when the research path runs; screens show them once reported. */
 export const OPTIONAL_PLANNING_STAGES: readonly PlanningStage[] = ['RESEARCHING', 'VERIFYING_WEB_PLACES'];
 
-/** 1.0: progress `detail` (counts only; no place names or user text). */
-export type StageDetail = { catalog_candidates?: number; web_candidates?: number; verified?: number };
+/** Agent role reporting a stage (`selector`, `researcher`, `grounded_writer`). */
+export type PlanningAgent = NonNullable<PlanningStreamSchema['agent']>;
 
-/** One SSE `data:` payload of the planning stream; terminal: preview_ready, clarification_required, error. */
+/** Progress `detail` (counts only; no place names or user text). */
+export type StageDetail = NonNullable<PlanningStreamSchema['detail']>;
+
+/**
+ * One SSE `data:` payload of the planning stream; terminal: preview_ready, clarification_required, error. The contract
+ * schema is one flat object with optional fields; this is the discriminated union the app parses into.
+ */
 export type PlanningStreamEvent =
-  | { type: 'progress'; stage: PlanningStage; agent?: string | null; detail?: StageDetail | null }
+  | { type: 'progress'; stage: PlanningStage; agent?: PlanningAgent | null; detail?: StageDetail | null }
   | { type: 'clarification_required'; clarification: ClarificationRequired }
   | { type: 'preview_ready'; preview_id: Uuid; preview_revision: number; plan_health: PlanHealth }
   | { type: 'error'; error: ErrorDetail };
 
-export type CitationSection = 'OVERVIEW' | 'HISTORY' | 'HIGHLIGHTS' | 'VISIT_TIPS' | 'ETIQUETTE' | 'ACCESS';
+export type Citation = Schemas['Citation'];
+export type CitationSection = NonNullable<Citation['section']>;
+/** ADR-010: kind of evidence a citation points to. */
+export type EvidenceKind = Citation['evidence_kind'];
 
-/** 1.0 (ADR-010): kind of evidence a citation points to. */
-export type EvidenceKind = 'FACT' | 'CHUNK' | 'WEB';
+export type GuideMessage = Schemas['GuideMessage'];
+export type GuideAnswerStatus = NonNullable<GuideMessage['answer_status']>;
+export type GuideMessagePage = Schemas['GuideMessagePage'];
 
-export type Citation = {
-  source_revision_id: Uuid;
-  knowledge_chunk_id?: Uuid | null;
-  /** Section of the cited chunk; null for a fact citation. */
-  section?: CitationSection | null;
-  place_fact_id?: Uuid | null;
-  publisher: string;
-  title?: string | null;
-  locator?: string | null;
-  /** Reviewed date; null for a `WEB_UNVERIFIED` citation (1.0). */
-  verified_at: IsoDate | null;
-  /** 1.0 (not yet in openapi.yaml). */
-  trust_level: TrustLevel;
-  /** 1.0: FACT, CHUNK or WEB. */
-  evidence_kind?: EvidenceKind | null;
-  /** 1.0: source page URL of a WEB citation. */
-  url?: string | null;
-  /** 1.0: when a WEB citation's page was fetched. */
-  fetched_at?: IsoDateTime | null;
-};
+/**
+ * API-026 body. Contract `GuideSessionCreate` narrowed per scope: the Guide tab opens a city session (`CITY` +
+ * `city_code`), a place card opens a place session (`PLACE` + `place_id`).
+ */
+export type GuideSessionCreate =
+  | { scope: 'CITY'; city_code: CityCode; place_id?: null; trip_id?: Uuid | null; locale: Locale }
+  | { scope: 'PLACE'; place_id: Uuid; city_code?: CityCode | null; trip_id?: Uuid | null; locale: Locale };
 
-/** `ANSWERED_WEB_UNVERIFIED` is 1.0 (ADR-010 web fallback), not yet in openapi.yaml. */
-export type GuideAnswerStatus = 'ANSWERED' | 'ANSWERED_WEB_UNVERIFIED' | 'INSUFFICIENT_EVIDENCE' | 'NOT_RECOGNISED';
+export type GuideSession = Schemas['GuideSession'];
+export type GuideQuestion = Schemas['GuideQuestion'];
 
-export type GuideMessage = {
-  id: Uuid;
-  seq: number;
-  role: 'TRAVELER' | 'ASSISTANT';
-  input_mode?: 'TEXT' | 'VOICE_TRANSCRIPT' | 'PHOTO' | null;
-  content: string;
-  answer_status?: GuideAnswerStatus | null;
-  citations?: Citation[];
-  created_at: IsoDateTime;
-};
-
-export type GuideMessagePage = PageInfo & { items: GuideMessage[] };
-
-export type GuideSessionCreate = {
-  place_id: Uuid;
-  trip_id?: Uuid | null;
-  locale: Locale;
-};
-
-export type GuideSession = {
-  id: Uuid;
-  trip_id?: Uuid | null;
-  place_id: Uuid;
-  locale: Locale;
-  expires_at?: IsoDateTime | null;
-  created_at: IsoDateTime;
-};
-
-export type GuideQuestion = {
-  content: string;
-  input_mode: 'TEXT' | 'VOICE_TRANSCRIPT';
-};
-
-/** Guide stream stages in order (architecture §5); SEARCHING_WEB runs only for the web fallback. VALIDATING and SEARCHING_WEB are 1.0. */
-export type GuideStage = 'VALIDATING' | 'RETRIEVING' | 'SEARCHING_WEB' | 'ANSWERING';
+/** Guide stream stages in order (architecture §5); SEARCHING_WEB runs only for the web fallback. */
+export type GuideStage = NonNullable<Schemas['GuideStreamEvent']['stage']>;
 
 /** One SSE `data:` payload of the Guide stream; `text` carries a delta; `result` and `error` are terminal. */
 export type GuideStreamEvent =
@@ -453,18 +239,15 @@ export type GuideStreamEvent =
   | { type: 'result'; message: GuideMessage }
   | { type: 'error'; error: ErrorDetail };
 
-export type HandoffKind = 'STAY' | 'ACTIVITY' | 'TRANSPORT';
+export type HandoffKind = Schemas['HandoffKind'];
+/** STAY: agoda | booking_com; ACTIVITY: klook; TRANSPORT: twelve_go. */
+export type HandoffLink = Schemas['HandoffLink'];
+export type HandoffPartner = HandoffLink['partner_key'];
 
-export type HandoffLink = {
-  kind: HandoffKind;
-  /** STAY: agoda | booking_com; ACTIVITY: klook; TRANSPORT: twelve_go. */
-  partner_key: 'agoda' | 'booking_com' | 'klook' | 'twelve_go';
-  partner_display_name: string;
-  url: string;
-  city_id?: Uuid;
-  start_date?: IsoDate;
-  end_date?: IsoDate;
-};
+/** `StayPrice` (API-031 item). Runtime only; never cached or stored (FR-081). */
+export type StayPrice = Schemas['StayPrice'];
+/** `StayPricePage` (API-031). */
+export type StayPricePage = Schemas['StayPricePage'];
 
-/** API-003 `GET /v1/me` (generated from openapi.yaml; unchanged since 0.1). */
-export type Identity = import('./schema').components['schemas']['IdentityResponse'];
+/** API-003 `GET /v1/me`. */
+export type Identity = Schemas['IdentityResponse'];

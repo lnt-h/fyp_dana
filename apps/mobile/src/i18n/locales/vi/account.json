@@ -28,7 +28,7 @@
     "reduceMotionSubtitle": "Hiệu ứng chuyển màn hình đơn giản hơn. Cài đặt trợ năng của thiết bị cũng được tôn trọng.",
     "aiData": "Dữ liệu gửi cho AI",
     "aiDataSubtitle": "Những gì được và không được gửi đi",
-    "aiDataBody": "Nội dung yêu cầu lên kế hoạch và câu hỏi cho Hướng dẫn được gửi tới dịch vụ AI bên ngoài (Google Gemini). Tài khoản, thông tin liên hệ và vị trí chính xác của bạn thì không. AI chỉ xếp hạng các địa điểm đã được kiểm duyệt và viết lời giải thích; lịch trình, giờ giấc và quãng đường do Gonarra tự tính.",
+    "aiDataBody": "Nội dung yêu cầu lên kế hoạch và câu hỏi cho Hướng dẫn được gửi tới dịch vụ AI bên ngoài (Google Gemini). Tài khoản, thông tin liên hệ và vị trí chính xác của bạn thì không. AI chỉ xếp hạng các địa điểm đã đối chiếu nguồn và viết lời giải thích; lịch trình, giờ giấc và quãng đường do Gonarra tự tính.",
     "legal": "Điều khoản & quyền riêng tư",
     "legalDraft": "Bản nháp",
     "legalBody": "Bản nháp — chưa có hiệu lực. Điều khoản dịch vụ và Chính sách quyền riêng tư chính thức chưa được công bố. Đây là bản phát triển, chỉ dùng để thử nghiệm.",

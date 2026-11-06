@@ -5,8 +5,9 @@ import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTabBarClearance } from '../home/components/HomeTabBar';
+import { DEFAULT_CITY_CODE } from '../../lib/api/types';
 import { colors } from '../../theme/colors';
-import { GuideChat } from './GuideChat';
+import { GuideChat, type GuideScope } from './GuideChat';
 import { GuideHeader } from './components/GuideHeader';
 import { GuidePlacePicker } from './components/GuidePlacePicker';
 
@@ -22,29 +23,38 @@ function useKeyboardOpen() {
   return open;
 }
 
-/** SCR-034 Guide tab: place chooser without `placeId`, otherwise a chat scoped to that place. */
+/**
+ * SCR-034 Guide tab. Default: a city-level chat (`scope: CITY`, Đà Nẵng, ADR-010). `placeId` scopes the chat to one
+ * place (`scope: PLACE`, from a place card or the picker); `pick=1` shows the place picker.
+ */
 export function GuideScreen() {
   const insets = useSafeAreaInsets();
   const clearance = useTabBarClearance();
   const keyboardOpen = useKeyboardOpen();
-  const params = useLocalSearchParams<{ placeId?: string }>();
-  // The `placeId` param is the only selection state, so "Ask the Guide" on a place card always switches the session.
+  const params = useLocalSearchParams<{ placeId?: string; pick?: string }>();
+  // The params are the only selection state, so "Ask the Guide" on a place card always switches the session.
   const placeId = params.placeId || null;
-  const choose = (id: string) => router.setParams({ placeId: id });
+  const picking = !placeId && params.pick === '1';
+  const choose = (id: string) => router.setParams({ pick: '', placeId: id });
+  const openPicker = () => router.setParams({ pick: '1', placeId: '' });
+  const chooseCity = () => router.setParams({ pick: '', placeId: '' });
+  // FYP release: Đà Nẵng only (Hội An is an area of it).
+  const scope: GuideScope = placeId ? { kind: 'PLACE', placeId } : { cityCode: DEFAULT_CITY_CODE, kind: 'CITY' };
+  const key = scope.kind === 'PLACE' ? `place:${scope.placeId}` : `city:${scope.cityCode}`;
 
   return <View style={g.screen}>
     <StatusBar style="dark" />
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={g.fill}>
-      {placeId
+      {!picking
         ? <View style={[g.chat, { paddingBottom: keyboardOpen ? 8 : clearance, paddingTop: insets.top + 8 }]}>
           <View style={[g.inner, g.fill]}>
-            <GuideChat key={placeId} keyboardOpen={keyboardOpen} onChangePlace={() => choose('')} placeId={placeId} />
+            <GuideChat key={key} keyboardOpen={keyboardOpen} onChangePlace={openPicker} scope={scope} />
           </View>
         </View>
         : <ScrollView contentContainerStyle={[g.content, { paddingBottom: clearance, paddingTop: insets.top + 8 }]} showsVerticalScrollIndicator={false}>
           <View style={g.inner}>
             <GuideHeader />
-            <GuidePlacePicker onPick={choose} />
+            <GuidePlacePicker onPick={choose} onPickCity={chooseCity} />
           </View>
         </ScrollView>}
     </KeyboardAvoidingView>

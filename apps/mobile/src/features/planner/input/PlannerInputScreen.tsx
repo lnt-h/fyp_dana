@@ -6,9 +6,9 @@ import { useTranslation } from 'react-i18next';
 import { useAccount, type Interest } from '../../account/AccountContext';
 import { currentLocale } from '../../../i18n';
 import { ApiError, createTrip, getPreferences, listCategories, listCities } from '../../../lib/api/source';
-import type { Category, City, ClarificationRequired, Pace, PlanPreviewCreate, TravelMode, Uuid } from '../../../lib/api/types';
+import type { Category, CategoryCode, City, ClarificationRequired, Pace, PlanPreviewCreate, TravelMode, Uuid } from '../../../lib/api/types';
 import { DEFAULT_CITY_CODE } from '../../../lib/api/types';
-import { Icon, PrimaryButton, SecondaryButton, Skeleton, categoryIcon, travelModeIcon } from '../../../components/ui';
+import { Icon, PrimaryButton, SecondaryButton, Skeleton, categoryIcon, normalizeCategoryCode, travelModeIcon } from '../../../components/ui';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
 import { colors } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
@@ -30,7 +30,7 @@ const paces: Pace[] = ['RELAXED', 'BALANCED', 'PACKED'];
 const travelModes: TravelMode[] = ['WALK', 'DRIVE'];
 const dayCounts = [1, 2, 3] as const;
 /** Saved profile interests (onboarding) → catalog category codes, used only when API-004 has none. */
-const profileInterestCodes: Record<Interest, string> = { Beach: 'beach', Culture: 'heritage', Food: 'market', Nature: 'nature' };
+const profileInterestCodes: Record<Interest, CategoryCode> = { Beach: 'BEACH', Culture: 'HERITAGE', Food: 'FOOD', Nature: 'NATURE' };
 
 const emptyDraft = (): PlannerDraft => ({
   cityId: null, dayCount: null, dayEnd: '18:00', dayStart: '08:30', interests: [], mode: 'form', modes: ['WALK'], mustSee: [],
@@ -77,7 +77,9 @@ export function PlannerInputScreen() {
       getPreferences().then(prefs => {
         if (!alive) return;
         const fromProfile = profile.interests.map(interest => profileInterestCodes[interest]);
-        const interests = prefs.interest_category_codes.length ? prefs.interest_category_codes : fromProfile;
+        // Older servers/drafts used lower-case codes; the API now returns UPPER_CASE (e.g. HERITAGE).
+        const saved = prefs.interest_category_codes.map(code => normalizeCategoryCode(code) ?? code);
+        const interests = saved.length ? saved : fromProfile;
         const hadValues = Boolean(prefs.pace || interests.length || prefs.allowed_modes.length || prefs.day_start_time);
         setDraftState(previous => {
           const next: PlannerDraft = {
@@ -163,7 +165,7 @@ export function PlannerInputScreen() {
     } catch (error) {
       const detail = toErrorDetail(error);
       if (detail.code === 'unsupported_request') { setView({ kind: 'unsupported' }); return; }
-      if (detail.code === 'validation_failed' && error instanceof ApiError) {
+      if (detail.code === 'validation_error' && error instanceof ApiError) {
         const fields = (detail.context?.fields ?? {}) as Record<string, unknown>;
         setErrors({
           ...(fields.start_date ? { startDate: t('planner.validation.startDate') } : {}),

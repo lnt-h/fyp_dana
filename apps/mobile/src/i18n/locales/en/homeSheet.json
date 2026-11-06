@@ -11,7 +11,7 @@
   "plan": {
     "kicker": "Trip planning assistant",
     "title": "Plan 1–3 days in {{city}}",
-    "subtitle": "Built only from reviewed places",
+    "subtitle": "Built from source-checked places",
     "action": "Start",
     "offlineHint": "Planning needs a connection",
     "a11yHint": "Opens the trip planner"
@@ -50,7 +50,7 @@
     "minutes": "{{count}} min",
     "loading": "Loading places",
     "emptyTitle": "Places for {{city}} are on the way",
-    "emptyBody": "Our team is reviewing more places. Check back soon!",
+    "emptyBody": "More places are being source-checked. Check back soon!",
     "emptyFilter": "No places in this category yet.",
     "error": "Could not load places.",
     "retry": "Try again"

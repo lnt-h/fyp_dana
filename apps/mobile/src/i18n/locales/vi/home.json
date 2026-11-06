@@ -32,7 +32,7 @@
     "resultCount": "Kết quả ở {{city}}: {{count}}",
     "emptyTitle": "Không tìm thấy “{{q}}” ở {{city}}",
     "emptyTopicTitle": "Chưa có địa điểm thuộc chủ đề này ở {{city}}",
-    "emptyBody": "Gonarra chỉ hiển thị địa điểm đã kiểm duyệt của thành phố đang chọn. Thử tên tiếng Việt, tên tiếng Anh, hoặc đổi thành phố.",
+    "emptyBody": "Gonarra chỉ hiển thị địa điểm đã đối chiếu nguồn của thành phố đang chọn. Thử tên tiếng Việt, tên tiếng Anh, hoặc đổi thành phố.",
     "changeCity": "Đổi thành phố",
     "error": "Không tìm được lúc này.",
     "retry": "Thử lại"

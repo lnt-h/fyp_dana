@@ -1,22 +1,27 @@
 {
-  "eyebrow": "Answers from reviewed sources",
-  "title": "Place guide",
-  "subtitle": "Sourced answers about each place",
+  "eyebrow": "Answers backed by checked sources",
+  "title": "Local guide",
+  "subtitle": "Sourced answers about the city and its places",
   "picker": {
-    "title": "Ask about a reviewed place",
-    "body": "Pick one place and ask about it. Every answer lists its sources. If they are not enough, Gonarra says so.",
+    "title": "Ask about Đà Nẵng or one place",
+    "body": "Ask about the whole city, or pick one place. Every answer lists its sources. If they are not enough, Gonarra says so.",
     "choose": "Choose a place",
     "loading": "Loading places…",
     "error": "Could not load places. Try again.",
     "retry": "Try again",
     "empty": "No published places yet",
     "a11yPlace": "Opens the Guide for {{name}}",
-    "minutes": "{{count}} min"
+    "minutes": "{{count}} min",
+    "wholeCity": "All of {{city}}",
+    "wholeCityBody": "Culture, history, etiquette and areas like Hội An"
   },
   "context": {
     "a11y": "Place: {{name}}",
     "hint": "Choose another place",
-    "change": "Change place"
+    "change": "Change place",
+    "cityA11y": "City: {{name}}",
+    "cityHint": "Choose one place to ask about",
+    "cityScope": "Whole city · Ask about one place"
   },
   "clear": "Delete conversation",
   "clearConfirmTitle": "Delete this conversation?",
@@ -29,24 +34,24 @@
   },
   "empty": {
     "title": "What would you like to know about {{place}}?",
-    "body": "Every answer lists reviewed sources. If they are not enough, Gonarra says so."
+    "body": "Every answer lists checked sources. If they are not enough, Gonarra says so."
   },
   "you": "You",
   "assistant": "Guide",
   "typing": "The Guide is answering",
   "stage": {
     "VALIDATING": "Reading your question…",
-    "RETRIEVING": "Searching reviewed sources…",
-    "SEARCHING_WEB": "Not enough reviewed sources; searching the web…",
+    "RETRIEVING": "Searching checked sources…",
+    "SEARCHING_WEB": "Not enough checked sources; searching the web…",
     "ANSWERING": "Writing the answer…"
   },
   "addingSources": "Adding sources…",
   "sources": "Sources ({{count}})",
-  "aiLabel": "AI-generated from Gonarra's reviewed sources",
-  "aiLabelWeb": "AI-generated from web pages Gonarra has not reviewed",
+  "aiLabel": "AI-generated from Gonarra's checked sources",
+  "aiLabelWeb": "AI-generated from web pages that are not source-checked",
   "insufficient": {
     "title": "Not enough evidence to answer",
-    "body": "Gonarra's reviewed sources do not cover this, so I won't guess. Please ask on site or check an official channel."
+    "body": "Gonarra's checked sources do not cover this, so I won't guess. Please ask on site or check an official channel."
   },
   "error": "Could not answer right now. Your question is kept. Try again.",
   "notice": {
@@ -78,6 +83,18 @@
     "entrance": {
       "label": "Entrance?",
       "question": "Where is the entrance?"
+    },
+    "cityHistory": {
+      "label": "History?",
+      "question": "Briefly, what is the history of Đà Nẵng?"
+    },
+    "cityEtiquette": {
+      "label": "Temple etiquette?",
+      "question": "What should I know about etiquette when visiting pagodas here?"
+    },
+    "cityHoiAn": {
+      "label": "Hội An?",
+      "question": "What is special about the Hội An area?"
     }
   }
 }
