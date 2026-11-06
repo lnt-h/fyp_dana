@@ -4,6 +4,7 @@ Usage from apps/api:
     uv run python -m app.cli seed        # idempotent reference data for Đà Nẵng
     uv run python -m app.cli db-check    # alembic head vs database revision
     uv run python -m app.cli run-deletion-jobs   # purge accounts with a pending deletion job
+    uv run python -m app.cli routes warm [--limit 50]   # pre-fill routes_matrix_cache (M3-B)
 
 Content pipeline (DEC-022, app/ingestion/cli.py): `policy list|activate`, `areas load`,
 `ingest wikidata|wikipedia|sheet`, `web-candidates promote`, `publish auto [--dry-run]`,
@@ -527,6 +528,50 @@ def run_deletion_jobs_command(
     typer.echo(f"deletion jobs failed:    {failed}")
     if failed:
         raise typer.Exit(code=1)
+
+
+routes_app = typer.Typer(help="Google Routes matrix cache (ADR-011).", no_args_is_help=True)
+app.add_typer(routes_app, name="routes")
+
+
+@routes_app.command("warm")
+def routes_warm_command(
+    limit: int = typer.Option(50, min=1, help="Published places to include (plus anchors)."),
+) -> None:
+    """Pre-fill routes_matrix_cache for published Đà Nẵng places and the fixed anchors.
+
+    Spends ROUTES_ELEMENTS quota (GONARRA_QUOTA_ROUTES_ELEMENTS_PER_DAY); a cold warm of 50 places
+    is ≈ 2 900 elements, so it completes over several days. Only Google results are cached.
+    """
+    from app.ai.quota import QuotaLedger
+    from app.config import get_settings
+    from app.routing.provider import select_provider
+    from app.routing.warm import WarmReport, warm_routes
+
+    settings = get_settings()
+
+    async def run() -> WarmReport:
+        try:
+            provider = select_provider(settings, estimate_enabled=settings.routes_estimate_enabled)
+            ledger = QuotaLedger(session_factory, settings)
+            return await warm_routes(
+                session_factory,
+                ledger=ledger,
+                provider=provider,
+                city_code=settings.default_city_code,
+                place_limit=limit,
+            )
+        finally:
+            await engine.dispose()
+
+    report = asyncio.run(run())
+    typer.echo(f"points: {report.points}")
+    for mode, stats in report.by_mode.items():
+        typer.echo(
+            f"{mode}: pairs={stats.pairs} cache_hits={stats.cache_hits} "
+            f"requested={stats.requested_elements} quota_denied={stats.quota_denied_elements} "
+            f"failed={stats.failed_elements} cached_writes={stats.cached_writes}"
+        )
 
 
 def _register_pipeline_commands() -> None:

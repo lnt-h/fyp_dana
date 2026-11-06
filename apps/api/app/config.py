@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     # Feature flags (ADR-014 research agent; DEC-019 Could-scope prices).
     research_agent_enabled: bool = False
     stay_prices_enabled: bool = False
+    # Haversine Routes estimates for local development when no Google Maps key is set (M3-B).
+    # Never allowed in production (select_provider raises); estimates are never cached.
+    routes_estimate_enabled: bool = False
 
     # Free-tier quota caps (DEC-018, architecture §3.3). Exceeding a cap degrades, never fails
     # silently. Per-account caps are per calendar day (UTC+7); global caps per day unless noted.
