@@ -20,7 +20,7 @@ type Props = {
 };
 
 /**
- * Trust label for `WEB_UNVERIFIED` content (architecture §5, FR-098): *Chưa kiểm duyệt / Unverified* pill (word + icon,
+ * Trust label for `WEB_UNVERIFIED` content (architecture §5, FR-098, DEC-022): *Chưa đối chiếu nguồn / Not source-checked* pill (word + icon,
  * never colour alone), then the source host and fetched date, and a stale badge once the fetch is older than 7 days.
  */
 export function UnverifiedBadge({ url, fetchedAt, compact = false, onDark = false }: Props) {

@@ -115,7 +115,7 @@ async function load({ previewId, tripId, mode }: Params): Promise<ProposalData> 
     preview = await getPreviewHead(previewId);
   } catch (error) {
     // No matching preview (e.g. previewId is the trip id): fall back to the trip's own itinerary.
-    if (tripId && error instanceof ApiError && error.error.code === 'not_found') return fromTrip(await getTrip(tripId));
+    if (tripId && error instanceof ApiError && error.error.code === 'resource_not_found') return fromTrip(await getTrip(tripId));
     throw error;
   }
   const days = numberDays(preview.days);

@@ -185,5 +185,15 @@
     "seeAll": "See the whole trip",
     "stopsCount_one": "{{count}} stop",
     "stopsCount_other": "{{count}} stops"
+  },
+  "ack": {
+    "kicker": "Not source-checked",
+    "title": "Save with places that are not source-checked?",
+    "body_one": "{{count}} stop in this plan was found on the web. Gonarra has not checked it against its sources, so its details may be wrong.",
+    "body_other": "{{count}} stops in this plan were found on the web. Gonarra has not checked them against its sources, so their details may be wrong.",
+    "bodyGeneric": "This plan includes places found on the web. Gonarra has not checked them against their sources, so their details may be wrong.",
+    "note": "Check opening hours and prices with the place before you go. They stay labelled \"Not source-checked\" in your trip.",
+    "confirm": "Save anyway",
+    "back": "Back to the plan"
   }
 }

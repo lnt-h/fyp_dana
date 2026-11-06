@@ -19,15 +19,23 @@ export type HealthIssue = Conflict & {
   toStopId?: Uuid;
   toStopNumber?: number;
   toStopName?: string;
+  /** Stops named by the conflict's `stop_ids` (e.g. WEB_PLACE_* or calendar rules), resolved from the plan. */
+  affectedStops?: { id: Uuid; name: string; number: number; dayIndex: number }[];
   source: 'stop' | 'leg' | 'preview';
 };
+
+function affected(days: NumberedDay[], stopIds: Uuid[] | undefined): HealthIssue['affectedStops'] {
+  if (!stopIds?.length) return undefined;
+  const list = days.flatMap(day => day.stops.filter(stop => stopIds.includes(stop.id)).map(stop => ({ dayIndex: day.day_index, id: stop.id, name: stop.name, number: stop.number })));
+  return list.length ? list : undefined;
+}
 
 export function collectIssues(days: NumberedDay[], healthReasons: Conflict[] = []): HealthIssue[] {
   const issues: HealthIssue[] = [];
   for (const day of days) {
     for (const stop of day.stops) {
       (stop.conflicts ?? []).forEach((conflict, index) => issues.push({
-        ...conflict, arrival: stop.planned_arrival, dayIndex: day.day_index, departure: stop.planned_departure, key: `stop-${stop.id}-${index}`,
+        ...conflict, affectedStops: affected(days, conflict.stop_ids?.filter(id => id !== stop.id)), arrival: stop.planned_arrival, dayIndex: day.day_index, departure: stop.planned_departure, key: `stop-${stop.id}-${index}`,
         placeId: stop.place_id ?? undefined, source: 'stop', stopId: stop.id, stopName: stop.name, stopNumber: stop.number,
       }));
     }
@@ -35,16 +43,23 @@ export function collectIssues(days: NumberedDay[], healthReasons: Conflict[] = [
       const from = day.stops.find(stop => stop.id === leg.from_stop_id);
       const to = day.stops.find(stop => stop.id === leg.to_stop_id);
       (leg.conflicts ?? []).forEach((conflict, index) => issues.push({
-        ...conflict, dayIndex: day.day_index, key: `leg-${leg.from_stop_id}-${leg.to_stop_id}-${index}`, source: 'leg', stopId: from?.id, stopName: from?.name,
+        ...conflict, affectedStops: affected(days, conflict.stop_ids), dayIndex: day.day_index, key: `leg-${leg.from_stop_id}-${leg.to_stop_id}-${index}`, source: 'leg', stopId: from?.id, stopName: from?.name,
         stopNumber: from?.number, toStopId: to?.id, toStopName: to?.name, toStopNumber: to?.number,
       }));
     }
   }
-  // Preview-level reasons summarise the same conflicts; keep only those not already listed with stop context.
+  // Preview-level reasons summarise the same conflicts; keep only those not already listed with stop context. A reason
+  // naming one stop (`stop_ids`) gets that stop's context so it can be shown and jumped to.
   healthReasons.forEach((reason, index) => {
-    if (!issues.some(issue => issue.type === reason.type && issue.severity === reason.severity)) {
-      issues.push({ ...reason, key: `preview-${index}`, source: 'preview' });
-    }
+    const sameRule = (issue: HealthIssue) => issue.type === reason.type && issue.severity === reason.severity
+      && (issue.rule_id ?? null) === (reason.rule_id ?? null) && (issue.date ?? null) === (reason.date ?? null);
+    if (issues.some(sameRule)) return;
+    const stops = affected(days, reason.stop_ids);
+    const single = stops?.length === 1 ? stops[0] : null;
+    issues.push({
+      ...reason, affectedStops: single ? undefined : stops, dayIndex: single?.dayIndex, key: `preview-${index}`, source: 'preview',
+      stopId: single?.id, stopName: single?.name, stopNumber: single?.number,
+    });
   });
   const rank = (issue: HealthIssue) => (issue.severity === 'BLOCKING' ? 0 : 1);
   return issues.sort((a, b) => rank(a) - rank(b) || (a.dayIndex ?? 0) - (b.dayIndex ?? 0) || (a.stopNumber ?? 0) - (b.stopNumber ?? 0));

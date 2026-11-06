@@ -8,7 +8,7 @@ import { BUTTON_HEIGHT, radii } from '../../../theme/spacing';
 export const border = colors.hairline;
 export const screenBackground = colors.canvas;
 
-export const isNotFound = (error: unknown) => error instanceof ApiError && (error.status === 404 || error.error.code === 'not_found');
+export const isNotFound = (error: unknown) => error instanceof ApiError && (error.status === 404 || error.error.code === 'resource_not_found');
 
 /** Button (52 pt, radius 14): `primary` is deepOcean with white text, `secondary` is outlined. */
 export function PillButton({ title, onPress, variant = 'primary', icon, disabled = false, hint }: {

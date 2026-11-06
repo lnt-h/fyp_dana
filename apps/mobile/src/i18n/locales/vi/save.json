@@ -185,5 +185,15 @@
     "seeAll": "Xem cả chuyến",
     "stopsCount_one": "{{count}} điểm dừng",
     "stopsCount_other": "{{count}} điểm dừng"
+  },
+  "ack": {
+    "kicker": "Chưa đối chiếu nguồn",
+    "title": "Lưu kế hoạch có địa điểm chưa đối chiếu nguồn?",
+    "body_one": "{{count}} điểm dừng trong kế hoạch được tìm thấy trên web. Gonarra chưa đối chiếu điểm này với nguồn nên thông tin có thể chưa đúng.",
+    "body_other": "{{count}} điểm dừng trong kế hoạch được tìm thấy trên web. Gonarra chưa đối chiếu các điểm này với nguồn nên thông tin có thể chưa đúng.",
+    "bodyGeneric": "Kế hoạch có địa điểm tìm thấy trên web. Gonarra chưa đối chiếu các địa điểm này với nguồn nên thông tin có thể chưa đúng.",
+    "note": "Hãy tự kiểm tra giờ mở cửa và giá trước khi đi. Các điểm này vẫn mang nhãn \"Chưa đối chiếu nguồn\" trong chuyến đi.",
+    "confirm": "Vẫn lưu",
+    "back": "Quay lại kế hoạch"
   }
 }

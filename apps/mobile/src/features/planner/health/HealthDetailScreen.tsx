@@ -18,6 +18,8 @@ import { palette } from '../../auth/components/AuthUI';
 import { useIsOffline } from '../../home/useNetwork';
 import { requestStopIntent, usePendingEdit, type StopIntent } from '../edit/draftStore';
 import { InlineBanner, PillButton, editTokens } from '../edit/EditUI';
+import { currentLocale } from '../../../i18n';
+import { formatDate } from '../../place/format';
 import { formatTime } from '../timeline/format';
 import { HealthGlyph, type PlannerIconName } from '../timeline/icons';
 import { useProposal, type ProposalData } from '../timeline/useProposal';
@@ -140,6 +142,10 @@ function IssueCard({ issue, data, disabled, onIntent }: { issue: HealthIssue; da
   const legTo = issue.source === 'leg' && issue.toStopNumber ? t('proposal.healthDetail.legTo', { name: issue.toStopName, number: issue.toStopNumber }) : null;
   const day = data.days.find(item => item.day_index === issue.dayIndex);
   const lastStop = day?.stops[day.stops.length - 1];
+  const onDate = issue.date ? t('proposal.health.onDate', { date: formatDate(issue.date, currentLocale()) }) : null;
+  const affects = issue.affectedStops?.length
+    ? t('proposal.health.affects', { stops: issue.affectedStops.map(stop => t('proposal.health.affectedStop', { day: stop.dayIndex, name: stop.name, number: stop.number })).join('; ') })
+    : null;
 
   const fixes: Fix[] = [];
   switch (issue.type) {
@@ -158,8 +164,19 @@ function IssueCard({ issue, data, disabled, onIntent }: { issue: HealthIssue; da
       if (stopId) fixes.push({ icon: 'minus', label: t('proposal.healthDetail.fixShorten'), run: () => onIntent({ focus: 'duration', kind: 'edit', stopId }) });
       break;
     }
+    case 'LEG_MODE_RESTRICTED':
+      if (issue.toStopId) { const stopId = issue.toStopId; fixes.push({ icon: 'drive', label: t('proposal.healthDetail.fixMode'), run: () => onIntent({ focus: 'mode', kind: 'edit', stopId }) }); }
+      break;
+    case 'CLOSED_ON_DATE':
+    case 'LUNAR_EVENT_CONFLICT':
+    case 'WEB_PLACE_UNVERIFIED':
+    case 'WEB_PLACE_UNRESOLVED':
+      if (issue.stopId) { const stopId = issue.stopId; fixes.push({ icon: 'swap', label: t('proposal.healthDetail.fixReplace'), run: () => onIntent({ focus: 'replace', kind: 'edit', stopId }) }); }
+      break;
     case 'OPENING_HOURS_UNKNOWN':
     case 'FACT_STALE':
+    case 'TICKET_VALIDITY':
+    case 'SEASONAL_WARNING':
       if (issue.placeId) { const placeId = issue.placeId; fixes.push({ icon: 'card', label: t('proposal.healthDetail.fixPlaceCard'), run: () => router.push({ params: { placeId }, pathname: '/place/[placeId]' }) }); }
       break;
     default:
@@ -168,13 +185,15 @@ function IssueCard({ issue, data, disabled, onIntent }: { issue: HealthIssue; da
   const goTo = issue.dayIndex != null && issue.stopId ? { dayIndex: issue.dayIndex, stopId: issue.stopId } : null;
   const name = issue.toStopName ?? issue.stopName ?? '';
 
-  return <View accessibilityLabel={[t(isBlocking ? 'proposal.health.severityBlocking' : 'proposal.health.severityWarning'), title, where].filter(Boolean).join(', ')} style={[x.issue, isBlocking && x.issueBlocking]}>
+  return <View accessibilityLabel={[t(isBlocking ? 'proposal.health.severityBlocking' : 'proposal.health.severityWarning'), title, where, onDate, affects].filter(Boolean).join(', ')} style={[x.issue, isBlocking && x.issueBlocking]}>
     <View style={[x.badge, isBlocking ? x.badgeBlocking : x.badgeWarning]}>
       <HealthGlyph health={isBlocking ? 'BLOCKED' : 'WARNING'} size={14} />
       <Text style={[x.badgeText, isBlocking ? { color: palette.error } : { color: editTokens.warnText }]}>{t(isBlocking ? 'proposal.health.severityBlocking' : 'proposal.health.severityWarning')}</Text>
     </View>
     <Text style={x.issueTitle}>{title}</Text>
     {where ? <Text style={x.issueWhere}>{where}</Text> : null}
+    {onDate ? <Text style={x.issueWhere}>{onDate}</Text> : null}
+    {affects ? <Text style={x.issueBody}>{affects}</Text> : null}
     {legTo ? <Text style={x.issueBody}>{legTo}</Text> : null}
     {arrival && departure && issue.source === 'stop' ? <Text style={x.issueBody}>{t('proposal.healthDetail.arriveLeave', { arrival, departure })}</Text> : null}
     {message ? <Text style={x.issueBody}>{message}</Text> : null}

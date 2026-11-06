@@ -1,7 +1,7 @@
 {
   "loading": "Loading place card…",
   "notFoundTitle": "This place is no longer available",
-  "notFoundBody": "It may have been removed from Gonarra's reviewed places.",
+  "notFoundBody": "It may have been removed from Gonarra's source-checked places.",
   "errorTitle": "Something went wrong. Try again.",
   "retry": "Try again",
   "noPhoto": "No photo of {{name}} yet",
@@ -27,15 +27,15 @@
   "notApplicable": "not applicable",
   "stale": "May be out of date",
   "source": {
-    "verified": "verified {{date}}",
-    "none": "No reviewed source yet",
+    "verified": "Source-checked · {{date}}",
+    "none": "No source-checked source yet",
     "expandHint": "Shows the source details",
     "collapseHint": "Hides the source details",
     "titleLabel": "Title",
     "sectionLabel": "Section",
     "locatorLabel": "Where",
     "openPlace": "Open the place card",
-    "verifiedLong": "Verified {{date}}"
+    "verifiedLong": "Source-checked · {{date}}"
   },
   "sections": {
     "OVERVIEW": "Overview",
@@ -67,8 +67,8 @@
   },
   "share": "Share this place",
   "trust": {
-    "unverified": "Unverified",
-    "unverifiedHint": "Found on the web; not reviewed by Gonarra yet.",
+    "unverified": "Not source-checked",
+    "unverifiedHint": "Found on the web; Gonarra has not checked it against its sources.",
     "webSource": "{{host}} · fetched {{date}}",
     "webSourceUnknown": "Web source"
   }

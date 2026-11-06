@@ -1,46 +1,22 @@
 /**
  * Save, booking handoff and trip deletion calls (SCR-029, SCR-037, SCR-031). Same rules as `source.ts`: remote when
- * `isRemoteEnabled()` (EXPO_PUBLIC_API_URL set, see config.ts), otherwise served from local fixtures. Types missing from `types.ts` are mirrored here from docs/04-design/api/openapi.yaml.
+ * `isRemoteEnabled()` (EXPO_PUBLIC_API_URL set, see config.ts), otherwise served from local fixtures.
  */
 import { currentLocale } from '../../i18n';
 import { apiRequest, apiRequestRaw } from './client';
 import { isRemoteEnabled } from './config';
 import { ApiError } from './errors';
-import { cityById, fixtureTripDetail, fixtureTrips } from './fixtures/da-nang';
-import type { Conflict, HandoffKind, HandoffLink, IsoDate, IsoDateTime, Money, TripDetail, Uuid } from './types';
+import { cityById, fixturePreview, fixtureTripDetail, fixtureTrips } from './fixtures/da-nang';
+import type { AcceptPreviewRequest, Conflict, HandoffKind, HandoffLink, IsoDate, StayPrice, StayPricePage, TripDetail, Uuid } from './types';
 
 /* ---------------------------------------------------------------- Contract mirrors */
 
-/** `AcceptPreviewRequest` (API-022 body). Both revisions are always sent (ADR-009). */
-export type AcceptPreviewRequest = {
-  expected_preview_revision: number;
-  expected_trip_revision: number;
-};
+export type { AcceptPreviewRequest, StayPrice, StayPricePage } from './types';
 
 /** API-022 200 body plus the `Idempotent-Replayed` header (true when the server returned the original response). */
 export type AcceptPreviewResult = {
   trip: TripDetail;
   replayed: boolean;
-};
-
-/** `StayPrice` (API-031 item). Runtime only; never cached or stored (FR-081). */
-export type StayPrice = {
-  name: string;
-  price: Money;
-  price_basis?: 'PER_NIGHT' | 'TOTAL_STAY';
-  provider_key: string;
-  handoff_url?: string | null;
-  retrieved_at: IsoDateTime;
-};
-
-/** `StayPricePage` (API-031). */
-export type StayPricePage = {
-  items: StayPrice[];
-  next_cursor: string | null;
-  /** Partner confirms the final price (FR-080). */
-  notice: string;
-  attribution_text: string;
-  retrieved_at: IsoDateTime;
 };
 
 /**
@@ -100,7 +76,9 @@ const previewTripId = (_previewId: Uuid): Uuid => fixtureTrips[0].id;
  * API-022 `POST /v1/plan-previews/{preview_id}/accept` with a required `Idempotency-Key`. Replaying the same key and
  * body returns the original trip with `replayed: true`; the same key with a different body is 409
  * `idempotency_key_reused`. Errors: 409 `plan_blocked` (`context.reasons`), 409 `revision_conflict`
- * (`context.current_revision`), 410 `preview_expired`, `NetworkError` when no response arrived.
+ * (`context.current_revision`), 410 `preview_expired`/`preview_closed`, 422 `web_unverified_acknowledgement_required`
+ * (plan has a WEB_UNVERIFIED stop and `acknowledge_web_unverified` is false, OQ-128), `NetworkError` when no response
+ * arrived.
  */
 export async function acceptPreview(previewId: Uuid, body: AcceptPreviewRequest, idempotencyKey: string): Promise<AcceptPreviewResult> {
   if (isRemoteEnabled()) {
@@ -125,9 +103,14 @@ export async function acceptPreview(previewId: Uuid, body: AcceptPreviewRequest,
 
   const tripId = previewTripId(previewId);
   const base = fixtureTripDetail(tripId, currentLocale());
-  if (!base) throw new ApiError({ code: 'not_found', message: 'This item was not found', retryable: false }, 404);
+  if (!base) throw new ApiError({ code: 'resource_not_found', message: 'This item was not found', retryable: false }, 404);
   const current = serverRevision.get(tripId) ?? base.revision;
 
+  // OQ-128: the fixture plan holds a WEB_UNVERIFIED stop, so Save needs the explicit acknowledgement.
+  const hasWebStop = fixturePreview(currentLocale()).days.some(day => day.stops.some(stop => stop.trust_level === 'WEB_UNVERIFIED'));
+  if (hasWebStop && !body.acknowledge_web_unverified) {
+    throw new ApiError({ code: 'web_unverified_acknowledgement_required', message: 'Confirm the places that are not source-checked', retryable: false }, 422);
+  }
   if (acceptScenario === 'expired') {
     throw new ApiError({ code: 'preview_expired', message: 'This draft expired', retryable: false }, 410);
   }
@@ -160,21 +143,26 @@ const isoAddDays = (date: IsoDate, days: number): IsoDate => {
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 };
 
+/** STAY partners requested via the API-030 `partner` query (contract 1.0). */
+const STAY_PARTNERS = ['agoda', 'booking_com'] as const;
+
 /**
- * API-030 `GET /v1/trips/{trip_id}/handoff-links?kind[&stop_id]`, one request per kind. The contract 200 body is a single
- * `HandoffLink`; SCR-037 lists `items[]` (two STAY partners), so the fixture returns every partner for the requested
- * kinds. Requires a SAVED trip (409 `trip_not_saved`). `end_date` = check-out = start + day_count.
+ * API-030 `GET /v1/trips/{trip_id}/handoff-links?kind[&partner][&stop_id]`, one request per kind and, for STAY, one per
+ * partner (`agoda`, `booking_com`). The contract 200 body is a single `HandoffLink`; the fixture returns every partner
+ * for the requested kinds. Requires a SAVED trip (409 `trip_not_saved`). `end_date` = check-out = start + day_count.
  */
 export async function getHandoffLinks(tripId: Uuid, options: { kinds?: HandoffKind[]; stopId?: Uuid } = {}): Promise<HandoffLink[]> {
   if (isRemoteEnabled()) {
     const kinds = options.kinds ?? ['STAY', 'ACTIVITY', 'TRANSPORT'];
-    return Promise.all(kinds.map(kind => apiRequest<HandoffLink>(`/v1/trips/${encodeURIComponent(tripId)}/handoff-links`, {
-      query: { kind, locale: currentLocale(), stop_id: options.stopId },
+    // One request per (kind, partner): STAY has two partners selected with `partner` (agoda is the server default).
+    const requests = kinds.flatMap(kind => (kind === 'STAY' ? STAY_PARTNERS : [undefined]).map(partner => ({ kind, partner })));
+    return Promise.all(requests.map(({ kind, partner }) => apiRequest<HandoffLink>(`/v1/trips/${encodeURIComponent(tripId)}/handoff-links`, {
+      query: { kind, locale: currentLocale(), partner, stop_id: options.stopId },
     })));
   }
   await wait(450);
   const trip = fixtureTrips.find(item => item.id === tripId);
-  if (!trip) throw new ApiError({ code: 'not_found', message: 'This item was not found', retryable: false }, 404);
+  if (!trip) throw new ApiError({ code: 'resource_not_found', message: 'This item was not found', retryable: false }, 404);
   if (trip.status !== 'SAVED') throw new ApiError({ code: 'trip_not_saved', message: 'Save the trip first', retryable: false }, 409);
   const kinds = options.kinds ?? ['STAY', 'ACTIVITY', 'TRANSPORT'];
   const city = cityById(trip.city_id);
@@ -213,7 +201,7 @@ export async function getStayPrices(tripId: Uuid): Promise<StayPricePage> {
   if (isRemoteEnabled()) return apiRequest<StayPricePage>(`/v1/trips/${encodeURIComponent(tripId)}/stay-prices`);
   await wait(700);
   if (!fixtureTrips.some(item => item.id === tripId)) {
-    throw new ApiError({ code: 'not_found', message: 'This item was not found', retryable: false }, 404);
+    throw new ApiError({ code: 'resource_not_found', message: 'This item was not found', retryable: false }, 404);
   }
   const retrieved_at = new Date().toISOString();
   const offer = (name: string, amount: string, handoff_url: string): StayPrice => ({

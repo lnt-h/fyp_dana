@@ -8,7 +8,7 @@ import { Chip, Icon, PrimaryButton, Skeleton, categoryIcon } from '../../compone
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { currentLocale } from '../../i18n';
 import { createGuideSession, getPlace, getPreferences, listCities, listGuideMessages, streamGuide } from '../../lib/api/source';
-import type { GuideMessage, GuideSession, GuideStreamEvent, PlaceDetail } from '../../lib/api/types';
+import type { CityCode, GuideMessage, GuideSession, GuideSessionCreate, GuideStreamEvent, Locale, PlaceDetail } from '../../lib/api/types';
 import { resolveImage } from '../../lib/images/imagekit';
 import { colors } from '../../theme/colors';
 import { radii } from '../../theme/spacing';
@@ -28,16 +28,28 @@ type Item =
 
 type Load = { state: 'loading' } | { state: 'ready' } | { state: 'notFound' } | { state: 'error' };
 
+/** What a Guide session is about: the whole city (Guide tab) or one place (place card / picker). */
+export type GuideScope = { kind: 'CITY'; cityCode: CityCode } | { kind: 'PLACE'; placeId: string };
+
+const scopeKey = (scope: GuideScope) => (scope.kind === 'CITY' ? `city:${scope.cityCode}` : `place:${scope.placeId}`);
+
+/** API-024 body for a scope: `CITY` + `city_code`, or `PLACE` + `place_id` (contract 1.0). */
+export function sessionBody(scope: GuideScope, locale: Locale): GuideSessionCreate {
+  return scope.kind === 'CITY'
+    ? { city_code: scope.cityCode, locale, scope: 'CITY' }
+    : { locale, place_id: scope.placeId, scope: 'PLACE' };
+}
+
 /** The first-use AI notice stays dismissed for this app session (acknowledging via API-005 is not wired yet). */
 let noticeDismissed = false;
 let localSeq = 0;
 const localId = (prefix: string) => `${prefix}-${++localSeq}`;
 
 /**
- * SCR-034 chat for one place. Questions live only in component state: never persisted, never logged.
- * One question in flight; the stream aborts on unmount, clear or place change.
+ * SCR-034 chat for the city (Guide tab) or one place. Questions live only in component state: never persisted, never
+ * logged. One question in flight; the stream aborts on unmount, clear or scope change.
  */
-export function GuideChat({ placeId, onChangePlace, keyboardOpen }: { placeId: string; onChangePlace: () => void; keyboardOpen: boolean }) {
+export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: GuideScope; onChangePlace: () => void; keyboardOpen: boolean }) {
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
   const [load, setLoad] = useState<Load>({ state: 'loading' });
@@ -60,8 +72,8 @@ export function GuideChat({ placeId, onChangePlace, keyboardOpen }: { placeId: s
     const locale = currentLocale();
     setLoad({ state: 'loading' });
     (async () => {
-      const detail = await getPlace(placeId);
-      const created = await createGuideSession({ locale, place_id: placeId });
+      const detail = scope.kind === 'PLACE' ? await getPlace(scope.placeId) : null;
+      const created = await createGuideSession(sessionBody(scope, locale));
       const history = withHistory.current ? await listGuideMessages(created.id) : [];
       return { created, detail, history };
     })()
@@ -70,7 +82,7 @@ export function GuideChat({ placeId, onChangePlace, keyboardOpen }: { placeId: s
         setPlace(detail);
         listCities()
           .then(cities => {
-            const city = cities.find(item => item.id === detail.city_id);
+            const city = cities.find(item => (detail ? item.id === detail.city_id : item.code === created.city_code));
             if (alive) setCityName(city ? (locale === 'vi' ? city.name_vi : city.name_en) : null);
           })
           .catch(() => undefined);
@@ -81,7 +93,8 @@ export function GuideChat({ placeId, onChangePlace, keyboardOpen }: { placeId: s
       .catch((error: unknown) => { if (alive) setLoad({ state: isNotFound(error) ? 'notFound' : 'error' }); });
     if (!noticeDismissed) getPreferences().then(prefs => { if (alive) setShowNotice(!prefs.ai_notice_acknowledged_at); }).catch(() => undefined);
     return () => { alive = false; };
-  }, [placeId, attempt]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeKey(scope), attempt]);
 
   const scrollToEnd = useCallback(() => scrollRef.current?.scrollToEnd({ animated: !reduceMotion }), [reduceMotion]);
 
@@ -144,7 +157,10 @@ export function GuideChat({ placeId, onChangePlace, keyboardOpen }: { placeId: s
   }
 
 
-  const placeName = place?.name ?? '';
+  const isCity = scope.kind === 'CITY';
+  /** Subject of the chat: the place name, or the city name for a city session. */
+  const placeName = (isCity ? cityName : place?.name) ?? '';
+  const openPlace = scope.kind === 'PLACE' ? () => router.push({ params: { placeId: scope.placeId }, pathname: '/place/[placeId]' }) : undefined;
   const ready = load.state === 'ready' && !!session;
   const remaining = input.length >= COUNTER_FROM;
   const canSend = ready && !busy && input.trim().length > 0 && input.length <= MAX_QUESTION;
@@ -154,8 +170,8 @@ export function GuideChat({ placeId, onChangePlace, keyboardOpen }: { placeId: s
   return <View style={c.fill}>
     <GuideHeader clearDisabled={!ready} onClear={confirmClear} />
     <Pressable
-      accessibilityHint={t('guide.context.hint')}
-      accessibilityLabel={t('guide.context.a11y', { name: [placeName, cityName].filter(Boolean).join(', ') })}
+      accessibilityHint={t(isCity ? 'guide.context.cityHint' : 'guide.context.hint')}
+      accessibilityLabel={isCity ? t('guide.context.cityA11y', { name: placeName }) : t('guide.context.a11y', { name: [placeName, cityName].filter(Boolean).join(', ') })}
       accessibilityRole="button"
       onPress={changePlace}
       style={({ pressed }) => [c.context, pressed && { opacity: 0.8 }]}
@@ -163,11 +179,11 @@ export function GuideChat({ placeId, onChangePlace, keyboardOpen }: { placeId: s
       <View style={c.contextThumb}>
         {thumb
           ? <Image contentFit="cover" placeholder={thumb.placeholder} source={thumb.source} style={StyleSheet.absoluteFill} />
-          : <Icon color={colors.tealText} name={categoryIcon(place?.category_code)} size={22} />}
+          : <Icon color={colors.tealText} name={isCity ? 'map-pin' : categoryIcon(place?.category_code)} size={22} />}
       </View>
       <View style={c.contextCopy}>
         <Text numberOfLines={1} style={c.contextName}>{placeName || '…'}</Text>
-        <Text numberOfLines={1} style={c.contextMeta}>{[cityName, t('guide.context.change')].filter(Boolean).join(' · ')}</Text>
+        <Text numberOfLines={1} style={c.contextMeta}>{isCity ? t('guide.context.cityScope') : [cityName, t('guide.context.change')].filter(Boolean).join(' · ')}</Text>
       </View>
       <Icon color={colors.deepOcean} name="chevron-right" size={20} />
     </Pressable>
@@ -204,7 +220,7 @@ export function GuideChat({ placeId, onChangePlace, keyboardOpen }: { placeId: s
           if (item.kind === 'pending') return <StreamingBubble key={item.id} stage={item.stage} text={item.text} />;
           return item.message.role === 'TRAVELER'
             ? <TravelerBubble content={item.message.content} key={item.message.id} />
-            : <AssistantBubble key={item.message.id} message={item.message} onOpenPlace={() => router.push({ params: { placeId }, pathname: '/place/[placeId]' })} />;
+            : <AssistantBubble key={item.message.id} message={item.message} onOpenPlace={openPlace} />;
         })}
       </View>
     </ScrollView>}
@@ -221,7 +237,7 @@ export function GuideChat({ placeId, onChangePlace, keyboardOpen }: { placeId: s
         </View>
       </View>}
       {!busy && !input && <ScrollView contentContainerStyle={c.suggestions} horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} style={c.suggestionScroll}>
-        {SUGGESTIONS.map(key => <Chip
+        {(isCity ? CITY_SUGGESTIONS : SUGGESTIONS).map(key => <Chip
           accessibilityLabel={t(`guide.suggest.${key}.question`)}
           key={key}
           label={t(`guide.suggest.${key}.label`)}
@@ -264,6 +280,7 @@ export function GuideChat({ placeId, onChangePlace, keyboardOpen }: { placeId: s
 }
 
 const SUGGESTIONS = ['hours', 'ticket', 'history', 'entrance'] as const;
+const CITY_SUGGESTIONS = ['cityHistory', 'cityEtiquette', 'cityHoiAn'] as const;
 
 const c = StyleSheet.create({
   composer: { alignItems: 'flex-end', flexDirection: 'row', gap: 10 },
