@@ -1,0 +1,72 @@
+# Travel areas of Đà Nẵng (DEC-013, OQ-121, DEC-022): APPROXIMATE polygons for automatic area
+# assignment. Travel areas, not wards. Owner-maintained; edit and re-run
+# `uv run python -m app.cli areas load` (writes areas.boundary) and the pipeline.
+#
+# Coordinates are [longitude, latitude] (WGS 84). Rings are closed automatically.
+# Assignment is first match in the order below, so the narrow Hội An areas come first and
+# `ba-na-hoa-vang` (the broad western/northern remainder of the former Đà Nẵng) comes last.
+# A place outside every polygon gets no area and fails the publication gate (MISSING_AREA).
+city: da-nang
+areas:
+  - code: hoi-an-old-town
+    # Inland Hội An: Ancient Town, Cẩm Phô, Tân An, Thanh Hà pottery village, Trà Quế, Cẩm Kim.
+    # The eastern edge follows the coast diagonally so An Bàng and Cửa Đại stay coastal.
+    polygon:
+      - [108.270, 15.850]
+      - [108.360, 15.850]
+      - [108.360, 15.872]
+      - [108.337, 15.895]
+      - [108.322, 15.920]
+      - [108.270, 15.920]
+  - code: hoi-an-beaches-islands
+    # An Bàng, Cửa Đại, Cẩm Thanh coconut forest, Hà My, Cù Lao Chàm (Cham Islands).
+    polygon:
+      - [108.322, 15.920]
+      - [108.337, 15.895]
+      - [108.360, 15.872]
+      - [108.360, 15.800]
+      - [108.620, 15.800]
+      - [108.620, 16.010]
+      - [108.400, 16.010]
+      - [108.300, 15.960]
+      - [108.300, 15.920]
+  - code: son-tra
+    # Sơn Trà peninsula (Linh Ứng pagoda, Bãi Bụt, Bàn Cờ peak) and the river-mouth north shore.
+    polygon:
+      - [108.236, 16.095]
+      - [108.300, 16.095]
+      - [108.360, 16.080]
+      - [108.360, 16.170]
+      - [108.230, 16.170]
+      - [108.215, 16.110]
+  - code: my-khe-ngu-hanh-son
+    # East bank of the Hàn river south of Sơn Trà: Mỹ Khê, Bắc Mỹ An, Non Nước, Marble Mountains.
+    polygon:
+      - [108.226, 15.960]
+      - [108.300, 15.960]
+      - [108.330, 16.000]
+      - [108.300, 16.095]
+      - [108.236, 16.095]
+      - [108.228, 16.060]
+  - code: da-nang-center
+    # Hải Châu and Thanh Khê west of the Hàn river (Dragon Bridge, Cham Museum, Hàn market).
+    polygon:
+      - [108.140, 15.990]
+      - [108.226, 15.990]
+      - [108.228, 16.060]
+      - [108.215, 16.110]
+      - [108.140, 16.100]
+  - code: ba-na-hoa-vang
+    # Bà Nà Hills, Hòa Vang, Liên Chiểu and Hải Vân pass: the rest of the former Đà Nẵng.
+    # The northern edge stops at the Hải Vân ridge so Bạch Mã and Lăng Cô (Huế) stay outside.
+    polygon:
+      - [107.800, 15.880]
+      - [108.226, 15.880]
+      - [108.226, 15.990]
+      - [108.140, 15.990]
+      - [108.140, 16.100]
+      - [108.215, 16.110]
+      - [108.200, 16.215]
+      - [108.050, 16.215]
+      - [107.950, 16.120]
+      - [107.800, 16.100]

@@ -7,6 +7,7 @@ RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev --no-ins
 COPY app ./app
 COPY alembic.ini ./
 COPY migrations ./migrations
+COPY data ./data
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev
 
 FROM python:3.12-slim-trixie AS runtime

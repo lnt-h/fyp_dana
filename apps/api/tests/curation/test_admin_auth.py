@@ -55,18 +55,15 @@ def test_curator_subjects_parse_comma_separated_list() -> None:
 
 
 async def test_missing_token_is_401() -> None:
-    response = await _call(_app(None), "GET", "/v1/admin/candidates")
+    response = await _call(_app(None), "GET", "/v1/admin/cities/summary")
     assert response.status_code == 401
 
 
 @pytest.mark.parametrize(
     ("method", "path"),
     [
-        ("GET", "/v1/admin/candidates"),
-        ("GET", "/v1/admin/web-candidates"),
         ("GET", "/v1/admin/cities/summary"),
-        ("POST", f"/v1/admin/candidates/{uuid.uuid4()}/publish"),
-        ("DELETE", f"/v1/admin/closure-rules/{uuid.uuid4()}"),
+        ("POST", f"/v1/admin/places/{uuid.uuid4()}/unpublish"),
     ],
 )
 async def test_non_curator_is_403_before_database(method: str, path: str) -> None:
@@ -85,11 +82,38 @@ async def test_curator_passes_role_check_and_reaches_validation() -> None:
     response = await _call(
         app,
         "POST",
-        f"/v1/admin/places/{uuid.uuid4()}/closure-rules",
-        json={"rule_kind": "MONTHLY", "effect": "CLOSED", "note_vi": "x", "note_en": "x"},
+        f"/v1/admin/places/{uuid.uuid4()}/unpublish",
+        json={"state_reason": ""},
+        headers={"Idempotency-Key": str(uuid.uuid4())},
     )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "validation_error"
+
+
+# DEC-022: the curator review surfaces are gone (404 for unknown paths, 405 for a method).
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("GET", "/v1/admin/candidates"),
+        ("POST", "/v1/admin/candidates"),
+        ("GET", f"/v1/admin/candidates/{uuid.uuid4()}"),
+        ("PATCH", f"/v1/admin/candidates/{uuid.uuid4()}"),
+        ("POST", f"/v1/admin/candidates/{uuid.uuid4()}/publish"),
+        ("GET", "/v1/admin/web-candidates"),
+        ("PATCH", f"/v1/admin/web-candidates/{uuid.uuid4()}"),
+        ("GET", f"/v1/admin/places/{uuid.uuid4()}/facts"),
+        ("POST", f"/v1/admin/places/{uuid.uuid4()}/facts/{uuid.uuid4()}/review"),
+        ("GET", "/v1/admin/closure-rules"),
+        ("DELETE", f"/v1/admin/closure-rules/{uuid.uuid4()}"),
+        ("POST", f"/v1/admin/places/{uuid.uuid4()}/chunks"),
+        ("GET", "/v1/admin/imports"),
+        ("GET", "/v1/admin/sources"),
+        ("GET", f"/v1/admin/places/{uuid.uuid4()}/unpublish"),
+    ],
+)
+async def test_withdrawn_review_routes_are_gone(method: str, path: str) -> None:
+    response = await _call(_app(CURATOR), method, path)
+    assert response.status_code in (404, 405)
 
 
 async def test_require_curator_returns_user() -> None:

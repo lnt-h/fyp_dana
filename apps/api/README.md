@@ -11,3 +11,5 @@ uv run uvicorn app.main:app --reload
 ```
 
 Verify the foundation with `uv run ruff check .`, `uv run mypy app`, `uv run pytest` and `uv run python scripts/export_openapi.py --check`. OpenAPI is available at `/openapi.json` in development and staging.
+
+Catalog content is imported and published by the automated pipeline (DEC-022, no human review): `uv run python -m app.cli pipeline run`. Policies, gate rules, the owner sheet columns, area polygons and the operator calendar are documented in [`data/README.md`](data/README.md).

@@ -1,0 +1,15 @@
+{
+  "type": "standard",
+  "title": "Japanese Covered Bridge",
+  "displaytitle": "Japanese Covered Bridge",
+  "wikibase_item": "Q1091054",
+  "lang": "en",
+  "revision": "1250000000",
+  "timestamp": "2026-09-01T10:00:00Z",
+  "description": "Bridge in Hội An, Vietnam",
+  "extract": "The Japanese Covered Bridge, also known as Chùa Cầu, is a bridge in Hội An, Quảng Nam province, Vietnam. It was built in the 1590s by the Japanese community to connect it with the Chinese quarter.",
+  "content_urls": {
+    "desktop": {"page": "https://en.wikipedia.org/wiki/Japanese_Covered_Bridge"},
+    "mobile": {"page": "https://en.m.wikipedia.org/wiki/Japanese_Covered_Bridge"}
+  }
+}

@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Gonarra API
-  version: 1.0.0
-  summary: Gonarra /v1 contract (REST + SSE) for the traveler app and the curator SPA.
+  version: 1.0.1
+  summary: Gonarra /v1 contract (REST + SSE) for the traveler app and operator endpoints.
   description: |
     Document ID GONARRA-API, version 1.0, status Draft (re-baseline DEC-013..021, 2026-11-06: Đà Nẵng only
     incl. the Hội An area; trust labels `VERIFIED` / `WEB_UNVERIFIED` on Stop, PlaceSummary, PlaceDetail and
@@ -23,6 +23,10 @@ info:
     another account answer 404 `resource_not_found`. Mutating planning and curation calls take `Idempotency-Key`.
 
     History: 0.2 (2026-11-04) DA-GONARRA-01 fixes F-02, F-05 (deletion-status 401 semantics; booking partner enum).
+    1.0.1 (2026-11-07): curator review surfaces withdrawn by DEC-022 (API-033, API-034, API-035, API-036, API-038, API-039, API-040, API-041, API-043, API-044, API-045, API-046, API-047, API-048, API-049, API-050, API-051, API-052, API-053, API-054, API-055, API-056, API-057, API-058, API-059, API-060, API-061, API-062, API-063); content is imported and
+    published by the automated pipeline (`python -m app.cli pipeline run`). Kept: API-037 (owner emergency takedown)
+    and API-042 (release-gate counts). `409 deletion_in_progress` listed on every authenticated /v1 route except
+    API-006/API-007.
 servers:
   - url: https://api.example.invalid
     description: Placeholder; hostname pending OQ-039.
@@ -44,7 +48,7 @@ tags:
   - name: study
     description: Pseudonymous study timing events (CMP-014, FR-077).
   - name: admin
-    description: Curator-only endpoints (CMP-006); require the curator role claim.
+    description: Operator-only endpoints (CMP-006, DEC-022) for emergency takedown and release-gate counts; require the operator (curator) role.
 
 paths:
   /health:
@@ -103,6 +107,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Unauthorized
+        '409':
+          $ref: '#/components/responses/Conflict'
         '503':
           content:
             application/json:
@@ -136,6 +142,8 @@ paths:
                 $ref: '#/components/schemas/Preferences'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
     put:
@@ -165,6 +173,8 @@ paths:
                 $ref: '#/components/schemas/Preferences'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '503':
@@ -257,6 +267,8 @@ paths:
                 $ref: '#/components/schemas/CityList'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
@@ -281,6 +293,8 @@ paths:
                 $ref: '#/components/schemas/CategoryList'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
@@ -374,6 +388,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '503':
@@ -405,6 +421,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
@@ -484,6 +502,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
@@ -514,6 +534,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
     patch:
@@ -617,6 +639,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
@@ -732,6 +756,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '410':
           $ref: '#/components/responses/Gone'
         '503':
@@ -802,6 +828,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
@@ -943,6 +971,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '503':
@@ -973,6 +1003,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
     delete:
@@ -995,6 +1027,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
@@ -1027,6 +1061,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
     post:
@@ -1117,6 +1153,8 @@ paths:
                 $ref: '#/components/schemas/PhotoIdentificationResult'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '415':
@@ -1222,6 +1260,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '501':
@@ -1265,229 +1305,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/candidates:
-    post:
-      operationId: adminCreateCandidate
-      x-api-id: API-043
-      summary: Create a manual place draft (starts in CONTENT_REVIEW)
-      description: |
-        Curator-authored place; city defaults to the enabled city. Never publishes. Slug must be unique in the city (409 `slug_taken`).
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKeyRequired'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CandidateCreate'
-      responses:
-        '201':
-          description: Draft created.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateDetail'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    get:
-      operationId: adminListCandidates
-      x-api-id: API-033
-      x-fr: [FR-009, FR-011, FR-012]
-      x-nfr: [NFR-015]
-      summary: List candidate places for review
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - name: city_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
-        - name: workflow_state
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/WorkflowState'
-        - name: import_run_id
-          in: query
-          required: false
-          description: Only candidates with an import record from this run (OQ-112).
-          schema:
-            type: string
-            format: uuid
-        - name: q
-          in: query
-          required: false
-          schema:
-            type: string
-            maxLength: 120
-        - name: sort
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [-updated_at, name]
-            default: -updated_at
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
-      responses:
-        '200':
-          description: One page of candidates.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidatePage'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/candidates/{place_id}:
-    get:
-      operationId: adminGetCandidate
-      x-api-id: API-034
-      x-fr: [FR-011, FR-012, FR-015, FR-019]
-      x-nfr: [NFR-015]
-      summary: Read a candidate with localizations, facts, evidence and publication history
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/PlaceId'
-      responses:
-        '200':
-          description: Candidate detail.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateDetail'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    patch:
-      operationId: adminReviewCandidate
-      x-api-id: API-035
-      x-fr: [FR-011, FR-012, FR-019]
-      x-nfr: [NFR-015]
-      summary: Review a candidate — bilingual content, sourced facts, sectioned chunks, AI-draft confirmation
-      description: |
-        Partial update against `expected_content_revision`; increments places.content_revision. Each item of
-        `chunks[]` is one narrative section per locale (ADR-010 0.3); a new or changed chunk (by content hash) is
-        embedded synchronously through the AI gateway and stored with `embedding_model` (ADR-012 0.3). If the
-        gateway is unavailable the chunk is still saved with `embedding_state: PENDING` and `warnings[]` names it;
-        it cannot be approved until embedded (`cli embed --pending` or a later save).
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/PlaceId'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CandidateReview'
-      responses:
-        '200':
-          description: Updated candidate.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateDetail'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/candidates/{place_id}/publish:
-    post:
-      operationId: adminPublishCandidate
-      x-api-id: API-036
-      x-fr: [FR-013, FR-014, FR-015, FR-016, FR-019]
-      x-nfr: [NFR-015]
-      summary: Publish a complete candidate as a new catalog publication
-      description: |
-        Refuses with 422 `publication_incomplete` naming missing VI/EN content, fact sources, attribution entries
-        or unconfirmed AI drafts (`context.missing`). Records reviewer and time (FR-015). Chunks are already
-        embedded on write (ADR-012 0.3); the publication pins the latest approved corpus revision (ADR-010).
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/PlaceId'
-        - $ref: '#/components/parameters/IdempotencyKeyRequired'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PublishRequest'
-      responses:
-        '201':
-          description: Published.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-            Idempotent-Replayed:
-              $ref: '#/components/headers/IdempotentReplayed'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CatalogPublication'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
         '422':
@@ -1536,150 +1353,6 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
-  /v1/admin/imports:
-    get:
-      operationId: adminListImportRuns
-      x-api-id: API-038
-      x-fr: [FR-009, FR-010]
-      x-nfr: [NFR-015]
-      summary: List catalog import runs
-      description: Imports are executed by the Typer CLI (ADR-012); the admin SPA reads their outcome (OQ-070).
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - name: city_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
-      responses:
-        '200':
-          description: One page of import runs, newest first.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImportRunPage'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/imports/{import_run_id}:
-    get:
-      operationId: adminGetImportRun
-      x-api-id: API-039
-      x-fr: [FR-009, FR-010]
-      x-nfr: [NFR-015]
-      summary: Read one import run with counts
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - name: import_run_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Import run.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImportRun'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/sources:
-    get:
-      operationId: adminListSources
-      x-api-id: API-040
-      x-fr: [FR-016, FR-012]
-      x-nfr: [NFR-015]
-      summary: List evidence sources with licence and attribution
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
-      responses:
-        '200':
-          description: One page of sources.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SourcePage'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    post:
-      operationId: adminCreateSource
-      x-api-id: API-041
-      x-fr: [FR-016, FR-012]
-      x-nfr: [NFR-015]
-      summary: Register a source with licence and attribution text
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SourceCreate'
-      responses:
-        '201':
-          description: Source created.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Source'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
   /v1/admin/cities/summary:
     get:
       operationId: adminGetCitySummary
@@ -1704,801 +1377,11 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-
-  # ---- Curator surfaces added in 1.0 (DEC-015, DEC-016, ADR-012): manual drafts, source revisions, facts, closure rules, chunks, web-candidate queue ----
-  /v1/admin/sources/{source_id}:
-    get:
-      operationId: adminGetSource
-      x-api-id: API-044
-      summary: Get one source
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - name: source_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Source.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Source'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/sources/{source_id}/revisions:
-    get:
-      operationId: adminListSourceRevisions
-      x-api-id: API-045
-      summary: List captured revisions of a source
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - name: source_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Revisions, newest first.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SourceRevisionList'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    post:
-      operationId: adminCreateSourceRevision
-      x-api-id: API-046
-      summary: Record a consulted revision of a source (evidence for facts and chunks)
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - name: source_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - $ref: '#/components/parameters/IdempotencyKeyRequired'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SourceRevisionCreate'
-      responses:
-        '201':
-          description: Revision recorded.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SourceRevision'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/places/{place_id}/facts:
-    get:
-      operationId: adminListFacts
-      x-api-id: API-047
-      summary: List fact revisions of a place
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/PlaceId'
-        - name: field_code
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: include_history
-          in: query
-          required: false
-          schema:
-            type: boolean
-            default: false
-      responses:
-        '200':
-          description: Facts (latest revision per field unless include_history).
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdminPlaceFactList'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    post:
-      operationId: adminCreateFact
-      x-api-id: API-048
-      summary: Create a DRAFT fact revision
-      description: |
-        Only curators write place_facts (BRU-002 rev. 1). UNKNOWN facts carry no value. Operational facts need evidence before approval.
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/PlaceId'
-        - $ref: '#/components/parameters/IdempotencyKeyRequired'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FactCreate'
-      responses:
-        '201':
-          description: Draft fact created.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdminPlaceFact'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/places/{place_id}/facts/{fact_id}:
-    patch:
-      operationId: adminUpdateFact
-      x-api-id: API-049
-      summary: Edit a DRAFT fact revision
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/PlaceId'
-        - name: fact_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FactUpdate'
-      responses:
-        '200':
-          description: Updated.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdminPlaceFact'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/places/{place_id}/facts/{fact_id}/review:
-    post:
-      operationId: adminReviewFact
-      x-api-id: API-050
-      summary: Approve or reject a fact revision
-      description: |
-        An OPEN conflict blocks approval (422 `fact_conflict_open`); operational facts without evidence are refused (422 `evidence_required`).
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/PlaceId'
-        - name: fact_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FactReview'
-      responses:
-        '200':
-          description: Reviewed; approval supersedes the previous approved revision.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdminPlaceFact'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/places/{place_id}/closure-rules:
-    get:
-      operationId: adminListPlaceClosureRules
-      x-api-id: API-051
-      summary: List PLACE closure rules
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/PlaceId'
-      responses:
-        '200':
-          description: Rules.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdminClosureRuleList'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    post:
-      operationId: adminCreatePlaceClosureRule
-      x-api-id: API-052
-      summary: Create a PLACE closure rule (DRAFT)
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/PlaceId'
-        - $ref: '#/components/parameters/IdempotencyKeyRequired'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ClosureRuleCreate'
-      responses:
-        '201':
-          description: Rule created.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdminClosureRule'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/closure-rules:
-    get:
-      operationId: adminListClosureRules
-      x-api-id: API-053
-      summary: List AREA and CITY closure rules
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - name: city_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
-        - name: area_code
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: applies_to
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [PLACE, AREA, CITY]
-        - name: review_state
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [DRAFT, APPROVED, RETIRED]
-      responses:
-        '200':
-          description: Rules.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdminClosureRuleList'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    post:
-      operationId: adminCreateClosureRule
-      x-api-id: API-054
-      summary: Create an AREA or CITY closure rule (DRAFT)
-      description: |
-        `params` is validated per rule_kind (WEEKLY, DATE, LUNAR_DATE, SEASON, TICKET_VALIDITY); mismatch is 422 `invalid_rule_params`. AI never writes rules (ADR-011 0.3).
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKeyRequired'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ClosureRuleCreate'
-      responses:
-        '201':
-          description: Rule created.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdminClosureRule'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/closure-rules/{rule_id}:
-    get:
-      operationId: adminGetClosureRule
-      x-api-id: API-055
-      summary: Get a closure rule
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - name: rule_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Rule.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdminClosureRule'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    patch:
-      operationId: adminUpdateClosureRule
-      x-api-id: API-056
-      summary: Edit, approve or retire a closure rule
-      description: |
-        APPROVED requires a source_revision_id and stamps verified_at and the reviewer. Approved rules are frozen (409 `rule_frozen`); retire instead.
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - name: rule_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ClosureRuleUpdate'
-      responses:
-        '200':
-          description: Updated.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdminClosureRule'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    delete:
-      operationId: adminDeleteClosureRule
-      x-api-id: API-057
-      summary: Delete a DRAFT closure rule
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - name: rule_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '204':
-          description: Deleted.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
-  /v1/admin/places/{place_id}/chunks:
-    get:
-      operationId: adminListChunks
-      x-api-id: API-058
-      summary: List knowledge chunks of a place for one corpus revision
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/PlaceId'
-        - name: corpus_revision
-          in: query
-          required: false
-          description: Defaults to the working (latest) corpus revision.
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Chunks.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ChunkList'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    post:
-      operationId: adminSaveChunk
-      x-api-id: API-059
-      summary: Create or replace the chunk of one section and locale (embedded on write)
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/PlaceId'
-        - $ref: '#/components/parameters/IdempotencyKeyRequired'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ChunkInput'
-      responses:
-        '201':
-          description: Saved; `embedding_state` PENDING when the embedder is unavailable or the GEMINI_EMBED quota is exhausted (never fails the save).
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ChunkSaveResult'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/places/{place_id}/chunks/{chunk_id}:
-    patch:
-      operationId: adminUpdateChunk
-      x-api-id: API-060
-      summary: Edit, approve or retire a chunk
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - $ref: '#/components/parameters/PlaceId'
-        - name: chunk_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ChunkUpdate'
-      responses:
-        '200':
-          description: Updated; approval requires an EMBEDDED chunk (422 `embedding_pending`).
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ChunkSaveResult'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/web-candidates:
-    get:
-      operationId: adminListWebCandidates
-      x-api-id: API-061
-      summary: Curator queue of research-agent candidates (WEB_UNVERIFIED)
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - name: review_state
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [PENDING, APPROVED, REJECTED]
-            default: PENDING
-        - name: city_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
-      responses:
-        '200':
-          description: One page.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WebCandidatePage'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-
-  /v1/admin/web-candidates/{candidate_id}:
-    get:
-      operationId: adminGetWebCandidate
-      x-api-id: API-062
-      summary: Get a web candidate
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - name: candidate_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Candidate.
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WebCandidate'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    patch:
-      operationId: adminReviewWebCandidate
-      x-api-id: API-063
-      summary: Approve (promote to an IMPORTED place draft) or reject a web candidate
-      tags: [admin]
-      security:
-        - HTTPBearer: [curator]
-      parameters:
-        - name: candidate_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - $ref: '#/components/parameters/IdempotencyKeyRequired'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WebCandidateReview'
-      responses:
-        '200':
-          description: Reviewed. Approval creates the place draft, an approved Google place_id identity and AI_DRAFT localizations; it never publishes (ADR-014).
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WebCandidate'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationFailed'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
 
 components:
   securitySchemes:
@@ -2650,6 +1533,8 @@ components:
       description: |
         `revision_conflict` (context.current_revision), `idempotency_key_reused` (same key, different body),
         `idempotency_in_progress`, `plan_blocked` (context.reasons), `trip_not_saved`, `deletion_in_progress`.
+        `deletion_in_progress` applies to every authenticated route while an account deletion job is open
+        (except GET/POST /v1/me/deletion).
       headers:
         X-Request-ID:
           $ref: '#/components/headers/XRequestID'
@@ -2837,9 +1722,6 @@ components:
       type: string
       description: STALE when verified_at is more than stale_after_days (180, ASM-008) before today.
       enum: [CURRENT, STALE]
-    WorkflowState:
-      type: string
-      enum: [IMPORTED, MATCH_REVIEW, CONTENT_REVIEW, READY_TO_PUBLISH, PUBLISHED, RETIRED]
     TrustLevel:
       type: string
       description: |
@@ -4119,300 +3001,6 @@ components:
           enum: [SAVED, NOT_SAVED, SAVE_REFUSED, null]
 
     # ---- Admin ----
-    CandidateSummary:
-      type: object
-      required: [id, city_id, slug, category_code, workflow_state, content_revision, updated_at]
-      properties:
-        id:
-          type: string
-          format: uuid
-        city_id:
-          type: string
-          format: uuid
-        slug:
-          type: string
-        category_code:
-          type: [string, 'null']
-          description: Null until the curator classifies the draft.
-        area_code:
-          type: [string, 'null']
-        workflow_state:
-          $ref: '#/components/schemas/WorkflowState'
-        name_vi:
-          type: [string, 'null']
-        name_en:
-          type: [string, 'null']
-        content_revision:
-          type: integer
-        has_ai_draft:
-          type: boolean
-        provider_release:
-          type: [string, 'null']
-          description: Provider and release of the import run that created or last matched this candidate, e.g. `overture 2026-10-22.0` (OQ-112); null for manual or CSV-only candidates.
-        gate_missing_count:
-          type: integer
-          minimum: 0
-          description: Number of publication-gate violations (`fn_publication_gate_violations`); 0 means ready to publish (OQ-112).
-        updated_at:
-          type: string
-          format: date-time
-    CandidatePage:
-      allOf:
-        - $ref: '#/components/schemas/PageInfo'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items:
-                $ref: '#/components/schemas/CandidateSummary'
-    Localization:
-      type: object
-      required: [locale, name, translation_origin, review_state]
-      properties:
-        id:
-          type: string
-          format: uuid
-        locale:
-          $ref: '#/components/schemas/Locale'
-        name:
-          type: string
-          maxLength: 200
-        short_description:
-          type: [string, 'null']
-          maxLength: 300
-        description:
-          type: [string, 'null']
-          maxLength: 4000
-        translation_origin:
-          type: string
-          enum: [ORIGINAL, HUMAN_TRANSLATION, AI_DRAFT]
-        review_state:
-          type: string
-          enum: [DRAFT, APPROVED, REJECTED, SUPERSEDED]
-        reviewed_at:
-          type: [string, 'null']
-          format: date-time
-    CandidateFact:
-      type: object
-      required: [field_code, knowledge_state, review_state, source_revision_ids]
-      properties:
-        id:
-          type: string
-          format: uuid
-        field_code:
-          type: string
-        knowledge_state:
-          $ref: '#/components/schemas/KnowledgeState'
-        value:
-          type: [object, string, 'null']
-        verified_at:
-          type: [string, 'null']
-          format: date
-        review_state:
-          type: string
-          enum: [DRAFT, APPROVED, REJECTED, SUPERSEDED]
-        conflict_state:
-          type: string
-          enum: [NONE, OPEN, RESOLVED]
-        source_revision_ids:
-          type: array
-          items:
-            type: string
-            format: uuid
-    CandidateDetail:
-      allOf:
-        - $ref: '#/components/schemas/CandidateSummary'
-        - type: object
-          required: [localizations, aliases, facts, chunks, gate_violations, publications]
-          properties:
-            location:
-              $ref: '#/components/schemas/GeoPoint'
-            has_no_media:
-              type: boolean
-            aliases:
-              type: array
-              items:
-                $ref: '#/components/schemas/Alias'
-            gate_violations:
-              type: array
-              description: Current `fn_publication_gate_violations` rows; empty means publishable.
-              items:
-                type: object
-                required: [code]
-                properties:
-                  code:
-                    type: string
-                  detail:
-                    type: [string, 'null']
-            visit_minutes_min:
-              type: [integer, 'null']
-            visit_minutes_suggested:
-              type: [integer, 'null']
-            visit_minutes_max:
-              type: [integer, 'null']
-            localizations:
-              type: array
-              items:
-                $ref: '#/components/schemas/Localization'
-            aliases:
-              type: array
-              items:
-                type: object
-                required: [locale, alias]
-                properties:
-                  locale:
-                    $ref: '#/components/schemas/Locale'
-                  alias:
-                    type: string
-                  review_state:
-                    type: string
-                    enum: [DRAFT, APPROVED, REJECTED]
-            facts:
-              type: array
-              items:
-                $ref: '#/components/schemas/CandidateFact'
-            chunks:
-              type: array
-              description: Narrative chunks of the latest corpus revision, one per section and locale (ADR-010 0.3).
-              items:
-                $ref: '#/components/schemas/KnowledgeChunk'
-            warnings:
-              type: array
-              description: Non-blocking review warnings, e.g. CHUNK_EMBEDDING_PENDING with the chunk id (ADR-012 0.3).
-              items:
-                type: object
-                required: [code]
-                properties:
-                  code:
-                    type: string
-                  knowledge_chunk_id:
-                    type: [string, 'null']
-                    format: uuid
-            publications:
-              type: array
-              items:
-                $ref: '#/components/schemas/CatalogPublication'
-    ChunkSection:
-      type: string
-      description: Citation unit of the Guide corpus (ADR-010 0.3).
-      enum: [OVERVIEW, HISTORY, HIGHLIGHTS, VISIT_TIPS, ETIQUETTE, ACCESS]
-    ChunkInput:
-      type: object
-      additionalProperties: false
-      required: [locale, section, content, source_revision_ids]
-      properties:
-        locale:
-          $ref: '#/components/schemas/Locale'
-        section:
-          $ref: '#/components/schemas/ChunkSection'
-        content:
-          type: string
-          minLength: 1
-          maxLength: 4000
-          description: Original narrative text for this section; never operational facts (hours, prices, addresses).
-        source_revision_ids:
-          type: array
-          minItems: 1
-          items:
-            type: string
-            format: uuid
-        review_state:
-          type: string
-          description: DRAFT (default) or APPROVED; approval is refused while the embedding is pending.
-          enum: [DRAFT, APPROVED]
-    KnowledgeChunk:
-      type: object
-      required: [id, locale, section, corpus_revision, content, review_state, embedding_state]
-      properties:
-        id:
-          type: string
-          format: uuid
-        locale:
-          $ref: '#/components/schemas/Locale'
-        section:
-          $ref: '#/components/schemas/ChunkSection'
-        corpus_revision:
-          type: integer
-          minimum: 1
-        content:
-          type: string
-        content_sha256:
-          type: string
-        source_revision_ids:
-          type: array
-          items:
-            type: string
-            format: uuid
-        review_state:
-          type: string
-          enum: [DRAFT, APPROVED, RETIRED]
-        embedding_state:
-          type: string
-          description: EMBEDDED when `embedding` and `embedding_model` are stored; PENDING after a gateway failure.
-          enum: [EMBEDDED, PENDING]
-        embedding_model:
-          type: [string, 'null']
-        created_at:
-          type: string
-          format: date-time
-    CandidateReview:
-      type: object
-      additionalProperties: false
-      required: [expected_content_revision]
-      properties:
-        expected_content_revision:
-          type: integer
-          minimum: 0
-        category_code:
-          type: string
-        area_code:
-          type: [string, 'null']
-        location:
-          $ref: '#/components/schemas/GeoPoint'
-        has_no_media:
-          type: boolean
-        workflow_state:
-          $ref: '#/components/schemas/WorkflowState'
-        visit_minutes_min:
-          type: integer
-          minimum: 5
-        visit_minutes_suggested:
-          type: integer
-          minimum: 5
-        visit_minutes_max:
-          type: integer
-          minimum: 5
-        localizations:
-          type: array
-          maxItems: 2
-          description: Without `id` creates a new localization revision; with `id` records a review decision.
-          items:
-            $ref: '#/components/schemas/Localization'
-        aliases:
-          type: array
-          description: Upserted by normalised form (1.0). Facts are no longer written here; use the `/facts` endpoints.
-          items:
-            $ref: '#/components/schemas/AliasInput'
-        chunks:
-          type: array
-          maxItems: 12
-          description: One narrative chunk per section and locale; replaces the section's chunk in the next corpus revision and is embedded on write (ADR-012 0.3).
-          items:
-            $ref: '#/components/schemas/ChunkInput'
-        confirm_ai_draft_locales:
-          type: array
-          description: Locales whose AI_DRAFT content the curator confirms field by field (FR-019).
-          items:
-            $ref: '#/components/schemas/Locale'
-    PublishRequest:
-      type: object
-      additionalProperties: false
-      required: [expected_content_revision]
-      properties:
-        expected_content_revision:
-          type: integer
-          minimum: 0
     UnpublishRequest:
       type: object
       additionalProperties: false
@@ -4455,116 +3043,6 @@ components:
           format: date-time
         state_reason:
           type: [string, 'null']
-    ImportRun:
-      type: object
-      required: [id, data_provider_id, city_id, release_id, importer_version, status, started_at]
-      properties:
-        id:
-          type: string
-          format: uuid
-        data_provider_id:
-          type: string
-          format: uuid
-        provider_policy_id:
-          type: string
-          format: uuid
-        city_id:
-          type: string
-          format: uuid
-        release_id:
-          type: string
-        importer_version:
-          type: string
-        status:
-          type: string
-          enum: [RUNNING, SUCCEEDED, FAILED]
-        record_count:
-          type: [integer, 'null']
-        accepted_count:
-          type: [integer, 'null']
-        rejected_count:
-          type: [integer, 'null']
-        duplicate_count:
-          type: [integer, 'null']
-          description: Records skipped because they matched an existing candidate or place (OQ-112).
-        failure_code:
-          type: [string, 'null']
-          description: Machine-readable reason when `status` is FAILED, e.g. NO_ACTIVE_POLICY, CHECKSUM_MISMATCH, READ_ERROR, OUTSIDE_BOUNDING_BOX (OQ-112); null otherwise.
-        started_at:
-          type: string
-          format: date-time
-        completed_at:
-          type: [string, 'null']
-          format: date-time
-    ImportRunPage:
-      allOf:
-        - $ref: '#/components/schemas/PageInfo'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items:
-                $ref: '#/components/schemas/ImportRun'
-    SourceCreate:
-      type: object
-      additionalProperties: false
-      required: [publisher, source_kind, license_code, attribution_text]
-      properties:
-        data_provider_id:
-          type: [string, 'null']
-          format: uuid
-        publisher:
-          type: string
-          maxLength: 200
-        source_kind:
-          type: string
-          enum: [OFFICIAL, OPEN_DATA, REFERENCE, OWN_OBSERVATION]
-        homepage_url:
-          type: [string, 'null']
-          format: uri
-        license_code:
-          type: string
-          description: Required (sources.license_code is NOT NULL).
-        attribution_text:
-          type: string
-          minLength: 1
-          maxLength: 500
-    Source:
-      type: object
-      required: [id, publisher, source_kind, attribution_text, created_at]
-      properties:
-        id:
-          type: string
-          format: uuid
-        data_provider_id:
-          type: [string, 'null']
-          format: uuid
-        publisher:
-          type: string
-        source_kind:
-          type: string
-          enum: [OFFICIAL, OPEN_DATA, REFERENCE, OWN_OBSERVATION]
-        homepage_url:
-          type: [string, 'null']
-          format: uri
-        license_code:
-          type: [string, 'null']
-        attribution_text:
-          type: string
-        created_at:
-          type: string
-          format: date-time
-    SourcePage:
-      allOf:
-        - $ref: '#/components/schemas/PageInfo'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items:
-                $ref: '#/components/schemas/Source'
     CitySummary:
       type: object
       required: [city_id, code, is_enabled, published_count, candidate_count, pending_web_candidate_count, published_by_area]
@@ -4606,460 +3084,3 @@ components:
             $ref: '#/components/schemas/CitySummary'
 
     # ---- Curator schemas added in 1.0 ----
-    CandidateCreate:
-      type: object
-      additionalProperties: false
-      required: [slug, location]
-      properties:
-        city_id:
-          type: [string, 'null']
-          format: uuid
-          description: Defaults to the enabled city.
-        slug:
-          type: string
-          pattern: '^[a-z0-9-]{3,80}$'
-        category_code:
-          type: [string, 'null']
-        area_code:
-          type: [string, 'null']
-        location:
-          $ref: '#/components/schemas/GeoPoint'
-        visit_minutes_min:
-          type: [integer, 'null']
-        visit_minutes_suggested:
-          type: [integer, 'null']
-        visit_minutes_max:
-          type: [integer, 'null']
-        has_no_media:
-          type: boolean
-          default: false
-        localizations:
-          type: array
-          maxItems: 2
-          items:
-            $ref: '#/components/schemas/Localization'
-        aliases:
-          type: array
-          items:
-            $ref: '#/components/schemas/AliasInput'
-    AliasInput:
-      type: object
-      additionalProperties: false
-      required: [locale, alias, alias_kind]
-      properties:
-        locale:
-          $ref: '#/components/schemas/Locale'
-        alias:
-          type: string
-          maxLength: 200
-        alias_kind:
-          type: string
-          enum: [NAME, SHORT, FORMER, COLLOQUIAL, TRANSLITERATION]
-        review_state:
-          type: string
-          enum: [DRAFT, APPROVED, RETIRED]
-          default: DRAFT
-    Alias:
-      allOf:
-        - $ref: '#/components/schemas/AliasInput'
-        - type: object
-          required: [id, alias_normalized, review_state]
-          properties:
-            id:
-              type: string
-              format: uuid
-            alias_normalized:
-              type: string
-              description: Lower-case, diacritics stripped, đ→d (search key, pg_trgm).
-    SourceRevisionCreate:
-      type: object
-      additionalProperties: false
-      required: [locator, retrieved_at]
-      properties:
-        locator:
-          type: string
-          description: URL or document locator as consulted.
-        title:
-          type: [string, 'null']
-        retrieved_at:
-          type: string
-          format: date-time
-        content_sha256:
-          type: [string, 'null']
-          pattern: '^[0-9a-f]{64}$'
-    SourceRevision:
-      allOf:
-        - $ref: '#/components/schemas/SourceRevisionCreate'
-        - type: object
-          required: [id, source_id, created_at]
-          properties:
-            id:
-              type: string
-              format: uuid
-            source_id:
-              type: string
-              format: uuid
-            created_at:
-              type: string
-              format: date-time
-    SourceRevisionList:
-      type: object
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SourceRevision'
-    FactEvidenceInput:
-      type: object
-      additionalProperties: false
-      required: [source_revision_id]
-      properties:
-        source_revision_id:
-          type: string
-          format: uuid
-        supported_claim:
-          type: [string, 'null']
-          maxLength: 500
-    FactCreate:
-      type: object
-      additionalProperties: false
-      required: [field_code, knowledge_state]
-      properties:
-        field_code:
-          type: string
-          examples: [OPENING_HOURS]
-        knowledge_state:
-          $ref: '#/components/schemas/KnowledgeState'
-        value:
-          description: Required when KNOWN; must be absent for UNKNOWN / NOT_APPLICABLE. Shape per fact_fields.value_kind.
-          type: [object, string, 'null']
-        valid_until:
-          type: [string, 'null']
-          format: date
-        conflict_state:
-          type: string
-          enum: [NONE, OPEN, RESOLVED]
-          default: NONE
-        conflict_note:
-          type: [string, 'null']
-        evidence:
-          type: array
-          items:
-            $ref: '#/components/schemas/FactEvidenceInput'
-    FactUpdate:
-      type: object
-      additionalProperties: false
-      description: Edits a DRAFT revision only; every field optional.
-      properties:
-        knowledge_state:
-          $ref: '#/components/schemas/KnowledgeState'
-        value:
-          type: [object, string, 'null']
-        valid_until:
-          type: [string, 'null']
-          format: date
-        conflict_state:
-          type: string
-          enum: [NONE, OPEN, RESOLVED]
-        conflict_note:
-          type: [string, 'null']
-        evidence:
-          type: array
-          items:
-            $ref: '#/components/schemas/FactEvidenceInput'
-    FactReview:
-      type: object
-      additionalProperties: false
-      required: [decision]
-      properties:
-        decision:
-          type: string
-          enum: [APPROVE, REJECT]
-        verified_at:
-          type: [string, 'null']
-          format: date
-          description: Defaults to today (UTC+7) on approval.
-    AdminPlaceFact:
-      type: object
-      required: [id, place_id, field_code, fact_revision, knowledge_state, review_state, conflict_state, evidence, created_at]
-      properties:
-        id:
-          type: string
-          format: uuid
-        place_id:
-          type: string
-          format: uuid
-        field_code:
-          type: string
-        fact_revision:
-          type: integer
-        knowledge_state:
-          $ref: '#/components/schemas/KnowledgeState'
-        value:
-          type: [object, string, 'null']
-        verified_at:
-          type: [string, 'null']
-          format: date
-        valid_until:
-          type: [string, 'null']
-          format: date
-        review_state:
-          type: string
-          enum: [DRAFT, APPROVED, REJECTED, SUPERSEDED]
-        conflict_state:
-          type: string
-          enum: [NONE, OPEN, RESOLVED]
-        conflict_note:
-          type: [string, 'null']
-        evidence:
-          type: array
-          items:
-            $ref: '#/components/schemas/FactEvidenceInput'
-        created_at:
-          type: string
-          format: date-time
-    AdminPlaceFactList:
-      type: object
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/AdminPlaceFact'
-    ClosureRuleCreate:
-      type: object
-      additionalProperties: false
-      required: [applies_to, rule_kind, effect, params]
-      properties:
-        applies_to:
-          type: string
-          enum: [PLACE, AREA, CITY]
-        city_id:
-          type: [string, 'null']
-          format: uuid
-          description: Defaults to the enabled city for AREA and CITY rules.
-        area_code:
-          type: [string, 'null']
-          description: Required for AREA rules.
-        rule_kind:
-          type: string
-          enum: [WEEKLY, DATE, LUNAR_DATE, SEASON, TICKET_VALIDITY]
-        effect:
-          type: string
-          enum: [CLOSED, PARTIAL, EVENT, NOTICE]
-        severity:
-          type: [string, 'null']
-          enum: [BLOCKING, WARNING, null]
-          description: Defaults to BLOCKING for CLOSED, WARNING otherwise.
-        params:
-          type: object
-          description: |
-            WEEKLY {weekdays[1-7], open_windows?}; DATE {dates[] | from,to}; LUNAR_DATE {lunar_month?, lunar_day, every_month?}
-            (Vietnamese lunar calendar, UTC+7); SEASON {from_month, to_month}; TICKET_VALIDITY {same_day: true, scope}.
-        note_vi:
-          type: [string, 'null']
-        note_en:
-          type: [string, 'null']
-        effective_from:
-          type: [string, 'null']
-          format: date
-        effective_to:
-          type: [string, 'null']
-          format: date
-        source_revision_id:
-          type: [string, 'null']
-          format: uuid
-    ClosureRuleUpdate:
-      allOf:
-        - $ref: '#/components/schemas/ClosureRuleCreate'
-        - type: object
-          properties:
-            review_state:
-              type: string
-              enum: [DRAFT, APPROVED, RETIRED]
-            verified_at:
-              type: [string, 'null']
-              format: date
-      description: All fields optional (applies_to, rule_kind, effect and params are not required on update).
-    AdminClosureRule:
-      allOf:
-        - $ref: '#/components/schemas/ClosureRule'
-        - type: object
-          required: [city_id, review_state, created_at]
-          properties:
-            city_id:
-              type: string
-              format: uuid
-            place_id:
-              type: [string, 'null']
-              format: uuid
-            area_code:
-              type: [string, 'null']
-            note_vi:
-              type: [string, 'null']
-            note_en:
-              type: [string, 'null']
-            review_state:
-              type: string
-              enum: [DRAFT, APPROVED, RETIRED]
-            source_revision_id:
-              type: [string, 'null']
-              format: uuid
-            reviewed_by_account_id:
-              type: [string, 'null']
-              format: uuid
-            created_at:
-              type: string
-              format: date-time
-    AdminClosureRuleList:
-      type: object
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/AdminClosureRule'
-    ChunkUpdate:
-      type: object
-      additionalProperties: false
-      properties:
-        content:
-          type: string
-        source_revision_ids:
-          type: array
-          items:
-            type: string
-            format: uuid
-        review_state:
-          type: string
-          enum: [DRAFT, APPROVED, RETIRED]
-    ChunkSaveResult:
-      allOf:
-        - $ref: '#/components/schemas/KnowledgeChunk'
-        - type: object
-          required: [warnings]
-          properties:
-            warnings:
-              type: array
-              items:
-                type: object
-                required: [code]
-                properties:
-                  code:
-                    type: string
-                    examples: [EMBEDDING_PENDING]
-                  detail:
-                    type: [string, 'null']
-    ChunkList:
-      type: object
-      required: [corpus_revision, published_corpus_revision, items]
-      properties:
-        corpus_revision:
-          type: integer
-        published_corpus_revision:
-          type: [integer, 'null']
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/KnowledgeChunk'
-    WebCandidate:
-      type: object
-      description: Research-agent candidate (ADR-014). trust_label is always WEB_UNVERIFIED; the Tavily query is never exposed.
-      required: [id, city_id, name, source_url, fetched_at, review_state, trust_label, places_check_outcome, created_at]
-      properties:
-        id:
-          type: string
-          format: uuid
-        city_id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        name_vi:
-          type: [string, 'null']
-        name_en:
-          type: [string, 'null']
-        category_hint:
-          type: [string, 'null']
-        source_url:
-          type: string
-          format: uri
-        source_publisher:
-          type: [string, 'null']
-        source_locator:
-          type: [string, 'null']
-        source_revision_id:
-          type: [string, 'null']
-          format: uuid
-        fetched_at:
-          type: string
-          format: date-time
-        google_place_id:
-          type: [string, 'null']
-        places_check_outcome:
-          type: string
-          enum: [EXISTS_OPERATIONAL, EXISTS_CLOSED, NOT_FOUND, OUTSIDE_CITY, SKIPPED]
-        location:
-          oneOf:
-            - $ref: '#/components/schemas/GeoPoint'
-            - type: 'null'
-        coordinate_source:
-          type: [string, 'null']
-          enum: [WEB_PAGE, TAVILY, OSM_NOMINATIM, CURATOR, null]
-        trust_label:
-          type: string
-          enum: [WEB_UNVERIFIED]
-        review_state:
-          type: string
-          enum: [PENDING, APPROVED, REJECTED]
-        review_note:
-          type: [string, 'null']
-        reviewed_by_account_id:
-          type: [string, 'null']
-          format: uuid
-        reviewed_at:
-          type: [string, 'null']
-          format: date-time
-        promoted_place_id:
-          type: [string, 'null']
-          format: uuid
-        created_at:
-          type: string
-          format: date-time
-    WebCandidatePage:
-      allOf:
-        - $ref: '#/components/schemas/PageInfo'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items:
-                $ref: '#/components/schemas/WebCandidate'
-    WebCandidateReview:
-      type: object
-      additionalProperties: false
-      required: [decision]
-      properties:
-        decision:
-          type: string
-          enum: [APPROVE, REJECT]
-        review_note:
-          type: [string, 'null']
-          description: Required to reject.
-        slug:
-          type: [string, 'null']
-        category_code:
-          type: [string, 'null']
-        area_code:
-          type: [string, 'null']
-        location:
-          description: Required on approval when the candidate has no location.
-          oneOf:
-            - $ref: '#/components/schemas/GeoPoint'
-            - type: 'null'
-        name_vi:
-          type: [string, 'null']
-        name_en:
-          type: [string, 'null']

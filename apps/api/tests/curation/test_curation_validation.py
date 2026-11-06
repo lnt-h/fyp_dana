@@ -18,13 +18,7 @@ from app.curation.common import (
 from app.curation.facts import validate_conflict, validate_fact_value
 from app.errors import AppError
 from app.models.reference import FactField
-from app.schemas.admin import (
-    CandidateReview,
-    ChunkInput,
-    GeoPoint,
-    LocalizationInput,
-    WebCandidateReview,
-)
+from app.schemas.admin import GeoPoint, UnpublishRequest
 
 
 @pytest.mark.parametrize(
@@ -46,6 +40,21 @@ from app.schemas.admin import (
         ),
         ("TICKET_VALIDITY", {"valid_same_day": True}, {"valid_same_day": True}),
         ("TICKET_VALIDITY", {"valid_hours": 24}, {"valid_hours": 24}),
+        (
+            "DATE",
+            {"dates": ["2027-02-06"], "from": "08:00", "to": "12:00"},
+            {"dates": ["2027-02-06"], "from": "08:00", "to": "12:00"},
+        ),
+        (
+            "WEEKLY",
+            {"weekdays": [1, 2, 3, 4, 5, 6, 7], "restricted_modes": ["DRIVE", "TWO_WHEELER"]},
+            {"weekdays": [1, 2, 3, 4, 5, 6, 7], "restricted_modes": ["DRIVE", "TWO_WHEELER"]},
+        ),
+        (
+            "LUNAR_DATE",
+            {"lunar_days": [14], "from": "18:00", "to": "22:00", "restricted_modes": ["DRIVE"]},
+            {"lunar_days": [14], "from": "18:00", "to": "22:00", "restricted_modes": ["DRIVE"]},
+        ),
     ],
 )
 def test_valid_rule_params(kind: str, params: dict[str, Any], expected: dict[str, Any]) -> None:
@@ -69,6 +78,11 @@ def test_valid_rule_params(kind: str, params: dict[str, Any], expected: dict[str
         ("TICKET_VALIDITY", {}),
         ("TICKET_VALIDITY", {"valid_same_day": True, "valid_hours": 3}),
         ("TICKET_VALIDITY", {"valid_hours": 0}),
+        ("DATE", {"dates": ["2027-02-06"], "from": "08:00"}),
+        ("SEASON", {"from_month_day": "09-01", "to_month_day": "12-31", "to": "25:00"}),
+        ("WEEKLY", {"weekdays": [1], "restricted_modes": ["BOAT"]}),
+        ("WEEKLY", {"weekdays": [1], "restricted_modes": ["DRIVE", "DRIVE"]}),
+        ("WEEKLY", {"weekdays": [1], "restricted_modes": []}),
     ],
 )
 def test_invalid_rule_params(kind: str, params: dict[str, Any]) -> None:
@@ -130,17 +144,9 @@ def test_fact_value_rules() -> None:
 
 def test_schema_rules() -> None:
     with pytest.raises(ValidationError):
-        LocalizationInput(locale="vi")
+        UnpublishRequest.model_validate({"state_reason": ""})
     with pytest.raises(ValidationError):
-        WebCandidateReview(decision="REJECT")
-    with pytest.raises(ValidationError):
-        CandidateReview.model_validate({"expected_content_revision": 1, "facts": []})
-    with pytest.raises(ValidationError):
-        ChunkInput.model_validate(
-            {"locale": "vi", "section": "CITY_OVERVIEW", "content": "x", "source_revision_ids": []}
-        )
-    review = CandidateReview.model_validate({"expected_content_revision": 3, "area_code": None})
-    assert "area_code" in review.model_fields_set
+        UnpublishRequest.model_validate({"state_reason": "x", "extra": 1})
 
 
 def test_chunk_helpers() -> None:

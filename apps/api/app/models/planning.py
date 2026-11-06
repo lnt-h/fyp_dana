@@ -341,3 +341,6 @@ class AccountDeletionJob(Base):
         DateTime(timezone=True), nullable=False, server_default=text("now()")
     )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Migration 0006: SHA-256 of the deleted Clerk subject, so a completed deletion can be
+    # recognised without keeping the subject itself.
+    clerk_subject_sha256: Mapped[str | None] = mapped_column(CHAR(64), nullable=True)

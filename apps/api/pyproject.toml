@@ -16,6 +16,7 @@ dependencies = [
   "psycopg[binary]>=3.2,<4",
   "pydantic-settings>=2.7,<3",
   "pyjwt[crypto]>=2.10,<3",
+  "pyyaml>=6.0",
   "sqlalchemy[asyncio]>=2.0.37,<3",
   "sse-starlette>=2.1",
   "tavily-python>=0.5",
@@ -33,6 +34,7 @@ dev = [
   "pytest-cov>=6,<8",
   "pytest-httpx>=0.35",
   "ruff>=0.9,<1",
+  "types-pyyaml>=6.0",
 ]
 
 [tool.pytest.ini_options]
@@ -101,6 +103,12 @@ forbidden_modules = ["app.api", "app.main", "app.ai", "app.agents"]
 name = "Curation does not import the HTTP layer or agents"
 type = "forbidden"
 source_modules = ["app.curation"]
+forbidden_modules = ["app.api", "app.main", "app.agents"]
+
+[[tool.importlinter.contracts]]
+name = "Ingestion does not import the HTTP layer or agents"
+type = "forbidden"
+source_modules = ["app.ingestion"]
 forbidden_modules = ["app.api", "app.main", "app.agents"]
 
 [[tool.importlinter.contracts]]
