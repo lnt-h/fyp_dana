@@ -4349,7 +4349,7 @@
         ]
       },
       "patch": {
-        "description": "Manual edit: no AI, no routing, no solver (M3). Re-timing is a sequential shift.",
+        "description": "Manual edit: no AI, no routing, no solver (M3). Re-timing is a sequential shift.\n\nOptional ``Idempotency-Key`` (PREVIEW_EDIT): a retry with the same key and body answers the\nstored 200 with ``Idempotent-Replayed: true`` instead of 409 ``revision_conflict``.",
         "operationId": "edit_plan_preview_v1_plan_previews__preview_id__patch",
         "parameters": [
           {
@@ -4868,6 +4868,7 @@
         ]
       },
       "post": {
+        "description": "Optional ``Idempotency-Key`` (TRIP_CREATE): a retry with the same key and body answers the\nstored 201 with ``Idempotent-Replayed: true``; a different body answers 409.",
         "operationId": "create_trip_v1_trips_post",
         "parameters": [
           {

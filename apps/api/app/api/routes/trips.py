@@ -4,6 +4,7 @@ import uuid
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Header, Query, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
@@ -24,7 +25,7 @@ from app.schemas.trips import (
     TripStatus,
     TripUpdate,
 )
-from app.security.clerk import get_current_account
+from app.security.clerk import get_account_allowing_deletion, get_current_account
 from app.trips import idempotency
 from app.trips.repository import SQLAlchemyTripStore, TripStore
 from app.trips.service import TripService
@@ -44,6 +45,17 @@ def get_trip_service(
 
 
 Service = Annotated[TripService, Depends(get_trip_service)]
+
+
+def get_deletion_service(
+    account: Annotated[Account, Depends(get_account_allowing_deletion)],
+    store: Annotated[TripStore, Depends(get_trip_store)],
+) -> TripService:
+    """Only for ``/v1/me/deletion``: the one surface still served while a deletion is open."""
+    return TripService(store, account.id)
+
+
+DeletionService = Annotated[TripService, Depends(get_deletion_service)]
 LocaleQuery = Annotated[Locale | None, Query()]
 
 
@@ -70,15 +82,16 @@ async def list_trips(
 )
 async def create_trip(
     body: TripCreate,
-    response: Response,
     service: Service,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
-) -> Trip:
-    # Validated per the contract; not persisted: idempotency_records has no TRIP_CREATE operation.
-    idempotency.normalize_key(idempotency_key, required=False)
-    trip = await service.create_trip(body)
-    response.headers["Location"] = f"/v1/trips/{trip.id}"
-    return trip
+) -> JSONResponse:
+    """Optional ``Idempotency-Key`` (TRIP_CREATE): a retry with the same key and body answers the
+    stored 201 with ``Idempotent-Replayed: true``; a different body answers 409."""
+    result = await service.create_trip(body, idempotency_key)
+    headers = {"Location": f"/v1/trips/{result.body['id']}"}
+    if idempotency_key is not None:
+        headers[idempotency.REPLAYED_HEADER] = "true" if result.replayed else "false"
+    return JSONResponse(status_code=result.status, content=result.body, headers=headers)
 
 
 @router.get("/trips/{trip_id}", response_model=TripDetail, responses=errors(404))

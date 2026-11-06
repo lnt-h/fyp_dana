@@ -22,7 +22,7 @@ from app.models.planning import (
     PreviewRevision,
     Trip,
 )
-from app.security.clerk import get_current_account
+from app.security.clerk import get_account_allowing_deletion, get_deletion_pending
 from app.trips.repository import (
     CandidateInfo,
     CityInfo,
@@ -179,6 +179,9 @@ class FakeStore:
         record.resource_id = resource_id
 
     async def open_deletion_job(self, account_id: uuid.UUID) -> AccountDeletionJob | None:
+        return self.open_deletion_job_sync(account_id)
+
+    def open_deletion_job_sync(self, account_id: uuid.UUID) -> AccountDeletionJob | None:
         return next(
             (
                 j
@@ -367,8 +370,12 @@ def world() -> World:
     store = FakeStore()
     account_id = uuid.uuid4()
     app = create_app()
-    app.dependency_overrides[get_current_account] = lambda: Account(
+    app.dependency_overrides[get_account_allowing_deletion] = lambda: Account(
         id=account_id, clerk_user_id="user_a"
+    )
+    # The real guard query runs on the session; here it reads the fake store's jobs.
+    app.dependency_overrides[get_deletion_pending] = lambda: (
+        store.open_deletion_job_sync(account_id) is not None
     )
     app.dependency_overrides[get_trip_store] = lambda: store
     return World(store=store, app=app, account_id=account_id, city=store.add_city())

@@ -1,3 +1,12 @@
+"""Gonarra API settings (``GONARRA_*`` environment variables, ``apps/api/.env``).
+
+Google Maps Platform SKU protection (DEC-018, ADR-006): every Routes call must request
+``routingPreference=TRAFFIC_UNAWARE`` (the Essentials SKU; traffic-aware routing is billed at a
+higher SKU), and every Places request must keep the field mask ``id,businessStatus,location``
+(Essentials-level fields only). Widening either moves the call to a pricier SKU and burns the
+free tier; change it only with a decision in ``docs/decisions.md``.
+"""
+
 from functools import lru_cache
 from typing import Literal
 
@@ -22,6 +31,9 @@ class Settings(BaseSettings):
     # Curator role (T-06): comma-separated Clerk user IDs (JWT `sub`) allowed on /v1/admin.
     # Empty means nobody is a curator (default deny).
     curator_clerk_user_ids: str = ""
+    # Clerk Backend API secret (``sk_...``), used only to delete the Clerk user after an account
+    # deletion purge (FR-071). Unset: the purge still completes and a warning is logged.
+    clerk_secret_key: SecretStr | None = None
 
     # Product scope (DEC-013): FYP release serves one enabled city.
     default_city_code: str = "da-nang"
@@ -33,6 +45,8 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr | None = None
     groq_api_key: SecretStr | None = None
     tavily_api_key: SecretStr | None = None
+    # Google Maps Platform (Routes + Places). See the module docstring: Routes TRAFFIC_UNAWARE
+    # only; Places field mask ``id,businessStatus,location`` only (SKU protection).
     google_maps_api_key: SecretStr | None = None
 
     # Feature flags (ADR-014 research agent; DEC-019 Could-scope prices).
@@ -51,12 +65,15 @@ class Settings(BaseSettings):
     quota_tavily_per_day: int = 25
     quota_tavily_per_month: int = 700
     quota_places_per_day: int = 150
-    quota_routes_elements_per_day: int = 1500
+    # Routes matrix elements. 300/day ≈ 9 000/month, kept under the Routes Essentials monthly
+    # free threshold so the free tier is never exceeded (free-tier protection).
+    quota_routes_elements_per_day: int = 300
 
     @field_validator(
         "clerk_issuer",
         "clerk_jwks_url",
         "clerk_audience",
+        "clerk_secret_key",
         "gemini_api_key",
         "groq_api_key",
         "tavily_api_key",
