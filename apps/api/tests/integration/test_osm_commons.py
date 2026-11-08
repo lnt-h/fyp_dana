@@ -18,7 +18,6 @@ from app.catalog.places import PlacesRepository
 from app.config import get_settings
 from app.curation.auto_publish import auto_publish
 from app.curation.embedding import Embedding
-from app.curation.fact_extract import FactCandidate, FactExtractor, _Evidence
 from app.ingestion.common import (
     get_or_create_revision,
     get_or_create_source,
@@ -42,6 +41,7 @@ from app.ingestion.wikidata_link import stage_links
 from app.ingestion.wikipedia import PageSummary, stage_summaries
 from app.models.catalog import CatalogPublication, MediaAsset, Place, PlaceMedia, PublicationMedia
 from app.models.providers import ImportRecord
+from app.research.fact_extract import FactCandidate, FactExtractor, _Evidence
 
 pytestmark = pytest.mark.integration
 

@@ -19,15 +19,15 @@ from app.agents.fact_validation import (
 from app.agents.schemas import FactEvidenceItem, FactExtractionDraft, HoursRule
 from app.agents.writer import build_fact_prompt
 from app.curation.auto_publish import Contributions, SourceInfo, compose, gate_reasons
-from app.curation.fact_extract import (
-    build_osm_query,
-    osm_evidence_text,
-    wikidata_evidence_text,
-)
 from app.ingestion.areas import load_areas
 from app.ingestion.common import PROVENANCE_KEY
 from app.models.catalog import Place
 from app.models.reference import FactField
+from app.research.fact_extract import (
+    build_osm_query,
+    osm_evidence_text,
+    wikidata_evidence_text,
+)
 
 FIXTURE = json.loads(
     (Path(__file__).parent / "fixtures" / "fact_evidence_phuoc_lam.json").read_text("utf-8")

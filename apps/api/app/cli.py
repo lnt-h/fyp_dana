@@ -12,7 +12,7 @@ Content pipeline (DEC-022, app/ingestion/cli.py): `policy list|activate`, `areas
 
 Grounded descriptions (D3, app/research/enrich.py):
     uv run python -m app.cli enrich descriptions [--limit 150] [--food-cafe-cap 40]
-AI-extracted facts (DEC-028, app/curation/fact_extract.py):
+AI-extracted facts (DEC-028, app/research/fact_extract.py):
     uv run python -m app.cli enrich facts [--limit 120] [--max-searches 200] [--max-model-calls 250]
 Then `publish auto`, `publish summary` and `publish audit-sample`.
 """
@@ -271,7 +271,7 @@ PROVIDERS: tuple[ProviderSeed, ...] = (
         },
     ),
     # DEC-028 (2026-11-08): facts and short descriptions extracted by the grounded writer from
-    # cited evidence (app/curation/fact_extract.py); prompts and raw responses are never stored.
+    # cited evidence (app/research/fact_extract.py); prompts and raw responses are never stored.
     ProviderSeed(
         "gonarra_ai_facts",
         "Gonarra AI-extracted facts",
@@ -739,8 +739,8 @@ def enrich_facts_command(
     Audit afterwards with `publish audit-sample`.
     """
     from app.config import get_settings
-    from app.curation.fact_extract import FactsReport, build_fact_extractor
     from app.ingestion.common import PolicyNotActiveError
+    from app.research.fact_extract import FactsReport, build_fact_extractor
 
     settings = get_settings()
 

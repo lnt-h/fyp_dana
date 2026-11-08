@@ -67,7 +67,7 @@ logger = logging.getLogger("gonarra.curation")
 LOCALES: tuple[str, ...] = ("vi", "en")
 # Grounded AI descriptions (app.research.enrich): one import record per place under this provider.
 AI_SUMMARY_PROVIDER_KEY = "gonarra_ai_summary"
-# AI-extracted facts and short descriptions (app.curation.fact_extract, DEC-028).
+# AI-extracted facts and short descriptions (app.research.fact_extract, DEC-028).
 AI_FACTS_PROVIDER_KEY = "gonarra_ai_facts"
 UNUSABLE_LICENCES = frozenset({"", "UNKNOWN", "NONE"})
 
