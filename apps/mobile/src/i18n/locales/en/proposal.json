@@ -318,15 +318,6 @@
     "retry": "Try again",
     "close": "Close"
   },
-  "dev": {
-    "label": "Sample data · next change",
-    "none": "Succeeds",
-    "network": "No connection",
-    "route_unavailable": "Route error",
-    "revision_conflict": "409 conflict",
-    "ai_unavailable": "AI busy",
-    "preview_expired": "Expired"
-  },
   "book": "Book stays and activities",
   "eyebrow": "{{city}} · {{dates}}",
   "healthCard": {

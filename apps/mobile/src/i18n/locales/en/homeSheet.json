@@ -53,6 +53,7 @@
     "emptyBody": "More places are being source-checked. Check back soon!",
     "emptyFilter": "No places in this category yet.",
     "error": "Could not load places.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "cityError": "Could not load cities."
   }
 }

@@ -9,7 +9,7 @@ import { resolveImage } from '../../lib/images/imagekit';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { fonts, typography } from '../../theme/typography';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { PhotoFallback } from './PhotoFallback';
 
 const SCRIM = ['rgba(7,21,30,0)', 'rgba(7,21,30,0.25)', 'rgba(7,21,30,0.72)'] as const;
@@ -17,6 +17,8 @@ const ARCH_HEIGHT = 36;
 
 export type PhotoHeroProps = {
   image: Pick<Media, 'url'> | null | undefined;
+  /** Icon on the flat fallback when there is no photo (e.g. the place's `categoryIcon`); default lantern. */
+  fallbackIcon?: IconName;
   /** Total height including the status-bar inset (default 360). */
   height?: number;
   title?: string;
@@ -37,7 +39,7 @@ export type PhotoHeroProps = {
 };
 
 
-export function PhotoHero({ image, height = 360, title, kicker, attribution, arch = true, topLeft, topRight, children, accessibilityLabel, style }: PhotoHeroProps) {
+export function PhotoHero({ image, fallbackIcon = 'lantern', height = 360, title, kicker, attribution, arch = true, topLeft, topRight, children, accessibilityLabel, style }: PhotoHeroProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const resolved = resolveImage(image, { height, width });
@@ -57,7 +59,7 @@ export function PhotoHero({ image, height = 360, title, kicker, attribution, arc
           transition={250}
         />
       ) : (
-        <PhotoFallback icon="lantern" iconSize={40} tone="dark" />
+        <PhotoFallback icon={fallbackIcon} iconSize={40} tone="dark" />
       )}
       <LinearGradient colors={SCRIM} locations={[0.35, 0.6, 1]} pointerEvents="none" style={StyleSheet.absoluteFill} />
       {/* Top fade so floating controls and the status bar stay legible on bright skies. */}

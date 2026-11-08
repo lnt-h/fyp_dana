@@ -5,5 +5,10 @@
   "saving": "Đang lưu…",
   "cancel": "Huỷ",
   "goBack": "Quay lại",
-  "country": "Việt Nam"
+  "country": "Việt Nam",
+  "configError": {
+    "title": "Ứng dụng chưa được cấu hình",
+    "body": "Bản dựng này chưa có địa chỉ máy chủ Gonarra nên không thể tải địa điểm, chuyến đi hay Hỏi đáp. Ứng dụng không có dữ liệu mẫu ngoại tuyến.",
+    "fix": "Dành cho nhà phát triển: đặt EXPO_PUBLIC_API_URL (ví dụ http://192.168.1.20:8000, không kèm /v1) trong apps/mobile/.env rồi khởi động lại máy chủ Expo."
+  }
 }

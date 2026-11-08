@@ -4,9 +4,7 @@
  *
  * Params: `previewId`; optional `tripId` and `mode=saved|draft` (from My trips). `mode=saved` shows the saved itinerary
  * read-only. Editing (SCR-027/028/030) sends op lists to the server and renders the revision it returns; pending edits
- * live in the draft store until acknowledged (ADR-009). Fixture previews (no EXPO_PUBLIC_API_URL):
- *   /plan/00000000-0000-4000-8000-000000000501/proposal  WARNING
- *   /plan/00000000-0000-4000-8000-000000000502/proposal  BLOCKED (day-2 leg unavailable)
+ * live in the draft store until acknowledged (ADR-009).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -16,10 +14,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { CircleButton, Icon, PrimaryButton, SectionHeader, Skeleton } from '../../../components/ui';
 import { takeStopIntent } from '../../../features/planner/edit/draftStore';
-import { EditStatusBanner, FixtureFaultPicker } from '../../../features/planner/edit/EditStatusBanner';
+import { EditStatusBanner } from '../../../features/planner/edit/EditStatusBanner';
 import { EditStopSheet, type EditTarget } from '../../../features/planner/edit/EditStopSheet';
 import { PillButton } from '../../../features/planner/edit/EditUI';
-import { regenerationEnabled, showFixtureControls } from '../../../features/planner/edit/flags';
+import { regenerationEnabled } from '../../../features/planner/edit/flags';
 import { RegenerateDaySheet } from '../../../features/planner/edit/RegenerateDaySheet';
 import { usePreviewEditor } from '../../../features/planner/edit/usePreviewEditor';
 import { HealthActionCard, HealthSummary } from '../../../features/planner/health/HealthSummary';
@@ -345,7 +343,6 @@ function Proposal({ data, goBack, onPreview, previewId: routePreviewId }: { data
                 pending={pending}
                 regenerating={regenerating}
               />
-              {editing && showFixtureControls ? <FixtureFaultPicker /> : null}
             </View> : null}
             <View style={st.days}>
               {days.map(item => <DayCard

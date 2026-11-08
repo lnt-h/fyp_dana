@@ -13,6 +13,8 @@ import { PhotoFallback } from './PhotoFallback';
 
 export type PhotoCardProps = {
   image: Pick<Media, 'url'> | null | undefined;
+  /** Icon on the flat fallback when there is no photo (e.g. the place's `categoryIcon`); default map pin. */
+  fallbackIcon?: IconName;
   title: string;
   subtitle?: string;
   /** Icon before the subtitle (default map-pin). */
@@ -36,6 +38,7 @@ export type PhotoCardProps = {
 
 export function PhotoCard({
   image,
+  fallbackIcon = 'map-pin',
   title,
   subtitle,
   subtitleIcon = 'map-pin',
@@ -67,7 +70,7 @@ export function PhotoCard({
           {resolved ? (
             <Image contentFit="cover" placeholder={resolved.placeholder} placeholderContentFit="cover" source={resolved.source} style={StyleSheet.absoluteFill} transition={200} />
           ) : (
-            <PhotoFallback tone="dark" icon="map-pin" />
+            <PhotoFallback tone="dark" icon={fallbackIcon} />
           )}
           <LinearGradient colors={['rgba(7,21,30,0)', 'rgba(7,21,30,0.72)']} locations={[0.4, 1]} style={StyleSheet.absoluteFill} />
           {badge ? <GlassBadge icon={badgeIcon} label={badge} style={styles.badge} /> : null}

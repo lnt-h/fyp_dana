@@ -1,7 +1,7 @@
 import { PixelRatio } from 'react-native';
 import type { ImageSource } from 'expo-image';
 import type { Media } from '../api/types';
-import { localFixtures } from './localFixtures';
+import { BUNDLED_IMAGES } from './cityImages';
 
 /**
  * ImageKit URL-endpoint delivery (public endpoint only, e.g. `https://ik.imagekit.io/<id>`; the origin is the S3
@@ -24,11 +24,12 @@ export type IkTransform = {
   bl?: number;
 };
 
-const isRemote = (path: string) => /^[a-z][a-z0-9+.-]*:/i.test(path);
+/** Has a URL scheme (`https:`, `bundled:`, …): never an ImageKit origin path. */
+const hasScheme = (path: string) => /^[a-z][a-z0-9+.-]*:/i.test(path);
 
 /** Builds an ImageKit URL with a `tr=` transformation chain. Returns null when no endpoint is configured. */
 export function ikUrl(path: string, t: IkTransform = {}): string | null {
-  if (!endpoint || isRemote(path)) return null;
+  if (!endpoint || hasScheme(path)) return null;
   const parts: string[] = [];
   if (t.w) parts.push(`w-${Math.round(t.w)}`);
   if (t.h) parts.push(`h-${Math.round(t.h)}`);
@@ -53,17 +54,23 @@ export type ResolvedImage = {
   placeholder: ImageSource | number | null;
 };
 
-const fileName = (url: string) => url.split('?')[0].split('/').pop() ?? '';
-
 /**
- * Resolves a contract `Media` thumbnail into expo-image props.
- * 1. ImageKit endpoint set and `url` is a relative path → density-aware ImageKit URL + 40-px blurred placeholder.
- * 2. Otherwise a bundled fixture photo matched by file name (no placeholder needed).
- * 3. Otherwise an absolute `https` URL is used as-is; anything else → null (caller shows its gradient fallback).
+ * Resolves a contract `Media` thumbnail into expo-image props. Returns null when there is nothing to show; callers then
+ * render `PhotoFallback` with the place's category icon.
+ * 1. A `bundled:` URL (city covers in cityImages.ts) → the bundled file.
+ * 2. ImageKit endpoint set and `url` is a relative path (S3 origin key) → density-aware ImageKit URL + 40-px blurred
+ *    placeholder.
+ * 3. An absolute `https` URL (catalog media, e.g. Wikimedia Commons `upload.wikimedia.org` files with author and
+ *    licence in `attribution_text`) → used as-is. The ImageKit endpoint is not configured as a web-proxy origin, so
+ *    remote URLs are not routed through it.
+ * 4. Anything else (http, relative path without ImageKit, unknown scheme) → null.
  */
 export function resolveImage(thumbnail: Pick<Media, 'url'> | null | undefined, size: ImageSize): ResolvedImage | null {
-  if (!thumbnail?.url) return null;
-  const { url } = thumbnail;
+  const url = thumbnail?.url?.trim();
+  if (!url) return null;
+  const bundled = BUNDLED_IMAGES[url];
+  if (bundled !== undefined) return { placeholder: null, source: bundled };
+  if (/^https:\/\//i.test(url)) return { placeholder: null, source: { uri: url } };
   const w = PixelRatio.getPixelSizeForLayoutSize(size.width);
   const h = size.height ? PixelRatio.getPixelSizeForLayoutSize(size.height) : undefined;
   const remote = ikUrl(url, { h, w });
@@ -72,8 +79,5 @@ export function resolveImage(thumbnail: Pick<Media, 'url'> | null | undefined, s
     const tiny = ikUrl(url, { bl: 10, q: 30, w: 40, ...ratio });
     return { placeholder: tiny ? { uri: tiny } : null, source: { uri: remote } };
   }
-  const local = localFixtures[fileName(url)];
-  if (local !== undefined) return { placeholder: null, source: local };
-  if (/^https:\/\//i.test(url)) return { placeholder: null, source: { uri: url } };
   return null;
 }
