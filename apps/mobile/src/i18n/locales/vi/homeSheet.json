@@ -55,5 +55,18 @@
     "error": "Không tải được địa điểm.",
     "retry": "Thử lại",
     "cityError": "Không tải được danh sách thành phố."
+  },
+  "rails": {
+    "hoiAn": {
+      "title": "Điểm đến ở Hội An",
+      "subtitle": "Địa điểm đã đối chiếu nguồn trong khu Hội An"
+    },
+    "food": {
+      "title": "Ăn uống",
+      "subtitle": "Quán ăn và cà phê đã đối chiếu nguồn"
+    },
+    "meta": "{{category}} · khoảng {{count}} phút",
+    "credit": "Ảnh: {{credit}}",
+    "empty": "Chưa có địa điểm nào ở đây"
   }
 }

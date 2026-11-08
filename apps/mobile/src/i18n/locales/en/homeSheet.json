@@ -55,5 +55,18 @@
     "error": "Could not load places.",
     "retry": "Try again",
     "cityError": "Could not load cities."
+  },
+  "rails": {
+    "hoiAn": {
+      "title": "Spots in Hội An",
+      "subtitle": "Source-checked places in the Hội An area"
+    },
+    "food": {
+      "title": "Food & drink",
+      "subtitle": "Source-checked food spots and cafés"
+    },
+    "meta": "{{category}} · about {{count}} min",
+    "credit": "Photo: {{credit}}",
+    "empty": "No places here yet"
   }
 }

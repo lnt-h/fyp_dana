@@ -57,8 +57,11 @@ export async function listCategories(): Promise<Category[]> {
 const PLACE_PAGE_LIMIT = 50;
 
 /** API-010 `GET /v1/places?city_id&q&category_code` (first page only). */
-export async function searchPlaces(cityId: Uuid, q?: string, categoryCode?: string | null): Promise<Place[]> {
-  const query = { category_code: categoryCode ?? undefined, city_id: cityId, limit: PLACE_PAGE_LIMIT, locale: currentLocale(), q: q?.trim() || undefined };
+export async function searchPlaces(cityId: Uuid, q?: string, categoryCode?: string | null, areaCode?: string | null): Promise<Place[]> {
+  const query = {
+    area_code: areaCode ?? undefined, category_code: categoryCode ?? undefined, city_id: cityId, limit: PLACE_PAGE_LIMIT, locale: currentLocale(),
+    q: q?.trim() || undefined,
+  };
   return (await apiRequest<PlaceSummaryPage>('/v1/places', { query })).items;
 }
 

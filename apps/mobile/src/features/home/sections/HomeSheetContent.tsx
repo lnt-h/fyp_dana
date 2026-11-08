@@ -15,6 +15,7 @@ import { CategoryChips } from './CategoryChips';
 import { ExplorePlaces, type PlacesLoad } from './ExplorePlaces';
 import { Greeting } from './Greeting';
 import { PlanBanner } from './PlanBanner';
+import { HomePlaceRails } from './PlaceRail';
 import { SavedTrips, SavedTripsGuest, type TripsLoad } from './SavedTrips';
 import { ErrorBanner, NoticeBanner } from './SheetBanners';
 import { TodayCard } from './TodayCard';
@@ -32,7 +33,7 @@ export type HomeSheetContentProps = {
 
 /**
  * SCR-008 Home bottom-sheet content (plain View; `home.tsx` wraps it in the sheet's scroll view): offline banner,
- * greeting, Plan banner, Today card, category chips, saved trips and "Khám phá {city}".
+ * greeting, Plan banner, Today card, category chips, the Hội An and Food & drink rails, saved trips and "Khám phá {city}".
  */
 export function HomeSheetContent({ categoryFilter, onCategoryChange, onOpenPlace }: HomeSheetContentProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
@@ -131,6 +132,10 @@ export function HomeSheetContent({ categoryFilter, onCategoryChange, onOpenPlace
 
       {!offline ? (
         <CategoryChips categories={categories} gutter={GUTTER} loading={categoriesLoading} onChange={onCategoryChange} selected={categoryFilter} />
+      ) : null}
+
+      {!offline && city ? (
+        <HomePlaceRails categories={categories} cityCode={city.code} cityId={cityId} gutter={GUTTER} isVi={isVi} onOpenPlace={onOpenPlace} />
       ) : null}
 
       {isLoaded && !isSignedIn ? (
