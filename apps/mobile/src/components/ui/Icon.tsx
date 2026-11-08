@@ -144,6 +144,13 @@ const ICONS = {
     'M10 17.5v1.5h4v-1.5M12 19v3',
   ),
 
+  /** Theme park / attraction: a ferris wheel with spokes on a stand (never the AI sparkle). */
+  attraction: line(
+    'M6.2 9.5a6 6 0 1 1 11.6 0M6.2 9.5h11.6M12 3.5v12',
+    'M7.8 5.5l8.4 8M16.2 5.5l-8.4 8',
+    'M8 21l2.5-5.5h3L16 21M5.5 21h13',
+  ),
+
   // Status and content
   sparkle: line('M11 4l1.8 5.2L18 11l-5.2 1.8L11 18l-1.8-5.2L4 11l5.2-1.8zM18.5 3v3.5M16.75 4.75h3.5'),
   camera: { line: [{ d: 'M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z' }, { d: c(12, 13.5, 3.5) }] },
@@ -235,7 +242,7 @@ export function categoryIcon(code: string | null | undefined): IconName {
     case 'NIGHTLIFE':
       return 'lantern';
     case 'THEME_PARK':
-      return 'sparkle';
+      return 'attraction';
     default:
       return 'map-pin';
   }

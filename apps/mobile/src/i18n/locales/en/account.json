@@ -68,7 +68,8 @@
     "device": "Match device",
     "deviceSubtitle": "Currently {{language}}",
     "note": "Your choice is saved on this device and applies right away.",
-    "changed": "Switched to {{language}}"
+    "changed": "Switched to {{language}}",
+    "saveFailed": "Could not save your language choice."
   },
   "deleteAccount": {
     "title": "Delete account",

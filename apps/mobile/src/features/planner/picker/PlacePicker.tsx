@@ -116,6 +116,8 @@ export function PlacePicker({ mode, cityId, cityName, planned = {}, offline = fa
   const full = mustSee && mode.selected.length >= MUST_SEE_LIMIT;
   const currentDay = mode.kind === 'add' ? mode.dayIndex : null;
   const vi = currentLocale() === 'vi';
+  // DEC-031: an area (bay, old town) is not a planner stop — it is shown on the map and answered by the Guide only.
+  const schedulable = results?.filter(item => !item.is_area) ?? null;
 
   function badgeFor(place: Place): string | null {
     if (mustSee) return null;
@@ -187,7 +189,7 @@ export function PlacePicker({ mode, cityId, cityName, planned = {}, offline = fa
         tone="error"
       /> : error ? <InlineBanner body={t('proposal.edit.kept')} style={k.banner} title={error} tone="error" /> : null}
 
-      {results === null
+      {schedulable === null
         ? <View accessibilityLabel={t('proposal.picker.loading')} accessibilityLiveRegion="polite" style={k.list}>
           {[0, 1, 2].map(index => <View key={index} style={k.row}>
             <Skeleton height={THUMB} radius={radii.iconTile} width={THUMB} />
@@ -203,7 +205,7 @@ export function PlacePicker({ mode, cityId, cityName, planned = {}, offline = fa
               <Text style={k.emptyBody}>{t('proposal.picker.emptyBody')}</Text>
             </View>}
           contentContainerStyle={[k.list, { paddingBottom: insets.bottom + spacing.xl }]}
-          data={results}
+          data={schedulable}
           keyExtractor={item => item.id}
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"

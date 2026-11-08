@@ -92,7 +92,7 @@ export function SourceLine({ citation, stale, onOpen }: { citation: Citation; st
         {web && <CitationTrustBadge citation={citation} />}
         {isStale && <StaleBadge />}
       </Pressable>
-      {/* The source itself, one tap away ("Summarised from sources" leads here, DEC-025/028). */}
+      {/* The source itself, one tap away (the description credit and every fact lead here, DEC-031). */}
       {url ? <Pressable
         accessibilityHint={t('place.source.openLinkHint')}
         accessibilityLabel={`${t('place.source.openLink')}: ${citation.publisher}`}

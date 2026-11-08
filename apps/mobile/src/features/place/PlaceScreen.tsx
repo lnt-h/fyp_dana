@@ -5,11 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AiMark, CategoryBadge, CircleButton, GlassBadge, Icon, Photo, PrimaryButton, SecondaryButton, SectionHeader, Skeleton, usePhotoFailed } from '../../components/ui';
-import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { CategoryBadge, CircleButton, GlassBadge, Icon, Photo, PrimaryButton, SecondaryButton, SectionHeader, Skeleton, usePhotoFailed } from '../../components/ui';
 import { currentLocale } from '../../i18n';
 import { ApiError, getPlace, listCategories, loadErrorKind, type LoadErrorKind } from '../../lib/api/source';
-import type { Category, Citation, GeoPoint, Media, PlaceDetail, PlaceFact } from '../../lib/api/types';
+import type { Category, Citation, DescriptionSource, GeoPoint, Media, PlaceDetail, PlaceFact } from '../../lib/api/types';
 import { colors } from '../../theme/colors';
 import { elevation } from '../../theme/elevation';
 import { radii, spacing } from '../../theme/spacing';
@@ -50,11 +49,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
   const [mapsFailed, setMapsFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const language = i18n.resolvedLanguage;
-  const reducedMotion = useReducedMotion();
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
-  // Layout offsets for the "Sources: …" link: the inner column inside the scroll, then the credits inside the column.
-  const innerY = useRef(0);
-  const attributionsY = useRef(0);
 
   useEffect(() => {
     let alive = true;
@@ -126,13 +121,12 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
     const fact = facts.get(code);
     if (fact?.knowledge_state !== 'KNOWN') continue;
     const value = code === 'ENTRANCE_LOCATION' ? (entrancePoint ? t('place.facts.entrancePinned') : null) : knownValue(fact);
-    if (value) tiles.push({ aiExtracted: fact.origin === 'AI_EXTRACTED', code, icon: factIcon(code), label: t(`place.facts.${code}`), stale: isStaleFact(fact), value });
+    if (value) tiles.push({ code, icon: factIcon(code), label: t(`place.facts.${code}`), stale: isStaleFact(fact), value });
   }
   if (place.visit_minutes_suggested) {
     tiles.splice(Math.min(1, tiles.length), 0, { code: 'VISIT', icon: 'walk', label: t('place.quick.visit'), value: t('place.visitAbout', { count: place.visit_minutes_suggested }) });
   }
   const missing = missingFacts.filter(code => (facts.get(code)?.knowledge_state ?? 'UNKNOWN') === 'UNKNOWN').map(code => t(`place.missing.${code}`));
-  const anyAiFact = tiles.some(tile => tile.aiExtracted);
 
   const photos = place.media?.filter(media => media.media_asset_id !== place.thumbnail?.media_asset_id) ?? [];
   // Short area name for the hero chip: "Hội An beaches and islands (An Bàng, …)" → "Hội An beaches and islands".
@@ -149,30 +143,12 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
     setMapsFailed(true);
   }
 
-  /** Scrolls to the sources & credits section ("Summarised from sources" captions link here). */
-  function scrollToSources() {
-    scrollRef.current?.scrollTo({ animated: !reducedMotion, y: Math.max(0, innerY.current + attributionsY.current - spacing.xl) });
-  }
-
   function share() {
     const lines = [place.name_vi, addressText, directionsUrls(place.location).google].filter(Boolean);
     Share.share({ message: lines.join('\n') }).catch(() => undefined);
   }
 
   const hasSources = sources.length > 0 || place.attributions.length > 0;
-  const summaryCaption = (hint: string) => <Pressable
-    accessibilityHint={hint}
-    accessibilityLabel={t('place.facts.aiExtracted')}
-    accessibilityRole={hasSources ? 'link' : 'text'}
-    disabled={!hasSources}
-    hitSlop={{ bottom: 8, top: 8 }}
-    onPress={scrollToSources}
-    style={({ pressed }) => [s.aiCaption, pressed && { opacity: 0.6 }]}
-  >
-    <AiMark decorative size={14} />
-    <Text style={s.aiCaptionText}>{t('place.facts.aiExtracted')}</Text>
-    {hasSources ? <Icon color={colors.textMuted} name="chevron-down" size={14} /> : null}
-  </Pressable>;
 
   return <View style={s.screen}>
     <StatusBar style="light" />
@@ -196,26 +172,24 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
         </View> : null}
       </HeroGallery>
 
-      <View onLayout={event => { innerY.current = event.nativeEvent.layout.y; }} style={s.inner}>
+      <View style={s.inner}>
         {tiles.length > 0 || missing.length > 0 ? <>
           <SectionHeader style={s.firstSection} title={t('place.facts.title')} />
           {tiles.length > 0 ? <View style={s.tiles}>
             {tiles.map(tile => <View
-              accessibilityLabel={`${tile.label}: ${tile.value}${tile.aiExtracted ? `. ${t('place.facts.aiExtracted')}` : ''}`}
+              accessibilityLabel={`${tile.label}: ${tile.value}`}
               accessible
               key={tile.code}
               style={[s.tile, tile.value.length > 24 && s.tileWide]}
             >
               <View style={s.tileHead}>
                 <View style={[s.tileIcon, { backgroundColor: tone.bg }]}><FactIcon color={tone.fg} name={tile.icon} size={18} /></View>
-                {tile.aiExtracted ? <AiMark decorative size={14} /> : null}
               </View>
               <Text maxFontSizeMultiplier={1.4} style={s.tileLabel}>{tile.label}</Text>
               <Text maxFontSizeMultiplier={1.4} selectable style={s.tileValue}>{tile.value}</Text>
               {tile.stale ? <StaleBadge /> : null}
             </View>)}
           </View> : null}
-          {anyAiFact ? summaryCaption(t('place.facts.aiExtractedHint')) : null}
           {missing.length > 0 ? <Text style={s.missing}>{t('place.missing.line', { items: missing.join(', ') })}</Text> : null}
         </> : null}
 
@@ -229,11 +203,11 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
           {address && addressText && isStaleFact(address) ? <StaleBadge onDark /> : null}
         </View>
 
-        {!!place.description && <>
-          <SectionHeader style={s.section} title={t('place.description.title')} />
-          <Text style={s.body}>{place.description}</Text>
-          {place.description_origin === 'AI_SUMMARY' ? summaryCaption(t('place.description.aiSummaryHint')) : null}
-        </>}
+        <SectionHeader style={s.section} title={t('place.description.title')} />
+        {place.description
+          ? <Text style={s.body}>{place.description}</Text>
+          : <Text style={s.noDescription}>{t('place.description.none')}</Text>}
+        {place.description_source ? <DescriptionCredit source={place.description_source} /> : null}
 
         {photos.length > 0 && <>
           <SectionHeader style={s.section} title={t('place.media.title')} />
@@ -242,7 +216,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
           </ScrollView>
         </>}
 
-        {hasSources && <View onLayout={event => { attributionsY.current = event.nativeEvent.layout.y; }}>
+        {hasSources && <View>
           <SectionHeader style={s.section} title={t('place.attributions.title')} />
           <View style={s.credits}>
             {sources.map((source, index) => <SourceLine citation={source} key={`${source.source_revision_id}-${index}`} />)}
@@ -264,7 +238,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
   </View>;
 }
 
-type FactTile = { code: string; icon: FactIconName; label: string; value: string; aiExtracted?: boolean; stale?: boolean };
+type FactTile = { code: string; icon: FactIconName; label: string; value: string; stale?: boolean };
 
 /** Every distinct source cited by the place's facts, newest first per source revision. */
 function uniqueSources(facts: PlaceFact[]): Citation[] {
@@ -279,6 +253,31 @@ function uniqueSources(facts: PlaceFact[]): Citation[] {
     }
   }
   return out;
+}
+
+/**
+ * 1.0.5 (DEC-031/DEC-032): one line under a description naming where it came from, e.g.
+ * "From Wikivoyage (en) · CC BY-SA 4.0", linking the source page. An owner-written description is
+ * attributed to Gonarra. The text itself is verbatim, never model-written.
+ */
+function DescriptionCredit({ source }: { source: DescriptionSource }) {
+  const { t } = useTranslation();
+  const label = source.provider === 'OWNER'
+    ? t('place.description.owner')
+    : t('place.description.source', { license: source.license_code, publisher: source.publisher });
+  const url = [source.url, source.license_url].find((value): value is string => typeof value === 'string' && /^https?:\/\//i.test(value.trim()));
+  if (!url) return <Text style={s.descriptionCredit}>{label}</Text>;
+  return <Pressable
+    accessibilityHint={t('place.source.openLinkHint')}
+    accessibilityLabel={label}
+    accessibilityRole="link"
+    hitSlop={{ bottom: 6, top: 6 }}
+    onPress={() => { Linking.openURL(url).catch(() => undefined); }}
+    style={({ pressed }) => [s.descriptionCreditLink, pressed && { opacity: 0.6 }]}
+  >
+    <Text style={[s.descriptionCredit, s.linkText]}>{label}</Text>
+    <Icon color={colors.primary} name="share" size={12} />
+  </Pressable>;
 }
 
 /** Licence credit; the publisher's homepage opens in the browser when it has one. */
@@ -316,12 +315,13 @@ const s = StyleSheet.create({
   action: { flex: 1, paddingHorizontal: spacing.sm },
   actionBar: { backgroundColor: colors.white, bottom: 0, left: 0, paddingHorizontal: spacing.md, paddingTop: spacing.sm, position: 'absolute', right: 0 },
   actions: { flexDirection: 'row', gap: spacing.xs },
-  aiCaption: { alignItems: 'center', alignSelf: 'flex-start', flexDirection: 'row', gap: 6, minHeight: 44 },
-  aiCaptionText: { ...typography.caption, color: colors.textSecondary },
   attribution: { ...typography.caption, color: colors.textSecondary },
   attributionLink: { alignItems: 'center', flexDirection: 'row', gap: 6, minHeight: 44 },
   barInner: { alignSelf: 'center', maxWidth: 480, width: '100%' },
   body: { ...typography.body, color: colors.ink, fontSize: 17, lineHeight: 26 },
+  descriptionCredit: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
+  descriptionCreditLink: { alignItems: 'center', alignSelf: 'flex-start', flexDirection: 'row', gap: 4, minHeight: 32 },
+  noDescription: { ...typography.body, color: colors.textSecondary },
   caption: { ...typography.caption, fontSize: 12, marginTop: 6 },
   credits: { backgroundColor: colors.surface, borderRadius: radii.card, gap: 2, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   driver: { backgroundColor: colors.primary, borderRadius: radii.card, gap: 4, marginTop: spacing.xl, padding: spacing.lg },

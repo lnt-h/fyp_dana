@@ -22,8 +22,6 @@
     "DRESS_CODE": "Dress code",
     "ACCESS_RULES": "Access rules",
     "other": "Other detail",
-    "aiExtracted": "Summarised from sources",
-    "aiExtractedHint": "Gonarra extracted this from the source below; check the source before you go",
     "free": "Free",
     "childPrice": "children {{price}}",
     "entrancePinned": "Marked for directions"
@@ -55,8 +53,9 @@
   },
   "description": {
     "title": "About",
-    "aiSummary": "Summarised from sources",
-    "aiSummaryHint": "Shows the sources this description was summarised from"
+    "none": "No description yet",
+    "owner": "Gonarra",
+    "source": "From {{publisher}} · {{license}}"
   },
   "media": {
     "title": "Photos"

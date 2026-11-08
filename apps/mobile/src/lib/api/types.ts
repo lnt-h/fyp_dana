@@ -1,6 +1,6 @@
 /**
  * App-facing domain types. Field names are the contract's snake_case names. The raw contract types are generated into
- * `schema.d.ts` (`npm run gen:api`, openapi-typescript) from docs/04-design/api/openapi.yaml (1.0.0). Most types here
+ * `schema.d.ts` (`npm run gen:api`, openapi-typescript) from docs/04-design/api/openapi.yaml (1.0.5). Most types here
  * are aliases of the generated schemas; app-level types remain only where the app needs a narrower shape (city codes,
  * 1–3 day counts, fact value shapes, discriminated stream events, scoped Guide session bodies).
  */
@@ -48,6 +48,8 @@ export type WebSource = Schemas['WebSource'];
 export type PageInfo = Schemas['PageInfo'];
 export type Money = Schemas['Money'];
 export type Attribution = Schemas['Attribution'];
+/** Where a displayed description comes from: provider, publisher, licence and link (1.0.5, DEC-031/DEC-032). */
+export type DescriptionSource = Schemas['DescriptionSource'];
 export type GeoPoint = Schemas['GeoPoint'];
 export type Media = Schemas['Media'];
 /** Named area of a city (e.g. Hội An inside Đà Nẵng). */
@@ -106,7 +108,7 @@ export type FactFieldCode =
  */
 export type HoursValue = { intervals: { open: LocalTime; close: LocalTime }[] };
 /**
- * OPENING_HOURS as the pipeline stores it (OSM / owner sheet / AI extraction, DEC-028): ISO weekday (`"1"` = Monday …
+ * OPENING_HOURS as the pipeline stores it (OSM / owner sheet): ISO weekday (`"1"` = Monday …
  * `"7"` = Sunday) → `[open, close]` pairs (`"24:00"` allowed as a close); a weekday that is missing is closed. `text` is
  * the raw source string (e.g. OSM `Mo-Su 07:30-11:30,13:30-17:30`), never shown as-is.
  */

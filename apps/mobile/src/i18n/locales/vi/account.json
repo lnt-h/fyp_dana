@@ -68,7 +68,8 @@
     "device": "Theo thiết bị",
     "deviceSubtitle": "Hiện là {{language}}",
     "note": "Lựa chọn được lưu trên thiết bị này và áp dụng ngay.",
-    "changed": "Đã chuyển sang {{language}}"
+    "changed": "Đã chuyển sang {{language}}",
+    "saveFailed": "Không lưu được lựa chọn ngôn ngữ."
   },
   "deleteAccount": {
     "title": "Xoá tài khoản",

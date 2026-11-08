@@ -22,8 +22,6 @@
     "DRESS_CODE": "Trang phục",
     "ACCESS_RULES": "Quy định ra vào",
     "other": "Thông tin khác",
-    "aiExtracted": "Tóm tắt từ nguồn",
-    "aiExtractedHint": "Thông tin này được Gonarra trích từ nguồn bên dưới; hãy kiểm tra nguồn trước khi đi",
     "free": "Miễn phí",
     "childPrice": "trẻ em {{price}}",
     "entrancePinned": "Đã đánh dấu để chỉ đường"
@@ -55,8 +53,9 @@
   },
   "description": {
     "title": "Giới thiệu",
-    "aiSummary": "Tóm tắt từ nguồn",
-    "aiSummaryHint": "Xem các nguồn được dùng để tóm tắt mô tả này"
+    "none": "Chưa có mô tả",
+    "owner": "Gonarra",
+    "source": "Theo {{publisher}} · {{license}}"
   },
   "media": {
     "title": "Ảnh"
