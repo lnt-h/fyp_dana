@@ -188,5 +188,79 @@
       "revision_conflict": "Bản nháp vừa được thay đổi ở nơi khác. Hãy mở lại để tiếp tục.",
       "trip_not_saved": "Hãy lưu chuyến đi trước rồi thử lại."
     }
+  },
+  "wizard": {
+    "title": "Tạo lịch trình",
+    "step": "Bước {{current}}/{{total}}",
+    "next": "Tiếp",
+    "back": "Quay lại",
+    "useForm": "Dùng biểu mẫu từng bước",
+    "when": {
+      "title": "Khi nào bạn đi?",
+      "destinationSub": "Gồm cả khu Hội An",
+      "destinationOther": "Một thành phố, 1–3 ngày",
+      "hint": "Chạm ngày bắt đầu, rồi chạm ngày kết thúc. Tối đa 3 ngày.",
+      "max": "Chuyến đi tối đa 3 ngày. Hãy chọn ngày kết thúc gần ngày bắt đầu hơn.",
+      "range_one": "{{start}} · {{count}} ngày",
+      "range_other": "{{start}} – {{end}} · {{count}} ngày",
+      "describe": "Hoặc mô tả bằng lời"
+    },
+    "calendar": {
+      "monthTitle": "{{month}} năm {{year}}",
+      "previous": "Tháng trước",
+      "next": "Tháng sau",
+      "start": "ngày bắt đầu",
+      "end": "ngày kết thúc",
+      "single": "ngày bắt đầu và kết thúc",
+      "inRange": "trong chuyến đi",
+      "unavailable": "không chọn được",
+      "month": {
+        "1": "Tháng 1",
+        "2": "Tháng 2",
+        "3": "Tháng 3",
+        "4": "Tháng 4",
+        "5": "Tháng 5",
+        "6": "Tháng 6",
+        "7": "Tháng 7",
+        "8": "Tháng 8",
+        "9": "Tháng 9",
+        "10": "Tháng 10",
+        "11": "Tháng 11",
+        "12": "Tháng 12"
+      }
+    },
+    "style": {
+      "title": "Phong cách chuyến đi",
+      "hint": "Không bắt buộc. Chạm lần nữa để bỏ chọn.",
+      "noEarly": "Không đi sớm (từ 9:30)"
+    },
+    "notes": {
+      "title": "Nơi muốn ghé và ghi chú",
+      "label": "Còn gì nữa không? (không bắt buộc)",
+      "hint": "Ghi chú được gửi tới AI lập lịch, không kèm tên hay vị trí của bạn.",
+      "placeholder": "Ví dụ: muốn ngắm hoàng hôn ở Hội An, không đi bộ nhiều"
+    },
+    "review": {
+      "title": "Xem lại",
+      "hint": "Chạm vào một mục để sửa.",
+      "name": "Tên chuyến đi (không bắt buộc)",
+      "namePlaceholder_one": "{{city}} {{count}} ngày",
+      "namePlaceholder_other": "{{city}} {{count}} ngày",
+      "when": "Thời gian",
+      "style": "Phong cách",
+      "notes": "Nơi muốn ghé và ghi chú",
+      "hours": "Mỗi ngày từ {{start}} đến {{end}}",
+      "noInterests": "Chưa chọn sở thích",
+      "noMustSees": "Chưa có nơi muốn ghé",
+      "noNote": "Không có ghi chú",
+      "note": "Ghi chú: “{{note}}”",
+      "editHint": "Quay lại bước này để sửa"
+    },
+    "exit": {
+      "title": "Rời khỏi đây?",
+      "body": "Lựa chọn của bạn vẫn được giữ trong phiên này.",
+      "leave": "Rời đi",
+      "stay": "Ở lại"
+    }
   }
 }

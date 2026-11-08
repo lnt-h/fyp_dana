@@ -188,5 +188,79 @@
       "revision_conflict": "This draft changed elsewhere. Open it again to continue.",
       "trip_not_saved": "Save this trip first, then try again."
     }
+  },
+  "wizard": {
+    "title": "Create itinerary",
+    "step": "Step {{current}} of {{total}}",
+    "next": "Next",
+    "back": "Back",
+    "useForm": "Use the step-by-step form instead",
+    "when": {
+      "title": "When are you going?",
+      "destinationSub": "Including the Hội An area",
+      "destinationOther": "One city, 1–3 days",
+      "hint": "Tap the start date, then the end date. Up to 3 days.",
+      "max": "Trips are up to 3 days. Pick an end date closer to the start.",
+      "range_one": "{{start}} · {{count}} day",
+      "range_other": "{{start}} – {{end}} · {{count}} days",
+      "describe": "Or describe it in words"
+    },
+    "calendar": {
+      "monthTitle": "{{month}} {{year}}",
+      "previous": "Previous month",
+      "next": "Next month",
+      "start": "start date",
+      "end": "end date",
+      "single": "start and end date",
+      "inRange": "in your trip",
+      "unavailable": "unavailable",
+      "month": {
+        "1": "January",
+        "2": "February",
+        "3": "March",
+        "4": "April",
+        "5": "May",
+        "6": "June",
+        "7": "July",
+        "8": "August",
+        "9": "September",
+        "10": "October",
+        "11": "November",
+        "12": "December"
+      }
+    },
+    "style": {
+      "title": "Your travel style",
+      "hint": "Optional. Tap again to clear.",
+      "noEarly": "No early starts (from 9:30)"
+    },
+    "notes": {
+      "title": "Must-sees and notes",
+      "label": "Anything else? (optional)",
+      "hint": "Your note is sent to the AI planner without your name or location.",
+      "placeholder": "E.g. sunset in Hội An, not too much walking"
+    },
+    "review": {
+      "title": "Review",
+      "hint": "Tap a section to change it.",
+      "name": "Trip name (optional)",
+      "namePlaceholder_one": "{{count}} day in {{city}}",
+      "namePlaceholder_other": "{{count}} days in {{city}}",
+      "when": "When",
+      "style": "Style",
+      "notes": "Must-sees and notes",
+      "hours": "Days run {{start}}–{{end}}",
+      "noInterests": "No interests chosen",
+      "noMustSees": "No must-see places",
+      "noNote": "No note",
+      "note": "Note: “{{note}}”",
+      "editHint": "Goes back to this step"
+    },
+    "exit": {
+      "title": "Leave this screen?",
+      "body": "Your choices are kept for this session.",
+      "leave": "Leave",
+      "stay": "Stay"
+    }
   }
 }

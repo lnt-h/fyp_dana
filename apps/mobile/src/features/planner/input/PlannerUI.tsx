@@ -29,9 +29,12 @@ export const tone = {
 
 const GUTTER = 22;
 
-/** Planner screen frame: circle back button + centred title, scrolling body and an optional sticky footer. */
-export function PlannerShell({ title, children, footer, onBack, centered = false }: {
-  title: string; children: ReactNode; footer?: ReactNode; onBack?: () => void; centered?: boolean;
+/**
+ * Planner screen frame: circle back button + centred title, an optional sub-header (wizard progress), scrolling body
+ * and an optional sticky footer. `scrollKey` scrolls the body back to the top when it changes (wizard step).
+ */
+export function PlannerShell({ title, children, footer, onBack, centered = false, subheader, scrollKey }: {
+  title: string; children: ReactNode; footer?: ReactNode; onBack?: () => void; centered?: boolean; subheader?: ReactNode; scrollKey?: string | number;
 }) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
@@ -43,7 +46,8 @@ export function PlannerShell({ title, children, footer, onBack, centered = false
       <Text accessibilityRole="header" numberOfLines={1} style={p.headerTitle}>{title}</Text>
       <View style={p.headerSpacer} />
     </View>
-    <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
+    {subheader ? <View style={p.subheader}><View style={p.inner}>{subheader}</View></View> : null}
+    <ScrollView key={scrollKey} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
       contentContainerStyle={[p.content, centered && p.contentCentered, { paddingBottom: footer ? spacing.xl : insets.bottom + spacing.xxl }]}>
       <View style={p.inner}>{children}</View>
     </ScrollView>
@@ -225,6 +229,7 @@ export const p = StyleSheet.create({
   header: { backgroundColor: colors.white, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   headerTitle: { ...typography.headline, flex: 1, textAlign: 'center', fontSize: 19, paddingHorizontal: spacing.xs },
   headerSpacer: { width: 44, height: 44 },
+  subheader: { backgroundColor: colors.white, paddingHorizontal: GUTTER, paddingBottom: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.hairline },
   touch: { minWidth: MIN_TOUCH, minHeight: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: GUTTER, paddingTop: spacing.xs },
   contentCentered: { flexGrow: 1, justifyContent: 'center' },

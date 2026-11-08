@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { useAccount, type Interest } from '../../account/AccountContext';
 import { currentLocale } from '../../../i18n';
 import { ApiError, createTrip, getPreferences, listCategories, listCities } from '../../../lib/api/source';
-import type { Category, CategoryCode, City, ClarificationRequired, Pace, PlanPreviewCreate, TravelMode, Uuid } from '../../../lib/api/types';
+import type { Category, CategoryCode, City, ClarificationRequired, IsoDate, Pace, PlanPreviewCreate, TravelMode, Uuid } from '../../../lib/api/types';
 import { DEFAULT_CITY_CODE } from '../../../lib/api/types';
 import { Icon, PrimaryButton, SecondaryButton, Skeleton, categoryIcon, normalizeCategoryCode, travelModeIcon } from '../../../components/ui';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
@@ -22,9 +22,15 @@ import { MUST_SEE_MAX, MustSeePicker } from './MustSeePicker';
 import {
   Banner, Chip, ChipRow, CityTiles, FieldError, IntroCard, PickerField, PlannerShell, Segmented, SectionLabel, UserBubble, p, tone,
 } from './PlannerUI';
+import { addDays, RangeCalendar } from './RangeCalendar';
 import { dateFromIso, dateFromLocalTime, dayMonthYear, minutesOf, todayVn, vnIsoDate, vnLocalTime, weekdayOf } from './vnTime';
+import { DestinationCard, LinkRow, ReviewCard, StepProgress, StepTitle, WIZARD_STEPS, WizardFooter } from './WizardSteps';
 
 const TEXT_MAX = 500;
+const TITLE_MAX = 60;
+/** "No early starts" preset (ui-research §3.2): the day starts at 09:30. */
+const LATE_START = '09:30';
+const DEFAULT_START = '08:30';
 const COUNTER_FROM = 400;
 const paces: Pace[] = ['RELAXED', 'BALANCED', 'PACKED'];
 const travelModes: TravelMode[] = ['WALK', 'DRIVE'];
@@ -34,8 +40,10 @@ const profileInterestCodes: Record<Interest, CategoryCode> = { Beach: 'BEACH', C
 
 const emptyDraft = (): PlannerDraft => ({
   cityId: null, dayCount: null, dayEnd: '18:00', dayStart: '08:30', interests: [], mode: 'form', modes: ['WALK'], mustSee: [],
-  pace: 'BALANCED', prefilled: false, requestText: '', startDate: null,
+  pace: 'BALANCED', prefilled: false, requestText: '', startDate: null, title: '',
 });
+
+type WeekdayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 type FieldErrors = Partial<Record<'startDate' | 'dayCount' | 'hours' | 'modes' | 'text', string>>;
 
@@ -53,6 +61,8 @@ export function PlannerInputScreen() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Wizard step 1–4 (When · Style · Must-sees & notes · Review). Kept while this screen is open. */
+  const [step, setStep] = useState(1);
 
   const update = (changes: Partial<PlannerDraft>) => setDraftState(previous => {
     const next = { ...previous, ...changes };
@@ -140,11 +150,15 @@ export function PlannerInputScreen() {
     setErrors(fieldErrors);
     if (Object.keys(fieldErrors).length > 0 || !draft.startDate || !draft.dayCount) {
       if (describing || view.kind !== 'input') setSubmitError(Object.values(fieldErrors)[0] ?? null);
+      // Wizard: go back to the step that holds the first invalid field.
+      else setStep(fieldErrors.startDate || fieldErrors.dayCount ? 1 : 2);
       return;
     }
+    if (draft.requestText.trim() && !noticeAcked) { acknowledgeAiNotice(); setNoticeAcked(true); }
     setBusy(true);
     try {
-      const trip = await createTrip({ city_id: city.id, day_count: draft.dayCount, start_date: draft.startDate });
+      const title = draft.title?.trim() ? draft.title.trim().slice(0, TITLE_MAX) : null;
+      const trip = await createTrip({ city_id: city.id, day_count: draft.dayCount, start_date: draft.startDate, title });
       const body: PlanPreviewCreate = {
         expected_trip_revision: trip.revision,
         locale: currentLocale(),
@@ -240,71 +254,142 @@ export function PlannerInputScreen() {
     </PlannerShell>;
   }
 
-  /* ------------------------------------------------------------------ Input view (form / describe) */
+  /* ------------------------------------------------------------------ Describe view (free text) */
   const describing = draft.mode === 'describe';
-  const emptyText = describing && !draft.requestText.trim();
-  const ctaLabel = busy ? t('planner.submit.creating') : describing ? t('planner.submit.continue') : t('planner.submit.create');
   const mustSeeFull = draft.mustSee.length >= MUST_SEE_MAX;
+  const noticeBanner = !noticeAcked && <View style={{ marginTop: spacing.lg }}>
+    <Banner tone="info" title={t('planner.notice.title')}
+      action={<Pressable accessibilityRole="link" accessibilityLabel={t('planner.notice.learnMore')} onPress={() => router.push('/settings')} style={styles.learnMore}>
+        <Text style={p.link}>{t('planner.notice.learnMore')}</Text>
+        <Icon name="chevron-right" size={16} color={colors.tealText} />
+      </Pressable>}>
+      {t('planner.notice.body')}
+    </Banner>
+  </View>;
 
-  return <PlannerShell title={t('planner.title')}
-    footer={<>
-      {emptyText && <Text style={styles.reason}>{t('planner.validation.text')}</Text>}
-      {!!submitError && <Text accessibilityRole="alert" style={[styles.reason, { color: tone.error }]}>{submitError}</Text>}
-      {/* The one sparkle left in the app: the "Tạo đề xuất" CTA (thin, 16 dp). */}
-      <PrimaryButton label={ctaLabel} icon={describing ? undefined : 'sparkle'} iconSize={16} loading={busy} disabled={!city || emptyText}
-        accessibilityHint={emptyText ? t('planner.validation.text') : undefined} onPress={() => void submit()} />
-    </>}>
-    <IntroCard label={t('planner.intro.label')} body={t('planner.intro.body')} />
-    <Segmented<InputMode> label={t('planner.mode.label')} value={draft.mode} onChange={mode => { update({ mode }); setErrors({}); setSubmitError(null); }}
-      options={[{ label: t('planner.mode.form'), value: 'form' }, { label: t('planner.mode.describe'), value: 'describe' }]} />
-    {prefillShown && <View style={styles.prefill}>
-      <Icon name="check" size={16} color={colors.tealText} strokeWidth={2.4} />
-      <Text style={styles.prefillText}>{t('planner.prefilled')}</Text>
-    </View>}
+  const textArea = (label: string, placeholder: string, hint?: string) => <>
+    <View style={[styles.textArea, !!errors.text && p.invalid]}>
+      <TextInput multiline value={draft.requestText} maxLength={TEXT_MAX} accessibilityLabel={label} accessibilityHint={hint}
+        placeholder={placeholder} placeholderTextColor={colors.textMuted} textAlignVertical="top" style={styles.textInput}
+        onChangeText={requestText => { update({ requestText }); if (errors.text) setErrors({}); }} />
+      {textLength >= COUNTER_FROM && <Text accessibilityLiveRegion="polite" style={[styles.counter, textLength >= TEXT_MAX && { color: tone.error }]}>{t('planner.describe.counter', { count: textLength })}</Text>}
+    </View>
+    {hint ? <Text style={p.hint}>{hint}</Text> : null}
+  </>;
 
-    {describing ? <>
+  if (describing) {
+    const emptyText = !draft.requestText.trim();
+    return <PlannerShell title={t('planner.title')}
+      footer={<>
+        {emptyText && <Text style={styles.reason}>{t('planner.validation.text')}</Text>}
+        {!!submitError && <Text accessibilityRole="alert" style={[styles.reason, { color: tone.error }]}>{submitError}</Text>}
+        <PrimaryButton label={busy ? t('planner.submit.creating') : t('planner.submit.continue')} loading={busy} disabled={!city || emptyText}
+          accessibilityHint={emptyText ? t('planner.validation.text') : undefined} onPress={() => void submit()} />
+      </>}>
+      <IntroCard label={t('planner.intro.label')} body={t('planner.intro.body')} />
+      <LinkRow icon="back" label={t('planner.wizard.useForm')} onPress={() => { update({ mode: 'form' }); setErrors({}); setSubmitError(null); setStep(1); }} />
       <SectionLabel>{t('planner.describe.prompt')}</SectionLabel>
-      <View style={[styles.textArea, !!errors.text && p.invalid]}>
-        <TextInput multiline value={draft.requestText} maxLength={TEXT_MAX} accessibilityLabel={t('planner.describe.label')} accessibilityHint={t('planner.describe.hint')}
-          placeholder={t('planner.describe.placeholder')} placeholderTextColor={colors.textMuted} textAlignVertical="top" style={styles.textInput}
-          onChangeText={requestText => { update({ requestText }); if (errors.text) setErrors({}); }} />
-        {textLength >= COUNTER_FROM && <Text accessibilityLiveRegion="polite" style={[styles.counter, textLength >= TEXT_MAX && { color: tone.error }]}>{t('planner.describe.counter', { count: textLength })}</Text>}
-      </View>
-      <Text style={p.hint}>{t('planner.describe.hint')}</Text>
+      {textArea(t('planner.describe.label'), t('planner.describe.placeholder'), t('planner.describe.hint'))}
       <FieldError>{errors.text}</FieldError>
-      {!noticeAcked && <View style={{ marginTop: spacing.lg }}>
-        <Banner tone="info" title={t('planner.notice.title')}
-          action={<Pressable accessibilityRole="link" accessibilityLabel={t('planner.notice.learnMore')} onPress={() => router.push('/settings')} style={styles.learnMore}>
-            <Text style={p.link}>{t('planner.notice.learnMore')}</Text>
-            <Icon name="chevron-right" size={16} color={colors.tealText} />
-          </Pressable>}>
-          {t('planner.notice.body')}
-        </Banner>
+      {noticeBanner}
+    </PlannerShell>;
+  }
+
+  /* ------------------------------------------------------------------ Create-trip wizard (SCR-022, 4 steps) */
+  const shortDate = (date: IsoDate) => `${t(`planner.weekday.${weekdayOf(date) as WeekdayIndex}`)} ${dayMonthYear(date).slice(0, 5)}`;
+  const endDate = draft.startDate && draft.dayCount ? addDays(draft.startDate, draft.dayCount - 1) : null;
+  const rangeText = draft.startDate && draft.dayCount && endDate
+    ? t('planner.wizard.when.range', { count: draft.dayCount, end: shortDate(endDate), start: shortDate(draft.startDate) })
+    : null;
+  const lateStart = draft.dayStart === LATE_START;
+  const modeNames = draft.modes.map(mode => t(`planner.modes.${mode}`)).join(', ');
+
+  function leave() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/home');
+  }
+
+  function back() {
+    setSubmitError(null);
+    if (step > 1) { setStep(step - 1); return; }
+    Alert.alert(t('planner.wizard.exit.title'), t('planner.wizard.exit.body'), [
+      { style: 'cancel', text: t('planner.wizard.exit.stay') },
+      { onPress: leave, style: 'destructive', text: t('planner.wizard.exit.leave') },
+    ]);
+  }
+
+  function next() {
+    setSubmitError(null);
+    const fieldErrors = validateForm();
+    if (step === 1) {
+      const stepErrors = { dayCount: fieldErrors.dayCount, startDate: fieldErrors.startDate };
+      setErrors(previous => ({ ...previous, ...stepErrors }));
+      if (stepErrors.startDate || stepErrors.dayCount) return;
+    }
+    if (step === 2) {
+      const stepErrors = { hours: fieldErrors.hours, modes: fieldErrors.modes };
+      setErrors(previous => ({ ...previous, ...stepErrors }));
+      if (stepErrors.hours || stepErrors.modes) return;
+    }
+    if (step < WIZARD_STEPS) { setStep(step + 1); return; }
+    void submit();
+  }
+
+  const stepReason = step === 1 && !draft.startDate ? t('planner.validation.startDate') : null;
+  const lastStep = step === WIZARD_STEPS;
+  const editHint = t('planner.wizard.review.editHint');
+
+  return <PlannerShell title={t('planner.wizard.title')} onBack={back} scrollKey={step}
+    subheader={<StepProgress current={step} />}
+    footer={<WizardFooter
+      disabled={!city || (step === 1 && !draft.startDate)}
+      error={submitError}
+      loading={busy && lastStep}
+      nextIcon={lastStep ? 'sparkle' : undefined}
+      nextLabel={lastStep ? (busy ? t('planner.submit.creating') : t('planner.submit.create')) : t('planner.wizard.next')}
+      onBack={back}
+      onNext={next}
+      reason={stepReason}
+      step={step}
+    />}>
+    {step === 1 && <>
+      <StepTitle hint={t('planner.wizard.when.hint')}>{t('planner.wizard.when.title')}</StepTitle>
+      {prefillShown && <View style={styles.prefill}>
+        <Icon name="check" size={16} color={colors.tealText} strokeWidth={2.4} />
+        <Text style={styles.prefillText}>{t('planner.prefilled')}</Text>
       </View>}
-    </> : <>
-      <SectionLabel>{t('planner.city.label')}</SectionLabel>
-      {cityPicker(item => setCity(item.id), draft.cityId)}
+      {cities && cities.length > 1 ? cityPicker(item => setCity(item.id), draft.cityId) : null}
+      {city
+        ? <DestinationCard
+          credit={credit ? t('planner.city.photoCredit', { credit }) : null}
+          image={CITY_IMAGES[city.code] ?? null}
+          name={cityName(city)}
+          subtitle={city.code === DEFAULT_CITY_CODE ? t('planner.wizard.when.destinationSub') : t('planner.wizard.when.destinationOther')}
+        />
+        : <View style={styles.destinationSkeleton}><Skeleton height={140} radius={radii.photoCard} /></View>}
+      <RangeCalendar
+        dayCount={draft.dayCount}
+        onChange={({ startDate, dayCount }) => { update({ dayCount, startDate }); setErrors(previous => ({ ...previous, dayCount: undefined, startDate: undefined })); }}
+        onTooLong={() => setErrors(previous => ({ ...previous, startDate: t('planner.wizard.when.max') }))}
+        startDate={draft.startDate}
+        today={today}
+      />
+      {rangeText ? <View accessibilityLiveRegion="polite" style={styles.range}>
+        <Icon name="calendar" size={18} color={colors.tealText} />
+        <Text style={styles.rangeText}>{rangeText}</Text>
+      </View> : null}
+      <FieldError>{errors.startDate ?? errors.dayCount}</FieldError>
+      <LinkRow label={t('planner.wizard.when.describe')} onPress={() => { update({ mode: 'describe' }); setErrors({}); setSubmitError(null); }} />
+    </>}
 
-      <SectionLabel>{t('planner.date.label')}</SectionLabel>
-      {dateField}
-
-      <SectionLabel>{t('planner.days.label')}</SectionLabel>
-      {dayPicker}
-
-      <SectionLabel>{t('planner.hours.label')}</SectionLabel>
-      <View style={styles.row}>
-        <View style={p.flex}><PickerField label={t('planner.hours.start')} pickerTitle={t('planner.hours.pickerStart')} mode="time" locale={dateLocale} text={draft.dayStart}
-          value={dateFromLocalTime(draft.dayStart)} onChange={date => { update({ dayStart: vnLocalTime(date) }); setErrors(previous => ({ ...previous, hours: undefined })); }} /></View>
-        <View style={p.flex}><PickerField label={t('planner.hours.end')} pickerTitle={t('planner.hours.pickerEnd')} mode="time" locale={dateLocale} text={draft.dayEnd}
-          value={dateFromLocalTime(draft.dayEnd)} onChange={date => { update({ dayEnd: vnLocalTime(date) }); setErrors(previous => ({ ...previous, hours: undefined })); }} /></View>
-      </View>
-      <FieldError>{errors.hours}</FieldError>
-
+    {step === 2 && <>
+      <StepTitle hint={t('planner.wizard.style.hint')}>{t('planner.wizard.style.title')}</StepTitle>
       <SectionLabel>{t('planner.pace.label')}</SectionLabel>
-      <Segmented<Pace> role="radio" label={t('planner.pace.label')} value={draft.pace} onChange={pace => update({ pace })}
-        options={paces.map(pace => ({ label: t(`planner.pace.${pace}`), value: pace }))} />
+      <View accessibilityRole="radiogroup" accessibilityLabel={t('planner.pace.label')} style={styles.row}>
+        {paces.map(pace => <Chip key={pace} grow kind="radio" label={t(`planner.pace.${pace}`)} selected={draft.pace === pace} onPress={() => update({ pace })} />)}
+      </View>
 
-      <SectionLabel hint={t('planner.interests.hint')}>{t('planner.interests.label')}</SectionLabel>
+      <SectionLabel>{t('planner.interests.label')}</SectionLabel>
       {categories ? <ChipRow>{categories.map(category => {
         const checked = draft.interests.includes(category.code);
         return <Chip key={category.code} kind="checkbox" icon={categoryIcon(category.code)} label={vi ? category.name_vi : category.name_en} selected={checked}
@@ -321,6 +406,22 @@ export function PlannerInputScreen() {
       })}</View>
       <FieldError>{errors.modes}</FieldError>
 
+      <SectionLabel>{t('planner.hours.label')}</SectionLabel>
+      <ChipRow>
+        <Chip kind="checkbox" icon="clock" label={t('planner.wizard.style.noEarly')} selected={lateStart}
+          onPress={() => { update({ dayStart: lateStart ? DEFAULT_START : LATE_START }); setErrors(previous => ({ ...previous, hours: undefined })); }} />
+      </ChipRow>
+      <View style={[styles.row, styles.hours]}>
+        <View style={p.flex}><PickerField label={t('planner.hours.start')} pickerTitle={t('planner.hours.pickerStart')} mode="time" locale={dateLocale} text={draft.dayStart}
+          value={dateFromLocalTime(draft.dayStart)} onChange={date => { update({ dayStart: vnLocalTime(date) }); setErrors(previous => ({ ...previous, hours: undefined })); }} /></View>
+        <View style={p.flex}><PickerField label={t('planner.hours.end')} pickerTitle={t('planner.hours.pickerEnd')} mode="time" locale={dateLocale} text={draft.dayEnd}
+          value={dateFromLocalTime(draft.dayEnd)} onChange={date => { update({ dayEnd: vnLocalTime(date) }); setErrors(previous => ({ ...previous, hours: undefined })); }} /></View>
+      </View>
+      <FieldError>{errors.hours}</FieldError>
+    </>}
+
+    {step === 3 && <>
+      <StepTitle>{t('planner.wizard.notes.title')}</StepTitle>
       <SectionLabel trailing={draft.mustSee.length ? <Text style={styles.count}>{t('planner.mustSee.count', { count: draft.mustSee.length })}</Text> : undefined}>
         {t('planner.mustSee.label')}
       </SectionLabel>
@@ -340,12 +441,46 @@ export function PlannerInputScreen() {
       </Pressable>}
       {mustSeeFull && <Text style={p.hint}>{t('planner.mustSee.max')}</Text>}
       {city && <MustSeePicker visible={pickerOpen} cityId={city.id} cityName={cityName(city)} selected={draft.mustSee} onChange={mustSee => update({ mustSee })} onClose={() => setPickerOpen(false)} />}
+
+      <SectionLabel hint={t('planner.wizard.notes.hint')}>{t('planner.wizard.notes.label')}</SectionLabel>
+      {textArea(t('planner.wizard.notes.label'), t('planner.wizard.notes.placeholder'))}
+      {draft.requestText.trim() ? noticeBanner : null}
+    </>}
+
+    {step === 4 && <>
+      <StepTitle hint={t('planner.wizard.review.hint')}>{t('planner.wizard.review.title')}</StepTitle>
+      <Text style={styles.nameLabel}>{t('planner.wizard.review.name')}</Text>
+      <TextInput accessibilityLabel={t('planner.wizard.review.name')} maxLength={TITLE_MAX} onChangeText={title => update({ title })}
+        placeholder={t('planner.wizard.review.namePlaceholder', { city: cityName(city), count: draft.dayCount ?? 1 })} placeholderTextColor={colors.textMuted}
+        returnKeyType="done" style={styles.nameInput} value={draft.title ?? ''} />
+      <View style={styles.reviewList}>
+        <ReviewCard editLabel={editHint} icon="calendar" onPress={() => setStep(1)} title={t('planner.wizard.review.when')}
+          lines={[cityName(city), rangeText ?? t('planner.validation.startDate')].filter(Boolean)} />
+        <ReviewCard editLabel={editHint} icon="sliders" onPress={() => setStep(2)} title={t('planner.wizard.review.style')}
+          lines={[
+            [t(`planner.pace.${draft.pace}`), modeNames].filter(Boolean).join(' · '),
+            interestNames.length ? interestNames.join(', ') : t('planner.wizard.review.noInterests'),
+            t('planner.wizard.review.hours', { end: draft.dayEnd, start: draft.dayStart }),
+          ]} />
+        <ReviewCard editLabel={editHint} icon="map-pin" onPress={() => setStep(3)} title={t('planner.wizard.review.notes')}
+          lines={[
+            draft.mustSee.length ? draft.mustSee.map(place => place.name).join(', ') : t('planner.wizard.review.noMustSees'),
+            draft.requestText.trim() ? t('planner.wizard.review.note', { note: draft.requestText.trim() }) : t('planner.wizard.review.noNote'),
+          ]} />
+      </View>
     </>}
   </PlannerShell>;
 }
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.sm },
+  hours: { marginTop: spacing.sm },
+  range: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm, padding: spacing.sm, borderRadius: radii.field, backgroundColor: colors.surfaceTint },
+  rangeText: { flex: 1, fontFamily: fonts.bold, fontSize: 15, lineHeight: 20, color: colors.deepOcean },
+  nameInput: { minHeight: 52, borderWidth: 1, borderColor: tone.border, borderRadius: radii.field, backgroundColor: colors.white, paddingHorizontal: spacing.md, fontFamily: fonts.bold, fontSize: 16, color: colors.ink },
+  reviewList: { marginTop: spacing.lg },
+  destinationSkeleton: { marginBottom: spacing.md },
+  nameLabel: { fontFamily: fonts.bold, fontSize: 14, color: colors.deepOcean, marginBottom: spacing.xs },
   reason: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.xs },
   prefill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.sm },
   prefillText: { fontFamily: fonts.medium, fontSize: 14, color: colors.tealText },
