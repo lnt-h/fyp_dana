@@ -11,8 +11,8 @@ info:
     stops (OQ-128); city-level Guide sessions (ADR-010 1.0) with `SEARCHING_WEB` and `ANSWERED_WEB_UNVERIFIED`;
     curator routes for web candidates, facts, closure rules and chunks). Previously version 0.4, status Draft. Owner Lê Ngọc Tấn Hiền; approver trantrongminh
     (pending). Date 2026-11-05 (0.3: curation `chunks[]` embedded on write, Guide Tier 1 evidence; SRC-100 A-028. 0.4: `City.centre`, curator
-    queue and import-run fields, API-033 `import_run_id` filter; SRC-100 A-029). Produced with `design/apiDesign_prompt.md` v2.0 (kit commit `6996dae`, adapted copy
-    `docs/00-governance/prompt-templates/design/apiDesign_prompt.md`). Narrative, rules and traceability: `docs/04-design/api/api-contract.md`.
+    queue and import-run fields, API-033 `import_run_id` filter; SRC-100 A-029). Produced with `design/apiDesign_prompt.md` v2.0 (kit commit `6996dae`).
+    Narrative, rules and traceability: `docs/04-design/api/api-contract.md`.
 
     This contract is a superset of the generated `apps/api/openapi.json` (info.version 0.1.0): `/health`, `/ready`
     and `/v1/me` and their four schemas are kept unchanged apart from added `x-` extensions. Everything else is

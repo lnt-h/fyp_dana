@@ -1,52 +1,47 @@
-# ADR-001 — Modular monolith API with three separate deployables over HTTP API /v1
+# ADR-001 — Modular monolith API with separate client deployables over HTTP API `/v1`
 
 | Field | Value |
 |---|---|
-| Status | Proposed (pending mentor approval at the design gate) |
-| Date | 2026-11-04 |
+| Status | Proposed (mentor approval at M0). Re-affirmed 2026-11-06 (DEC-021); 1.1: `apps/admin` removed (DEC-022) |
+| Date | 2026-11-04 (1.0: 2026-11-06) |
+| Version | 1.1 (1.0 → 1.1: DEC-022 removes the admin SPA; two deployables remain; `/v1/admin` reduced to two operator routes) |
 | Owner / decider | Lê Ngọc Tấn Hiền |
 | Approver | trantrongminh, FYP mentor ([Pending]) |
-| Parent | GONARRA-SAD 0.1 §4.0; prompt `design/SAD_prompt.md` v2.0 |
-| Decision source | DEC-006 (SRC-100), CON-004 |
+| Decision source | DEC-006 (SRC-100), CON-004; module layout DEC-014 (SRC-105) |
 
 ## Context
 
-One developer must deliver catalog, planning, Guide, stays and curation by ~2027-02-01 (CON-003, ASM-002) for
-≤ 15 concurrent users (ASM-030). The traveler app and the curator tool must be separate from the backend and use
-only its HTTP API (CON-004). The foundation already exists as one FastAPI service (SRC-009). AGENTS.md forbids
-microservices, queues and Redis without a plan change (SRC-003).
-
-## Drivers
-
-CON-003, CON-004, CON-005, C-008, C-012, QAS-11, QAS-14.
-
-## Options considered
-
-| Option | Pros | Cons | Verdict |
-|---|---|---|---|
-| A. Modular monolith API + separate mobile and admin deployables over `/v1` REST + SSE | One process to deploy and debug; in-process calls between modules; clear contract for clients; fits t4g.small | Module discipline must be enforced by rules/tests, not by the network | **Chosen** |
-| B. Microservices (one per module) | Independent scaling | Several containers, network calls, distributed failure modes; no load that needs it; more AWS cost | Rejected |
-| C. Admin pages rendered by the API (server-side templates) | One less deployable | Violates CON-004 separation; mixes curator UI into the API | Rejected |
-| D. Clients read the database directly (e.g., BaaS) | Fewer endpoints | Breaks owner checks, provider-secret rules and BR-020 | Rejected |
+One developer delivers catalog, planning, Guide, research, stays and curation by 2027-02-01 for ≤ 15 concurrent
+users. Traveler app and curator tool must be separate from the backend and use only its HTTP API. The foundation is
+already one FastAPI service. Microservices, queues and Redis are out without a plan change.
 
 ## Decision
 
-- Three deployables: `apps/api` (CMP-003), `apps/mobile` (CMP-001), `apps/admin` (CMP-002). They share only the
-  versioned HTTP contract `/v1` (REST + SSE). `apps/api/openapi.json` is generated and drift-checked in CI;
-  clients generate types with `openapi-typescript`.
-- `apps/api` is a modular monolith with modules identity, catalog, curation, trips, planning, routing, guide,
-  stays (CMP-004..CMP-011), plus shared AI gateway, provider adapters and platform kernel (CMP-012..CMP-014).
-- Module rules (SAD §3.2.2): call other modules only through their service interface; never read another module's
-  tables; acyclic dependency direction; provider SDKs only inside their adapter.
-- Curator endpoints live under `/v1/admin` and require the curator role.
+- Two deployables (rev. 1.1, DEC-022; `apps/admin` withdrawn): `apps/api` (FastAPI) and `apps/mobile` (Expo). They share only the
+  versioned contract `/v1` (REST + SSE); `apps/api/openapi.json` is generated and drift-checked in CI; clients
+  generate types with `openapi-typescript`.
+- `apps/api/app` is a modular monolith: `ai/`, `agents/`, `planning/`, `routing/`, `guide/`, `research/`,
+  `providers/`, `catalog/`, `ingestion/`, `curation/` (automated publication gate), `api/` (see [SAD §2](../architecture/SAD.md#2-deployables-and-modules)). Modules call each other through Python
+  interfaces, never another module's tables; provider SDKs live only in their adapter.
+- Import rules are enforced by `import-linter`: solver, calendar, health and routing never import agents or AI;
+  only workflows import both agents and repositories; `api` imports workflows only.
+- Operator endpoints (rev. 1.1: only emergency unpublish and the city summary) live under `/v1/admin` and require the operator allow-list `GONARRA_CURATOR_CLERK_USER_IDS`. There are no curator review endpoints (DEC-022).
+
+## Options
+
+| Option | Verdict | Why |
+|---|---|---|
+| A. Modular monolith API + separate clients over `/v1` (mobile; admin client withdrawn by DEC-022) | **Chosen** | One process to deploy and debug; in-process calls; clear contract; fits a 2 GiB host |
+| B. Microservices per module | Rejected | Distributed failure modes and cost with no load that needs them |
+| C. Admin pages rendered by the API | Rejected | Breaks client/server separation (CON-004) |
+| D. Clients read the database directly | Rejected | Bypasses owner checks and provider-secret rules |
 
 ## Consequences
 
-- Positive: one image, one deploy, one log stream; simple transactions (e.g., Save); fast iteration.
-- Negative: a fault in one module can affect the whole API process; mitigated by timeouts, quotas, and the single
-  repair rule. Module boundaries need an import-rule test.
-- Follow-up: OQ-034 (move to module packages). Breaking contract changes require a new path version.
+- Positive: one image, one deploy, one log stream; simple transactions (Save); fast iteration.
+- Negative: a fault in one module affects the whole process; mitigated by timeouts, quotas, the single-repair rule
+  and the import rules. Breaking contract changes need a new path version.
 
-## Verification
+## Drivers
 
-CI OpenAPI drift check (existing); import-rule test; client type check against generated types (QAS-14).
+CON-003, CON-004, CON-005, C-008, C-012, QAS-14.

@@ -3,7 +3,7 @@
 The orchestrator emits one event per step into a :class:`ProgressSink`; the route drains it with
 :func:`stream_sink` and returns :func:`sse_response`. Every event is a Pydantic model (or mapping)
 with a ``type`` field; the SSE ``event:`` name equals ``type`` and ``data:`` is the JSON payload
-(``PlanningStreamEvent`` / ``GuideStreamEvent`` in ``docs/api/openapi.yaml``).
+(``PlanningStreamEvent`` / ``GuideStreamEvent`` in ``docs/04-design/api/openapi.yaml``).
 """
 
 import asyncio
