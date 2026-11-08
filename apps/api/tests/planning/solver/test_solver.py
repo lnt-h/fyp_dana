@@ -320,3 +320,102 @@ def test_invalid_input_rejected() -> None:
         solve(replace(inp, stops=inp.stops + inp.stops[:1]))
     with pytest.raises(ValueError):
         solve(replace(inp, stops=(replace(inp.stops[0], lock=Lock(5, 0)),)))
+
+
+# ---- day balance and variety (DEC-030 live check: a 2-day plan put all 10 stops on day 1) --------
+
+
+def _compact_stops(n: int, n_days: int, categories: list[str] | None = None) -> SolverInput:
+    """``n`` short visits close together: one 12-hour day could hold all of them."""
+    pts = _points(n, 3)
+    stops = tuple(
+        StopSpec(
+            key=f"place:p{i:02d}",
+            visit_minutes=45,
+            windows=_open_all(n_days),
+            rank=i,
+            category=categories[i] if categories else None,
+        )
+        for i in range(n)
+    )
+    return SolverInput(days=_days(n_days), stops=stops, durations=_durations(pts))
+
+
+def _per_day(result: SolverResult) -> list[int]:
+    return [len(plan.stops) for plan in result.days]
+
+
+def test_two_day_trip_without_caps_is_still_balanced() -> None:
+    inp = _compact_stops(10, 2)
+    result = solve(inp)
+    _assert_consistent(inp, result)
+    assert _per_day(result) == [5, 5]
+
+
+def test_pace_caps_stops_per_day_and_fills_every_day() -> None:
+    inp = _compact_stops(14, 2)
+    capped = replace(inp, days=tuple(replace(d, max_stops=6) for d in inp.days))
+    result = solve(capped)
+    _assert_consistent(capped, result)
+    assert _per_day(result) == [6, 6]
+    assert {d.reason for d in result.dropped} == {DropReason.NOT_SCHEDULED}
+    assert len(result.dropped) == 2
+
+
+def test_few_candidates_never_leave_a_requested_day_empty() -> None:
+    inp = _compact_stops(3, 3)
+    result = solve(inp)
+    _assert_consistent(inp, result)
+    assert _per_day(result) == [1, 1, 1]
+
+
+def test_day_balance_respects_closures() -> None:
+    inp = _compact_stops(4, 2)
+    day2 = START + timedelta(days=1)
+    # Only p00 can open on day 2: day 2's fair share is limited to what can be served there.
+    stops = tuple(
+        s if s.key == "place:p00" else replace(s, windows={START: s.windows[START], day2: ()})
+        for s in inp.stops
+    )
+    result = solve(replace(inp, stops=stops))
+    assert _per_day(result) == [3, 1]
+    assert [s.key for s in result.days[1].stops] == ["place:p00"]
+
+
+def test_category_cap_spreads_one_category_over_days() -> None:
+    categories = ["VIEWPOINT"] * 4 + ["MUSEUM", "BEACH", "HERITAGE", "NATURE"]
+    inp = _compact_stops(8, 2, categories)
+    capped = replace(inp, category_day_caps={"VIEWPOINT": 2})
+    result = solve(capped)
+    _assert_consistent(capped, result)
+    by_key = {s.key: s for s in capped.stops}
+    for plan in result.days:
+        assert sum(1 for s in plan.stops if by_key[s.key].category == "VIEWPOINT") <= 2
+    assert _per_day(result) == [4, 4]
+
+
+def test_max_stops_must_not_be_negative() -> None:
+    with pytest.raises(ValueError):
+        replace(_days(1)[0], max_stops=-1)
+
+
+def test_same_day_ticket_group_is_kept_on_one_day() -> None:
+    """Hội An Old Town stops share a same-day ticket; splitting them buys it twice."""
+    inp = _compact_stops(4, 2)
+    ticket = "ticket:hoi-an-old-town"
+    stops = tuple(
+        replace(stop, ticket_group=ticket if stop.key in {"place:p00", "place:p01"} else None)
+        for stop in inp.stops
+    )
+    result = solve(replace(inp, stops=stops))
+    _assert_consistent(inp, result)
+    assert all(len(plan.stops) for plan in result.days)  # both days still used
+    by_key = {stop.key: stop for stop in stops}
+    ticket_days = {
+        plan.day_index
+        for plan in result.days
+        for stop in plan.stops
+        if by_key[stop.key].ticket_group == ticket
+    }
+    assert len(ticket_days) == 1
+    assert sum(len(plan.stops) for plan in result.days) == 4

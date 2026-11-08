@@ -705,8 +705,8 @@ resume).
 
 **Layout (top → bottom).** `AccountShell` header: back, title `{city} · {day_count} ngày/days`, ⋯ menu (44 pt).
 Status row: `Badge` *Chưa lưu / Unsaved* or *Đã lưu / Saved* + `HealthBadge` (`✓ Ổn / Good`, `⚠ Cần chú ý · {n} cảnh
-báo / Warning · {n} warnings`, `⛔ Bị chặn · {b} lỗi, {w} cảnh báo / Blocked · {b} blocking, {w} warnings`; tap →
-SCR-026). `SegmentedControl` *Dòng thời gian / Timeline* · *Bản đồ / Map*. `DayTabs` *Ngày {i} · {date short} / Day
+báo / Warning · {n} warnings`, `⛔ Bị chặn · {b} lỗi, {w} cảnh báo / Blocked · {b} blocking, {w} warnings`; counts
+include BLOCKING and WARNING only, never INFO such as unknown hours or estimated legs (DEC-030); tap → SCR-026). `SegmentedControl` *Dòng thời gian / Timeline* · *Bản đồ / Map*. `DayTabs` *Ngày {i} · {date short} / Day
 {i} · {date short}* (1–3). Optional *Đang tính lại thời gian sau khi bạn sửa… / Recalculating times after your edit…*
 line. List of `StopCard`s separated by `LegRow`s; each `StopCard`: ordinal circle, time range `HH:mm – HH:mm`, primary
 name, secondary other-language name ` · {visit_minutes} phút/min`, optional conflict/warning line, lock badge, ⋯
@@ -721,7 +721,7 @@ unavailable variant. Sticky `Action` primary *Lưu chuyến đi / Save trip* wit
 | Day | `days[].day_index`, `day_window_start`, `day_window_end` | Tab label |
 | Stop | `days[].stops[].id`, `ordinal`, `planned_arrival`, `planned_departure`, `visit_minutes`, `is_locked`, `name_vi`, `name`, `rationale`, `conflicts[]` | Times in Asia/Ho_Chi_Minh; rationale shown as an optional *Vì sao chọn? / Why this?* disclosure labelled as AI text |
 | Leg | `days[].legs[].from_stop_id`, `to_stop_id`, `travel_mode`, `availability`, `distance_m`, `duration_s`, `conflicts[]` | `450 m · 6 phút`; `availability` UNAVAILABLE or EXPIRED → *Không có tuyến đường — không ước tính / Route unavailable — no estimate* (never a straight-line value, BRU-006) |
-| Conflicts | `conflicts[].type`, `severity`, `message` | CLOSED_AT_PLANNED_TIME → *Đóng cửa vào giờ dự kiến (đóng {time}) / Closed at planned time (closes {time})*; LEG_UNAVAILABLE → as above; DAY_WINDOW_EXCEEDED → *Vượt khung giờ trong ngày / Day window exceeded*; OPENING_HOURS_UNKNOWN → *Giờ mở cửa: chưa rõ / Opening hours: unknown*; FACT_STALE → *Giờ mở cửa có thể đã cũ / Hours may be out of date*; MUST_SEE_NOT_INCLUDED → shown once in a day-level note *Không thể xếp {place}: {message} / Could not include {place}: {message}* (US-013 AC4) |
+| Conflicts | `conflicts[].type`, `severity`, `message` | CLOSED_AT_PLANNED_TIME → *Đóng cửa vào giờ dự kiến (đóng {time}) / Closed at planned time (closes {time})*; LEG_UNAVAILABLE → as above; DAY_WINDOW_EXCEEDED → *Vượt khung giờ trong ngày / Day window exceeded*; OPENING_HOURS_UNKNOWN (INFO, DEC-030) → no line on the stop; aggregated once on SCR-026 (see there); FACT_STALE → *Giờ mở cửa có thể đã cũ / Hours may be out of date*; MUST_SEE_NOT_INCLUDED → shown once in a day-level note *Không thể xếp {place}: {message} / Could not include {place}: {message}* (US-013 AC4) |
 | Saved trip (read mode) | API-014 `days[]` same shapes; `status`, `revision`, `saved_at` | Badge *Đã lưu / Saved*; Save hidden; *Chỉnh sửa / Edit* creates a preview |
 
 **Actions.**
@@ -745,7 +745,7 @@ unavailable variant. Sticky `Action` primary *Lưu chuyến đi / Save trip* wit
 |---|---|---|
 | Loading | Skeleton stop cards (first open); after an edit, badge *↻ Đang tính lại… / Recalculating…* and Save disabled with *Có thể lưu khi tính lại xong. / You can save when recalculation finishes.* (NFR-004 ≤ 5 s p95) | — |
 | Empty day | `EmptyState` *Ngày {i} chưa có điểm dừng / Day {i} has no stops yet* · *Thêm địa điểm đã đối chiếu nguồn ở {city} hoặc tạo lại ngày này. / Add a source-checked {city} place or regenerate this day.* · `＋ Thêm điểm dừng / Add a stop` → SCR-028 | — |
-| Unknown / Stale | Warning badges on the stop (never blank) | fact.unknown / fact.stale |
+| Unknown / Stale | Stale facts: warning line on the stop. Unknown hours (INFO, DEC-030): no stop badge; counted once in the SCR-026 note | fact.stale |
 | Blocked | Red left edge on the stop + reason; health badge counts; Save disabled | — |
 | Error (edit) | `Banner` error above the list; edit kept (US-019 AC2) | Không tính lại được thời gian di chuyển. Thay đổi của bạn vẫn còn trong bản nháp. Thử lại / Could not recalculate travel times. Your change is kept in this draft. Try again |
 | Conflict 409 `revision_conflict` | Banner; reload `head_revision`; pending edit offered again | Bản nháp đã thay đổi ở nơi khác / This draft changed elsewhere |
@@ -826,7 +826,9 @@ blocking issue(s), {w} warnings · Day {i}* (per-day tabs when > 1 day). Section
 đến {arrival}, đóng {closes}, rời {departure} / Day {i} · #{ordinal} {name} · arrive …, closes …, leave …*, actions
 (fix shortcut primary small, *Đến điểm dừng / Go to stop* secondary small). Section **Nên xem / Worth checking**
 (WARNING): same card with *⚠ Cảnh báo / Warning*; FACT_STALE detail *giờ mở cửa đối chiếu nguồn {n} ngày trước / hours
-verified {n} days ago*. Good state: summary card + explanation *Mọi điểm dừng mở cửa vào giờ dự kiến, mọi chặng có tuyến
+verified {n} days ago*. Unknown hours (`OPENING_HOURS_UNKNOWN`, INFO since DEC-030) are not an `IssueCard` and never
+change the status: one quiet note below the sections, *Chưa có giờ mở cửa của {n} điểm — nên kiểm tra trước khi đi. /
+Hours not listed for {n} stops — check before you go.*, localized on the client from the conflict type. Good state: summary card + explanation *Mọi điểm dừng mở cửa vào giờ dự kiến, mọi chặng có tuyến
 đường, ngày kết thúc trước {day_window_end}. / Every stop is open at its planned time, every leg has a route, and each
 day ends before {day_window_end}.* + note *Tình trạng được tính lại sau mỗi thay đổi. Giờ mở cửa thực tế có thể thay
 đổi; hãy kiểm tra thẻ địa điểm trước khi đi. / Health is recalculated after every change. Real opening hours can change;
@@ -837,8 +839,8 @@ check the place card before you go.*
 conflict `message` (the server composes it; the UI does not compute hours).
 
 **Actions.** Fix shortcuts map to SCR-027 operations: CLOSED_AT_PLANNED_TIME → Move (to_ordinal 1); LEG_UNAVAILABLE →
-mode switch or Replace; DAY_WINDOW_EXCEEDED → Remove/Shorten (duration stepper focused); OPENING_HOURS_UNKNOWN and
-FACT_STALE → *Xem thẻ địa điểm / See place card* (SCR-033).
+mode switch or Replace; DAY_WINDOW_EXCEEDED → Remove/Shorten (duration stepper focused); FACT_STALE → *Xem thẻ địa
+điểm / See place card* (SCR-033); the unknown-hours note lists the stops, each opening SCR-033.
 
 **States.** Loading: *Đang cập nhật / Updating* with the previous result greyed; Good = empty state; error (validation
 could not run): *Không kiểm tra được kế hoạch / Could not check the plan*, Save stays disabled; offline: last known

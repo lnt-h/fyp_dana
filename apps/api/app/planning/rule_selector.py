@@ -24,7 +24,7 @@ from __future__ import annotations
 import re
 import unicodedata
 import uuid
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -38,6 +38,11 @@ MAX_POOL = 24
 MEAL_CATEGORIES = frozenset({"FOOD", "CAFE"})
 FOOD_PER_DAY = 2
 CAFE_PER_DAY = 1
+
+# Variety (DEC-030 live check: a 2-day plan leaned on one category, 6 of 12 VIEWPOINT bridges):
+# at most this many stops of one category per day, unless that category is the request's only
+# interest. Meal categories keep their own per-day slots.
+CATEGORY_PER_DAY_CAP = 2
 
 INTEREST_BONUS = 100
 FAME_BONUS = 20
@@ -159,6 +164,70 @@ def pool_size(days: int, pace: str | None) -> int:
     """Pool for the solver: picks per day for the pace plus one spare per day, capped."""
     per_day = PICKS_PER_DAY.get(pace or "BALANCED", PICKS_PER_DAY["BALANCED"])
     return min(MAX_POOL, (per_day + 1) * max(1, days))
+
+
+def stops_per_day(pace: str | None) -> int:
+    """Stops one day may hold for the pace (the solver's per-day cap)."""
+    return PICKS_PER_DAY.get(pace or "BALANCED", PICKS_PER_DAY["BALANCED"])
+
+
+def wanted_interests(interests: Collection[str], request_text: str | None) -> frozenset[str]:
+    """Explicit interest categories plus those named in the request text."""
+    return frozenset(interests) | interests_from_text(request_text)
+
+
+def category_day_cap(category_code: str, wanted: Collection[str]) -> int | None:
+    """Per-day cap for a category; ``None`` (uncapped) for the request's single interest."""
+    if len(wanted) == 1 and category_code in wanted:
+        return None
+    if category_code == "FOOD":
+        return FOOD_PER_DAY
+    if category_code == "CAFE":
+        return CAFE_PER_DAY
+    return CATEGORY_PER_DAY_CAP
+
+
+def diversify(
+    ranked: Sequence[uuid.UUID],
+    category_of: Callable[[uuid.UUID], str],
+    *,
+    days: int,
+    wanted: Collection[str],
+    target: int,
+    must_see: Collection[uuid.UUID] = (),
+    fallback: Sequence[uuid.UUID] = (),
+) -> list[uuid.UUID]:
+    """Keep ``ranked`` order but at most ``category_day_cap × days`` picks per category; fill up
+    to ``target`` from ``fallback`` (same caps), then — only if still short — with the capped-out
+    picks in order, so a thin catalog still yields a full pool. Must-sees are always kept."""
+    must = set(must_see)
+    counts: dict[str, int] = {}
+    kept: list[uuid.UUID] = []
+    overflow: list[uuid.UUID] = []
+
+    def fits(pid: uuid.UUID) -> bool:
+        cap = category_day_cap(category_of(pid), wanted)
+        return cap is None or counts.get(category_of(pid), 0) < cap * max(1, days)
+
+    def keep(pid: uuid.UUID) -> None:
+        kept.append(pid)
+        counts[category_of(pid)] = counts.get(category_of(pid), 0) + 1
+
+    for pid in dict.fromkeys(ranked):
+        if pid in must or fits(pid):
+            keep(pid)
+        else:
+            overflow.append(pid)
+    for pid in fallback:
+        if len(kept) >= target:
+            break
+        if pid not in kept and pid not in overflow and fits(pid):
+            keep(pid)
+    for pid in overflow:
+        if len(kept) >= target:
+            break
+        keep(pid)
+    return kept
 
 
 @dataclass(frozen=True, slots=True)

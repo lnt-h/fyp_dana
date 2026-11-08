@@ -133,3 +133,60 @@ def test_snapshot_rejects_mixed_stop_shape() -> None:
     stop["web_place_candidate_id"] = str(uuid.uuid4())
     with pytest.raises(ValueError):
         PlanSnapshot.model_validate({"days": [day(1, [stop])]})
+
+
+def test_legacy_unknown_hours_warning_is_info_after_dec_030() -> None:
+    """Snapshots saved before DEC-030 carry OPENING_HOURS_UNKNOWN as WARNING; health ignores it."""
+    store = FakeStore()
+    stop = verified_stop(store.make_publication("A"), 1, time(9))
+    stop["conflicts"] = [
+        {
+            "type": "OPENING_HOURS_UNKNOWN",
+            "severity": "WARNING",
+            "message": "Opening hours are unknown; check before you go.",
+        }
+    ]
+    plan = PlanSnapshot.model_validate({"days": [day(1, [stop])]})
+    health, reasons = evaluate_health(plan)
+    assert health == "GOOD"
+    assert [(r.type, r.severity) for r in reasons] == [("OPENING_HOURS_UNKNOWN", "INFO")]
+
+
+def test_changed_leg_uses_supplied_measurement() -> None:
+    from datetime import UTC, datetime
+
+    from app.trips.snapshot import LegMeasurement, prepare_edits
+
+    store, plan = _plan()
+    first, second, _ = plan.days[0].stops
+    prepared = prepare_edits(
+        plan,
+        [
+            PreviewEditOperation(
+                op="SET_LEG_MODE", from_stop_id=first.id, to_stop_id=second.id, travel_mode="DRIVE"
+            )
+        ],
+        day_count=1,
+        default_mode="WALK",
+        publications={},
+    )
+    assert first.place_id and second.place_id
+    key = (first.place_id, second.place_id, "DRIVE")
+    assert prepared.pending_legs() == [key]
+    measured = LegMeasurement(
+        distance_m=900,
+        duration_s=240,
+        data_provider_id=uuid.UUID(int=1),
+        measured_at=datetime(2026, 11, 9, tzinfo=UTC),
+    )
+    result, health = prepared.finish({key: measured})  # type: ignore[dict-item]
+    leg = result.days[0].legs[0]
+    assert (leg.travel_mode, leg.availability, leg.distance_m, leg.duration_s) == (
+        "DRIVE",
+        "AVAILABLE",
+        900,
+        240,
+    )
+    # The kept B→C leg is untouched; the next stop follows the measured 4-minute drive.
+    assert result.days[0].stops[1].planned_arrival == time(10, 4)
+    assert health == "GOOD"

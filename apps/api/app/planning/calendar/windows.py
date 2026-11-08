@@ -6,8 +6,8 @@ half-open ``(start, end)`` pair with ``0 <= start < end <= 1440``.
 
 Unknown opening hours are never invented (BR on unknown facts, FR-005): the window is flagged
 ``unknown_hours`` and carries a configurable *scheduling-only* default interval so the solver can
-still place the stop; Plan Health then emits ``OPENING_HOURS_UNKNOWN`` and never claims the place
-is closed outside that default.
+still place the stop; Plan Health then emits an INFO ``OPENING_HOURS_UNKNOWN`` (DEC-030) and never
+claims the place is closed outside that default.
 
 Rule effects on a date the rule occurs (only ``APPROVED`` rules whose target covers the place):
 
@@ -16,7 +16,9 @@ Rule effects on a date the rule occurs (only ``APPROVED`` rules whose target cov
 - ``PARTIAL`` with ``from``/``to`` → hours are narrowed to that range; without → a warning.
 - ``EVENT``/``NOTICE`` → a warning (:class:`CalendarNotice`).
 - ``TICKET_VALIDITY`` rules are notices whatever their effect (they qualify a ticket, not a date).
-- ``restricted_modes`` on any rule → a :class:`ModeRestriction` for that date.
+- ``restricted_modes`` on any rule → a :class:`ModeRestriction` for that date. Such a rule
+  qualifies legs, not hours: it never closes the place and never narrows its opening window
+  (a car-free Old Town is open all day; DEC-030-adjacent bug fixed 2026-11-09).
 """
 
 from __future__ import annotations
@@ -246,16 +248,25 @@ def _window_for(
         if not rule_targets(rule, place) or not occurs_on(rule, day):
             continue
         span = rule.interval
-        if rule.restricted_modes:
+        mode_only = bool(rule.restricted_modes)
+        if mode_only:
+            # A mode restriction is about travel between stops, not about opening hours: the
+            # Hội An Old Town is car-free 15:00–22:00 but its places stay open all day. Applying
+            # the rule's PARTIAL window here once made every Old Town visit start at 15:00.
             restrictions.append(ModeRestriction(rule.id, frozenset(rule.restricted_modes), span))
-        if rule.rule_kind != "TICKET_VALIDITY" and rule.effect == "CLOSED":
+        if not mode_only and rule.rule_kind != "TICKET_VALIDITY" and rule.effect == "CLOSED":
             if span is None:
                 closed.append(rule.id)
             else:
                 intervals = _subtract(intervals, span)
                 adjustments.append(WindowAdjustment(rule.id, rule.effect, span))
             continue
-        if rule.rule_kind != "TICKET_VALIDITY" and rule.effect == "PARTIAL" and span is not None:
+        if (
+            not mode_only
+            and rule.rule_kind != "TICKET_VALIDITY"
+            and rule.effect == "PARTIAL"
+            and span
+        ):
             intervals = _intersect(intervals, span)
             adjustments.append(WindowAdjustment(rule.id, rule.effect, span))
             continue

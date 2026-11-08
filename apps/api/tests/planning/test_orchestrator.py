@@ -23,6 +23,7 @@ from app.ai.invocations import Purpose
 from app.ai.quota import Bucket, QuotaBudget, QuotaDecision, QuotaReservation
 from app.config import Settings
 from app.planning.assemble import DayFrame, ProviderIds
+from app.planning.calendar.rules import ClosureRule
 from app.planning.calendar.windows import OpeningHours
 from app.planning.orchestrator import (
     EffectivePreferences,
@@ -32,6 +33,8 @@ from app.planning.orchestrator import (
     choose_anchor,
     merge_preferences,
     planning_preferences_of,
+    rationale_traveller,
+    time_of_day,
 )
 from app.planning.pool import PoolPlace
 from app.planning.rule_selector import (
@@ -81,6 +84,9 @@ def place(i: int, category: str, area: str, famous: bool, lat: float, lng: float
         famous=famous,
         hours=OpeningHours.every_day("07:00", "22:00"),
         fact_verified_at=date(2026, 10, 1),
+        description_en=f"Place {i} has a carved stone gate and a quiet garden.",
+        area_name_en=area.replace("-", " ").title(),
+        category_name_en=category.replace("_", " ").title(),
     )
 
 
@@ -190,6 +196,8 @@ async def run_plan(
     days: int = 1,
     request_text: str = "",
     pref: EffectivePreferences | None = None,
+    pool: Sequence[PoolPlace] = POOL,
+    rules: Sequence[Any] = (),
 ) -> tuple[Any, str, Sink, RunTrace]:
     ledger = FakeLedger(cfg)
     sink = Sink()
@@ -205,8 +213,8 @@ async def run_plan(
             locale="en",
             request_text=request_text,
             prefs=pref or prefs(),
-            pool=POOL,
-            rules=[],
+            pool=pool,
+            rules=list(rules),
             city_id=CITY,
             frames=frames,
             providers=ProviderIds(GOOGLE_ID, ESTIMATE_ID),
@@ -306,6 +314,9 @@ async def test_plan_without_keys_uses_rules_and_estimates() -> None:
         ("CHECKING_HEALTH", None),
     ]  # no WRITING without a writer key
     assert [d.day_index for d in snapshot.days] == [1, 2]
+    # Day balance: 10 short visits fit one long day, yet both requested days get stops.
+    per_day = [len(d.stops) for d in snapshot.days]
+    assert all(per_day) and max(per_day) - min(per_day) <= 1 and max(per_day) <= 6
     stops = [s for d in snapshot.days for s in d.stops]
     assert stops and {s.place_id for s in stops} <= {p.place_id for p in POOL}
     assert all(s.rationale is None for s in stops)
@@ -323,6 +334,41 @@ async def test_plan_without_keys_uses_rules_and_estimates() -> None:
     assert [[s.place_id for s in d.stops] for d in again.days] == [
         [s.place_id for s in d.stops] for d in snapshot.days
     ]
+
+
+async def test_two_day_old_town_plan_walks_inside_the_car_free_zone() -> None:
+    """Live bug 2026-11-09: DRIVE legs inside the Hội An Old Town car-free hours BLOCKED the
+    preview. Zone legs now walk (estimate provider durations) and the plan is not BLOCKED."""
+    car_free = ClosureRule.from_mapping(
+        {
+            "id": uuid.UUID(int=0xCF),
+            "city_id": CITY,
+            "applies_to": "AREA",
+            "area_code": "hoi-an-old-town",
+            "rule_kind": "WEEKLY",
+            "effect": "PARTIAL",
+            "params": {
+                "weekdays": [1, 2, 3, 4, 5, 6, 7],
+                "from": "15:00",
+                "to": "22:00",
+                "restricted_modes": ["DRIVE", "TWO_WHEELER"],
+            },
+        }
+    )
+    old_town = [
+        place(100 + i, "HERITAGE", "hoi-an-old-town", True, 15.8770 + 0.0004 * i, 108.3260)
+        for i in range(6)
+    ]
+    cfg = settings(routes_estimate_enabled=True)
+    orch = PlanningOrchestrator(fake_session, cfg, matrix_cache=FakeCache(), clock=lambda: NOW)
+    snapshot, health, _, trace = await run_plan(orch, cfg, days=2, pool=old_town, rules=[car_free])
+    legs = [leg for d in snapshot.days for leg in d.legs]
+    assert legs and all(leg.travel_mode == "WALK" for leg in legs)
+    assert all(leg.availability == "AVAILABLE" and leg.duration_s for leg in legs)
+    conflicts = {c.type for d in snapshot.days for leg in d.legs for c in leg.conflicts}
+    assert "LEG_MODE_RESTRICTED" not in conflicts
+    assert health != "BLOCKED"
+    assert "walk_in_restricted_zone" in trace.assumptions
 
 
 async def test_plan_without_routing_provider_still_returns_blocked_plan() -> None:
@@ -383,7 +429,10 @@ async def test_selector_valid_pick_is_used_and_rationales_written() -> None:
     ]
     orch_runner = Runner(answers)
 
+    rationale_prompts: list[str] = []
+
     async def rationale_answer(agent: Agent, prompt: str) -> RunOutput:
+        rationale_prompts.append(prompt)
         stops = json.loads(prompt)["stops"]
         body = {"rationales": [{"place_id": s["place_id"], "text": "Fits you."} for s in stops]}
         return RunOutput(
@@ -404,6 +453,12 @@ async def test_selector_valid_pick_is_used_and_rationales_written() -> None:
     assert trace.model_version == "GEMINI:gemini-3.6-flash"
     assert ("WRITING", "grounded_writer") in [(e["stage"], e["agent"]) for e in sink.events]
     assert all(s.rationale == "Fits you." for s in snapshot.days[0].stops)
+    # The writer gets the localized description, area, category label and day part.
+    (rationale_prompt,) = rationale_prompts
+    sent = json.loads(rationale_prompt)["stops"]
+    assert all("carved stone gate" in s["description"] for s in sent)
+    assert all(s["area"] and s["category"] and s["time_of_day"] for s in sent)
+    assert "108.2" not in rationale_prompt and "16.0" not in rationale_prompt
     # BR-046: the selector prompt carries ids, names and categories, never coordinates.
     assert orch_runner.prompts and all("108.2" not in p for p in orch_runner.prompts)
 
@@ -428,6 +483,88 @@ async def test_selector_accepts_more_must_sees_than_the_pace_target() -> None:
     assert trace.model_version == "GEMINI:gemini-3.6-flash"
 
 
+# A pool like the live catalog: many VIEWPOINT bridges close together, few other categories.
+BRIDGES = [
+    place(20 + i, "VIEWPOINT", "hai-chau", True, 16.0600 + 0.002 * i, 108.2250) for i in range(8)
+]
+OTHERS = [
+    place(40, "MUSEUM", "hai-chau", True, 16.0605, 108.2235),
+    place(41, "BEACH", "son-tra", True, 16.0640, 108.2460),
+    place(42, "HERITAGE", "hai-chau", True, 16.0615, 108.2245),
+    place(43, "RELIGIOUS_SITE", "son-tra", True, 16.1000, 108.2770),
+    place(44, "NATURE", "son-tra", False, 16.1100, 108.2800),
+    place(45, "MARKET", "hai-chau", True, 16.0680, 108.2250),
+]
+BRIDGE_POOL = [*BRIDGES, *OTHERS]
+
+
+async def test_two_day_request_spreads_stops_by_pace_and_varies_categories() -> None:
+    """DEC-030 live check: a 2-day preview put all 10 stops on day 1 and leaned on bridges."""
+    cfg = settings(gemini_api_key="gem-test", routes_estimate_enabled=True)
+    # The model ranks 7 bridges first (as live), then 3 other places.
+    ranked = [p.place_id for p in BRIDGES[:7]] + [p.place_id for p in OTHERS[:3]]
+    answer = {"picks": [{"place_id": str(pid), "rank": i} for i, pid in enumerate(ranked, 1)]}
+    runner = Runner([answer])
+
+    async def run(agent: Agent, prompt: str) -> RunOutput:
+        if runner.answers:
+            return await runner(agent, prompt)
+        return RunOutput(content="{}", messages=[Message(role="assistant", content="x")])
+
+    orch = PlanningOrchestrator(
+        fake_session, cfg, matrix_cache=FakeCache(), agent_runner=run, clock=lambda: NOW
+    )
+    snapshot, _, _, trace = await run_plan(
+        orch,
+        cfg,
+        days=2,
+        request_text="Two relaxed days: beaches, museums and views",
+        pref=prefs(pace="RELAXED"),
+        pool=BRIDGE_POOL,
+    )
+    assert trace.model_version == "GEMINI:gemini-3.6-flash"
+    category = {p.place_id: p.category_code for p in BRIDGE_POOL}
+    per_day = [[category[s.place_id] for s in d.stops if s.place_id] for d in snapshot.days]
+    assert [len(day) for day in per_day] == [4, 4]  # RELAXED = 4 stops per day, both days
+    for day in per_day:
+        assert day.count("VIEWPOINT") <= 2  # several interests → at most 2 per category per day
+    assert len({c for day in per_day for c in day}) >= 4
+
+
+async def test_single_interest_request_is_not_category_capped() -> None:
+    cfg = settings(routes_estimate_enabled=True)
+    orch = PlanningOrchestrator(fake_session, cfg, matrix_cache=FakeCache(), clock=lambda: NOW)
+    snapshot, *_ = await run_plan(
+        orch,
+        cfg,
+        days=1,
+        pref=prefs(pace="RELAXED", interests=("VIEWPOINT",)),
+        pool=BRIDGE_POOL,
+    )
+    category = {p.place_id: p.category_code for p in BRIDGE_POOL}
+    picked = [category[s.place_id] for s in snapshot.days[0].stops if s.place_id]
+    assert picked.count("VIEWPOINT") > 2
+
+
+def test_time_of_day_and_traveller_labels() -> None:
+    assert [time_of_day(time(h, 0)) for h in (8, 11, 13, 14, 17, 20)] == [
+        "morning",
+        "midday",
+        "midday",
+        "afternoon",
+        "evening",
+        "evening",
+    ]
+    traveller = rationale_traveller(
+        prefs(interests=("BEACH", "UNSEEN_CODE"), pace="RELAXED"), POOL, "en"
+    )
+    assert traveller is not None
+    assert traveller.interests == ["Beach", "unseen code"] and traveller.pace == "relaxed"
+    vi = rationale_traveller(prefs(interests=(), pace="PACKED"), POOL, "vi")
+    assert vi is not None and vi.pace == "dày đặc" and vi.interests == []
+    assert rationale_traveller(prefs(interests=(), pace=None), POOL, "en") is None
+
+
 def test_planning_preferences_round_trip_through_the_snapshot() -> None:
     effective = prefs(pace="PACKED", modes=("WALK",), day_start=time(9, 30))
     stored = planning_preferences_of(effective)
@@ -435,3 +572,28 @@ def test_planning_preferences_round_trip_through_the_snapshot() -> None:
     again = merge_preferences(None, stored.model_dump(mode="json", exclude_none=True), None)
     assert again.modes == ("WALK",) and again.pace == "PACKED"
     assert again.day_start == time(9, 30) and again.day_end == time(20, 0)
+
+
+def test_diversify_caps_categories_and_tops_up() -> None:
+    from app.planning.rule_selector import category_day_cap, diversify
+
+    category = {p.place_id: p.category_code for p in BRIDGE_POOL}
+    bridges = [p.place_id for p in BRIDGES]
+    others = [p.place_id for p in OTHERS]
+    kept = diversify(
+        bridges,
+        category.__getitem__,
+        days=1,
+        wanted={"BEACH", "MUSEUM"},
+        target=5,
+        fallback=others,
+    )
+    assert kept == bridges[:2] + others[:3]
+    # Must-sees are never cut; a thin catalog falls back to capped-out picks to reach the target.
+    kept = diversify(
+        bridges[:4], category.__getitem__, days=1, wanted=(), target=4, must_see=bridges[2:4]
+    )
+    assert kept == bridges[:4]
+    assert category_day_cap("VIEWPOINT", {"VIEWPOINT"}) is None
+    assert category_day_cap("VIEWPOINT", {"VIEWPOINT", "BEACH"}) == 2
+    assert category_day_cap("FOOD", ()) == 2 and category_day_cap("CAFE", ()) == 1

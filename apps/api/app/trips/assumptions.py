@@ -14,6 +14,8 @@ AssumptionLocale = Literal["vi", "en"]
 ESTIMATED_LEGS: Final = "estimated_legs"
 NO_ROUTES: Final = "no_routes"
 RESEARCH_SKIPPED: Final = "research_skipped"
+WALK_IN_RESTRICTED_ZONE: Final = "walk_in_restricted_zone"
+STOPS_LEFT_OUT: Final = "stops_left_out"
 
 ASSUMPTION_TEXT: Final[dict[str, dict[AssumptionLocale, str]]] = {
     ESTIMATED_LEGS: {
@@ -27,6 +29,16 @@ ASSUMPTION_TEXT: Final[dict[str, dict[AssumptionLocale, str]]] = {
     RESEARCH_SKIPPED: {
         "en": "Web research did not finish in time; the plan uses Gonarra's catalog only.",
         "vi": "Tìm kiếm trên web chưa xong kịp; lịch trình chỉ dùng danh mục của Gonarra.",
+    },
+    WALK_IN_RESTRICTED_ZONE: {
+        "en": "Some legs are on foot because cars and motorbikes are not allowed there then.",
+        "vi": "Một số chặng được đi bộ vì khu vực đó cấm ô tô và xe máy vào giờ này.",
+    },
+    STOPS_LEFT_OUT: {
+        "en": "Some suggested places were left out: they are closed or unreachable on your dates.",
+        "vi": (
+            "Một số địa điểm gợi ý đã được bỏ ra vì đóng cửa hoặc không đến được vào ngày bạn đi."
+        ),
     },
 }
 

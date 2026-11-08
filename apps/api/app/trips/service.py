@@ -45,9 +45,10 @@ from app.schemas.trips import Trip as TripSchema
 from app.trips import idempotency
 from app.trips.assumptions import localize_assumptions
 from app.trips.handoff import HandoffTrip, build_handoff_link
+from app.trips.measure import LegMeasurer
 from app.trips.render import DEFAULT_TIME_ZONE, candidate_names, parse_point, render_days
 from app.trips.repository import CityInfo, FactInfo, TripCursor, TripSort, TripStore
-from app.trips.snapshot import PlanSnapshot, apply_edits, evaluate_health
+from app.trips.snapshot import PlanSnapshot, evaluate_health, prepare_edits
 
 ADDRESS_FIELD: Final = "ADDRESS_VI"
 ENTRANCE_FIELD: Final = "ENTRANCE_LOCATION"
@@ -156,9 +157,17 @@ def _fact_schema(fact: FactInfo, today: date) -> PlaceFact:
 class TripService:
     """Owner-scoped trip and preview operations for one authenticated account."""
 
-    def __init__(self, store: TripStore, account_id: uuid.UUID) -> None:
+    def __init__(
+        self,
+        store: TripStore,
+        account_id: uuid.UUID,
+        *,
+        leg_measurer: LegMeasurer | None = None,
+    ) -> None:
         self.store = store
         self.account_id = account_id
+        # Measures legs a manual edit changed; without one they stay EXPIRED.
+        self.leg_measurer = leg_measurer
 
     # -- helpers -------------------------------------------------------------------------------
 
@@ -586,13 +595,20 @@ class TripService:
                 else trip.planning_preferences.get("allowed_modes")
             ) or ["WALK"]
             default_mode: TravelMode = "DRIVE" if modes[0] == "DRIVE" else "WALK"
-            snapshot, health = apply_edits(
+            prepared = prepare_edits(
                 parent_snapshot,
                 body.edits,
                 day_count=trip.day_count,
                 default_mode=default_mode,
                 publications=publications,
             )
+            pending = prepared.pending_legs()
+            measured = (
+                await self.leg_measurer.measure(pending)
+                if pending and self.leg_measurer is not None
+                else {}
+            )
+            snapshot, health = prepared.finish(measured)
             revision = await self.store.append_revision(
                 preview,
                 PreviewRevision(

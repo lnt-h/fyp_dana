@@ -25,7 +25,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time, timedelta
@@ -36,10 +36,10 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.runtime import AgentContext, AgentRunner, default_runner, load_instructions
-from app.agents.schemas import RationaleStop, ResultSource
+from app.agents.schemas import RationaleStop, RationaleTraveller, ResultSource, TimeOfDay
 from app.agents.selector import MAX_CANDIDATES, select_places
 from app.agents.validators import validate_selection
-from app.agents.writer import RATIONALE_AGENT, write_rationales
+from app.agents.writer import RATIONALE_AGENT, trim_text, write_rationales
 from app.ai.invocations import Purpose
 from app.ai.providers import Role, provider_configured, role_chain
 from app.ai.quota import (
@@ -55,7 +55,7 @@ from app.config import Settings
 from app.errors import AppError
 from app.models.planning import IdempotencyRecord, PlanPreview, PreviewRevision, Trip
 from app.models.providers import DataProvider
-from app.observability import error_payload
+from app.observability import error_payload, log_failure
 from app.planning.assemble import (
     DayFrame,
     LockedStop,
@@ -68,13 +68,19 @@ from app.planning.assemble import (
 )
 from app.planning.calendar.windows import PlaceRef, effective_windows
 from app.planning.health import evaluate
+from app.planning.leg_modes import LegModePlan, plan_leg_modes, restricted_keys, restricted_pairs
 from app.planning.pool import PoolPlace, by_id, load_pool, load_rules
 from app.planning.rule_selector import (
     RuleCandidate,
+    category_day_cap,
+    diversify,
     pool_size,
     rank_candidates,
     select_rule_based,
+    stops_per_day,
+    wanted_interests,
 )
+from app.planning.solver import DropReason
 from app.planning.workflows import EventSink, ProposeTripCommand, RegenerateDayCommand
 from app.routing.anchors import DA_NANG_ANCHORS, Anchor
 from app.routing.matrix import RouteMatrix, get_matrix
@@ -89,9 +95,16 @@ from app.routing.provider import (
 )
 from app.schemas.trips import PlanningPreferences
 from app.trips import idempotency
-from app.trips.assumptions import ESTIMATED_LEGS, NO_ROUTES, RESEARCH_SKIPPED, unique_keys
+from app.trips.assumptions import (
+    ESTIMATED_LEGS,
+    NO_ROUTES,
+    RESEARCH_SKIPPED,
+    STOPS_LEFT_OUT,
+    WALK_IN_RESTRICTED_ZONE,
+    unique_keys,
+)
 from app.trips.repository import ROUTES_ESTIMATE_PROVIDER_KEY, SQLAlchemyTripStore
-from app.trips.snapshot import PlanSnapshot, SnapshotDay, evaluate_health
+from app.trips.snapshot import PlanSnapshot, SnapshotDay, SnapshotStop, evaluate_health
 
 logger = logging.getLogger("gonarra.planning")
 
@@ -114,6 +127,10 @@ RULE_BASED_VERSION = "gonarra:rule-based-selector@1"
 DEFAULT_DAY_START = time(8, 0)
 DEFAULT_DAY_END = time(20, 0)
 VN_OFFSET = timedelta(hours=7)
+# Drops the traveler is told about: the place cannot be visited on the trip dates at all.
+LEFT_OUT_REASONS = frozenset(
+    {DropReason.CLOSED_ON_ALL_DATES, DropReason.LOCKED_DAY_CLOSED, DropReason.UNREACHABLE}
+)
 
 
 class PlanningAbort(Exception):
@@ -245,6 +262,53 @@ def _error_event(request_id: str, abort: PlanningAbort) -> dict[str, Any]:
     return {"type": "error", "error": detail}
 
 
+_PACE_LABELS: Mapping[str, Mapping[str, str]] = {
+    "en": {"RELAXED": "relaxed", "BALANCED": "balanced", "PACKED": "packed"},
+    "vi": {"RELAXED": "thong thả", "BALANCED": "cân bằng", "PACKED": "dày đặc"},
+}
+
+
+def time_of_day(arrival: time) -> TimeOfDay:
+    """Day part of a planned arrival, the only schedule detail the rationale writer sees."""
+    if arrival < time(11, 0):
+        return "morning"
+    if arrival < time(14, 0):
+        return "midday"
+    if arrival < time(17, 0):
+        return "afternoon"
+    return "evening"
+
+
+def rationale_stop(
+    place: PoolPlace, stop: SnapshotStop, locale: Literal["vi", "en"]
+) -> RationaleStop:
+    """Published, localized catalog text for one stop; no coordinates, hours or prices (BR-046)."""
+    return RationaleStop(
+        place_id=place.place_id,
+        name=place.name(locale)[:200],
+        category_code=place.category_code,
+        category_label=(place.category_label(locale) or "")[:200] or None,
+        area=(place.area_name(locale) or "")[:200] or None,
+        summary=(place.summary(locale) or "")[:600] or None,
+        description=trim_text(place.description(locale)),
+        time_of_day=time_of_day(stop.planned_arrival),
+    )
+
+
+def rationale_traveller(
+    prefs: EffectivePreferences, pool: Iterable[PoolPlace], locale: Literal["vi", "en"]
+) -> RationaleTraveller | None:
+    """Interests as localized category labels and the pace; ``None`` when neither is set."""
+    labels = {p.category_code: p.category_label(locale) for p in pool if p.category_label(locale)}
+    interests = [
+        (labels.get(code) or code.replace("_", " ").lower())[:200] for code in prefs.interests[:20]
+    ]
+    pace = _PACE_LABELS[locale].get(prefs.pace or "") if prefs.pace else None
+    if not interests and pace is None:
+        return None
+    return RationaleTraveller(interests=interests, pace=pace)
+
+
 class PlanningOrchestrator:
     """The production :class:`app.planning.workflows.PlanningWorkflow`."""
 
@@ -285,8 +349,8 @@ class PlanningOrchestrator:
                     PlanningAbort(exc.code, exc.message, retryable=exc.retryable),
                 )
             )
-        except Exception:
-            logger.exception("planning run_failed request_id=%s", request_id)
+        except Exception as exc:  # noqa: BLE001 - reported as an error event
+            log_failure(logger, "planning_run_failed", exc, request_id=request_id)
             sink.emit(
                 _error_event(
                     request_id,
@@ -623,10 +687,12 @@ class PlanningOrchestrator:
         mode = primary_mode(prefs.modes)
         progress.stage("ROUTING")
         matrix = await self._matrix(selected, anchor, mode, ledger)
+        windows = self._windows(selected, rules, city_id, frames)
+        leg_modes = await self._leg_modes(selected, frames, windows, mode, prefs.modes, ledger)
 
         # 5. scheduling
         progress.stage("SCHEDULING")
-        windows = self._windows(selected, rules, city_id, frames)
+        wanted = wanted_interests(prefs.interests, request_text)
         inp = ScheduleInput(
             frames=frames,
             places=selected,
@@ -636,6 +702,15 @@ class PlanningOrchestrator:
             mode=mode,
             must_see=frozenset(must_see),
             locks=locks or {},
+            # Day balance: the pace caps stops per day and every day gets a fair share
+            # (a 2-day plan once put all 10 stops on day 1); per-category caps keep variety.
+            max_stops_per_day=stops_per_day(prefs.pace),
+            category_day_caps={
+                p.category_code: cap
+                for p in selected
+                if (cap := category_day_cap(p.category_code, wanted)) is not None
+            },
+            leg_modes=leg_modes,
         )
         output = await asyncio.to_thread(schedule, inp)
         days = build_days(inp, output, provider_ids=providers, now=now, stop_ids=stop_ids)
@@ -643,6 +718,10 @@ class PlanningOrchestrator:
             trace.assumptions.append(NO_ROUTES)
         if any(leg.estimated for day in days for leg in day.legs):
             trace.assumptions.append(ESTIMATED_LEGS)
+        if mode != "WALK" and any(leg.travel_mode == "WALK" for day in days for leg in day.legs):
+            trace.assumptions.append(WALK_IN_RESTRICTED_ZONE)
+        if any(drop.reason in LEFT_OUT_REASONS for drop in output.result.dropped):
+            trace.assumptions.append(STOPS_LEFT_OUT)
 
         # 6. Plan Health
         plan_health = "GOOD"
@@ -662,7 +741,7 @@ class PlanningOrchestrator:
         stops = [s for d in days for s in d.stops if s.place_id is not None]
         if stops and self._chain_configured(Role.WRITER_RATIONALE):
             progress.stage("WRITING", "grounded_writer")
-            await self._rationales(ctx, request_text, locale, days, places, trace)
+            await self._rationales(ctx, request_text, locale, days, places, prefs, trace)
 
         snapshot = PlanSnapshot(
             days=days,
@@ -691,17 +770,34 @@ class PlanningOrchestrator:
             RuleCandidate(p.place_id, p.category_code, p.area_code, p.famous) for p in pool
         ]
         target = pool_size(days, prefs.pace)
-        rule_pick = select_rule_based(
-            candidates,
-            days=days,
-            pace=prefs.pace,
-            interests=prefs.interests,
-            request_text=request_text,
-            must_see=must_see,
+        wanted = wanted_interests(prefs.interests, request_text)
+        ranked = rank_candidates(candidates, interests=prefs.interests, request_text=request_text)
+        category = {c.place_id: c.category_code for c in candidates}
+
+        def varied(picks: Sequence[uuid.UUID], fallback: Sequence[uuid.UUID]) -> list[uuid.UUID]:
+            return diversify(
+                picks,
+                category.__getitem__,
+                days=days,
+                wanted=wanted,
+                target=target,
+                must_see=must_see,
+                fallback=fallback,
+            )
+
+        rule_pick = varied(
+            select_rule_based(
+                candidates,
+                days=days,
+                pace=prefs.pace,
+                interests=prefs.interests,
+                request_text=request_text,
+                must_see=must_see,
+            ),
+            [c.place_id for c in ranked],
         )
         if not use_model:
             return rule_pick
-        ranked = rank_candidates(candidates, interests=prefs.interests, request_text=request_text)
         shortlist_ids = list(dict.fromkeys([*must_see, *rule_pick, *(c.place_id for c in ranked)]))
         shortlist_ids = shortlist_ids[: max(MAX_CANDIDATES, len(must_see))]
         places = by_id(pool)
@@ -747,13 +843,9 @@ class PlanningOrchestrator:
         if outcome.attempts:
             trace.model_version = outcome.attempts[-1].provider_model
         trace.prompt_versions.append(load_instructions("selector", locale)[1])
-        # Top up with rule-based picks when the model returned a short list.
-        for pid in rule_pick:
-            if len(model_pick) >= target:
-                break
-            if pid not in model_pick:
-                model_pick.append(pid)
-        return model_pick
+        # Category variety (at most N per category per day unless it is the only interest), then
+        # top up with rule-based picks when the model returned a short list.
+        return varied(model_pick, rule_pick)
 
     async def _research(
         self,
@@ -781,9 +873,8 @@ class PlanningOrchestrator:
             if settings.google_maps_api_key
             else None
         )
-        store = SqlResearchStore(
-            self._sf, allow_draft_policies=settings.environment != "production"
-        )
+        # DRAFT provider policies only in development/test/demo; staging needs ACTIVE ones.
+        store = SqlResearchStore(self._sf, allow_draft_policies=settings.draft_policies_allowed)
         fetcher = PageFetcher(store=store)
         try:
             box = ResearchToolbox(
@@ -822,7 +913,7 @@ class PlanningOrchestrator:
     async def _matrix(
         self,
         selected: Sequence[PoolPlace],
-        anchor: Anchor,
+        anchor: Anchor | None,
         mode: Literal["WALK", "DRIVE"],
         ledger: QuotaLedger,
     ) -> RouteMatrix:
@@ -837,7 +928,7 @@ class PlanningOrchestrator:
                     "planning routes_estimate_refused env=%s", self._settings.environment
                 )
                 provider = NoRoutesProvider()
-        coords = {anchor.key: anchor.location}
+        coords = {anchor.key: anchor.location} if anchor is not None else {}
         coords.update({p.key: LatLng(p.lat, p.lng) for p in selected})
         return await get_matrix(
             self._sf,
@@ -846,6 +937,36 @@ class PlanningOrchestrator:
             ledger=ledger,
             provider=provider,
             cache=self._matrix_cache,
+        )
+
+    async def _leg_modes(
+        self,
+        selected: Sequence[PoolPlace],
+        frames: Sequence[DayFrame],
+        windows: Mapping[Any, Any],
+        mode: Literal["WALK", "DRIVE"],
+        allowed_modes: Sequence[str],
+        ledger: QuotaLedger,
+    ) -> LegModePlan:
+        """Restricted travel modes (car-free zones): walk where reasonable, else ban (ADR-011
+        amendment 2026-11-09). Walking legs are measured only between the restricted places."""
+        places = [(p.key, p.place_id) for p in selected]
+        dates = [f.date for f in frames]
+        restricted = restricted_pairs(places, dates, windows, mode)
+        if not restricted:
+            return LegModePlan()
+        walk_matrix: RouteMatrix | None = None
+        if mode != "WALK" and "WALK" in allowed_modes:
+            keys = set(restricted_keys(restricted))
+            walk_matrix = await self._matrix(
+                [p for p in selected if p.key in keys], None, "WALK", ledger
+            )
+        return plan_leg_modes(
+            restricted,
+            mode=mode,
+            allowed_modes=allowed_modes,
+            walk_matrix=walk_matrix,
+            walk_restricted=restricted_pairs(places, dates, windows, "WALK"),
         )
 
     def _windows(
@@ -869,6 +990,7 @@ class PlanningOrchestrator:
         locale: Literal["vi", "en"],
         days: Sequence[SnapshotDay],
         places: Mapping[uuid.UUID, PoolPlace],
+        prefs: EffectivePreferences,
         trace: RunTrace,
     ) -> None:
         stops = [s for d in days for s in d.stops if s.place_id in places]
@@ -876,16 +998,9 @@ class PlanningOrchestrator:
             outcome = await write_rationales(
                 ctx,
                 request_text=request_text,
-                stops=[
-                    RationaleStop(
-                        place_id=place.place_id,
-                        name=place.name(locale)[:200],
-                        category_code=place.category_code,
-                        summary=(place.summary(locale) or "")[:600] or None,
-                    )
-                    for place in (places[s.place_id] for s in stops if s.place_id is not None)
-                ],
+                stops=[rationale_stop(places[s.place_id], s, locale) for s in stops if s.place_id],
                 locale=locale,
+                traveller=rationale_traveller(prefs, places.values(), locale),
             )
         except Exception:  # noqa: BLE001 - rationales never block a plan
             logger.warning("planning rationale_failed")

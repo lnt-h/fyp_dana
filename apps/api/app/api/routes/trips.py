@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
-from app.db.session import get_db_session
+from app.db.session import get_db_session, session_factory
 from app.errors import AppError
 from app.models.account import Account
 from app.schemas.common import ErrorResponse
@@ -27,6 +27,7 @@ from app.schemas.trips import (
 )
 from app.security.clerk import get_account_allowing_deletion, get_current_account
 from app.trips import idempotency
+from app.trips.measure import LegMeasurer, RoutingLegMeasurer
 from app.trips.repository import SQLAlchemyTripStore, TripStore
 from app.trips.service import TripService
 
@@ -37,11 +38,17 @@ def get_trip_store(session: Annotated[AsyncSession, Depends(get_db_session)]) ->
     return SQLAlchemyTripStore(session)
 
 
+def get_leg_measurer(settings: Annotated[Settings, Depends(get_settings)]) -> LegMeasurer | None:
+    """Manual edits re-measure changed legs through the routes cache/provider (ADR-011)."""
+    return RoutingLegMeasurer(session_factory, settings)
+
+
 def get_trip_service(
     account: Annotated[Account, Depends(get_current_account)],
     store: Annotated[TripStore, Depends(get_trip_store)],
+    measurer: Annotated[LegMeasurer | None, Depends(get_leg_measurer)],
 ) -> TripService:
-    return TripService(store, account.id)
+    return TripService(store, account.id, leg_measurer=measurer)
 
 
 Service = Annotated[TripService, Depends(get_trip_service)]
