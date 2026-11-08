@@ -28,10 +28,55 @@ Run the backend foundation from the repository root:
 ```bash
 docker compose up -d db
 cd apps/api
+cp .env.example .env   # then fill in the keys; GONARRA_DATABASE_URL points at the Postgres container
 uv sync --all-groups
 uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
 ```
+
+## Running the app day to day
+
+The app has no offline or demo data: every screen reads from the API, and the API reads from PostgreSQL. All three must be up, in this order, before the app can load. Skipping step 1 is the usual cause of a red "could not load data" banner on the home screen: `/health` still answers 200, but every `/v1/*` endpoint returns 500 with `connection to server at "127.0.0.1", port 5432 failed`.
+
+1. **Database** (Docker Desktop must be running first; it does not start on login):
+
+   ```bash
+   open -a Docker                      # macOS; wait until the whale icon stops animating
+   cd /path/to/fyp_dana
+   docker compose up -d db --wait
+   ```
+
+2. **API** (from `apps/api`; `.env` must already exist):
+
+   ```bash
+   cd apps/api
+   uv run python -m app.cli db-check   # alembic head == database revision, otherwise run the next line
+   uv run alembic upgrade head
+   uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+
+   `--host 0.0.0.0` is required for a phone on the same Wi-Fi to reach the API. Check with `curl http://localhost:8000/ready` (needs the DB) and `curl "http://localhost:8000/v1/cities?locale=vi"`.
+
+3. **Mobile** (from `apps/mobile`):
+
+   ```bash
+   cd apps/mobile
+   npx expo start --go
+   ```
+
+   `apps/mobile/.env.local` must set `EXPO_PUBLIC_API_URL=http://<your LAN IP>:8000` (no trailing `/v1`). Your LAN IP changes between networks: get it with `ipconfig getifaddr en0` and restart Metro after editing the file, because `EXPO_PUBLIC_*` values are inlined at build time. A phone cannot reach `localhost` on your computer.
+
+   Demo mode (`EXPO_PUBLIC_DEMO_NO_AUTH=1` in the mobile `.env.local`) requires `GONARRA_DEMO_SHARED_USER=1` in the API `.env`; set both or neither.
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| Home shows an error banner; `/health` is 200 but `/v1/cities` is 500 | Postgres is down (Docker Desktop not running) | Step 1, then pull to refresh |
+| "Not configured" screen in the app | `EXPO_PUBLIC_API_URL` empty or not `http(s)://` | Fix `.env.local`, restart Metro |
+| App shows offline / network error, `curl` on the computer works | Phone cannot reach the API: wrong LAN IP, API bound to `127.0.0.1`, or phone on another network | Update the IP, start uvicorn with `--host 0.0.0.0` |
+| `db-check` exits 1 | Migrations behind the code | `uv run alembic upgrade head` |
+| Catalog is empty after a fresh volume | Database recreated | Re-run the ingestion pipeline (`apps/api/README.md`) |
 
 ## Documentation
 
