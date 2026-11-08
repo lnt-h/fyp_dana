@@ -7,7 +7,7 @@ from typing import Any
 
 from app.agents.schemas import DescriptionSource
 from app.curation.auto_publish import Contributions
-from app.research.enrich import EnrichCandidate, needs_description, prioritise
+from app.research.enrich import EnrichCandidate, needs_description, prioritise, search_query
 
 WIKI = DescriptionSource(
     url="https://vi.wikipedia.org/wiki/X", title="X", text="x", kind="WIKIPEDIA"
@@ -91,3 +91,15 @@ def test_needs_description() -> None:
     assert needs_description(Contributions(wikipedia={"vi": {"summary": "a"}}))
     sheet = {"description": {"vi": "x", "en": "y"}}
     assert not needs_description(Contributions(sheet=sheet))
+
+
+def test_search_query_scopes_by_area_and_expands_codes() -> None:
+    assert search_query(cand("a", name_vi="Chùa Cầu", area_code="hoi-an-old-town")) == (
+        "Chùa Cầu Hội An"
+    )
+    assert search_query(cand("b", name_vi="B1", name_en="My Son B1", area_code="my-son")) == (
+        "B1 My Son B1 Thánh địa Mỹ Sơn"
+    )
+    assert search_query(cand("c", name_vi="Bãi Bụt", area_code="da-nang-center")) == (
+        "Bãi Bụt Đà Nẵng"
+    )

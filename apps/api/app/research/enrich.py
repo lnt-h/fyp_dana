@@ -78,7 +78,7 @@ from app.research.tavily import SearchStatus, TavilySearch
 
 logger = logging.getLogger("gonarra.research")
 
-IMPORTER_VERSION = "enrich-1"
+IMPORTER_VERSION = "enrich-1"  # one import run per staged place
 DEFAULT_LIMIT = 150
 FOOD_CAFE_CAP = 40
 MIN_SOURCE_CHARS = 400  # below this, a web search is added
@@ -378,9 +378,9 @@ class Enricher:
         if candidate.website and not _skipped_host(candidate.website):
             await add_page(candidate.website, "OFFICIAL_SITE")
         if sum(len(s.text) for s in sources) < MIN_SOURCE_CHARS and not self.tavily_exhausted:
-            town = "Hội An" if candidate.hoi_an else "Đà Nẵng"
-            response = await self._search.search(f"{candidate.name_vi} {town}")
+            response = await self._search.search(search_query(candidate))
             if response.status is SearchStatus.QUOTA_EXCEEDED:
+                logger.info("enrich tavily quota exhausted; continuing without search")
                 self.tavily_exhausted = True
             elif response.status is SearchStatus.CACHED:
                 report.tavily_cached += 1
@@ -416,17 +416,6 @@ class Enricher:
         chosen = prioritise(candidates, limit=limit, food_cafe_cap=food_cafe_cap)
         report.selected = len(chosen)
         city = await load_city(session, city_code)
-        now = datetime.now(UTC)
-        run = await start_run(
-            session,
-            policy,
-            city.id,
-            release_id=f"enrich-{now.strftime('%Y%m%dT%H%M%SZ')}",
-            checksum=sha256_hex(f"{now.isoformat()}:{uuid.uuid4()}"),
-            importer_version=IMPORTER_VERSION,
-        )
-        assert run is not None
-        report.import_run_id = run.id
         source = await get_or_create_source(
             session,
             data_provider_id=policy.provider_id,
@@ -436,76 +425,134 @@ class Enricher:
             attribution_text=SUMMARY_ATTRIBUTION,
         )
         await session.commit()
+        stage = _Stager(session, policy, city.id, source.id, self._ctx)
         exhausted_in_row = 0
-        try:
-            for candidate in chosen:
-                if exhausted_in_row >= STOP_AFTER_EXHAUSTED:
-                    report.stopped = "writer model chain exhausted (quota or provider errors)"
-                    break
-                gathered = await self.gather_sources(candidate, report)
-                if not gathered.sources:
-                    report.no_sources += 1
-                    await self._stage(session, run, policy, source.id, candidate, None, gathered)
-                    continue
-                first = len(self._ctx.attempts)
-                outcome = await write_place_description(
-                    self._ctx,
-                    name_vi=candidate.name_vi,
-                    name_en=candidate.name_en,
-                    category=candidate.category,
-                    area=candidate.area_code,
-                    sources=gathered.sources,
-                )
-                for attempt in self._ctx.attempts[first:]:
-                    report.model_calls[attempt.provider_model] += 1
-                report.issues.update(issue.split(":", 1)[0] for issue in outcome.issues)
-                if outcome.description is not None:
-                    exhausted_in_row = 0
-                    report.enriched += 1
-                    report.hoi_an_enriched += 1 if candidate.hoi_an else 0
-                    await self._stage(
-                        session, run, policy, source.id, candidate, outcome.description, gathered
+        for candidate in chosen:
+            if exhausted_in_row >= STOP_AFTER_EXHAUSTED:
+                report.stopped = "writer model chain exhausted (quota or provider errors)"
+                break
+            gathered = await self.gather_sources(candidate, report)
+            if not gathered.sources:
+                report.no_sources += 1
+                await stage(candidate, None, gathered, report)
+                continue
+            first = len(self._ctx.attempts)
+            outcome = await write_place_description(
+                self._ctx,
+                name_vi=candidate.name_vi,
+                name_en=candidate.name_en,
+                category=candidate.category,
+                area=candidate.area_code,
+                sources=gathered.sources,
+            )
+            for attempt in self._ctx.attempts[first:]:
+                report.model_calls[attempt.provider_model] += 1
+            report.issues.update(issue.split(":", 1)[0] for issue in outcome.issues)
+            if outcome.description is not None:
+                exhausted_in_row = 0
+                report.enriched += 1
+                report.hoi_an_enriched += 1 if candidate.hoi_an else 0
+                await stage(candidate, outcome.description, gathered, report)
+                report.samples.append(
+                    EnrichedSample(
+                        slug=candidate.slug,
+                        name_vi=candidate.name_vi,
+                        description_vi=outcome.description.description_vi,
+                        description_en=outcome.description.description_en,
+                        cited_urls=outcome.description.cited_urls,
                     )
-                    report.samples.append(
-                        EnrichedSample(
-                            slug=candidate.slug,
-                            name_vi=candidate.name_vi,
-                            description_vi=outcome.description.description_vi,
-                            description_en=outcome.description.description_en,
-                            cited_urls=outcome.description.cited_urls,
-                        )
-                    )
-                elif outcome.insufficient_evidence:
-                    exhausted_in_row = 0
-                    report.insufficient += 1
-                    await self._stage(session, run, policy, source.id, candidate, None, gathered)
-                else:
-                    report.failed += 1
-                    exhausted_in_row = exhausted_in_row + 1 if outcome.exhausted else 0
-                if self.tavily_exhausted and report.stopped is None:
-                    logger.info("enrich tavily quota exhausted; continuing without search")
-            if self.tavily_exhausted:
-                report.stopped = (report.stopped + "; " if report.stopped else "") + (
-                    "Tavily quota exhausted (places after that used Wikipedia/websites only)"
                 )
-        finally:
-            run_row = await session.get(ImportRun, run.id)
-            if run_row is not None:
-                finish_run(run_row, report)
-                await session.commit()
+            elif outcome.insufficient_evidence:
+                exhausted_in_row = 0
+                report.insufficient += 1
+                await stage(candidate, None, gathered, report)
+            else:
+                report.failed += 1
+                exhausted_in_row = exhausted_in_row + 1 if outcome.exhausted else 0
+        if self.tavily_exhausted:
+            report.stopped = (report.stopped + "; " if report.stopped else "") + (
+                "Tavily quota exhausted (places after that used Wikipedia/websites only)"
+            )
         return report
 
-    async def _stage(
+
+QUERY_TOWN: dict[str, str] = {
+    "hoi-an-old-town": "Hội An",
+    "hoi-an-beaches-islands": "Hội An",
+    "hoi-an-outskirts": "Hội An",
+    "my-son": "Thánh địa Mỹ Sơn",
+    "tam-ky": "Tam Kỳ",
+    "son-tra": "Sơn Trà Đà Nẵng",
+    "ba-na-hoa-vang": "Đà Nẵng",
+}
+
+
+def search_query(candidate: EnrichCandidate) -> str:
+    """``<name> <town>``; a short code-like name ("B1") also carries its English name."""
+    name = candidate.name_vi
+    if len(name) <= 6 and candidate.name_en and candidate.name_en != name:
+        name = f"{name} {candidate.name_en}"
+    town = QUERY_TOWN.get(candidate.area_code or "", "Đà Nẵng")
+    return f"{name} {town}"
+
+
+class _Stager:
+    """Stages one processed place per import run, so every staged record is visible to the gate
+    at once (a run interrupted mid-way never leaves records behind a RUNNING run)."""
+
+    def __init__(
         self,
         session: AsyncSession,
-        run: ImportRun,
         policy: ActivePolicy,
+        city_id: uuid.UUID,
         source_id: uuid.UUID,
+        ctx: AgentContext,
+    ) -> None:
+        self._session = session
+        self._policy = policy
+        self._city_id = city_id
+        self._source_id = source_id
+        self._ctx = ctx
+
+    async def __call__(
+        self,
+        candidate: EnrichCandidate,
+        description: PlaceDescription | None,
+        gathered: _Gathered,
+        report: EnrichReport,
+    ) -> None:
+        session = self._session
+        now = datetime.now(UTC)
+        run = await start_run(
+            session,
+            self._policy,
+            self._city_id,
+            release_id=f"enrich-{candidate.place_id}-{now.strftime('%Y%m%dT%H%M%SZ')}",
+            checksum=sha256_hex(f"{candidate.place_id}:{now.isoformat()}:{uuid.uuid4()}"),
+            importer_version=IMPORTER_VERSION,
+        )
+        assert run is not None
+        await self._record(run, candidate, description, gathered)
+        place_report = RunReport(provider_key=AI_SUMMARY_PROVIDER_KEY, record_count=1)
+        if description is None:
+            place_report.reject(INSUFFICIENT if gathered.sources else "NO_SOURCES")
+        else:
+            place_report.accepted = 1
+        finish_run(run, place_report)
+        report.record_count += 1
+        report.accepted += place_report.accepted
+        report.rejected += place_report.rejected
+        await session.commit()
+
+    async def _record(
+        self,
+        run: ImportRun,
         candidate: EnrichCandidate,
         description: PlaceDescription | None,
         gathered: _Gathered,
     ) -> None:
         """One import record per processed place; a REJECTED marker when nothing is stored."""
+        session, policy, source_id = self._session, self._policy, self._source_id
         place = await session.get(Place, candidate.place_id)
         assert place is not None
         point = parse_point(place.location)
@@ -524,7 +571,6 @@ class Enricher:
                 place_id=place.id,
                 match_state="MATCHED",
             )
-            await session.commit()
             return
         cited_revisions = [
             str(gathered.revisions[url])
@@ -567,7 +613,6 @@ class Enricher:
             place_id=place.id,
             match_state="MATCHED",
         )
-        await session.commit()
 
 
 def build_enricher(settings: Settings, session_factory: SessionFactory) -> tuple[Enricher, Any]:
