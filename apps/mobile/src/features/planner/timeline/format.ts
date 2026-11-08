@@ -1,7 +1,8 @@
 /**
- * Display formatting only. Times, distances and durations always come from the preview payload (server, Google
- * Routes); nothing here estimates or derives a planner value.
+ * Display formatting only. Times, distances and durations always come from the preview payload (server: Google Routes,
+ * or a labelled demo estimate when `Leg.estimated`); nothing here estimates or derives a planner value.
  */
+import type { TFunction } from 'i18next';
 import type { AppLocale } from '../../../i18n';
 import type { IsoDate, IsoDateTime } from '../../../lib/api/types';
 
@@ -46,4 +47,15 @@ export function formatDistance(meters: number, locale: AppLocale): string {
 export function splitDuration(seconds: number): { hours: number; minutes: number } {
   const total = Math.max(1, Math.round(seconds / 60));
   return { hours: Math.floor(total / 60), minutes: total % 60 };
+}
+
+/** `≈ 2,1 km`: the prefix for a value the server marked as an estimate (`Leg.estimated`). */
+export function formatApprox(t: TFunction, value: string): string {
+  return t('proposal.leg.approx', { value });
+}
+
+/** Weekday index (0 = Sunday) of an ISO calendar date, independent of the device time zone. */
+export function weekdayOf(date: IsoDate): number {
+  const ms = Date.parse(`${date}T00:00:00Z`);
+  return Number.isNaN(ms) ? 0 : new Date(ms).getUTCDay();
 }

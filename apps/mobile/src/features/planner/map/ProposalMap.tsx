@@ -130,6 +130,10 @@ export function ProposalMap({ day, places, selectedStopId, onSelect, onOpenPlace
         </View>
       </View>
     </View>
+    {day.stops.length > 1 && <View style={m.legend}>
+      <View style={m.legendSolid} />
+      <Text style={m.legendText}>{t('proposal.map.legendStraight')}</Text>
+    </View>}
     {hasUnavailableLeg && <View style={m.legend}>
       <View style={m.legendLine}>{[0, 1, 2].map(index => <View key={index} style={m.legendDash} />)}</View>
       <Text style={m.legendText}>{t('proposal.map.legendUnavailable')}</Text>
@@ -195,6 +199,7 @@ const m = StyleSheet.create({
   attributionText: { fontFamily: fonts.medium, fontSize: 11, color: colors.ink },
   legend: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: spacing.sm, paddingHorizontal: spacing.xxs },
   legendLine: { flexDirection: 'row', gap: 3 },
+  legendSolid: { width: 27, height: 3, borderRadius: 1.5, backgroundColor: colors.deepOcean },
   legendDash: { width: 7, height: 3, borderRadius: 1.5, backgroundColor: palette.error },
   legendText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.textMuted },
   controls: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm },

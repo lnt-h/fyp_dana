@@ -254,7 +254,9 @@ function FocusCard({ item, mode, nowMinutes, thumb, onDirections, onOpen }: { it
 
 function legText(t: TFunction, leg: Leg): string {
   if (leg.availability !== 'AVAILABLE' || leg.duration_s == null) return t('save.today.legUnavailable');
-  const minutes = Math.max(1, Math.round(leg.duration_s / 60));
+  const whole = Math.max(1, Math.round(leg.duration_s / 60));
+  // A demo estimate (`Leg.estimated`) reads `Walk ≈ 8 min`; a Routes measurement has no prefix.
+  const minutes = leg.estimated ? t('proposal.leg.approx', { value: String(whole) }) : whole;
   return leg.travel_mode === 'WALK' ? t('save.today.legWalk', { minutes }) : t('save.today.legDrive', { minutes });
 }
 

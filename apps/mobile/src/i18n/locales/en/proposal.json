@@ -17,7 +17,8 @@
   "cover": {
     "photo": "Photo of {{name}}",
     "cityPhoto": "Photo of {{city}}",
-    "credit": "Photo: {{credit}}"
+    "credit": "Photo: {{credit}}",
+    "meta": "{{city}} · {{dates}} · {{days}} · {{stops}}"
   },
   "stats": {
     "days": "Duration",
@@ -93,7 +94,10 @@
     "warnings_other": "{{count}} warnings",
     "expandHint": "Expands or collapses this day's plan",
     "empty": "Day {{day}} has no stops yet",
-    "emptyBody": "Add a source-checked {{city}} place or regenerate this day."
+    "emptyBody": "Add a source-checked {{city}} place or regenerate this day.",
+    "chip": "{{weekday}} {{date}}",
+    "chipA11y_one": "Day {{day}}, {{date}}, {{count}} stop",
+    "chipA11y_other": "Day {{day}}, {{date}}, {{count}} stops"
   },
   "stop": {
     "minutes": "{{count}} min",
@@ -106,7 +110,8 @@
     "detailsA11y": "Open the place card for {{name}}",
     "why": "Why this?",
     "whyHide": "Show less",
-    "aiLabel": "AI suggestion"
+    "aiLabel": "AI suggestion",
+    "a11yNoTime": "{{number}}, {{name}}, {{unknown}}, {{status}}"
   },
   "leg": {
     "WALK": "Walk",
@@ -116,7 +121,11 @@
     "hoursMinutes": "{{hours}} h {{minutes}} min",
     "unavailable": "Route unavailable — no estimate",
     "a11y": "{{mode}}, {{distance}}, {{duration}}",
-    "unavailableA11y": "{{mode}}, route unavailable, no estimate"
+    "unavailableA11y": "{{mode}}, route unavailable, no estimate",
+    "approx": "≈ {{value}}",
+    "estimatedA11y": "{{mode}}, about {{distance}}, about {{duration}}, estimated",
+    "unavailableShort": "Route unavailable",
+    "estimateNotice": "Distances and travel times are estimated from straight lines, not measured on real roads."
   },
   "map": {
     "title": "Map",
@@ -131,7 +140,8 @@
     "attributionGoogle": "Map data © Google",
     "attributionApple": "Maps © Apple",
     "noStops": "This day has no stops yet",
-    "legendUnavailable": "A day with an unavailable leg is Blocked. Change the travel mode or replace the stop."
+    "legendUnavailable": "A day with an unavailable leg is Blocked. Change the travel mode or replace the stop.",
+    "legendStraight": "Lines join stops directly; they are not the actual route."
   },
   "save": {
     "action": "Save trip",
@@ -337,5 +347,11 @@
     "reviewDetailHint": "Opens Plan Health details",
     "good": "Plan looks good",
     "goodA11y": "Plan Health: good"
+  },
+  "ready": {
+    "toast": "Your proposal is ready — not saved yet"
+  },
+  "assumptions": {
+    "title": "What this plan assumes"
   }
 }

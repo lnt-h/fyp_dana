@@ -28,6 +28,8 @@ export type ProposalData = {
   cityId: Uuid | null;
   /** Modes the Edit stop sheet may offer (trip `planning_preferences.allowed_modes`). */
   allowedModes: TravelMode[];
+  /** Server-localized assumption lines of the preview (e.g. the demo-estimate disclosure); empty for a saved trip. */
+  assumptions: string[];
 };
 
 export type StopPlace = { thumbnail: Media | null; categoryCode: string | null };
@@ -72,7 +74,7 @@ async function fromTrip(trip: TripDetail): Promise<ProposalData> {
   const days = numberDays(trip.days);
   const [city, places] = await Promise.all([cityOf(trip.city_id), placesOf(days)]);
   return {
-    ...city, allowedModes: modesOf(trip), cityId: trip.city_id, cover: coverOf(days, places), days, health: null, healthReasons: [],
+    ...city, allowedModes: modesOf(trip), assumptions: [], cityId: trip.city_id, cover: coverOf(days, places), days, health: null, healthReasons: [],
     origin: null, places, previewId: null, previewRevision: null, readOnly: trip.status === 'SAVED', saved: trip.status === 'SAVED',
     startDate: trip.start_date, tripId: trip.id,
   };
@@ -94,6 +96,7 @@ export async function withPreview(data: ProposalData, preview: PlanPreview): Pro
   const places = await placesOf(days, data.places);
   return {
     ...data,
+    assumptions: preview.assumptions ?? [],
     days,
     health: preview.plan_health,
     healthReasons: preview.health_reasons ?? [],
@@ -123,6 +126,7 @@ async function load({ previewId, tripId, mode }: Params): Promise<ProposalData> 
   return {
     ...(await cityOf(trip?.city_id)),
     allowedModes: modesOf(trip),
+    assumptions: preview.assumptions ?? [],
     cityId: trip?.city_id ?? null,
     cover: coverOf(days, places),
     days,

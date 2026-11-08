@@ -29,6 +29,8 @@ type Props = {
   edit?: StopEditControls;
   /** FEATURE_REGENERATION: show the lock badge on locked stops. */
   showLock?: boolean;
+  /** Draw the card's own white surface and hairline border (time-rail layout). */
+  framed?: boolean;
 };
 
 export type StopEditControls = {
@@ -43,7 +45,7 @@ export type StopEditControls = {
  * One stop of a day (SCR-024 `StopCard`): photo, number, server times in Asia/Ho_Chi_Minh, name, category, conflicts
  * and the AI-written rationale (labelled as AI). The selection highlight fades in and follows the map.
  */
-export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpenDetails, rowRef, edit, showLock = false }: Props) {
+export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpenDetails, rowRef, edit, showLock = false, framed = false }: Props) {
   const { t } = useTranslation();
   const [showWhy, setShowWhy] = useState(false);
   const highlight = useRef(new Animated.Value(selected ? 1 : 0)).current;
@@ -59,17 +61,20 @@ export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpe
   const conflicts = stop.conflicts ?? [];
   const timeRange = arrival && departure ? `${arrival} – ${departure}` : t('proposal.stop.timeUnknown');
   const status = conflicts.length ? conflicts.map(conflict => t(`proposal.conflict.${conflict.type}`)).join(', ') : t('proposal.stop.statusOk');
+  const unknownTime = t('proposal.stop.timeUnknown');
   // `name` is in the request locale; show the Vietnamese name as well when they differ (FR-076).
   const secondary = [stop.name !== stop.name_vi ? stop.name_vi : null, t('proposal.stop.minutes', { count: stop.visit_minutes })].filter(Boolean).join(' · ');
   const image = resolveImage(place?.thumbnail, { height: THUMB, width: THUMB });
 
-  return <View ref={rowRef} style={r.root}>
+  return <View ref={rowRef} style={[r.root, framed && r.framed]}>
     <Animated.View pointerEvents="none" style={[r.highlight, blocked && r.highlightBlocked, { opacity: highlight }]} />
     {blocked && <View style={r.blockedEdge} />}
     <View style={r.mainRow}>
     <Pressable
       accessibilityHint={t('proposal.stop.selectHint')}
-      accessibilityLabel={t('proposal.stop.a11y', { arrival: arrival ?? '—', departure: departure ?? '—', name: stop.name, number: stop.number, status })}
+      accessibilityLabel={arrival && departure
+        ? t('proposal.stop.a11y', { arrival, departure, name: stop.name, number: stop.number, status })
+        : t('proposal.stop.a11yNoTime', { name: stop.name, number: stop.number, status, unknown: unknownTime })}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onSelect}
@@ -101,8 +106,10 @@ export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpe
           <Text numberOfLines={1} style={r.meta}>{secondary}</Text>
         </View>
         {conflicts.map((conflict, index) => <View key={`${conflict.type}-${index}`} style={r.conflict}>
-          <HealthGlyph health={conflict.severity === 'BLOCKING' ? 'BLOCKED' : 'WARNING'} size={14} />
-          <Text style={[r.conflictText, conflict.severity === 'BLOCKING' && { color: palette.error }]}>{t(`proposal.conflict.${conflict.type}`)}</Text>
+          {conflict.severity === 'INFO'
+            ? <Icon color={colors.tealText} name="info" size={14} />
+            : <HealthGlyph health={conflict.severity === 'BLOCKING' ? 'BLOCKED' : 'WARNING'} size={14} />}
+          <Text style={[r.conflictText, conflict.severity === 'BLOCKING' && { color: palette.error }, conflict.severity === 'INFO' && r.conflictInfo]}>{t(`proposal.conflict.${conflict.type}`)}</Text>
         </View>)}
       </View>
     </Pressable>
@@ -182,6 +189,7 @@ function ReorderButton({ label, icon, onPress, disabled, accessibilityLabel }: {
 
 const r = StyleSheet.create({
   root: { borderRadius: radii.card, overflow: 'hidden' },
+  framed: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.hairline, paddingBottom: spacing.xxs },
   highlight: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.canvas, borderRadius: radii.card, borderWidth: 1.5, borderColor: colors.audioTeal },
   highlightBlocked: { backgroundColor: colors.dangerBg, borderColor: palette.error },
   blockedEdge: { position: 'absolute', left: 0, top: 10, bottom: 10, width: 4, borderRadius: 2, backgroundColor: palette.error },
@@ -207,6 +215,7 @@ const r = StyleSheet.create({
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
   meta: { flexShrink: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.textMuted },
   conflict: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  conflictInfo: { fontFamily: fonts.medium, color: colors.textMuted },
   conflictText: { flexShrink: 1, fontFamily: fonts.bold, fontSize: 13, lineHeight: 18, color: colors.ink },
   extras: { paddingLeft: spacing.sm + THUMB + spacing.sm, paddingRight: spacing.sm, paddingBottom: 2 },
   why: { marginTop: spacing.xs },

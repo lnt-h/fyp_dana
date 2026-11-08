@@ -7,11 +7,11 @@ import { colors } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
 import { palette } from '../../auth/components/AuthUI';
+import { DayTimeline, type DayEditControls } from './DayTimeline';
 import { formatTime } from './format';
-import { HealthGlyph, PlannerIcon } from './icons';
-import { LegRow } from './LegRow';
-import { outgoingLeg, type NumberedDay } from './model';
-import { StopCard } from './StopCard';
+import { HealthGlyph } from './icons';
+import type { NumberedDay } from './model';
+import { dayHasEstimate, EstimateNotice } from './TimeRail';
 import type { StopPlace } from './useProposal';
 
 type Props = {
@@ -31,21 +31,11 @@ type Props = {
   edit?: DayEditControls;
 };
 
-export type DayEditControls = {
-  /** Edit mode: Move up/down on each stop plus the day's Add / Regenerate actions. */
-  editing: boolean;
-  disabled: boolean;
-  showLock: boolean;
-  onEditStop: (stopId: Uuid) => void;
-  onMoveStop: (stopId: Uuid, direction: -1 | 1) => void;
-  onAddStop: () => void;
-  /** FEATURE_REGENERATION only. */
-  onRegenerate?: () => void;
-};
+export type { DayEditControls };
 
 /**
  * One day of the itinerary as an accordion card: numbered day badge, date and stop count, the server's issue counts
- * for that day (listed, not computed), then the stops joined by measured legs.
+ * for that day (listed, not computed), then the day's stops on the time rail. Used for the saved, read-only itinerary.
  */
 export function DayCard({ day, date, cityName, open, active, places, selectedStopId, reducedMotion, onToggle, onSelectStop, onOpenPlace, registerRow, edit }: Props) {
   const { t } = useTranslation();
@@ -57,6 +47,7 @@ export function DayCard({ day, date, cityName, open, active, places, selectedSto
   const last = formatTime(day.stops[day.stops.length - 1]?.planned_departure);
   const summary = [date, t('proposal.day.stops', { count: day.stops.length }), first && last ? `${first} – ${last}` : null].filter(Boolean).join(' · ');
   const title = t('proposal.day.title', { day: day.day_index });
+  const estimated = dayHasEstimate(day);
 
   return <View style={[c.card, active && c.cardActive]}>
     <Pressable
@@ -89,55 +80,20 @@ export function DayCard({ day, date, cityName, open, active, places, selectedSto
       </View>
     </Pressable>
     {open && <View style={c.body}>
-      {day.stops.length === 0
-        ? <View style={c.empty}>
-          <View style={c.emptyIcon}><Icon color={colors.tealText} name="map-pin" size={24} /></View>
-          <Text style={c.emptyTitle}>{t('proposal.day.empty', { day: day.day_index })}</Text>
-          <Text style={c.emptyBody}>{t('proposal.day.emptyBody', { city: cityName })}</Text>
-        </View>
-        : day.stops.map((stop, index) => {
-          const leg = index < day.stops.length - 1 ? outgoingLeg(day, stop.id) : undefined;
-          return <View key={stop.id}>
-            <StopCard
-              edit={edit ? {
-                disabled: edit.disabled,
-                onMore: () => edit.onEditStop(stop.id),
-                onMoveDown: index < day.stops.length - 1 ? () => edit.onMoveStop(stop.id, 1) : undefined,
-                onMoveUp: index > 0 ? () => edit.onMoveStop(stop.id, -1) : undefined,
-                reorder: edit.editing,
-              } : undefined}
-              showLock={edit?.showLock}
-              onOpenDetails={stop.place_id ? () => onOpenPlace(stop.place_id as string) : undefined}
-              onSelect={() => onSelectStop(stop.id)}
-              place={stop.place_id ? places[stop.place_id] : undefined}
-              reducedMotion={reducedMotion}
-              rowRef={view => registerRow(stop.id, view)}
-              selected={stop.id === selectedStopId}
-              stop={stop}
-            />
-            {leg ? <LegRow leg={leg} /> : index < day.stops.length - 1 ? <View style={c.gap} /> : null}
-          </View>;
-        })}
-      {edit && (edit.editing || day.stops.length === 0) ? <View style={c.editRow}>
-        <DayAction disabled={edit.disabled} icon="plus" label={t('proposal.edit.addStop')} accessibilityLabel={t('proposal.edit.addStopA11y', { day: day.day_index })} onPress={edit.onAddStop} primary />
-        {edit.onRegenerate ? <DayAction disabled={edit.disabled} icon="refresh" label={t('proposal.edit.regenerate')} accessibilityLabel={t('proposal.edit.regenerateA11y', { day: day.day_index })} onPress={edit.onRegenerate} /> : null}
-      </View> : null}
+      {estimated ? <EstimateNotice style={c.notice} /> : null}
+      <DayTimeline
+        cityName={cityName}
+        day={day}
+        edit={edit}
+        onOpenPlace={onOpenPlace}
+        onSelectStop={onSelectStop}
+        places={places}
+        reducedMotion={reducedMotion}
+        registerRow={registerRow}
+        selectedStopId={selectedStopId}
+      />
     </View>}
   </View>;
-}
-
-function DayAction({ label, icon, onPress, disabled, primary, accessibilityLabel }: { label: string; icon: 'plus' | 'refresh'; onPress: () => void; disabled: boolean; primary?: boolean; accessibilityLabel: string }) {
-  return <Pressable
-    accessibilityLabel={accessibilityLabel}
-    accessibilityRole="button"
-    accessibilityState={{ disabled }}
-    disabled={disabled}
-    onPress={onPress}
-    style={({ pressed }) => [c.dayAction, primary && c.dayActionPrimary, disabled && { opacity: 0.4 }, pressed && { opacity: 0.75 }]}
-  >
-    <PlannerIcon color={primary ? colors.tealText : colors.deepOcean} name={icon} size={18} />
-    <Text style={[c.dayActionText, primary && { color: colors.tealText }]}>{label}</Text>
-  </Pressable>;
 }
 
 const c = StyleSheet.create({
@@ -155,14 +111,6 @@ const c = StyleSheet.create({
   issueText: { fontFamily: fonts.bold, fontSize: 12, color: colors.ink },
   chevron: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surfaceTint, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '90deg' }] },
   chevronOpen: { transform: [{ rotate: '-90deg' }] },
-  body: { paddingHorizontal: spacing.xxs, paddingBottom: spacing.xs, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.hairline, paddingTop: spacing.xs },
-  gap: { height: spacing.xs },
-  empty: { alignItems: 'center', padding: spacing.lg },
-  emptyIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.surfaceTint, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs },
-  editRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingHorizontal: spacing.sm, paddingTop: spacing.xs, paddingBottom: spacing.xs },
-  dayAction: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 48, paddingHorizontal: 14, borderRadius: radii.button, borderWidth: 1.5, borderColor: colors.hairline, backgroundColor: colors.white },
-  dayActionPrimary: { borderStyle: 'dashed', borderColor: colors.audioTeal, backgroundColor: colors.canvas },
-  dayActionText: { fontFamily: fonts.bold, fontSize: 14, color: colors.deepOcean },
-  emptyTitle: { fontFamily: fonts.bold, fontSize: 16, color: colors.ink, textAlign: 'center' },
-  emptyBody: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginTop: 4 },
+  body: { paddingRight: spacing.sm, paddingBottom: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.hairline, paddingTop: spacing.xs, backgroundColor: colors.canvas, borderBottomLeftRadius: radii.card, borderBottomRightRadius: radii.card },
+  notice: { marginLeft: spacing.sm, marginBottom: spacing.xs },
 });
