@@ -70,8 +70,8 @@
   "describe": {
     "prompt": "Bạn muốn chuyến đi thế nào?",
     "label": "Chuyến đi của bạn",
-    "placeholder": "\"3 ngày ở Hà Nội, đi chậm, thích ẩm thực\"",
-    "hint": "Hãy nêu thành phố, ngày bắt đầu và số ngày. Bạn có thể chuyển sang Biểu mẫu bất cứ lúc nào.",
+    "placeholder": "\"3 ngày ở Đà Nẵng và Hội An, đi chậm, thích ẩm thực\"",
+    "hint": "Hãy nêu ngày bắt đầu và số ngày. Bạn có thể chuyển sang Biểu mẫu bất cứ lúc nào.",
     "counter": "{{count}} / 500"
   },
   "notice": {
@@ -104,8 +104,8 @@
     "edit": "Sửa yêu cầu"
   },
   "unsupported": {
-    "body": "Chưa hỗ trợ yêu cầu này. Mỗi chuyến đi dài 1–3 ngày và ở một thành phố: Hà Nội, TP.HCM, Đà Nẵng, Hội An hoặc Huế.",
-    "pickCity": "Chọn một thành phố để tiếp tục",
+    "body": "Chưa hỗ trợ yêu cầu này. Mỗi chuyến đi dài 1–3 ngày ở Đà Nẵng, gồm cả khu vực Hội An.",
+    "pickCity": "Xác nhận thành phố để tiếp tục",
     "edit": "Sửa yêu cầu"
   },
   "weekday": {
@@ -198,7 +198,7 @@
     "when": {
       "title": "Khi nào bạn đi?",
       "destinationSub": "Gồm cả khu Hội An",
-      "destinationOther": "Một thành phố, 1–3 ngày",
+      "destinationOther": "Đà Nẵng và khu vực Hội An, 1–3 ngày",
       "hint": "Chạm ngày bắt đầu, rồi chạm ngày kết thúc. Tối đa 3 ngày.",
       "max": "Chuyến đi tối đa 3 ngày. Hãy chọn ngày kết thúc gần ngày bắt đầu hơn.",
       "range_one": "{{start}} · {{count}} ngày",

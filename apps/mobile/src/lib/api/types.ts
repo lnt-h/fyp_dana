@@ -27,10 +27,10 @@ export type KnowledgeState = Schemas['KnowledgeState'];
 export type Freshness = Schemas['Freshness'];
 
 /**
- * City `code` values (schema.sql `ck_cities_code_format`, kebab-case). The FYP release enables Đà Nẵng only; Hội An is
- * an area of Đà Nẵng (2025 merger), not a city. Hà Nội, TP.HCM and Huế are roadmap.
+ * City `code` (openapi 1.0.3 `City.code` enum). Gonarra covers Đà Nẵng only (owner 2026-11-08); Hội An is an area of
+ * Đà Nẵng (2025 merger), not a city.
  */
-export type CityCode = 'da-nang' | 'ha-noi' | 'ho-chi-minh-city' | 'hue';
+export type CityCode = Schemas['City']['code'];
 
 /** The city the app opens on and falls back to. */
 export const DEFAULT_CITY_CODE: CityCode = 'da-nang';

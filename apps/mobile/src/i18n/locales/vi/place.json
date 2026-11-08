@@ -48,7 +48,9 @@
   },
   "description": {
     "title": "Giới thiệu",
-    "note": "Mô tả: nội dung do Gonarra biên soạn"
+    "note": "Mô tả: nội dung do Gonarra biên soạn",
+    "aiSummary": "Tóm tắt từ nguồn",
+    "aiSummaryHint": "Xem các nguồn được dùng để tóm tắt mô tả này"
   },
   "media": {
     "title": "Ảnh"

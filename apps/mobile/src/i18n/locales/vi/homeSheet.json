@@ -54,7 +54,7 @@
     "emptyFilter": "Chưa có địa điểm nào trong danh mục này.",
     "error": "Không tải được địa điểm.",
     "retry": "Thử lại",
-    "cityError": "Không tải được danh sách thành phố."
+    "cityError": "Không tải được thông tin thành phố."
   },
   "rails": {
     "hoiAn": {

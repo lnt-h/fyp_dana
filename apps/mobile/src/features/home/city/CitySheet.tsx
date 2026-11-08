@@ -22,8 +22,8 @@ type Props = {
 };
 
 /**
- * SCR-020 city choice: a modal sheet with the launch cities as photo tiles (order and names from API-008, never
- * hard-coded). Tapping a tile selects it and closes; the choice is stored on the device by the city store.
+ * SCR-020 city sheet. Gonarra covers Đà Nẵng only (owner 2026-11-08, incl. the Hội An area), so this shows the one
+ * city from API-008 with the coverage note; it is no longer a city switcher. Still opened by Home's city button.
  */
 export function CitySheet({ visible, onClose }: Props) {
   const { t, i18n } = useTranslation();
@@ -53,7 +53,7 @@ export function CitySheet({ visible, onClose }: Props) {
 
           <ScrollView accessibilityRole="radiogroup" contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
             {loading && cities.length === 0
-              ? Array.from({ length: 5 }, (_, i) => <Skeleton height={TILE_HEIGHT} key={i} radius={20} />)
+              ? Array.from({ length: 1 }, (_, i) => <Skeleton height={TILE_HEIGHT} key={i} radius={20} />)
               : null}
             {error && cities.length === 0 ? (
               <View accessibilityLiveRegion="polite" style={styles.error}>

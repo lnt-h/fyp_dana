@@ -12,7 +12,6 @@ import { spacing } from '../../theme/spacing';
 import { fonts } from '../../theme/typography';
 import { useAccount } from '../account/AccountContext';
 import { SignInGate } from '../auth/SignInGate';
-import { CitySheet } from '../home/city/CitySheet';
 import { useSelectedCity } from '../home/cityStore';
 import { useTabBarClearance } from '../home/components/HomeTabBar';
 import { ErrorBanner, NoticeBanner } from '../home/sections/SheetBanners';
@@ -51,7 +50,6 @@ export function ExploreScreen() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
   const [view, setView] = useState<ResultView>('grid');
-  const [cityOpen, setCityOpen] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
 
   const vi = i18n.resolvedLanguage === 'vi';
@@ -102,7 +100,6 @@ export function ExploreScreen() {
   }
 
   const skeleton = view === 'grid' ? <GridSkeleton width={cardWidth} /> : <ListSkeleton />;
-  const changeCity = { label: t('explore.states.changeCity'), onPress: () => setCityOpen(true) };
 
   let body: ReactNode;
   if (!city) {
@@ -118,7 +115,7 @@ export function ExploreScreen() {
     } else if (searchState === 'done' && shown.length === 0) {
       body = (
         <EmptyState
-          actions={[{ label: t('explore.states.clearSearch'), onPress: () => setQuery('') }, changeCity]}
+          actions={[{ label: t('explore.states.clearSearch'), onPress: () => setQuery('') }]}
           body={t('explore.states.emptyQueryBody')}
           icon="search"
           title={t('explore.states.emptyQueryTitle', { city: name, q })}
@@ -141,7 +138,7 @@ export function ExploreScreen() {
   } else if (places.length === 0) {
     body = (
       <EmptyState
-        actions={[changeCity]}
+        actions={[]}
         body={t('explore.states.comingBody', { city: cityName })}
         icon="map-pin"
         title={t('explore.states.comingTitle', { city: cityName })}
@@ -202,7 +199,7 @@ export function ExploreScreen() {
         stickyHeaderIndices={[1]}
       >
         <View style={[styles.inner, styles.head]}>
-          <ExploreTitle cityName={cityName} onPickCity={() => setCityOpen(true)} />
+          <ExploreTitle cityName={cityName} />
         </View>
 
         <View style={styles.sticky}>
@@ -229,7 +226,6 @@ export function ExploreScreen() {
         </View>
       </ScrollView>
 
-      <CitySheet onClose={() => setCityOpen(false)} visible={cityOpen} />
       <SignInGate feature={gateOpen ? 'search' : null} onClose={() => setGateOpen(false)} />
     </View>
   );

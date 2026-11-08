@@ -185,7 +185,7 @@ export function TripsScreen() {
             <Text accessibilityRole="header" style={styles.title}>{t('trips.title')}</Text>
             <Text style={styles.subtitle}>{t('trips.subtitleEmpty')}</Text>
             <View style={styles.stateGap}>
-              <PhotoPanel action={t('trips.guest.action')} body={t('trips.guest.body')} code="hue" icon="lantern" onAction={() => setGateOpen(true)} title={t('trips.guest.title')} />
+              <PhotoPanel action={t('trips.guest.action')} body={t('trips.guest.body')} code="da-nang" icon="lantern" onAction={() => setGateOpen(true)} title={t('trips.guest.title')} />
             </View>
           </View>
         </ScrollView>

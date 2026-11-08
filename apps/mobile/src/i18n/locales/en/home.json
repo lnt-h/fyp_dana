@@ -2,10 +2,10 @@
   "profile": "Profile",
   "city": {
     "button": "{{city}}, {{country}}",
-    "buttonLabel": "Current city: {{city}}. Change city",
-    "title": "Choose a city",
-    "subtitle": "Gonarra covers 5 cities. Each trip covers one city.",
-    "loadError": "Could not load cities.",
+    "buttonLabel": "City: {{city}}",
+    "title": "Your city",
+    "subtitle": "Gonarra covers Đà Nẵng, including the Hội An area.",
+    "loadError": "Could not load the city.",
     "retry": "Try again",
     "close": "Close"
   },
@@ -32,7 +32,7 @@
     "resultCount": "Results in {{city}}: {{count}}",
     "emptyTitle": "No match for “{{q}}” in {{city}}",
     "emptyTopicTitle": "No places in this topic in {{city}} yet",
-    "emptyBody": "Gonarra only shows source-checked places in the selected city. Try the Vietnamese or English name, or change city.",
+    "emptyBody": "Gonarra only shows source-checked places in Đà Nẵng and the Hội An area. Try the Vietnamese or English name.",
     "changeCity": "Change city",
     "error": "Search is unavailable right now.",
     "retry": "Try again"

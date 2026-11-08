@@ -12,24 +12,21 @@ import { MAX_QUERY } from '../useExploreData';
 export type ResultView = 'grid' | 'list';
 const border = colors.hairline;
 
-/** Large title, city pill (opens SCR-020) and the source-checked-places subtitle. */
-export function ExploreTitle({ cityName, onPickCity }: { cityName: string | null; onPickCity: () => void }) {
+/** Large title, city pill (Đà Nẵng only since 2026-11-08: a label, not a picker) and the subtitle. */
+export function ExploreTitle({ cityName }: { cityName: string | null }) {
   const { t } = useTranslation();
   return (
     <View style={styles.titleBlock}>
       <View style={styles.titleRow}>
         <Text accessibilityRole="header" style={styles.title}>{t('explore.title')}</Text>
-        <Pressable
+        <View
           accessibilityLabel={cityName ? t('explore.city.label', { city: cityName }) : t('explore.city.loading')}
-          accessibilityRole="button"
-          disabled={!cityName}
-          onPress={onPickCity}
-          style={({ pressed }) => [styles.cityPill, pressed && styles.pressed]}
+          accessibilityRole="text"
+          style={styles.cityPill}
         >
           <Icon color={colors.tealText} name="map-pin" size={18} />
           <Text numberOfLines={1} style={styles.cityText}>{cityName ?? '…'}</Text>
-          <View style={styles.chevronDown}><Icon color={colors.ink} name="chevron-right" size={16} /></View>
-        </Pressable>
+        </View>
       </View>
       {cityName ? <Text style={styles.subtitle}>{t('explore.subtitle', { city: cityName })}</Text> : null}
     </View>

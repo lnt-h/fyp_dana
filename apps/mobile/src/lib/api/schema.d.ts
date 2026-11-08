@@ -298,6 +298,9 @@ export interface paths {
          * Regenerate one day, keeping other days and locked stops
          * @description Locked stops keep place, day and visit duration (solver constraints, ADR-011); all other days are copied
          *     unchanged. Appends a DAY_REGENERATED revision. Streams like API-018 with `Accept: text/event-stream`.
+         *     Uses the preview's `planning_preferences` (1.0.3). With `Idempotency-Key` (DAY_REGENERATE), a retry with
+         *     the same key and body replays the completed revision (`preview_ready` / 201) instead of 409
+         *     `revision_conflict`; the same key with another body is 409 `idempotency_key_reused`.
          */
         post: operations["regeneratePlanDay"];
         delete?: never;
@@ -703,10 +706,11 @@ export interface components {
             /** Format: uuid */
             id: string;
             /**
-             * @description Stable city code. FYP release enables `da-nang` only (the Hội An area belongs to it, DEC-013).
+             * @description Stable city code. Gonarra covers Đà Nẵng only (the Hội An area belongs to it, DEC-013; other cities removed 1.0.3).
              * @example da-nang
+             * @enum {string}
              */
-            code: string;
+            code: "da-nang";
             name_vi: string;
             name_en: string;
             /** @example Asia/Ho_Chi_Minh */
@@ -752,6 +756,11 @@ export interface components {
             name_vi: string;
             /** @description Name in the requested locale. */
             name: string;
+            /**
+             * @description 1.0.3. True when `name` (EN locale) is the original Vietnamese proper name reused unchanged because no source gives an English name; never a machine translation.
+             * @default false
+             */
+            name_is_source_fallback: boolean;
             short_description?: string | null;
             location: components["schemas"]["GeoPoint"];
             visit_minutes_suggested?: number | null;
@@ -817,6 +826,11 @@ export interface components {
         PlaceDetail: components["schemas"]["PlaceSummary"] & {
             name_en: string;
             description?: string | null;
+            /**
+             * @description 1.0.3. SOURCE = text from a cited source (Wikipedia lead, operator sheet, Wikidata); AI_SUMMARY = summarised by Gonarra's grounded writer from the listed sources (label it in the UI). Null when there is no description.
+             * @enum {string|null}
+             */
+            description_origin?: "SOURCE" | "AI_SUMMARY" | null;
             visit_minutes_min?: number | null;
             visit_minutes_max?: number | null;
             entrance_location?: components["schemas"]["GeoPoint"] | null;
@@ -1040,7 +1054,10 @@ export interface components {
             /** Format: date-time */
             expires_at: string;
             days: components["schemas"]["ItineraryDay"][];
+            /** @description 1.0.3. Plan assumptions rendered in the response locale (stored as stable keys, de-duplicated). */
             assumptions?: string[];
+            /** @description 1.0.3. Effective preferences (request > trip > account) this preview was generated with; API-021 reuses them and Save copies them to the trip. Null for older previews. */
+            planning_preferences?: components["schemas"]["PlanningPreferences"] | null;
             model_version?: string | null;
             prompt_version?: string | null;
             corpus_revision?: number | null;

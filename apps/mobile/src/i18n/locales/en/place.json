@@ -48,7 +48,9 @@
   },
   "description": {
     "title": "About",
-    "note": "Description written by Gonarra"
+    "note": "Description written by Gonarra",
+    "aiSummary": "Summarised from sources",
+    "aiSummaryHint": "Shows the sources this description was summarised from"
   },
   "media": {
     "title": "Photos"

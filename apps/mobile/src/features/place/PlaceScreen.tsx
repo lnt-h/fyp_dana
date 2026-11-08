@@ -141,6 +141,11 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
     setMapsFailed(true);
   }
 
+  /** Scrolls to the sources & credits section (the "Sources: …" line and the AI-summary label link here). */
+  function scrollToSources() {
+    scrollRef.current?.scrollTo({ animated: !reducedMotion, y: Math.max(0, innerY.current + attributionsY.current - spacing.xxxl - spacing.md) });
+  }
+
   function share() {
     const lines = [place.name_vi, addressText, directionsUrls(place.location).google].filter(Boolean);
     Share.share({ message: lines.join('\n') }).catch(() => undefined);
@@ -176,7 +181,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
         {publishers.length ? <Pressable
           accessibilityHint={t('place.sources.hint')}
           accessibilityRole="link"
-          onPress={() => scrollRef.current?.scrollTo({ animated: !reducedMotion, y: Math.max(0, innerY.current + attributionsY.current - spacing.xxxl - spacing.md) })}
+          onPress={scrollToSources}
           style={({ pressed }) => [s.sourcesLine, pressed && { opacity: 0.6 }]}
         >
           <Icon color={colors.tealText} name="doc" size={16} />
@@ -203,7 +208,18 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
         {!!place.description && <>
           <SectionHeader style={s.section} title={t('place.description.title')} />
           <Text style={s.body}>{place.description}</Text>
-          <Text style={s.note}>{t('place.description.note')}</Text>
+          {place.description_origin === 'AI_SUMMARY'
+            ? <Pressable
+                accessibilityHint={t('place.description.aiSummaryHint')}
+                accessibilityRole={place.attributions.length ? 'link' : 'text'}
+                disabled={!place.attributions.length}
+                onPress={scrollToSources}
+                style={({ pressed }) => [s.summaryLabel, pressed && { opacity: 0.6 }]}
+              >
+                <Icon color={colors.tealText} name="doc" size={14} />
+                <Text style={s.summaryText}>{t('place.description.aiSummary')}</Text>
+              </Pressable>
+            : <Text style={s.note}>{t('place.description.note')}</Text>}
         </>}
 
         {photos.length > 0 && <>
@@ -310,6 +326,8 @@ const s = StyleSheet.create({
   quickIcon: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: 12, height: 36, justifyContent: 'center', width: 36 },
   quickLabel: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 16 },
   quickRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.md },
+  summaryLabel: { alignItems: 'center', alignSelf: 'flex-start', flexDirection: 'row', gap: 6, minHeight: 44 },
+  summaryText: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 13, lineHeight: 18 },
   sourcesLine: { alignItems: 'center', flexDirection: 'row', gap: 6, minHeight: 44, marginTop: spacing.xs },
   sourcesText: { color: colors.tealText, flex: 1, fontFamily: fonts.bold, fontSize: 13, lineHeight: 18 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.xs },

@@ -18,10 +18,10 @@ const PHOTO_HEIGHT = 124;
 const RAIL_MAX = 12;
 
 /**
- * Hội An travel areas (apps/api/data/areas/da-nang.yaml): the Ancient Town side and the beaches/islands side. API-010
- * filters one `area_code` per request, so the rail asks for each and merges.
+ * Hội An travel areas: every area with `hoi_an_area: true` in apps/api/data/areas/da-nang.yaml (keep in sync; the
+ * API's `Area` has no Hội An flag). API-010 filters one `area_code` per request, so the rail asks for each and merges.
  */
-export const HOI_AN_AREA_CODES = ['hoi-an-old-town', 'hoi-an-beaches-islands'] as const;
+export const HOI_AN_AREA_CODES = ['hoi-an-old-town', 'hoi-an-beaches-islands', 'hoi-an-outskirts'] as const;
 const FOOD_CATEGORY_CODES = ['FOOD', 'CAFE'] as const;
 
 type Load = { state: 'loading' } | { state: 'error' } | { state: 'ready'; places: Place[] };

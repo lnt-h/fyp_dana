@@ -54,7 +54,7 @@
     "emptyFilter": "No places in this category yet.",
     "error": "Could not load places.",
     "retry": "Try again",
-    "cityError": "Could not load cities."
+    "cityError": "Could not load the city."
   },
   "rails": {
     "hoiAn": {

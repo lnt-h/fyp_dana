@@ -54,8 +54,5 @@ export function formatApprox(t: TFunction, value: string): string {
   return t('proposal.leg.approx', { value });
 }
 
-/** Weekday index (0 = Sunday) of an ISO calendar date, independent of the device time zone. */
-export function weekdayOf(date: IsoDate): number {
-  const ms = Date.parse(`${date}T00:00:00Z`);
-  return Number.isNaN(ms) ? 0 : new Date(ms).getUTCDay();
-}
+/** Weekday index (0 = Sunday) of an ISO calendar date; one shared implementation in `input/vnTime`. */
+export { weekdayOf } from '../input/vnTime';

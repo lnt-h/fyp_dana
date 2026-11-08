@@ -70,11 +70,12 @@ type BodyProps = {
   recent: string[];
   onPickRecent: (q: string) => void;
   onOpenPlace: (place: Place) => void;
-  onChangeCity: () => void;
+  /** Unused since 2026-11-08 (Đà Nẵng only); kept so existing callers compile. */
+  onChangeCity?: () => void;
 };
 
 /** SCR-021 body: idle (recent searches + topics), loading, results, empty, error and offline states. */
-export function SearchBody({ city, query, offline, recent, onPickRecent, onOpenPlace, onChangeCity }: BodyProps) {
+export function SearchBody({ city, query, offline, recent, onPickRecent, onOpenPlace }: BodyProps) {
   const { t, i18n } = useTranslation();
   const vi = i18n.resolvedLanguage === 'vi';
   const cityName = vi ? city.name_vi : city.name_en;
@@ -183,7 +184,6 @@ export function SearchBody({ city, query, offline, recent, onPickRecent, onOpenP
           {q ? t('home.search.emptyTitle', { city: cityName, q }) : t('home.search.emptyTopicTitle', { city: cityName })}
         </Text>
         <Text style={styles.emptyBody}>{t('home.search.emptyBody')}</Text>
-        <SecondaryButton label={t('home.search.changeCity')} onPress={onChangeCity} />
       </View>
     );
   }
