@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useTranslation } from 'react-i18next';
-import { Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CircleButton, Icon, PhotoHero, categoryIcon, PrimaryButton, SecondaryButton, SectionHeader, Skeleton } from '../../components/ui';
+import { CircleButton, GlassBadge, Icon, type IconName, categoryIcon, PrimaryButton, SecondaryButton, SectionHeader, Skeleton } from '../../components/ui';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { currentLocale, type AppLocale } from '../../i18n';
 import { getPlace, listCategories } from '../../lib/api/source';
 import type { Category, GeoPoint, PlaceDetail, PlaceFact } from '../../lib/api/types';
@@ -16,6 +17,7 @@ import { elevation } from '../../theme/elevation';
 import { radii, spacing } from '../../theme/spacing';
 import { fonts, typography } from '../../theme/typography';
 import { FactIcon, factIcon, type FactIconName } from './components/FactIcon';
+import { HeroGallery } from './components/HeroGallery';
 import { ScreenMessage, isNotFound } from './components/PlaceUI';
 import { SourceLine, StaleBadge, UnknownBadge } from './components/SourceLine';
 import { factPoint, formatFactValue, isStaleFact } from './format';
@@ -48,6 +50,11 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
   const [mapsFailed, setMapsFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const language = i18n.language;
+  const reducedMotion = useReducedMotion();
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  // Layout offsets for the "Sources: …" link: the inner column inside the scroll, then the credits inside the column.
+  const innerY = useRef(0);
+  const attributionsY = useRef(0);
 
   useEffect(() => {
     let alive = true;
@@ -116,6 +123,13 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
     { icon: 'ticket', key: 'price', label: t('place.quick.price'), value: quickValue('ADMISSION_PRICE') },
   ];
   const photos = place.media?.filter(media => media.media_asset_id !== place.thumbnail?.media_asset_id) ?? [];
+  const areaName = place.area ? (locale === 'vi' ? place.area.name_vi : place.area.name_en) : null;
+  const publishers = [...new Set(place.attributions.map(item => item.publisher).filter(Boolean))];
+  const tags: { key: string; label: string; icon: IconName }[] = [
+    ...(categoryName ? [{ icon: 'heritage' as const, key: 'category', label: categoryName }] : []),
+    ...(areaName ? [{ icon: 'map-pin' as const, key: 'area', label: areaName }] : []),
+    ...(place.trust_level === 'VERIFIED' ? [{ icon: 'shield' as const, key: 'trust', label: t('place.tags.verified') }] : []),
+  ];
 
   async function openDirections() {
     setMapsFailed(false);
@@ -134,31 +148,41 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
 
   return <View style={s.screen}>
     <StatusBar style="light" />
-    <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-      <PhotoHero
-        accessibilityLabel={place.thumbnail?.alt_text ?? undefined}
-        attribution={place.thumbnail?.attribution_text ? t('place.photoBy', { text: place.thumbnail.attribution_text }) : null}
+    <ScrollView ref={scrollRef} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+      <HeroGallery
         fallbackIcon={categoryIcon(place.category_code)}
         height={HERO_HEIGHT}
-        image={place.thumbnail}
-        kicker={categoryName}
+        media={place.media}
+        name={place.name}
+        thumbnail={place.thumbnail}
         title={place.name}
         topLeft={backButton}
         topRight={<CircleButton accessibilityLabel={t('place.share')} icon="share" onPress={share} />}
       >
         {otherName !== place.name && <Text numberOfLines={1} style={s.otherName}>{otherName}</Text>}
-      </PhotoHero>
+        {tags.length ? <View style={s.tags}>
+          {tags.map(tag => <GlassBadge icon={tag.key === 'category' ? categoryIcon(place.category_code) : tag.icon} key={tag.key} label={tag.label} />)}
+        </View> : null}
+      </HeroGallery>
 
-      <View style={s.inner}>
-        <ScrollView contentContainerStyle={s.quickRow} horizontal showsHorizontalScrollIndicator={false} style={s.quickScroll}>
+      <View onLayout={event => { innerY.current = event.nativeEvent.layout.y; }} style={s.inner}>
+        <View style={s.quickRow}>
           {quick.map(item => <View accessibilityLabel={`${item.label}: ${item.value ?? t('place.unknown')}`} accessible key={item.key} style={s.quick}>
             <View style={s.quickIcon}><FactIcon name={item.icon} size={18} /></View>
-            <View style={s.quickCopy}>
-              <Text numberOfLines={1} style={s.quickLabel}>{item.label}</Text>
-              <Text numberOfLines={1} style={[s.quickValue, !item.value && s.muted]}>{item.value ?? t('place.unknown')}</Text>
-            </View>
+            <Text numberOfLines={1} style={s.quickLabel}>{item.label}</Text>
+            <Text numberOfLines={2} style={[s.quickValue, !item.value && s.muted]}>{item.value ?? t('place.unknown')}</Text>
           </View>)}
-        </ScrollView>
+        </View>
+        {publishers.length ? <Pressable
+          accessibilityHint={t('place.sources.hint')}
+          accessibilityRole="link"
+          onPress={() => scrollRef.current?.scrollTo({ animated: !reducedMotion, y: Math.max(0, innerY.current + attributionsY.current - spacing.xxxl - spacing.md) })}
+          style={({ pressed }) => [s.sourcesLine, pressed && { opacity: 0.6 }]}
+        >
+          <Icon color={colors.tealText} name="doc" size={16} />
+          <Text numberOfLines={2} style={s.sourcesText}>{t('place.sources.line', { publishers: publishers.join(', ') })}</Text>
+          <Icon color={colors.tealText} name="chevron-down" size={16} />
+        </Pressable> : null}
 
         <View accessibilityLabel={t('place.driver.a11y', { address: addressText ?? t('place.driver.addressUnknown'), name: place.name_vi })} accessible style={s.driver}>
           <View style={s.driverHead}>
@@ -199,7 +223,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
 
         {place.attributions.length > 0 && <>
           <SectionHeader style={s.section} title={t('place.attributions.title')} />
-          <View style={s.credits}>
+          <View onLayout={event => { attributionsY.current = event.nativeEvent.layout.y; }} style={s.credits}>
             {place.attributions.map(item => <Text key={`${item.publisher}-${item.attribution_text}`} style={s.attribution}>
               {item.publisher} — {item.attribution_text}{item.license_code ? ` (${item.license_code})` : ''}
             </Text>)}
@@ -282,12 +306,13 @@ const s = StyleSheet.create({
   otherName: { color: 'rgba(255,255,255,0.9)', fontFamily: fonts.medium, fontSize: 17, marginTop: 2 },
   plain: { backgroundColor: colors.canvas },
   plainHeader: { paddingHorizontal: spacing.md },
-  quick: { alignItems: 'center', backgroundColor: colors.white, borderColor: surfaceBorder, borderRadius: radii.inset, borderWidth: 1, flexDirection: 'row', gap: 10, maxWidth: 240, minHeight: 56, paddingLeft: 8, paddingRight: 14, paddingVertical: 8 },
-  quickCopy: { flexShrink: 1 },
+  quick: { backgroundColor: colors.white, borderColor: surfaceBorder, borderRadius: radii.card, borderWidth: 1, flex: 1, gap: 4, minHeight: 104, minWidth: 0, padding: spacing.sm },
   quickIcon: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: 12, height: 36, justifyContent: 'center', width: 36 },
   quickLabel: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 16 },
-  quickRow: { gap: 10, paddingHorizontal: spacing.lg },
-  quickScroll: { marginHorizontal: -spacing.lg, marginTop: 4 },
+  quickRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.md },
+  sourcesLine: { alignItems: 'center', flexDirection: 'row', gap: 6, minHeight: 44, marginTop: spacing.xs },
+  sourcesText: { color: colors.tealText, flex: 1, fontFamily: fonts.bold, fontSize: 13, lineHeight: 18 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.xs },
   quickValue: { color: colors.ink, fontFamily: fonts.bold, fontSize: 15, lineHeight: 20 },
   screen: { backgroundColor: colors.canvas, flex: 1 },
   scroll: { paddingBottom: spacing.xxl },

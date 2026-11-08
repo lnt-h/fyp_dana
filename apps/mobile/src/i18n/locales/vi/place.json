@@ -71,5 +71,16 @@
     "unverifiedHint": "Tìm thấy trên web; Gonarra chưa đối chiếu với nguồn.",
     "webSource": "{{host}} · lấy ngày {{date}}",
     "webSourceUnknown": "Nguồn web"
+  },
+  "gallery": {
+    "thumbA11y": "Ảnh {{index}}/{{total}} của {{name}}",
+    "credit": "Ảnh: {{credit}} ({{license}})"
+  },
+  "tags": {
+    "verified": "Đã đối chiếu nguồn"
+  },
+  "sources": {
+    "line": "Nguồn: {{publishers}}",
+    "hint": "Chuyển tới phần nguồn và ghi công"
   }
 }

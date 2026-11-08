@@ -71,5 +71,16 @@
     "unverifiedHint": "Found on the web; Gonarra has not checked it against its sources.",
     "webSource": "{{host}} · fetched {{date}}",
     "webSourceUnknown": "Web source"
+  },
+  "gallery": {
+    "thumbA11y": "Photo {{index}} of {{total}} of {{name}}",
+    "credit": "Photo: {{credit}} ({{license}})"
+  },
+  "tags": {
+    "verified": "Source-checked"
+  },
+  "sources": {
+    "line": "Sources: {{publishers}}",
+    "hint": "Jumps to sources and credits"
   }
 }
