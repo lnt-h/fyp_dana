@@ -2,7 +2,7 @@
 
 policy list | policy activate <provider_key> --terms-version <text>
 areas load
-ingest wikidata | ingest wikipedia | ingest sheet <csv>
+ingest wikidata | ingest wikipedia | ingest osm | ingest commons | ingest sheet <csv>
 web-candidates promote
 publish auto [--dry-run] [--include-withdrawn] [--no-embed]
 closure-rules load [--file <yaml>]
@@ -27,6 +27,8 @@ from app.db.session import engine, session_factory
 from app.ingestion.areas import DATA_DIR, write_area_boundaries
 from app.ingestion.calendar import CalendarReport, load_calendar
 from app.ingestion.common import PolicyNotActiveError, RunReport, load_city
+from app.ingestion.commons import import_commons
+from app.ingestion.osm import import_osm
 from app.ingestion.policies import activate_policy, list_policies
 from app.ingestion.sheet import import_sheet
 from app.ingestion.wikidata import import_wikidata
@@ -77,6 +79,22 @@ def _echo_run(report: RunReport) -> None:
     extra = getattr(report, "unmapped", None)
     if extra is not None:
         typer.echo(f"  skipped (unmapped class): {extra}")
+    for label, attribute in (
+        ("matched by wikidata tag", "matched_wikidata"),
+        ("matched by name within 100 m", "matched_name"),
+        ("with parsed opening hours", "with_opening_hours"),
+        ("places with photos", "places_with_media"),
+        ("media assets", "media_assets"),
+    ):
+        value = getattr(report, attribute, None)
+        if value is not None:
+            typer.echo(f"  {label}: {value}")
+    by_license = getattr(report, "by_license", None)
+    if by_license:
+        typer.echo(
+            "  accepted by licence: "
+            + ", ".join(f"{code}={count}" for code, count in sorted(by_license.items()))
+        )
     by_category = getattr(report, "by_category", None)
     if by_category:
         typer.echo(
@@ -185,6 +203,18 @@ def ingest_wikipedia() -> None:
     _ingest(lambda s: import_wikipedia(s, city_code=_city()))
 
 
+@ingest_app.command("osm")
+def ingest_osm() -> None:
+    """Import named OpenStreetMap POIs (Overpass) with names and opening hours."""
+    _ingest(lambda s: import_osm(s, city_code=_city()))
+
+
+@ingest_app.command("commons")
+def ingest_commons() -> None:
+    """Attach licensed Wikimedia Commons photos (Wikidata P18, OSM tags) to imported places."""
+    _ingest(lambda s: import_commons(s, city_code=_city()))
+
+
 @ingest_app.command("sheet")
 def ingest_sheet(
     path: Annotated[Path, typer.Argument(exists=True, dir_okay=False)],
@@ -262,7 +292,8 @@ def pipeline_run(
     no_embed: bool = typer.Option(False, "--no-embed"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
-    """areas → wikidata → wikipedia → sheet → web candidates → publish → closure rules.
+    """areas → wikidata → wikipedia → osm → commons → sheet → web candidates → publish →
+    closure rules.
 
     An importer whose provider policy is not ACTIVE is skipped with a message (default deny).
     """
@@ -271,6 +302,8 @@ def pipeline_run(
     steps: list[tuple[str, Callable[[AsyncSession], Awaitable[RunReport]]]] = [
         ("wikidata", lambda s: import_wikidata(s, city_code=city)),
         ("wikipedia", lambda s: import_wikipedia(s, city_code=city)),
+        ("osm", lambda s: import_osm(s, city_code=city)),
+        ("commons", lambda s: import_commons(s, city_code=city)),
     ]
     sheet_path = sheet or (DEFAULT_SHEET if DEFAULT_SHEET.exists() else None)
     if sheet_path is not None:

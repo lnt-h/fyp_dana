@@ -62,6 +62,7 @@ SELECT ?item (SAMPLE(?c) AS ?coord) (SAMPLE(?lv) AS ?labelVi) (SAMPLE(?le) AS ?l
   (GROUP_CONCAT(DISTINCT ?cl; separator="|") AS ?classLabels)
   (GROUP_CONCAT(DISTINCT ?aliasVi; separator="|") AS ?aliasesVi)
   (GROUP_CONCAT(DISTINCT ?aliasEn; separator="|") AS ?aliasesEn)
+  (GROUP_CONCAT(DISTINCT ?img; separator="|") AS ?images)
 WHERE {{
   SERVICE wikibase:box {{
     ?item wdt:P625 ?c .
@@ -78,6 +79,7 @@ WHERE {{
   OPTIONAL {{ ?item skos:altLabel ?aliasEn FILTER(LANG(?aliasEn) = "en") }}
   OPTIONAL {{ ?av schema:about ?item ; schema:isPartOf <https://vi.wikipedia.org/> }}
   OPTIONAL {{ ?ae schema:about ?item ; schema:isPartOf <https://en.wikipedia.org/> }}
+  OPTIONAL {{ ?item wdt:P18 ?img }}
 }}
 GROUP BY ?item
 """
@@ -94,6 +96,8 @@ class WikidataItem:
     sitelinks: dict[str, str]  # locale -> Wikipedia page title
     class_labels: tuple[str, ...]
     category: str | None = None
+    # Wikimedia Commons file names from P18 ("File:" prefix stripped), sorted; see commons.py.
+    images: tuple[str, ...] = ()
 
     def payload(self) -> dict[str, Any]:
         """Provider fields as named in the policy's field rules (filtered before storage)."""
@@ -105,6 +109,7 @@ class WikidataItem:
             "description": self.descriptions,
             "aliases": self.aliases,
             "sitelinks": self.sitelinks,
+            "image": list(self.images),
         }
 
 
@@ -139,6 +144,12 @@ def _title_from_article(url: str | None) -> str | None:
     if not url:
         return None
     return unquote(url.rsplit("/wiki/", 1)[-1]).replace("_", " ") or None
+
+
+def _commons_file(value: str) -> str | None:
+    """``http://commons.wikimedia.org/wiki/Special:FilePath/A%20b.jpg`` → ``A b.jpg``."""
+    name = unquote(value.rsplit("/", 1)[-1]).replace("_", " ").strip()
+    return name or None
 
 
 def parse_bindings(bindings: Sequence[dict[str, Any]]) -> list[WikidataItem]:
@@ -193,6 +204,15 @@ def parse_bindings(bindings: Sequence[dict[str, Any]]) -> list[WikidataItem]:
             sitelinks=sitelinks,
             class_labels=class_labels,
             category=map_category(class_labels),
+            images=tuple(
+                sorted(
+                    {
+                        name
+                        for name in (_commons_file(v) for v in _split(_value(binding, "images")))
+                        if name
+                    }
+                )
+            ),
         )
     return [items[qid] for qid in sorted(items, key=lambda q: int(q[1:]))]
 

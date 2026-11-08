@@ -7,7 +7,7 @@ Usage from apps/api:
     uv run python -m app.cli routes warm [--limit 50]   # pre-fill routes_matrix_cache (M3-B)
 
 Content pipeline (DEC-022, app/ingestion/cli.py): `policy list|activate`, `areas load`,
-`ingest wikidata|wikipedia|sheet`, `web-candidates promote`, `publish auto [--dry-run]`,
+`ingest wikidata|wikipedia|osm|commons|sheet`, `web-candidates promote`, `publish auto [--dry-run]`,
 `closure-rules load` and `pipeline run` (all steps). See apps/api/data/README.md.
 """
 
@@ -164,6 +164,7 @@ PROVIDERS: tuple[ProviderSeed, ...] = (
             "description": (CANONICAL, None),
             "aliases": (CANONICAL, None),
             "sitelinks": (CANONICAL, None),
+            "image": (CANONICAL, None),  # P18 Commons file names (commons.py)
         },
     ),
     # DEC-022: Wikipedia lead summaries become place descriptions and OVERVIEW chunks, with
@@ -208,21 +209,35 @@ PROVIDERS: tuple[ProviderSeed, ...] = (
         "OpenStreetMap",
         "OPEN_DATASET",
         "https://www.openstreetmap.org/copyright",
-        "Candidate import and coordinates (ADR-012)",
+        "Candidate import, coordinates and opening hours (ADR-012, osm.py)",
         "© OpenStreetMap contributors (ODbL)",
-        _OPEN_PLACE_FIELDS,
+        {
+            **_OPEN_PLACE_FIELDS,
+            "opening_hours": (CANONICAL, None),
+            "facts": (CANONICAL, None),
+            "website": (CANONICAL, None),
+            "wikidata": (IDENTIFIER, None),
+            "image": (CANONICAL, None),
+            "wikimedia_commons": (CANONICAL, None),
+        },
     ),
     ProviderSeed(
         "wikimedia_commons",
         "Wikimedia Commons",
         "MEDIA_LIBRARY",
         "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
-        "Place photos with per-file licence",
-        None,
+        "Place photos with per-file licence (commons.py)",
+        "Wikimedia Commons contributors (per-file licence and author)",
         {
             "file_url": (CANONICAL, None),
             "creator": (CANONICAL, None),
             "license": (CANONICAL, None),
+            "title": (CANONICAL, None),
+            "description_url": (CANONICAL, None),
+            "attribution": (CANONICAL, None),
+            "width": (CANONICAL, None),
+            "height": (CANONICAL, None),
+            "mime": (CANONICAL, None),
         },
     ),
     ProviderSeed(
