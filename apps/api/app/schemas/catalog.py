@@ -108,16 +108,16 @@ class PlaceFact(BaseModel):
     origin: FactOrigin = Field(
         default="SOURCE",
         description=(
-            "1.0.4 (DEC-028): SOURCE (open data or official source), OWNER (owner sheet) or "
-            "AI_EXTRACTED (extracted by Gonarra's grounded writer from the cited source; label "
-            "it 'Summarised from sources' and show the source link)."
+            "1.0.4 (DEC-028), narrowed in 1.0.5 (DEC-031). SOURCE = from an open-data or official "
+            "source record; OWNER = owner sheet. AI_EXTRACTED is retired and no longer produced. "
+            "Absent means SOURCE."
         ),
     )
     grounding: FactGrounding | None = Field(
         default=None,
         description=(
-            "1.0.4: AI_EXTRACTED only. STRONG = the extraction quote matches the cited text; "
-            "WEAK = it matches only partly. Null for other origins."
+            "1.0.4: AI_EXTRACTED only (retired, DEC-031). STRONG = the extraction quote matches "
+            "the cited text; WEAK = it matches only partly. Null for other origins."
         ),
     )
 
@@ -138,6 +138,22 @@ class ClosureRule(BaseModel):
 
 
 DescriptionOrigin = Literal["SOURCE", "AI_SUMMARY"]
+DescriptionProvider = Literal["WIKIPEDIA", "WIKIVOYAGE", "OWNER", "OTHER"]
+
+
+class DescriptionSource(BaseModel):
+    """Where the displayed description comes from (1.0.5, DEC-031/DEC-032). Show one line under
+    the text, e.g. "From Wikivoyage · CC BY-SA 4.0" / "Theo Wikivoyage · CC BY-SA 4.0", linking
+    ``url``; for ``OWNER`` "Gonarra". The text is verbatim (markup removed)."""
+
+    provider: DescriptionProvider
+    publisher: str = Field(description='e.g. "Wikivoyage (en)", "Wikipedia (vi)".')
+    title: str | None = Field(default=None, description="Page and revision, when known.")
+    url: str | None = Field(default=None, description="Link to the source page or revision.")
+    license_code: str = Field(description='e.g. "CC-BY-SA-4.0", "own-work".')
+    license_url: str | None = Field(default=None, description="Licence deed, when open.")
+    attribution_text: str | None = None
+    retrieved_at: date
 
 
 class PlaceSummary(BaseModel):
@@ -163,6 +179,14 @@ class PlaceSummary(BaseModel):
     trust_level: TrustLevel = Field(
         default="VERIFIED", description="Published catalog places are always VERIFIED."
     )
+    is_area: bool = Field(
+        default=False,
+        description=(
+            "1.0.5 (DEC-031). True for an area (bay, peninsula, mountain range, old town): shown "
+            "on the map and in the Guide but never a planner stop; disable 'Add to trip' and "
+            "say 'Area — pick a place inside it' / 'Khu vực — chọn điểm cụ thể bên trong'."
+        ),
+    )
 
 
 class PlaceSummaryPage(PageInfo):
@@ -175,10 +199,14 @@ class PlaceDetail(PlaceSummary):
     description_origin: DescriptionOrigin | None = Field(
         default=None,
         description=(
-            "1.0.3. SOURCE = text from a cited source (Wikipedia lead, operator sheet, Wikidata); "
-            "AI_SUMMARY = summarised by Gonarra's grounded writer from the listed sources (label "
-            "it in the UI). Null when there is no description."
+            "1.0.3. SOURCE = human-written text from a cited source (owner sheet, Wikivoyage, "
+            "Wikipedia). AI_SUMMARY is retired by DEC-031 (1.0.5) and no longer served. Null "
+            "when there is no description: show 'No description yet' / 'Chưa có mô tả'."
         ),
+    )
+    description_source: DescriptionSource | None = Field(
+        default=None,
+        description="1.0.5. Attribution, licence and link of the description; null without one.",
     )
     visit_minutes_min: int | None = None
     visit_minutes_max: int | None = None

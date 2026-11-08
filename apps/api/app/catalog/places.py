@@ -47,6 +47,7 @@ from app.models.catalog import (
     Source,
     SourceRevision,
 )
+from app.models.providers import DataProvider
 from app.models.reference import Area
 
 # Read-only views from migration 0002 (no ORM model; raw geography columns, not EWKT).
@@ -121,6 +122,8 @@ class PlaceSummaryRecord:
     trust_level: Literal["VERIFIED"] = "VERIFIED"
     # Migration 0007: the EN name is the Vietnamese proper name reused unchanged.
     name_en_is_source_fallback: bool = False
+    # Migration 0010: an area (map and Guide only, never a planner stop).
+    is_area: bool = False
 
     def name(self, locale: str) -> str:
         return self.name_en if locale == "en" else self.name_vi
@@ -130,6 +133,21 @@ class PlaceSummaryRecord:
 
     def short_description(self, locale: str) -> str | None:
         return self.short_description_en if locale == "en" else self.short_description_vi
+
+
+@dataclass(frozen=True)
+class DescriptionSourceRecord:
+    """Source revision behind a published description (migration 0010, DEC-031/DEC-032)."""
+
+    source_revision_id: uuid.UUID
+    provider_key: str | None
+    publisher: str
+    title: str | None
+    locator: str
+    retrieved_at: datetime
+    license_code: str
+    attribution_text: str | None
+    homepage_url: str | None
 
 
 @dataclass(frozen=True)
@@ -212,6 +230,8 @@ class PlaceDetailRecord:
     # place_localizations.translation_origin of each published localization (0007: AI_SUMMARY).
     translation_origin_vi: str = "ORIGINAL"
     translation_origin_en: str = "ORIGINAL"
+    description_source_vi: DescriptionSourceRecord | None = None
+    description_source_en: DescriptionSourceRecord | None = None
 
 
 def _lat(geography: Any) -> Any:
@@ -245,6 +265,7 @@ def published_places_select() -> Select[Any]:
             _lng(vw.c.location).label("lng"),
             vw.c.visit_minutes_suggested,
             _LOC_EN.name_is_source_fallback.label("name_en_is_source_fallback"),
+            CatalogPublication.is_area,
         )
         .select_from(vw)
         .join(CatalogPublication, CatalogPublication.id == vw.c.catalog_publication_id)
@@ -270,6 +291,7 @@ def summary_from_row(row: Any, thumbnail: MediaRecord | None = None) -> PlaceSum
         visit_minutes_suggested=row.visit_minutes_suggested,
         thumbnail=thumbnail,
         name_en_is_source_fallback=bool(row.name_en_is_source_fallback),
+        is_area=bool(getattr(row, "is_area", False)),
     )
 
 
@@ -382,6 +404,8 @@ class PlacesRepository:
                     vw.c.description_en,
                     _LOC_VI.translation_origin.label("translation_origin_vi"),
                     _LOC_EN.translation_origin.label("translation_origin_en"),
+                    _LOC_VI.description_source_revision_id.label("description_revision_vi"),
+                    _LOC_EN.description_source_revision_id.label("description_revision_en"),
                     vw.c.visit_minutes_min,
                     vw.c.visit_minutes_max,
                     _lat(vw.c.entrance_location).label("entrance_lat"),
@@ -406,6 +430,9 @@ class PlacesRepository:
         media = (await load_publication_media(self._session, [row.catalog_publication_id])).get(
             row.catalog_publication_id, []
         )
+        descriptions = await self.description_sources(
+            [r for r in (row.description_revision_vi, row.description_revision_en) if r]
+        )
         area = (
             AreaRecord(
                 code=row.area_code,
@@ -425,6 +452,8 @@ class PlacesRepository:
             description_en=row.description_en,
             translation_origin_vi=row.translation_origin_vi,
             translation_origin_en=row.translation_origin_en,
+            description_source_vi=descriptions.get(row.description_revision_vi),
+            description_source_en=descriptions.get(row.description_revision_en),
             visit_minutes_min=row.visit_minutes_min,
             visit_minutes_max=row.visit_minutes_max,
             entrance_lat=row.entrance_lat,
@@ -438,6 +467,44 @@ class PlacesRepository:
                 )
             ),
         )
+
+    async def description_sources(
+        self, revision_ids: Sequence[uuid.UUID]
+    ) -> dict[uuid.UUID, DescriptionSourceRecord]:
+        if not revision_ids:
+            return {}
+        rows = (
+            await self._session.execute(
+                select(
+                    SourceRevision.id,
+                    DataProvider.provider_key,
+                    Source.publisher,
+                    SourceRevision.title,
+                    SourceRevision.locator,
+                    SourceRevision.retrieved_at,
+                    Source.license_code,
+                    Source.attribution_text,
+                    Source.homepage_url,
+                )
+                .join(Source, Source.id == SourceRevision.source_id)
+                .outerjoin(DataProvider, DataProvider.id == Source.data_provider_id)
+                .where(SourceRevision.id.in_(list(revision_ids)))
+            )
+        ).all()
+        return {
+            row[0]: DescriptionSourceRecord(
+                source_revision_id=row[0],
+                provider_key=row[1],
+                publisher=row[2],
+                title=row[3],
+                locator=row[4],
+                retrieved_at=row[5],
+                license_code=row[6],
+                attribution_text=row[7],
+                homepage_url=row[8],
+            )
+            for row in rows
+        }
 
     async def list_published_facts(self, place_id: uuid.UUID) -> list[FactRecord]:
         """Facts of the current publication with their sources, ordered by field code."""

@@ -18,6 +18,7 @@ MIGRATION_FILES = (
     "20261108_0007_content_origin.py",
     "20261108_0008_guide_city_sessions.py",
     "20261108_0009_fact_origin.py",
+    "20261109_0010_dataset_rebuild.py",
 )
 
 TABLES_BY_MIGRATION: dict[str, frozenset[str]] = {
@@ -84,6 +85,7 @@ TABLES_BY_MIGRATION: dict[str, frozenset[str]] = {
     "0007": frozenset(),
     "0008": frozenset(),
     "0009": frozenset(),
+    "0010": frozenset(),
 }
 EXPECTED_TABLES: frozenset[str] = frozenset().union(*TABLES_BY_MIGRATION.values())
 

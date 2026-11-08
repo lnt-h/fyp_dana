@@ -1,11 +1,13 @@
 """Content pipeline commands (DEC-022), registered on ``python -m app.cli``.
 
 policy list | policy activate <provider_key> --terms-version <text>
+policy deactivate <provider_key> --reason <text>      (DEC-031: retire AI catalog providers)
 areas load
 ingest wikidata | ingest wikidata-link | ingest wikipedia | ingest osm | ingest commons |
-  ingest sheet <csv>
+  ingest wikivoyage [--no-city-chunks] [--dry-run] [--refresh] | ingest sheet <csv>
 web-candidates promote
-publish auto [--dry-run] [--include-withdrawn] [--no-embed]
+publish auto [--dry-run] [--include-withdrawn] [--no-embed] [--require-description]
+  [--allow-ai-content]       (restore path of DEC-031 only; needs the AI policies ACTIVE)
 publish summary            (release-gate counts: published total, by area, Hội An area)
 publish audit-sample [--fraction 0.1] [--seed N] [--out path.csv]
 closure-rules load [--file <yaml>]
@@ -16,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -24,7 +27,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.curation.audit_sample import audit_rows, write_csv
-from app.curation.auto_publish import GATE_RULES, PublishReport, auto_publish
+from app.curation.auto_publish import (
+    DESCRIPTION_NOTES,
+    GATE_RULES,
+    PublishReport,
+    auto_publish,
+)
 from app.curation.embedding import ChunkEmbedder, DisabledEmbedder, GeminiChunkEmbedder
 from app.curation.operator import OperatorService, takedown_place
 from app.curation.system import system_account_id
@@ -35,11 +43,12 @@ from app.ingestion.calendar import CalendarReport, load_calendar
 from app.ingestion.common import PolicyNotActiveError, RunReport, load_city
 from app.ingestion.commons import import_commons
 from app.ingestion.osm import import_osm
-from app.ingestion.policies import activate_policy, list_policies
+from app.ingestion.policies import activate_policy, deactivate_policy, list_policies
 from app.ingestion.sheet import import_sheet
 from app.ingestion.wikidata import import_wikidata
 from app.ingestion.wikidata_link import LinkReport, import_wikidata_links
 from app.ingestion.wikipedia import import_wikipedia
+from app.ingestion.wikivoyage import DEFAULT_CACHE_DIR, WikivoyageReport, import_wikivoyage
 
 policy_app = typer.Typer(help="Provider policies (ADR-006 default deny).", no_args_is_help=True)
 areas_app = typer.Typer(help="Travel-area polygons.", no_args_is_help=True)
@@ -135,18 +144,37 @@ def _echo_publish(report: PublishReport, *, verbose: bool) -> None:
     )
     for code, count in report.rejection_counts().items():
         typer.echo(f"  rejected {code}: {count}  ({GATE_RULES.get(code, '')})")
+    for code, count in report.note_counts().items():
+        typer.echo(f"  description dropped {code}: {count}  ({DESCRIPTION_NOTES.get(code, '')})")
     typer.echo(
         "  publishable by area: "
         + ", ".join(f"{area}={count}" for area, count in report.published_by_area().items())
     )
+    typer.echo(
+        "  publishable by category: "
+        + ", ".join(f"{cat}={count}" for cat, count in report.published_by_category().items())
+    )
+    publishable = report.publishable()
+    both = sum(1 for o in publishable if all(o.has_description.values()))
+    typer.echo(
+        f"  publishable with VI+EN description: {both}/{len(publishable)}; "
+        f"areas (not schedulable): {sum(1 for o in publishable if o.is_area)}"
+    )
+    if report.city_chunks is not None:
+        cc = report.city_chunks
+        typer.echo(
+            f"  city chunks: revision={cc.staged_revision} approved={cc.approved} "
+            f"pending={cc.pending} unlicensed={cc.unlicensed}"
+        )
     pending = sum(outcome.chunks_pending for outcome in report.outcomes)
     if pending:
         typer.echo(f"  chunks pending embedding: {pending} (re-run with GEMINI_API_KEY set)")
     if verbose:
         for outcome in report.outcomes:
             reasons = f" {', '.join(outcome.reasons)}" if outcome.reasons else ""
+            notes = f" notes: {', '.join(outcome.notes)}" if outcome.notes else ""
             typer.echo(
-                f"  {outcome.status:13} {outcome.slug} [{outcome.area_code or '-'}]{reasons}"
+                f"  {outcome.status:13} {outcome.slug} [{outcome.area_code or '-'}]{reasons}{notes}"
             )
 
 
@@ -181,6 +209,19 @@ def policy_activate(
     """Record the checked terms version and make the provider's policy ACTIVE."""
     try:
         typer.echo(_run(lambda s: activate_policy(s, provider_key, terms_version)))
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+
+@policy_app.command("deactivate")
+def policy_deactivate(
+    provider_key: str,
+    reason: str = typer.Option(..., "--reason", help="Audited reason, e.g. 'DEC-031'."),
+) -> None:
+    """Set the provider's ACTIVE policy to RETIRED (default deny); `policy activate` restores."""
+    try:
+        typer.echo(_run(lambda s: deactivate_policy(s, provider_key, reason)))
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
@@ -252,6 +293,55 @@ def ingest_wikipedia() -> None:
     _ingest(lambda s: import_wikipedia(s, city_code=_city()))
 
 
+@ingest_app.command("wikivoyage")
+def ingest_wikivoyage(
+    city_chunks: bool = typer.Option(
+        True, "--city-chunks/--no-city-chunks", help="Stage city-level Guide chunks."
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Fetch and match; write nothing."),
+    refresh: bool = typer.Option(False, "--refresh", help="Ignore the 7-day page cache."),
+    cache_dir: Annotated[Path, typer.Option("--cache-dir", file_okay=False)] = DEFAULT_CACHE_DIR,
+) -> None:
+    """Wikivoyage listings and city sections (CC BY-SA 4.0, DEC-032); ≥ 5 s between requests."""
+    try:
+        report = _run(
+            lambda s: import_wikivoyage(
+                s,
+                city_code=_city(),
+                city_chunks=city_chunks,
+                dry_run=dry_run,
+                cache_dir=cache_dir,
+                refresh=refresh,
+            )
+        )
+    except PolicyNotActiveError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    _echo_wikivoyage(report, dry_run=dry_run)
+
+
+def _echo_wikivoyage(report: WikivoyageReport, *, dry_run: bool) -> None:
+    if report.skipped_unchanged:
+        typer.echo("wikivoyage: unchanged page revisions, run skipped")
+        return
+    typer.echo(
+        f"wikivoyage{' (dry run)' if dry_run else ''}: pages={report.pages} "
+        f"listings={report.listings} staged={report.record_count} matched={report.matched} "
+        f"new_drafts={report.new_drafts} skipped_not_a_stop={report.skipped_not_a_stop} "
+        f"skipped_no_text_or_coords={report.skipped_no_text_or_coords} "
+        f"stale_hours_dropped={report.facts_dropped_stale}"
+    )
+    if report.by_category:
+        typer.echo(
+            "  staged by category: "
+            + ", ".join(f"{code}={count}" for code, count in sorted(report.by_category.items()))
+        )
+    if report.city_chunks is not None:
+        cc = report.city_chunks
+        state = "unchanged" if cc.unchanged else "staged"
+        typer.echo(f"  city chunks: {state} revision {cc.staged_revision}")
+
+
 @ingest_app.command("osm")
 def ingest_osm() -> None:
     """Import named OpenStreetMap POIs (Overpass) with names and opening hours."""
@@ -299,6 +389,16 @@ def publish_auto(
     ),
     no_embed: bool = typer.Option(False, "--no-embed", help="Do not call the embedder."),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="One line per place."),
+    require_description: bool = typer.Option(
+        False,
+        "--require-description",
+        help="Gate as DEC-033 option B (VI+EN description mandatory) for this run.",
+    ),
+    allow_ai_content: bool = typer.Option(
+        False,
+        "--allow-ai-content",
+        help="DEC-031 restore path: read AI descriptions/facts again (policies must be ACTIVE).",
+    ),
 ) -> None:
     """Gate every candidate place and publish the ones that pass."""
     report = _run(
@@ -308,6 +408,8 @@ def publish_auto(
             embedder=_embedder(no_embed),
             dry_run=dry_run,
             include_withdrawn=include_withdrawn,
+            allow_ai_content=allow_ai_content,
+            require_description=True if require_description else None,
         )
     )
     _echo_publish(report, verbose=verbose)
@@ -401,8 +503,8 @@ def pipeline_run(
     no_embed: bool = typer.Option(False, "--no-embed"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
-    """areas → wikidata → wikipedia → osm → commons → sheet → web candidates → publish →
-    closure rules.
+    """areas → wikidata → wikipedia → osm → wikivoyage → commons → sheet → web candidates →
+    publish → closure rules.
 
     An importer whose provider policy is not ACTIVE is skipped with a message (default deny).
     """
@@ -410,8 +512,10 @@ def pipeline_run(
     areas_load()
     steps: list[tuple[str, Callable[[AsyncSession], Awaitable[RunReport]]]] = [
         ("wikidata", lambda s: import_wikidata(s, city_code=city)),
+        ("wikidata-link", lambda s: import_wikidata_links(s, city_code=city)),
         ("wikipedia", lambda s: import_wikipedia(s, city_code=city)),
         ("osm", lambda s: import_osm(s, city_code=city)),
+        ("wikivoyage", lambda s: import_wikivoyage(s, city_code=city)),
         ("commons", lambda s: import_commons(s, city_code=city)),
     ]
     sheet_path = sheet or (DEFAULT_SHEET if DEFAULT_SHEET.exists() else None)
@@ -423,6 +527,23 @@ def pipeline_run(
         except PolicyNotActiveError as exc:
             typer.echo(f"{name}: skipped — {exc}")
     web_promote()
-    publish_auto(dry_run=dry_run, include_withdrawn=False, no_embed=no_embed, verbose=verbose)
+    publish_auto(
+        dry_run=dry_run,
+        include_withdrawn=False,
+        no_embed=no_embed,
+        verbose=verbose,
+        require_description=False,
+        allow_ai_content=False,
+    )
     if not dry_run:
         closure_rules_load(file=None)
+        from app.db.retention import sweep_caches
+
+        async def sweep(s: AsyncSession) -> None:
+            report = await sweep_caches(s, now=datetime.now(UTC))
+            typer.echo(
+                "caches sweep: "
+                + (", ".join(f"{k}={v}" for k, v in sorted(report.deleted.items())) or "nothing")
+            )
+
+        _run(sweep)

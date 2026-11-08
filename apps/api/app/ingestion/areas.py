@@ -34,6 +34,9 @@ class AreaPolygon:
     name_vi: str | None = None
     name_en: str | None = None
     hoi_an_area: bool = False
+    # Short display names used to tell apart places sharing one name ("Chùa Linh Ứng (Bãi Bụt)").
+    short_vi: str | None = None
+    short_en: str | None = None
 
     def contains(self, lng: float, lat: float) -> bool:
         return point_in_ring(lng, lat, self.ring)
@@ -93,6 +96,8 @@ def parse_areas(document: dict[str, Any]) -> tuple[AreaPolygon, ...]:
                 name_vi=name_vi,
                 name_en=name_en,
                 hoi_an_area=bool(item.get("hoi_an_area", False)),
+                short_vi=str(item.get("short_vi") or "").strip() or None,
+                short_en=str(item.get("short_en") or "").strip() or None,
             )
         )
     return tuple(areas)

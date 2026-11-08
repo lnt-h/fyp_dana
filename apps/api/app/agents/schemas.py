@@ -28,6 +28,7 @@ MAX_FACTS_PER_CANDIDATE = 6
 MAX_CLAIMS = 8
 
 ShortText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+MAX_RATIONALE_DESCRIPTION = 640  # the caller trims to about 600 characters at a word boundary
 Quote = Annotated[str, StringConstraints(strip_whitespace=True, min_length=4, max_length=400)]
 UrlText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=8, max_length=2000)]
 
@@ -81,57 +82,6 @@ class Claim(_Strict):
 class GroundedAnswer(_Strict):
     status: AnswerStatus
     claims: list[Claim] = Field(default_factory=list, max_length=MAX_CLAIMS)
-
-
-# grounded_writer, DESCRIPTION profile (offline ``enrich descriptions``, 2026-11-08 D3)
-
-MAX_DESCRIPTION_CHARS = 700
-MAX_DESCRIPTION_SOURCES = 4
-DescriptionText = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_DESCRIPTION_CHARS)
-]
-
-
-class PlaceDescriptionDraft(_Strict):
-    """Bilingual place description written only from the supplied source texts.
-
-    Both texts are written natively in their language (not word-for-word translations).
-    ``insufficient_evidence`` true means nothing is stored.
-    """
-
-    insufficient_evidence: bool = Field(
-        description="true when the sources do not describe this place well enough."
-    )
-    description_vi: DescriptionText | None = Field(
-        default=None, description="2-3 sentences in Vietnamese, or null if insufficient."
-    )
-    description_en: DescriptionText | None = Field(
-        default=None, description="2-3 sentences in English, or null if insufficient."
-    )
-    cited_urls: list[UrlText] = Field(
-        default_factory=list,
-        max_length=MAX_DESCRIPTION_SOURCES,
-        description="URLs (copied exactly from the sources) that support the text.",
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class DescriptionSource:
-    """One supplied source text; the writer redacts and caps it before building the prompt."""
-
-    url: str
-    title: str | None
-    text: str
-    kind: str  # WIKIPEDIA | OFFICIAL_SITE | WEB_SEARCH
-
-
-@dataclass(frozen=True, slots=True)
-class PlaceDescription:
-    """A validated draft: both locales present, cited URLs normalised and all supplied."""
-
-    description_vi: str
-    description_en: str
-    cited_urls: tuple[str, ...]
 
 
 # ---------------------------------------------------------------------------------------------
@@ -208,12 +158,33 @@ class EvidenceItem(_Strict):
     label: ShortText | None = None  # e.g. place name or source host, shown to the model only
 
 
+TimeOfDay = Literal["morning", "midday", "afternoon", "evening"]
+
+
 class RationaleStop(_Strict):
+    """What the RATIONALE writer may use for one stop (all published, localized catalog text).
+
+    ``description`` is the stored localized description (trimmed by the caller to about
+    :data:`MAX_RATIONALE_DESCRIPTION` characters); ``time_of_day`` comes from the planned arrival.
+    Coordinates, hours and prices are never part of it (BR-046, ADR-011).
+    """
+
     place_id: uuid.UUID
     name: ShortText
     category_code: ShortText
+    category_label: ShortText | None = None
+    area: ShortText | None = None
     summary: str | None = Field(default=None, max_length=600)
+    description: str | None = Field(default=None, max_length=MAX_RATIONALE_DESCRIPTION)
     tags: list[ShortText] = Field(default_factory=list, max_length=12)
+    time_of_day: TimeOfDay | None = None
+
+
+class RationaleTraveller(_Strict):
+    """Structured preferences the rationale may tie a stop to (labels, never account data)."""
+
+    interests: list[ShortText] = Field(default_factory=list, max_length=20)
+    pace: ShortText | None = None
 
 
 # ---------------------------------------------------------------------------------------------
@@ -297,111 +268,8 @@ class GuideAnswerOutcome:
 
 
 @dataclass(frozen=True, slots=True)
-class DescriptionOutcome:
-    """``description`` is None for insufficient evidence, a rejected draft or a degraded call
-    (``source`` tells which: MODEL with ``insufficient_evidence`` / DEGRADED)."""
-
-    description: PlaceDescription | None
-    source: ResultSource
-    insufficient_evidence: bool = False
-    attempts: Sequence[Attempt] = ()
-    issues: Sequence[str] = ()
-    exhausted: bool = False
-
-
-@dataclass(frozen=True, slots=True)
 class ResearchOutcome:
     report: ResearchReport
     source: ResultSource
     attempts: Sequence[Attempt] = ()
     dropped: Sequence[str] = field(default_factory=tuple)
-
-
-# ---------------------------------------------------------------------------------------------
-# grounded_writer FACT_EXTRACT (DEC-028): facts extracted from supplied evidence, never invented
-# ---------------------------------------------------------------------------------------------
-
-EvidenceId = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
-FactQuote = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=400)]
-ClockTime = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^\d{1,2}:\d{2}$")]
-
-
-class AddressDraft(_Strict):
-    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=5, max_length=200)] = (
-        Field(description="Street address in Vietnamese as written in the evidence.")
-    )
-    evidence_id: EvidenceId = Field(description="The id of the evidence item it comes from.")
-    quote: FactQuote = Field(description="The words of that evidence item that state it.")
-
-
-class HoursRule(_Strict):
-    days: list[Annotated[int, Field(ge=1, le=7)]] = Field(
-        min_length=1, max_length=7, description="ISO weekdays 1 = Monday … 7 = Sunday."
-    )
-    open: ClockTime = Field(description="Opening time HH:MM (24 h).")
-    close: ClockTime = Field(description="Closing time HH:MM (24 h); 24:00 for midnight.")
-
-
-class HoursDraft(_Strict):
-    rules: list[HoursRule] = Field(min_length=1, max_length=14)
-    evidence_id: EvidenceId
-    quote: FactQuote
-
-
-class PriceDraft(_Strict):
-    free: bool = Field(description="true only when the evidence says entry is free.")
-    adult_vnd: int | None = Field(default=None, ge=0, description="Adult ticket in VND.")
-    child_vnd: int | None = Field(default=None, ge=0, description="Child ticket in VND.")
-    evidence_id: EvidenceId
-    quote: FactQuote
-
-
-class ShortDescriptionDraft(_Strict):
-    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=10, max_length=240)]
-    evidence_id: EvidenceId
-
-
-class FactExtractionDraft(_Strict):
-    """Facts for one place, each citing one supplied evidence id. Null when not stated."""
-
-    address_vi: AddressDraft | None = None
-    opening_hours: HoursDraft | None = None
-    admission_price: PriceDraft | None = None
-    short_description_vi: ShortDescriptionDraft | None = None
-    short_description_en: ShortDescriptionDraft | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class FactEvidenceItem:
-    """One supplied evidence text (redacted and capped by the writer) with its id."""
-
-    evidence_id: str
-    text: str
-    url: str | None = None
-    kind: str = "WEB"  # WIKIPEDIA | WIKIDATA | OSM | OFFICIAL_SITE | WEB | DESCRIPTION
-
-
-@dataclass(frozen=True, slots=True)
-class ValidatedFact:
-    """A validated fact: value in the stored fact shape, cited evidence and grounding flag."""
-
-    field_code: str
-    value: dict[str, object]
-    evidence_id: str
-    quote: str
-    grounding: Literal["STRONG", "WEAK"]
-
-
-@dataclass(frozen=True, slots=True)
-class FactExtraction:
-    facts: tuple[ValidatedFact, ...]
-    short_description: dict[str, tuple[str, str]]  # locale -> (text, evidence_id)
-
-
-@dataclass(frozen=True, slots=True)
-class FactExtractionOutcome:
-    extraction: FactExtraction | None
-    source: ResultSource
-    attempts: Sequence[Attempt] = ()
-    issues: Sequence[str] = ()
-    exhausted: bool = False

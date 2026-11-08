@@ -1,4 +1,4 @@
-"""EN proper-name fallback and AI-summary descriptions in composition and the gate (D3)."""
+"""EN proper-name fallback, retired AI summaries (DEC-031) and description sources."""
 
 from __future__ import annotations
 
@@ -68,7 +68,12 @@ def _summary(rev: uuid.UUID, cited: list[uuid.UUID]) -> dict[str, Any]:
     }
 
 
-def test_compose_uses_vi_proper_name_and_ai_summary() -> None:
+LONG_VI = "Mô tả tiếng Việt viết bởi con người, đủ dài để không bị coi là một dòng mô tả sơ sài."
+LONG_EN = "A human-written English description that is long enough not to count as a stub line."
+
+
+def test_ai_summary_is_retired_by_default() -> None:
+    """DEC-031: staged AI summaries are ignored; the place keeps its names, no description."""
     osm_rev, summary_rev, cited_rev = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
     contributions = Contributions(
         osm=_osm(osm_rev, "CAFE", {"vi": "Cộng Cà Phê"}),
@@ -80,41 +85,83 @@ def test_compose_uses_vi_proper_name_and_ai_summary() -> None:
     vi, en = desired.localizations["vi"], desired.localizations["en"]
     assert (vi.name, vi.name_is_source_fallback) == ("Cộng Cà Phê", False)
     assert (en.name, en.name_is_source_fallback) == ("Cộng Cà Phê", True)
-    assert osm_rev in en.source_revision_ids
-    assert vi.translation_origin == en.translation_origin == "AI_SUMMARY"
-    assert en.description == "English text. Second."
-    assert summary_rev in en.source_revision_ids and cited_rev not in en.source_revision_ids
+    assert vi.description is None and en.description is None
+    assert vi.translation_origin == en.translation_origin == "ORIGINAL"
+    reasons = gate_reasons(desired, inside=True, sources={osm_rev: OSM})
+    # An OSM element alone is not a catalog place; no AI content and (option A) no
+    # MISSING_DESCRIPTION.
+    assert reasons == ["NO_EDITORIAL_SOURCE"]
+    assert "MISSING_DESCRIPTION:vi" in gate_reasons(
+        desired, inside=True, sources={osm_rev: OSM}, require_description=True
+    )
+
+
+def test_ai_summary_restore_path_needs_the_flag() -> None:
+    osm_rev, summary_rev, cited_rev = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    summary = _summary(summary_rev, [cited_rev])
+    summary["description"] = {"vi": LONG_VI, "en": LONG_EN}
+    contributions = Contributions(
+        osm=_osm(osm_rev, "CAFE", {"vi": "Cộng Cà Phê"}), ai_summary=summary
+    )
+    desired = compose(
+        _place(),
+        contributions,
+        area_codes=AREAS,
+        categories=CATEGORIES,
+        fact_fields=(),
+        allow_ai_content=True,
+    )
+    en = desired.localizations["en"]
+    assert en.translation_origin == "AI_SUMMARY" and en.description == LONG_EN
     assert en.cited_revision_ids == {cited_rev}
-    # Cited web pages are provenance, not shown content: their UNKNOWN licence is no blocker.
     sources = {osm_rev: OSM, summary_rev: SUMMARY, cited_rev: WEB}
-    assert gate_reasons(desired, inside=True, sources=sources) == []
-    # The cited revision must exist.
-    missing = {osm_rev: OSM, summary_rev: SUMMARY}
-    assert gate_reasons(desired, inside=True, sources=missing) == [
-        "AI_SUMMARY_UNCITED:vi",
-        "AI_SUMMARY_UNCITED:en",
-    ]
+    assert "AI_CONTENT" not in gate_reasons(
+        desired, inside=True, sources=sources, allow_ai_content=True
+    )
+    # The same composition without the flag is rejected by the AI_CONTENT rule.
+    assert "AI_CONTENT" in gate_reasons(desired, inside=True, sources=sources)
 
 
-def test_wikipedia_beats_ai_summary_per_locale() -> None:
-    osm_rev, wiki_rev, summary_rev, cited_rev = (uuid.uuid4() for _ in range(4))
+def test_wikipedia_via_own_qid_and_stub_rule() -> None:
+    osm_rev, wiki_rev, other_rev = (uuid.uuid4() for _ in range(3))
     contributions = Contributions(
         osm=_osm(osm_rev, "HERITAGE", {"vi": "Mỹ Sơn E7", "en": "My Son E7"}),
         wikipedia={
             "vi": {
-                "summary": "Bài Wikipedia.",
+                "summary": LONG_VI,
+                "wikibase_item": "Q1",
                 PROVENANCE_KEY: {"source_revision_id": str(wiki_rev)},
-            }
+            },
+            "en": {
+                # The sitelink redirects to an article about another item (Réhahn case).
+                "summary": LONG_EN,
+                "wikibase_item": "Q2",
+                PROVENANCE_KEY: {"source_revision_id": str(other_rev)},
+            },
         },
-        ai_summary=_summary(summary_rev, [cited_rev]),
+        qid="Q1",
     )
     desired = compose(
         _place(), contributions, area_codes=AREAS, categories=CATEGORIES, fact_fields=()
     )
-    assert desired.localizations["vi"].translation_origin == "ORIGINAL"
-    assert desired.localizations["vi"].description == "Bài Wikipedia."
-    assert desired.localizations["en"].translation_origin == "AI_SUMMARY"
-    assert not desired.localizations["en"].name_is_source_fallback
+    assert desired.localizations["vi"].description == LONG_VI
+    assert desired.localizations["vi"].description_source_revision_id == wiki_rev
+    assert desired.localizations["en"].description is None
+    assert "DESCRIPTION_OTHER_ENTITY:en" in desired.notes
+    assert [c.section for c in desired.chunks] == ["OVERVIEW"]
+    short = Contributions(
+        osm=_osm(osm_rev, "HERITAGE", {"vi": "Mỹ Sơn E7", "en": "My Son E7"}),
+        wikipedia={
+            "vi": {
+                "summary": "Cầu ở Việt Nam",
+                PROVENANCE_KEY: {"source_revision_id": str(wiki_rev)},
+            }
+        },
+        qid="Q1",
+    )
+    stub = compose(_place(), short, area_codes=AREAS, categories=CATEGORIES, fact_fields=())
+    assert stub.localizations["vi"].description is None
+    assert any(n.startswith("DESCRIPTION_TOO_SHORT:vi") for n in stub.notes)
 
 
 def test_generic_name_gets_no_fallback() -> None:

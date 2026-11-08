@@ -46,15 +46,9 @@ class KnowledgeChunk(Base):
             name="uq_knowledge_chunks_city_id_place_id_locale_corpus_revision_chu",
             postgresql_nulls_not_distinct=True,
         ),
-        UniqueConstraint(
-            "city_id",
-            "place_id",
-            "locale",
-            "corpus_revision",
-            "section",
-            name="uq_knowledge_chunks_city_id_place_id_locale_corpus_revision_sec",
-            postgresql_nulls_not_distinct=True,
-        ),
+        # Migration 0010: one section per PLACE corpus revision is the partial unique index
+        # uq_knowledge_chunks_place_section (WHERE scope = 'PLACE'), managed in SQL like the
+        # other indexes; CITY revisions hold several chunks per section.
     )
 
     id: Mapped[uuid.UUID] = mapped_column(

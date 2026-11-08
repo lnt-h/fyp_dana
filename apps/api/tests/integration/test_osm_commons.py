@@ -14,15 +14,11 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.catalog.places import PlacesRepository
 from app.config import get_settings
 from app.curation.auto_publish import auto_publish
 from app.curation.embedding import Embedding
 from app.ingestion.common import (
-    get_or_create_revision,
-    get_or_create_source,
     load_city,
-    require_active_policy,
 )
 from app.ingestion.commons import (
     Article,
@@ -41,7 +37,6 @@ from app.ingestion.wikidata_link import stage_links
 from app.ingestion.wikipedia import PageSummary, stage_summaries
 from app.models.catalog import CatalogPublication, MediaAsset, Place, PlaceMedia, PublicationMedia
 from app.models.providers import ImportRecord
-from app.research.fact_extract import FactCandidate, FactExtractor, _Evidence
 
 pytestmark = pytest.mark.integration
 
@@ -225,8 +220,11 @@ async def test_osm_dedupes_creates_and_feeds_opening_hours_to_the_gate(
     )
     outcomes = {o.place_id: o for o in published.outcomes}
     assert outcomes[tagged_place].status == "published"
-    assert outcomes[fresh_place.id].status == "rejected"  # no description in either locale
-    assert "MISSING_DESCRIPTION:vi" in outcomes[fresh_place.id].reasons
+    # DEC-033: a missing description is no longer a gate reason. This FOOD place is rejected only
+    # because FOOD/CAFE/NIGHTLIFE always need an editorial source and it has none.
+    assert outcomes[fresh_place.id].status == "rejected"
+    assert "NO_EDITORIAL_SOURCE" in outcomes[fresh_place.id].reasons
+    assert not any(r.startswith("MISSING_DESCRIPTION") for r in outcomes[fresh_place.id].reasons)
     fact = (
         await session.execute(
             text(
@@ -539,84 +537,3 @@ async def test_wikidata_link_names_an_osm_place_and_backfills_a_tagged_one(
     assert tagged_payload["_provenance"]["match"]["method"] == "OSM_WIKIDATA_TAG"
     again = await stage_links(session, city_code=CITY, items=items, humans={human_qid})
     assert again.linked == 0 or again.skipped_unchanged
-
-
-async def test_ai_extracted_fact_is_published_with_origin_and_cited_link(
-    session: AsyncSession,
-) -> None:
-    from app.agents.schemas import FactExtraction, ValidatedFact
-
-    for key in ("wikidata", "wikipedia", "gonarra_ai_facts"):
-        await activate_policy(session, key, f"test terms {key}")
-    qid = _qid()
-    await stage_items(
-        session,
-        city_code=CITY,
-        items=[_wikidata(qid, lng=HOI_AN[0], lat=HOI_AN[1])],
-        policy_key="wikidata",
-    )
-    place_id = await _place_for(session, "wikidata", qid)
-    await _summaries(session, place_id, qid)
-    web_source = await get_or_create_source(
-        session,
-        data_provider_id=None,
-        publisher="example.vn",
-        source_kind="WEB",
-        license_code="UNKNOWN",
-        attribution_text="example.vn",
-    )
-    page = await get_or_create_revision(
-        session,
-        source_id=web_source.id,
-        locator=f"https://example.vn/{qid}",
-        content_sha256=uuid.uuid4().hex * 2,
-        title="Giờ mở cửa",
-    )
-    evidence = _Evidence()
-    evidence.add(
-        "web1", "Mở cửa 7h-17h. Miễn phí vé.", kind="WEB", revision=page.id, url=page.locator
-    )
-    extraction = FactExtraction(
-        facts=(ValidatedFact("ADMISSION_PRICE", {"free": True}, "web1", "Miễn phí vé", "STRONG"),),
-        short_description={"vi": ("Ngôi chùa thử.", "desc:vi")},
-    )
-    candidate = FactCandidate(
-        place_id=place_id,
-        slug="x",
-        name_vi="x",
-        name_en=None,
-        category="RELIGIOUS_SITE",
-        area_code=None,
-        unknown=("ADDRESS_VI", "OPENING_HOURS", "ADMISSION_PRICE"),
-        short_missing=(),
-    )
-    policy = await require_active_policy(session, "gonarra_ai_facts")
-    city = await load_city(session, CITY)
-    source = await get_or_create_source(
-        session,
-        data_provider_id=policy.provider_id,
-        publisher="Gonarra",
-        source_kind="REFERENCE",
-        license_code="GONARRA-AI-FACTS",
-        attribution_text="Facts extracted by Gonarra",
-    )
-    extractor = FactExtractor.__new__(FactExtractor)
-    staged = await extractor._stage(
-        session, policy, city.id, source.id, candidate, extraction, evidence
-    )
-    assert staged
-    result = await auto_publish(
-        session, city_code=CITY, embedder=FakeEmbedder(), place_ids=[place_id]
-    )
-    assert result.outcomes[0].status == "published", result.outcomes[0].reasons
-    facts = await PlacesRepository(session).list_published_facts(place_id)
-    price = next(f for f in facts if f.field_code == "ADMISSION_PRICE")
-    assert (price.knowledge_state, price.origin, price.grounding) == (
-        "KNOWN",
-        "AI_EXTRACTED",
-        "STRONG",
-    )
-    assert price.value == {"free": True}
-    assert [s.locator for s in price.sources] == [f"https://example.vn/{qid}"]
-    address = next(f for f in facts if f.field_code == "ADDRESS_VI")
-    assert (address.knowledge_state, address.origin) == ("UNKNOWN", "SOURCE")

@@ -68,6 +68,8 @@ class Place(Base):
     has_no_media: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
     )
+    # Migration 0010 (DEC-031): an area (bay, peninsula, old town …), never a planner stop.
+    is_area: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     content_revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
@@ -85,6 +87,12 @@ class PlaceLocalization(Base):
             ["places.id"],
             name="fk_place_localizations_place_id",
             ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["description_source_revision_id"],
+            ["source_revisions.id"],
+            name="fk_place_localizations_description_source_revision_id",
+            ondelete="RESTRICT",
         ),
         UniqueConstraint(
             "place_id",
@@ -107,6 +115,10 @@ class PlaceLocalization(Base):
     # Migration 0007: the Vietnamese proper name reused unchanged in a locale without a name.
     name_is_source_fallback: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
+    )
+    # Migration 0010: source revision of the displayed description (attribution, licence, link).
+    description_source_revision_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
     )
     review_state: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'DRAFT'"))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -539,6 +551,8 @@ class CatalogPublication(Base):
     localization_vi_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     localization_en_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     corpus_revision: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Migration 0010: snapshot of places.is_area; planner pools exclude areas.
+    is_area: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     published_by_account_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
