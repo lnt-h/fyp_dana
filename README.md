@@ -78,6 +78,18 @@ The app has no offline or demo data: every screen reads from the API, and the AP
 | `db-check` exits 1 | Migrations behind the code | `uv run alembic upgrade head` |
 | Catalog is empty after a fresh volume | Database recreated | Re-run the ingestion pipeline (`apps/api/README.md`) |
 
+## Deploy
+
+Production runs on one VM with `docker-compose.prod.yml`: Caddy (automatic HTTPS) in front of the API, PostgreSQL 16 + PostGIS + pgvector with no published port, a one-shot migration job before every API start, and nightly `pg_dump` backups kept 14 days. Images build natively on arm64 and amd64.
+
+```bash
+cp infra/.env.example .env && chmod 600 .env   # host name, ACME email, DB password, provider keys
+GONARRA_API_TAG=$(git rev-parse --short HEAD) docker compose -f docker-compose.prod.yml up -d --build --wait
+curl -fsS https://<GONARRA_API_HOST>/ready
+```
+
+First deploy on a fresh Ubuntu VM, updates, rollback, restore from backup and logs: [infra/README.md](infra/README.md). The local `docker-compose.yml` stays the development stack (settings from `infra/dev.env` then `apps/api/.env`; database on `127.0.0.1` only).
+
 ## Documentation
 
 Start at the [documentation index](docs/README.md). Key documents: [decision log](docs/decisions.md), [business requirements](docs/02-requirements/BRD.md), [product requirements](docs/03-analysis/PRD.md) and [user stories](docs/03-analysis/user-stories.md), [architecture](docs/04-design/architecture/SAD.md) and [ADRs](docs/04-design/adr/), [API contract](docs/04-design/api/openapi.yaml), [database schema](docs/04-design/data/schema.sql) and [data model](docs/04-design/data/data-model.md), [UI/UX](docs/04-design/ui-ux/README.md), [development plan](docs/05-development/Software_Development_Plan.md), [test plan](docs/07-verification/TEST_PLAN.md) and [research protocol](docs/07-verification/RESEARCH_PROTOCOL.md).

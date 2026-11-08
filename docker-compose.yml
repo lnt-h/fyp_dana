@@ -1,19 +1,23 @@
+# Local development stack (db + api). Production uses docker-compose.prod.yml (see infra/README.md).
+#
+# Settings: the api container reads infra/dev.env (committed development defaults) and then
+# apps/api/.env (your local overrides, optional), so GONARRA_ENVIRONMENT and every other
+# GONARRA_* value come from those files rather than being hard-coded here. Only the database
+# URL is set below, because apps/api/.env points at localhost for a host-run uvicorn.
+# Compose-level knobs use ${VAR:-default} and can be overridden from the shell.
 services:
   db:
-    # The official PostGIS image currently publishes amd64 images only.
-    # Docker Desktop uses emulation on Apple Silicon. Production uses AWS RDS
-    # PostgreSQL 16 with the PostGIS and pgvector extensions (ADR, DEC-005).
-    platform: linux/amd64
     build:
       context: ./infra/postgres
     environment:
-      POSTGRES_DB: gonarra
-      POSTGRES_USER: gonarra
-      POSTGRES_PASSWORD: gonarra
+      POSTGRES_DB: ${POSTGRES_DB:-gonarra}
+      POSTGRES_USER: ${POSTGRES_USER:-gonarra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gonarra}
     ports:
-      - "5432:5432"
+      # Loopback only: the dev password is not secret, so never expose it on the LAN.
+      - "127.0.0.1:${GONARRA_DB_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gonarra -d gonarra"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -23,14 +27,15 @@ services:
   api:
     build:
       context: ./apps/api
-    environment:
-      GONARRA_DATABASE_URL: postgresql+psycopg://gonarra:gonarra@db:5432/gonarra
-      GONARRA_ENVIRONMENT: development
     env_file:
+      - path: ./infra/dev.env
+        required: true
       - path: ./apps/api/.env
         required: false
+    environment:
+      GONARRA_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gonarra}:${POSTGRES_PASSWORD:-gonarra}@db:5432/${POSTGRES_DB:-gonarra}
     ports:
-      - "8000:8000"
+      - "${GONARRA_API_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
