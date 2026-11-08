@@ -174,12 +174,20 @@ async def test_osm_dedupes_creates_and_feeds_opening_hours_to_the_gate(
         category="FOOD",
     )
     outside = _osm(
-        {"name": "Saigon cafe", "amenity": "cafe"}, lng=106.7, lat=10.77, category="CAFE"
+        {"name": "Saigon cafe", "amenity": "cafe", "cuisine": "coffee_shop"},
+        lng=106.7,
+        lat=10.77,
+        category="CAFE",
+    )
+    # FOOD/CAFE without name:en, website, opening_hours, cuisine or wikidata: not imported.
+    sparse = _osm(
+        {"name": "Quán vỉa hè", "amenity": "cafe"}, lng=108.22, lat=16.06, category="CAFE"
     )
     unmapped = _osm({"name": "Hotel", "tourism": "hotel"}, lng=108.22, lat=16.06, category=None)
-    elements = [by_tag, by_name, far, fresh, outside, unmapped]
+    elements = [by_tag, by_name, far, fresh, outside, unmapped, sparse]
     report = await stage_elements(session, city_code=CITY, elements=elements)
     assert (report.accepted, report.rejected, report.unmapped) == (4, 1, 1)
+    assert report.skipped_sparse == 1
     assert report.rejection_reasons == {"OUTSIDE_CITY": 1}
     assert (report.matched_wikidata, report.matched_name, report.created_places) == (1, 1, 2)
     assert report.with_opening_hours == 1

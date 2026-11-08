@@ -5,6 +5,8 @@ areas load
 ingest wikidata | ingest wikipedia | ingest osm | ingest commons | ingest sheet <csv>
 web-candidates promote
 publish auto [--dry-run] [--include-withdrawn] [--no-embed]
+publish summary            (release-gate counts: published total, by area, Hội An area)
+publish audit-sample [--fraction 0.1] [--seed N] [--out path.csv]
 closure-rules load [--file <yaml>]
 pipeline run [--sheet <csv>] [--dry-run] [--no-embed]
 """
@@ -20,11 +22,13 @@ import typer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.curation.audit_sample import audit_rows, write_csv
 from app.curation.auto_publish import GATE_RULES, PublishReport, auto_publish
 from app.curation.embedding import ChunkEmbedder, DisabledEmbedder, GeminiChunkEmbedder
+from app.curation.operator import OperatorService
 from app.curation.web_promotion import promote_pending
 from app.db.session import engine, session_factory
-from app.ingestion.areas import DATA_DIR, write_area_boundaries
+from app.ingestion.areas import DATA_DIR, hoi_an_area_codes, load_areas, write_area_boundaries
 from app.ingestion.calendar import CalendarReport, load_calendar
 from app.ingestion.common import PolicyNotActiveError, RunReport, load_city
 from app.ingestion.commons import import_commons
@@ -79,6 +83,11 @@ def _echo_run(report: RunReport) -> None:
     extra = getattr(report, "unmapped", None)
     if extra is not None:
         typer.echo(f"  skipped (unmapped class): {extra}")
+    sparse = getattr(report, "skipped_sparse", None)
+    if sparse:
+        typer.echo(
+            f"  skipped (FOOD/CAFE without name:en/website/hours/cuisine/wikidata): {sparse}"
+        )
     for label, attribute in (
         ("matched by wikidata tag", "matched_wikidata"),
         ("matched by name within 100 m", "matched_name"),
@@ -262,6 +271,36 @@ def publish_auto(
         )
     )
     _echo_publish(report, verbose=verbose)
+
+
+@publish_app.command("summary")
+def publish_summary() -> None:
+    """Release-gate counts: published places per city and area, and the Hội An area total."""
+    summary = _run(lambda s: OperatorService(s).city_summary())
+    hoi_an = hoi_an_area_codes(load_areas(_city()))
+    for city in summary.items:
+        if not city.is_enabled and not city.published_count:
+            continue
+        in_hoi_an = sum(a.published_count for a in city.published_by_area if a.area_code in hoi_an)
+        typer.echo(
+            f"{city.code}: published={city.published_count} hoi_an_area={in_hoi_an} "
+            f"candidates={city.candidate_count} pending_web={city.pending_web_candidate_count}"
+        )
+        for area in city.published_by_area:
+            mark = " (Hội An area)" if area.area_code in hoi_an else ""
+            typer.echo(f"  {area.area_code}: {area.published_count}{mark}")
+
+
+@publish_app.command("audit-sample")
+def publish_audit_sample(
+    fraction: float = typer.Option(0.1, min=0.01, max=1.0, help="Share of published places."),
+    seed: int | None = typer.Option(None, help="Random seed (repeatable sample)."),
+    out: Annotated[Path, typer.Option("--out", dir_okay=False)] = Path("audit-sample.csv"),
+) -> None:
+    """Write a CSV of a random sample of published places for the owner's accuracy check."""
+    rows = _run(lambda s: audit_rows(s, fraction=fraction, seed=seed))
+    write_csv(rows, out)
+    typer.echo(f"audit sample: {len(rows)} places written to {out}")
 
 
 # ---- closure rules ------------------------------------------------------------------------

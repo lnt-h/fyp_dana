@@ -128,7 +128,7 @@ async def test_seed_is_idempotent(session: AsyncSession) -> None:
     hoi_an_areas = await session.scalar(
         text("SELECT count(*) FROM areas WHERE code LIKE 'hoi-an-%'")
     )
-    assert hoi_an_areas == 2
+    assert hoi_an_areas == 3  # old town, beaches and islands, outskirts (2026-11-08)
     google_place_rule = await session.scalar(
         text(
             "SELECT r.persistence_class FROM provider_field_rules r "

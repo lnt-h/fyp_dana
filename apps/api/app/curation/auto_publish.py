@@ -34,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.curation.chunks import content_sha256
 from app.curation.common import audit, normalize_search_text, parse_point
 from app.curation.embedding import ChunkEmbedder
+from app.curation.names import proper_name_fallback
 from app.curation.system import system_account_id
 from app.db.types import ewkt_point
 from app.ingestion.areas import assign_area, load_areas
@@ -62,6 +63,8 @@ from app.models.reference import Category, FactField
 logger = logging.getLogger("gonarra.curation")
 
 LOCALES: tuple[str, ...] = ("vi", "en")
+# Grounded AI descriptions (app.research.enrich): one import record per place under this provider.
+AI_SUMMARY_PROVIDER_KEY = "gonarra_ai_summary"
 UNUSABLE_LICENCES = frozenset({"", "UNKNOWN", "NONE"})
 
 # Human-readable gate rules (reported by the CLI and documented in apps/api/data/README.md).
@@ -71,7 +74,10 @@ GATE_RULES: dict[str, str] = {
     "MISSING_CATEGORY": "no category could be set (sheet or mapped Wikidata class)",
     "MISSING_AREA": "location is outside every travel-area polygon and the sheet names no area",
     "MISSING_NAME": "no name in this locale (sheet name or Wikidata label)",
-    "MISSING_DESCRIPTION": "no description in this locale (Wikipedia, sheet or Wikidata)",
+    "MISSING_DESCRIPTION": (
+        "no description in this locale (Wikipedia, sheet, AI summary of cited sources or Wikidata)"
+    ),
+    "AI_SUMMARY_UNCITED": "an AI-summarised description has no recorded cited source revision",
     "MISSING_LICENCE": "a source used by shown content has no licence or no attribution text",
     "FACT_WITHOUT_SOURCE": "a KNOWN fact has no attributed source revision",
     "SQL_GATE": "fn_publication_gate_violations reported a violation",
@@ -87,6 +93,11 @@ class DesiredLocalization:
     short_description: str | None
     description: str | None
     source_revision_ids: set[uuid.UUID] = field(default_factory=set)
+    # ORIGINAL, or AI_SUMMARY when the description comes from the grounded writer (0007).
+    translation_origin: str = "ORIGINAL"
+    name_is_source_fallback: bool = False
+    # Pages the AI summary was written from (provenance; checked by AI_SUMMARY_UNCITED).
+    cited_revision_ids: set[uuid.UUID] = field(default_factory=set)
 
 
 @dataclass(frozen=True)
@@ -125,6 +136,7 @@ class Contributions:
     wikipedia: dict[str, dict[str, Any]] = field(default_factory=dict)
     osm: dict[str, Any] | None = None
     web: WebPlaceCandidate | None = None
+    ai_summary: dict[str, Any] | None = None
 
 
 def _provenance_id(
@@ -166,7 +178,7 @@ def compose(
     fact_fields: Sequence[FactField],
 ) -> Desired:
     sheet, wikidata, web = contributions.sheet, contributions.wikidata, contributions.web
-    osm = contributions.osm
+    osm, ai_summary = contributions.osm, contributions.ai_summary
     point = parse_point(place.location)
     lng, lat = (point.longitude, point.latitude) if point else (0.0, 0.0)
     for payload in (sheet, wikidata, osm):
@@ -206,9 +218,16 @@ def compose(
     web_rev = web.source_revision_id if web is not None else None
     primary = sheet_rev or wikidata_rev or osm_rev or web_rev
 
+    ai_rev = _provenance_id(ai_summary)
+    ai_cited = {
+        uuid.UUID(str(value))
+        for value in ((ai_summary or {}).get(PROVENANCE_KEY) or {}).get("cited_source_revision_ids")
+        or []
+    }
     localizations: dict[str, DesiredLocalization] = {}
     aliases: dict[str, list[str]] = {}
     chunks: list[DesiredChunk] = []
+    vi_name_rev: uuid.UUID | None = None
     for locale in LOCALES:
         loc = DesiredLocalization(name=None, short_description=None, description=None)
         sheet_name = _clean(((sheet or {}).get("name") or {}).get(locale))
@@ -227,6 +246,21 @@ def compose(
         elif web_name:
             loc.name = web_name
             _add(loc, web_rev)
+        name_rev = (
+            (sheet_rev if sheet_name else None)
+            or (wikidata_rev if wd_name else None)
+            or (osm_rev if osm_name else None)
+            or (web_rev if web_name else None)
+        )
+        if locale == "vi":
+            vi_name_rev = name_rev
+        elif not loc.name and "vi" in localizations:
+            # Proper-name fallback (D3): the Vietnamese name unchanged, never a translation.
+            fallback = proper_name_fallback(category, localizations["vi"].name)
+            if fallback is not None:
+                loc.name = fallback
+                loc.name_is_source_fallback = True
+                _add(loc, vi_name_rev)
 
         sheet_short = _clean(((sheet or {}).get("short_description") or {}).get(locale))
         sheet_desc = _clean(((sheet or {}).get("description") or {}).get(locale))
@@ -234,6 +268,7 @@ def compose(
         wiki = contributions.wikipedia.get(locale)
         wiki_text = _clean((wiki or {}).get("summary"))
         wiki_rev = _provenance_id(wiki)
+        ai_text = _clean(((ai_summary or {}).get("description") or {}).get(locale))
 
         if sheet_short:
             loc.short_description = sheet_short
@@ -249,6 +284,11 @@ def compose(
         elif sheet_desc:
             loc.description = sheet_desc
             _add(loc, sheet_rev)
+        elif ai_text and ai_rev:
+            loc.description = ai_text
+            loc.translation_origin = "AI_SUMMARY"
+            loc.source_revision_ids.add(ai_rev)
+            loc.cited_revision_ids |= ai_cited
         elif sheet_short:
             loc.description = sheet_short
         elif wd_desc:
@@ -334,6 +374,10 @@ def gate_reasons(
             reasons.append(f"MISSING_NAME:{locale}")
         if not loc.description:
             reasons.append(f"MISSING_DESCRIPTION:{locale}")
+        if loc.translation_origin == "AI_SUMMARY" and not any(
+            revision_id in sources for revision_id in loc.cited_revision_ids
+        ):
+            reasons.append(f"AI_SUMMARY_UNCITED:{locale}")
         used |= loc.source_revision_ids
     for fact in desired.facts:
         evidence_ids = {revision_id for revision_id, _ in fact.evidence}
@@ -435,6 +479,8 @@ async def gather(session: AsyncSession, place: Place) -> Contributions:
         locale = upstream_id.split(":", 1)[0]
         if locale in LOCALES and locale not in contributions.wikipedia:
             contributions.wikipedia[locale] = payload
+    ai_summary = await _latest_payloads(session, place.id, AI_SUMMARY_PROVIDER_KEY)
+    contributions.ai_summary = ai_summary[0][1] if ai_summary else None
     contributions.web = await session.scalar(
         select(WebPlaceCandidate)
         .where(WebPlaceCandidate.promoted_place_id == place.id)
@@ -465,7 +511,7 @@ async def _sources(
 def _revision_ids(desired: Desired) -> set[uuid.UUID]:
     ids: set[uuid.UUID] = set()
     for loc in desired.localizations.values():
-        ids |= loc.source_revision_ids
+        ids |= loc.source_revision_ids | loc.cited_revision_ids
     for fact in desired.facts:
         ids |= {revision_id for revision_id, _ in fact.evidence}
     ids |= {chunk.source_revision_id for chunk in desired.chunks}
@@ -534,7 +580,14 @@ class _Apply:
                 current.short_description,
                 current.description,
                 current.translation_origin,
-            ) == (loc.name, loc.short_description, loc.description, "ORIGINAL"):
+                current.name_is_source_fallback,
+            ) == (
+                loc.name,
+                loc.short_description,
+                loc.description,
+                loc.translation_origin,
+                loc.name_is_source_fallback,
+            ):
                 continue
             if current is not None:
                 await self.session.execute(
@@ -557,7 +610,8 @@ class _Apply:
                     name=loc.name,
                     short_description=loc.short_description,
                     description=loc.description,
-                    translation_origin="ORIGINAL",
+                    translation_origin=loc.translation_origin,
+                    name_is_source_fallback=loc.name_is_source_fallback,
                     review_state="APPROVED",
                     reviewed_at=self.now,
                 )

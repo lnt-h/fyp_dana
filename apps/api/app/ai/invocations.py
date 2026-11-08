@@ -35,6 +35,8 @@ class Purpose(StrEnum):
     CORPUS_EMBED = "CORPUS_EMBED"
     QUERY_EMBED = "QUERY_EMBED"
     TRANSLATION_DRAFT = "TRANSLATION_DRAFT"
+    # Migration 0007: offline grounded place descriptions (``enrich descriptions``).
+    CONTENT_SUMMARY = "CONTENT_SUMMARY"
 
 
 class Outcome(StrEnum):
@@ -49,7 +51,9 @@ class Outcome(StrEnum):
 
 
 # ck_ai_invocations_traveler_purpose: only these purposes may have no account.
-ACCOUNTLESS_PURPOSES = frozenset({Purpose.CORPUS_EMBED, Purpose.TRANSLATION_DRAFT})
+ACCOUNTLESS_PURPOSES = frozenset(
+    {Purpose.CORPUS_EMBED, Purpose.TRANSLATION_DRAFT, Purpose.CONTENT_SUMMARY}
+)
 
 _INSERT = text(
     "/* ai:invocation */ INSERT INTO ai_invocations "

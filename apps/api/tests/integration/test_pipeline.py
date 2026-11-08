@@ -213,7 +213,8 @@ async def test_import_auto_publish_and_idempotency(session: AsyncSession) -> Non
     assert outcome[good_id].status == "published"
     assert outcome[good_id].area_code == "hoi-an-old-town"
     assert outcome[vi_only_id].status == "rejected"
-    assert "MISSING_NAME:en" in outcome[vi_only_id].reasons
+    # The VI proper name is reused as the EN name (D3 fallback); no EN description yet.
+    assert outcome[vi_only_id].reasons == ["MISSING_DESCRIPTION:en"]
 
     row = (
         await session.execute(

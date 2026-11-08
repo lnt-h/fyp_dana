@@ -104,6 +104,10 @@ class PlaceLocalization(Base):
     short_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     translation_origin: Mapped[str] = mapped_column(Text, nullable=False)
+    # Migration 0007: the Vietnamese proper name reused unchanged in a locale without a name.
+    name_is_source_fallback: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
     review_state: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'DRAFT'"))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
