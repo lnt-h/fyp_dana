@@ -2,7 +2,7 @@
 """Catalog schema: reference data through publications (schema.sql 1.0 Sections 1-6).
 
 Reference data, providers and policies, places, content, provenance, media, web candidates,
-closure rules, Guide corpus, publications and audit. Implements docs/data/schema.sql 1.0 Sections 1-6 plus the Section 9 triggers and views that belong
+closure rules, Guide corpus, publications and audit. Implements docs/04-design/data/schema.sql 1.0 Sections 1-6 plus the Section 9 triggers and views that belong
 to these tables. Reference rows are seeded by `python -m app.cli seed`, not by this migration.
 """
 

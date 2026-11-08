@@ -24,7 +24,7 @@ def _execute_script(sql: str) -> None:
 SECTION_8A_SQL = """
 -- -----------------------------------------------------------------------------
 -- Section 8A — NEW (migration 0004): free-tier quota ledger and provider caches (DEC-018, ADR-006)
--- Implemented by apps/api/migrations/versions/20261106_0004_caches.py. Paste into docs/data/schema.sql
+-- Implemented by apps/api/migrations/versions/20261106_0004_caches.py. Paste into docs/04-design/data/schema.sql
 -- after Section 7 (the 1.0 contract lacks this section). Depends on Sections 0-7.
 -- Every cache row names the provider policy it is stored under (ADR-006 "every cache row has a policy");
 -- expires_at is bounded by the policy retention in a CHECK so an over-long TTL cannot be written.

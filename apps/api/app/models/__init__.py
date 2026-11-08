@@ -1,9 +1,9 @@
 """All ORM models. Importing this package registers every table on ``Base.metadata``.
 
-Migrations are hand-written from docs/data/schema.sql; these models mirror their columns, keys,
-foreign keys and unique constraints. CHECK constraints, partial/GIN/GiST/HNSW indexes, triggers,
-views and functions live only in the migrations, so never apply `alembic revision --autogenerate`
-output unedited.
+Migrations are hand-written from docs/04-design/data/schema.sql; these models mirror their
+columns, keys, foreign keys and unique constraints. CHECK constraints, partial/GIN/GiST/HNSW
+indexes, triggers, views and functions live only in the migrations, so never apply
+`alembic revision --autogenerate` output unedited.
 """
 
 from app.models.account import Account

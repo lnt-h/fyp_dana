@@ -2,7 +2,7 @@
 """Planning schema: trips, previews, Guide sessions, AI usage (schema.sql 1.0 Section 7).
 
 Preferences, trips, days, stops, legs, previews, Guide sessions, AI usage, idempotency and
-account deletion jobs. Implements docs/data/schema.sql 1.0 Section 7 plus its Section 9 updated_at triggers.
+account deletion jobs. Implements docs/04-design/data/schema.sql 1.0 Section 7 plus its Section 9 updated_at triggers.
 """
 
 from collections.abc import Sequence

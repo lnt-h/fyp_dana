@@ -1,5 +1,5 @@
 # ruff: noqa: E501
-"""User-study records (FR-077). Implements docs/data/schema.sql 1.0 Section 8."""
+"""User-study records (FR-077). Implements docs/04-design/data/schema.sql 1.0 Section 8."""
 
 from collections.abc import Sequence
 
