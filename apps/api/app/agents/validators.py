@@ -216,7 +216,7 @@ def validate_selection(
     if issues:
         return SelectionCheck(tuple(issues), None)
     ranked = [p.model_copy(update={"rank": i}) for i, p in enumerate(picks, start=1)]
-    return SelectionCheck((), SelectionResult(picks=ranked, unmet_requests=result.unmet_requests))
+    return SelectionCheck((), SelectionResult(picks=ranked))
 
 
 def rule_based_selection(
@@ -244,7 +244,7 @@ def rule_based_selection(
             if len(ordered) >= max_picks:
                 break
     picks = [Pick(place_id=str(pid), rank=i) for i, pid in enumerate(ordered[:max_picks], 1)]
-    return SelectionResult(picks=picks, unmet_requests=[])
+    return SelectionResult(picks=picks)
 
 
 # ---------------------------------------------------------------------------------------------

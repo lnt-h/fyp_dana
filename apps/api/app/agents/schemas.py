@@ -22,7 +22,6 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 Locale = Literal["vi", "en"]
 
 MAX_PICKS = 24
-MAX_UNMET = 3
 MAX_RESEARCH_CANDIDATES = 5
 MAX_RESEARCH_EVIDENCE = 4
 MAX_FACTS_PER_CANDIDATE = 6
@@ -49,8 +48,10 @@ class Pick(_Strict):
 
 
 class SelectionResult(_Strict):
+    """Compact on purpose: place IDs and ranks only, no free text (2026-11-08). Output size
+    then grows only with the number of picks, and nothing model-authored reaches a traveller."""
+
     picks: list[Pick] = Field(max_length=MAX_PICKS)
-    unmet_requests: list[ShortText] = Field(default_factory=list, max_length=MAX_UNMET)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -314,3 +315,93 @@ class ResearchOutcome:
     source: ResultSource
     attempts: Sequence[Attempt] = ()
     dropped: Sequence[str] = field(default_factory=tuple)
+
+
+# ---------------------------------------------------------------------------------------------
+# grounded_writer FACT_EXTRACT (DEC-028): facts extracted from supplied evidence, never invented
+# ---------------------------------------------------------------------------------------------
+
+EvidenceId = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+FactQuote = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=400)]
+ClockTime = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^\d{1,2}:\d{2}$")]
+
+
+class AddressDraft(_Strict):
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=5, max_length=200)] = (
+        Field(description="Street address in Vietnamese as written in the evidence.")
+    )
+    evidence_id: EvidenceId = Field(description="The id of the evidence item it comes from.")
+    quote: FactQuote = Field(description="The words of that evidence item that state it.")
+
+
+class HoursRule(_Strict):
+    days: list[Annotated[int, Field(ge=1, le=7)]] = Field(
+        min_length=1, max_length=7, description="ISO weekdays 1 = Monday … 7 = Sunday."
+    )
+    open: ClockTime = Field(description="Opening time HH:MM (24 h).")
+    close: ClockTime = Field(description="Closing time HH:MM (24 h); 24:00 for midnight.")
+
+
+class HoursDraft(_Strict):
+    rules: list[HoursRule] = Field(min_length=1, max_length=14)
+    evidence_id: EvidenceId
+    quote: FactQuote
+
+
+class PriceDraft(_Strict):
+    free: bool = Field(description="true only when the evidence says entry is free.")
+    adult_vnd: int | None = Field(default=None, ge=0, description="Adult ticket in VND.")
+    child_vnd: int | None = Field(default=None, ge=0, description="Child ticket in VND.")
+    evidence_id: EvidenceId
+    quote: FactQuote
+
+
+class ShortDescriptionDraft(_Strict):
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=10, max_length=240)]
+    evidence_id: EvidenceId
+
+
+class FactExtractionDraft(_Strict):
+    """Facts for one place, each citing one supplied evidence id. Null when not stated."""
+
+    address_vi: AddressDraft | None = None
+    opening_hours: HoursDraft | None = None
+    admission_price: PriceDraft | None = None
+    short_description_vi: ShortDescriptionDraft | None = None
+    short_description_en: ShortDescriptionDraft | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class FactEvidenceItem:
+    """One supplied evidence text (redacted and capped by the writer) with its id."""
+
+    evidence_id: str
+    text: str
+    url: str | None = None
+    kind: str = "WEB"  # WIKIPEDIA | WIKIDATA | OSM | OFFICIAL_SITE | WEB | DESCRIPTION
+
+
+@dataclass(frozen=True, slots=True)
+class ValidatedFact:
+    """A validated fact: value in the stored fact shape, cited evidence and grounding flag."""
+
+    field_code: str
+    value: dict[str, object]
+    evidence_id: str
+    quote: str
+    grounding: Literal["STRONG", "WEAK"]
+
+
+@dataclass(frozen=True, slots=True)
+class FactExtraction:
+    facts: tuple[ValidatedFact, ...]
+    short_description: dict[str, tuple[str, str]]  # locale -> (text, evidence_id)
+
+
+@dataclass(frozen=True, slots=True)
+class FactExtractionOutcome:
+    extraction: FactExtraction | None
+    source: ResultSource
+    attempts: Sequence[Attempt] = ()
+    issues: Sequence[str] = ()
+    exhausted: bool = False

@@ -4,7 +4,9 @@ For every candidate place of a city this module
 
 1. **composes** the content it would publish from the staged import records (owner sheet >
    Wikidata/Wikipedia > OpenStreetMap > promoted web candidate), deterministically; facts come
-   from the sheet, else from OpenStreetMap (OPENING_HOURS), each with its own source revision;
+   from the sheet, else from OpenStreetMap (OPENING_HOURS), else from the grounded writer's
+   extraction (``enrich facts``, DEC-028: ``origin = AI_EXTRACTED`` with its grounding flag and
+   the cited evidence revision), each with its own source revision;
 2. runs the **gate** in code (``GATE_RULES``): both locales complete, location inside the city
    boundary, category and area set, every source licensed and attributed, every KNOWN fact
    backed by an attributed source revision (otherwise it is UNKNOWN, never invented), no media
@@ -65,6 +67,8 @@ logger = logging.getLogger("gonarra.curation")
 LOCALES: tuple[str, ...] = ("vi", "en")
 # Grounded AI descriptions (app.research.enrich): one import record per place under this provider.
 AI_SUMMARY_PROVIDER_KEY = "gonarra_ai_summary"
+# AI-extracted facts and short descriptions (app.curation.fact_extract, DEC-028).
+AI_FACTS_PROVIDER_KEY = "gonarra_ai_facts"
 UNUSABLE_LICENCES = frozenset({"", "UNKNOWN", "NONE"})
 
 # Human-readable gate rules (reported by the CLI and documented in apps/api/data/README.md).
@@ -106,6 +110,8 @@ class DesiredFact:
     knowledge_state: str
     value: dict[str, Any] | None
     evidence: tuple[tuple[uuid.UUID, str], ...]  # (source_revision_id, supported_claim)
+    origin: str = "SOURCE"  # SOURCE | OWNER | AI_EXTRACTED (0009, DEC-028)
+    grounding: str | None = None  # STRONG | WEAK for AI_EXTRACTED
 
 
 @dataclass(frozen=True)
@@ -137,6 +143,7 @@ class Contributions:
     osm: dict[str, Any] | None = None
     web: WebPlaceCandidate | None = None
     ai_summary: dict[str, Any] | None = None
+    ai_facts: dict[str, Any] | None = None
 
 
 def _provenance_id(
@@ -179,6 +186,8 @@ def compose(
 ) -> Desired:
     sheet, wikidata, web = contributions.sheet, contributions.wikidata, contributions.web
     osm, ai_summary = contributions.osm, contributions.ai_summary
+    ai_facts = contributions.ai_facts
+    ai_facts_rev = _provenance_id(ai_facts)
     point = parse_point(place.location)
     lng, lat = (point.longitude, point.latitude) if point else (0.0, 0.0)
     for payload in (sheet, wikidata, osm):
@@ -270,12 +279,16 @@ def compose(
         wiki_rev = _provenance_id(wiki)
         ai_text = _clean(((ai_summary or {}).get("description") or {}).get(locale))
 
+        ai_short = _clean(((ai_facts or {}).get("short_description") or {}).get(locale))
         if sheet_short:
             loc.short_description = sheet_short
             _add(loc, sheet_rev)
         elif wd_desc:
             loc.short_description = wd_desc
             _add(loc, wikidata_rev)
+        elif ai_short and ai_facts_rev:
+            loc.short_description = ai_short
+            _add(loc, ai_facts_rev)
 
         if wiki_text and wiki_rev:
             loc.description = wiki_text
@@ -312,12 +325,31 @@ def compose(
     facts: list[DesiredFact] = []
     for fact_field in fact_fields:
         code = fact_field.code
-        sourced = _sourced_fact(sheet, code) or _sourced_fact(osm, code)
+        owner = _sourced_fact(sheet, code)
+        sourced = owner or _sourced_fact(osm, code)
+        ai = _sourced_fact(ai_facts, code) if sourced is None else None
         if sourced is not None:
             staged, fact_rev = sourced
             value = dict(staged["value"])
             claim = f"{code}: {value.get('text') or value}"[:500]
-            facts.append(DesiredFact(code, "KNOWN", value, ((uuid.UUID(fact_rev), claim),)))
+            origin = "OWNER" if owner is not None else "SOURCE"
+            facts.append(DesiredFact(code, "KNOWN", value, ((uuid.UUID(fact_rev), claim),), origin))
+        elif ai is not None:
+            staged, fact_rev = ai
+            value = dict(staged["value"])
+            claim = f"{code} (AI-extracted): {staged.get('quote') or value}"[:500]
+            facts.append(
+                DesiredFact(
+                    code,
+                    "KNOWN",
+                    value,
+                    ((uuid.UUID(fact_rev), claim),),
+                    "AI_EXTRACTED",
+                    staged.get("grounding")
+                    if staged.get("grounding") in ("STRONG", "WEAK")
+                    else "WEAK",
+                )
+            )
         elif fact_field.required_for_publication:
             evidence: tuple[tuple[uuid.UUID, str], ...] = ()
             if primary is not None:
@@ -381,6 +413,12 @@ def gate_reasons(
         used |= loc.source_revision_ids
     for fact in desired.facts:
         evidence_ids = {revision_id for revision_id, _ in fact.evidence}
+        if fact.origin == "AI_EXTRACTED":
+            # DEC-028: the cited evidence is a link, not copied content; it must exist (like the
+            # cited pages of an AI summary) but its licence is not required.
+            if not any(revision_id in sources for revision_id in evidence_ids):
+                reasons.append(f"FACT_WITHOUT_SOURCE:{fact.field_code}")
+            continue
         if fact.knowledge_state == "KNOWN" and not any(
             revision_id in sources and sources[revision_id].usable for revision_id in evidence_ids
         ):
@@ -481,6 +519,8 @@ async def gather(session: AsyncSession, place: Place) -> Contributions:
             contributions.wikipedia[locale] = payload
     ai_summary = await _latest_payloads(session, place.id, AI_SUMMARY_PROVIDER_KEY)
     contributions.ai_summary = ai_summary[0][1] if ai_summary else None
+    ai_facts = await _latest_payloads(session, place.id, AI_FACTS_PROVIDER_KEY)
+    contributions.ai_facts = ai_facts[0][1] if ai_facts else None
     contributions.web = await session.scalar(
         select(WebPlaceCandidate)
         .where(WebPlaceCandidate.promoted_place_id == place.id)
@@ -672,6 +712,8 @@ class _Apply:
                 if (
                     current.knowledge_state == fact.knowledge_state
                     and current.value == fact.value
+                    and current.origin == fact.origin
+                    and current.grounding == fact.grounding
                     and current.conflict_state == "NONE"
                     and {(row[0], row[1]) for row in links} == wanted_evidence
                 ):
@@ -696,6 +738,8 @@ class _Apply:
                 verified_at=self.now,
                 review_state="APPROVED",
                 conflict_state="NONE",
+                origin=fact.origin,
+                grounding=fact.grounding,
             )
             self.session.add(row)
             await self.session.flush()

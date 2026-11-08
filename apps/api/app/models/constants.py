@@ -26,6 +26,8 @@ PROVIDER_KINDS: Final = (
 POLICY_STATUSES: Final = ("DRAFT", "ACTIVE", "RETIRED")
 PERSISTENCE_CLASSES: Final = ("ALLOW_CANONICAL", "ALLOW_EPHEMERAL", "ALLOW_IDENTIFIER_ONLY", "DENY")
 FACT_VALUE_KINDS: Final = ("HOURS", "MONEY", "TEXT", "LOCATION")
+FACT_ORIGINS: Final = ("SOURCE", "OWNER", "AI_EXTRACTED")  # 0009, DEC-028
+FACT_GROUNDINGS: Final = ("STRONG", "WEAK")  # 0009, DEC-028
 SOURCE_KINDS: Final = ("OFFICIAL", "OPEN_DATA", "REFERENCE", "OWN_OBSERVATION", "WEB")
 
 PLACE_WORKFLOW_STATES: Final = (
@@ -114,6 +116,7 @@ IDEMPOTENCY_OPERATIONS: Final = (
     "TRIP_CREATE",
     "PREVIEW_EDIT",
     "PUBLISH",
+    "GUIDE_ASK",  # migration 0008 (API-028 Idempotency-Key)
 )
 IDEMPOTENCY_STATES: Final = ("IN_PROGRESS", "COMPLETED")
 DELETION_JOB_STATUSES: Final = ("REQUESTED", "IN_PROGRESS", "COMPLETED", "FAILED")
@@ -194,6 +197,8 @@ CHECK_ENUMS: Final[dict[str, tuple[str, ...]]] = {
     "ck_place_closure_rules_severity": CLOSURE_SEVERITIES,
     "ck_place_facts_conflict_state": FACT_CONFLICT_STATES,
     "ck_place_facts_knowledge_state": KNOWLEDGE_STATES,
+    "ck_place_facts_origin": FACT_ORIGINS,
+    "ck_place_facts_grounding": FACT_GROUNDINGS,
     "ck_place_facts_review_state": FACT_REVIEW_STATES,
     "ck_place_localizations_locale": LOCALES,
     "ck_place_localizations_review_state": LOCALIZATION_REVIEW_STATES,

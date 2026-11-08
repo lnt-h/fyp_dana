@@ -10,10 +10,14 @@ free tier; change it only with a decision in ``docs/decisions.md``.
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import AliasChoices, AnyHttpUrl, Field, SecretStr, field_validator
+from pydantic import AliasChoices, AnyHttpUrl, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ESTIMATE_ENVIRONMENTS = frozenset({"development", "test", "demo"})
+# Environments where the shared demo user (``demo_shared_user``) may be switched on.
+DEMO_USER_ENVIRONMENTS = frozenset({"development", "test", "demo"})
+# Subject (in place of a Clerk ``sub``) of the one account shared by every unsigned demo caller.
+DEMO_SHARED_SUBJECT = "demo_shared_user"
 
 
 class Settings(BaseSettings):
@@ -39,9 +43,17 @@ class Settings(BaseSettings):
     # Clerk Backend API secret (``sk_...``), used only to delete the Clerk user after an account
     # deletion purge (FR-071). Unset: the purge still completes and a warning is logged.
     clerk_secret_key: SecretStr | None = None
+    # Owner demo builds only (GONARRA_DEMO_SHARED_USER): a request with no Authorization header
+    # is treated as the one shared account ``demo_shared_user`` instead of 401, so anyone who
+    # opens the app can use it without signing in. A bearer token, when sent, is still verified.
+    # Never grants the curator role (only ``curator_clerk_user_ids`` does). Refused unless
+    # ``environment`` is development, test or demo (see ``_demo_user_only_outside_production``).
+    demo_shared_user: bool = False
 
     # Product scope (DEC-013): FYP release serves one enabled city.
     default_city_code: str = "da-nang"
+    # Guide session retention (OQ-019; expired sessions answer 404, Q-Q3 sweep).
+    guide_session_ttl_days: int = 30
 
     # Public base URL that media_assets.object_key is appended to (catalog Media.url).
     media_base_url: str = "http://localhost:8000/media"
@@ -108,6 +120,15 @@ class Settings(BaseSettings):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @model_validator(mode="after")
+    def _demo_user_only_outside_production(self) -> "Settings":
+        if self.demo_shared_user and self.environment not in DEMO_USER_ENVIRONMENTS:
+            raise ValueError(
+                "GONARRA_DEMO_SHARED_USER is allowed only when GONARRA_ENVIRONMENT is "
+                "development, test or demo"
+            )
+        return self
 
     @property
     def estimates_allowed(self) -> bool:

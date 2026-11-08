@@ -1,0 +1,79 @@
+{
+ "batchcomplete": true,
+ "query": {
+  "normalized": [
+   {
+    "fromencoded": false,
+    "from": "Japanese_Covered_Bridge",
+    "to": "Japanese Covered Bridge"
+   }
+  ],
+  "redirects": [
+   {
+    "from": "My Son Sanctuary",
+    "to": "Mỹ Sơn archaeological site"
+   },
+   {
+    "from": "Japanese Covered Bridge",
+    "to": "Japanese Bridge"
+   }
+  ],
+  "pages": [
+   {
+    "ns": 0,
+    "title": "Nonexistent Page Xyz",
+    "missing": true,
+    "fullurl": "https://en.wikipedia.org/wiki/Nonexistent_Page_Xyz",
+    "canonicalurl": "https://en.wikipedia.org/wiki/Nonexistent_Page_Xyz"
+   },
+   {
+    "pageid": 1240413,
+    "ns": 0,
+    "title": "Mỹ Sơn archaeological site",
+    "original": {
+     "source": "https://upload.wikimedia.org/wikipedia/commons/0/07/2024_-_M%E1%BB%B9_S%C6%A1n_Group_B%2C_C_and_D_-_img_23.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original",
+     "width": 4032,
+     "height": 3024
+    },
+    "pageimage": "2024_-_Mỹ_Sơn_Group_B,_C_and_D_-_img_23.jpg",
+    "pageprops": {
+     "page_image_free": "2024_-_Mỹ_Sơn_Group_B,_C_and_D_-_img_23.jpg",
+     "wikibase_item": "Q391406"
+    },
+    "lastrevid": 1380445650,
+    "fullurl": "https://en.wikipedia.org/wiki/M%E1%BB%B9_S%C6%A1n_archaeological_site",
+    "canonicalurl": "https://en.wikipedia.org/wiki/M%E1%BB%B9_S%C6%A1n_archaeological_site"
+   },
+   {
+    "pageid": 4273140,
+    "ns": 0,
+    "title": "Avatar (2009 film)",
+    "pageprops": {
+     "page_image": "Avatar_(2009_film)_poster.jpg",
+     "wikibase_item": "Q24871"
+    },
+    "lastrevid": 1384191011,
+    "fullurl": "https://en.wikipedia.org/wiki/Avatar_(2009_film)",
+    "canonicalurl": "https://en.wikipedia.org/wiki/Avatar_(2009_film)"
+   },
+   {
+    "pageid": 69238521,
+    "ns": 0,
+    "title": "Japanese Bridge",
+    "original": {
+     "source": "https://upload.wikimedia.org/wikipedia/commons/b/b8/2024_H%E1%BB%99i_An_-_Japanese_Covered_Bridge_%28Ch%C3%B9a_C%E1%BA%A7u%29_after_renovation_-_img_11.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original",
+     "width": 3287,
+     "height": 2465
+    },
+    "pageimage": "2024_Hội_An_-_Japanese_Covered_Bridge_(Chùa_Cầu)_after_renovation_-_img_11.jpg",
+    "pageprops": {
+     "page_image_free": "2024_Hội_An_-_Japanese_Covered_Bridge_(Chùa_Cầu)_after_renovation_-_img_11.jpg",
+     "wikibase_item": "Q1091054"
+    },
+    "lastrevid": 1366907918,
+    "fullurl": "https://en.wikipedia.org/wiki/Japanese_Bridge",
+    "canonicalurl": "https://en.wikipedia.org/wiki/Japanese_Bridge"
+   }
+  ]
+ }
+}

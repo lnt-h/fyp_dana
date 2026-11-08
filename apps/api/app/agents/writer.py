@@ -8,6 +8,11 @@
   EN description written only from supplied source texts, citing supplied URLs only, with no
   prices, hours, phone numbers or ratings (:func:`validate_description`). One repair call, then
   the next model; ``insufficient_evidence`` stores nothing.
+* ``FACT_EXTRACT`` (same chain as DESCRIPTION; offline ``enrich facts``, DEC-028): address, opening
+  hours, admission price and one-sentence VI/EN short descriptions extracted from supplied,
+  redacted evidence items with ids. Code validation (:mod:`app.agents.fact_validation`): a field
+  must cite a supplied id; hours and prices are parsed by code; contact data is rejected; the
+  quote only sets the STRONG/WEAK grounding flag. Never raises.
 """
 
 from __future__ import annotations
@@ -17,6 +22,7 @@ import re
 import uuid
 from collections.abc import Sequence
 
+from app.agents.fact_validation import validate_fact_extraction
 from app.agents.runtime import AgentContext, load_instructions, run_chain
 from app.agents.schemas import (
     MAX_DESCRIPTION_SOURCES,
@@ -24,6 +30,10 @@ from app.agents.schemas import (
     DescriptionOutcome,
     DescriptionSource,
     EvidenceItem,
+    FactEvidenceItem,
+    FactExtraction,
+    FactExtractionDraft,
+    FactExtractionOutcome,
     GroundedAnswer,
     GuideAnswerOutcome,
     Locale,
@@ -48,6 +58,9 @@ from app.ai.redaction import redact_text
 RATIONALE_AGENT = "writer_rationale"
 GUIDE_AGENT = "writer_guide"
 DESCRIPTION_AGENT = "writer_description"
+FACTS_AGENT = "writer_facts"
+MAX_FACT_EVIDENCE = 8
+MAX_FACT_EVIDENCE_CHARS = 2500
 MAX_SOURCE_CHARS = 3000
 MAX_EVIDENCE = 24
 MAX_HISTORY_TURNS = 4
@@ -302,3 +315,79 @@ async def write_place_description(
         return DescriptionOutcome(None, ResultSource.MODEL, True, attempts, tuple(call.issues))
     source = ResultSource.REPAIRED if call.repaired else ResultSource.MODEL
     return DescriptionOutcome(call.value, source, False, attempts, tuple(call.issues))
+
+
+def build_fact_prompt(
+    *,
+    name_vi: str,
+    name_en: str | None,
+    category: str | None,
+    area: str | None,
+    evidence: Sequence[FactEvidenceItem],
+) -> tuple[str, list[FactEvidenceItem]]:
+    """``(prompt, supplied)``: evidence texts redacted (BR-046) and capped; URLs are not sent."""
+    supplied: list[FactEvidenceItem] = []
+    for item in evidence:
+        if len(supplied) >= MAX_FACT_EVIDENCE:
+            break
+        text = redact_text(item.text)[:MAX_FACT_EVIDENCE_CHARS]
+        if text.strip():
+            supplied.append(FactEvidenceItem(item.evidence_id, text, item.url, item.kind))
+    payload = {
+        "place": {
+            "name_vi": redact_text(name_vi),
+            "name_en": redact_text(name_en) if name_en else None,
+            "category": category,
+            "area": area,
+        },
+        "evidence": [
+            {"id": item.evidence_id, "kind": item.kind, "text": item.text} for item in supplied
+        ],
+    }
+    return json.dumps(payload, ensure_ascii=False), supplied
+
+
+async def extract_place_facts(
+    ctx: AgentContext,
+    *,
+    name_vi: str,
+    name_en: str | None,
+    category: str | None,
+    area: str | None,
+    evidence: Sequence[FactEvidenceItem],
+) -> FactExtractionOutcome:
+    """Validated facts (possibly none) or a degraded outcome. Never raises."""
+    first_attempt = len(ctx.attempts)
+    prompt, supplied = build_fact_prompt(
+        name_vi=name_vi, name_en=name_en, category=category, area=area, evidence=evidence
+    )
+    if not supplied:
+        return FactExtractionOutcome(None, ResultSource.DEGRADED, issues=("no_evidence",))
+    instructions, version = load_instructions(FACTS_AGENT, "en")
+    dropped: list[str] = []
+
+    def validate(draft: FactExtractionDraft) -> tuple[FactExtraction | None, list[str]]:
+        check = validate_fact_extraction(draft, supplied)
+        dropped.extend(check.issues)
+        return check.extraction, []  # relaxed rule: dropped fields never fail the call
+
+    call = await run_chain(
+        ctx,
+        Role.WRITER_DESCRIPTION,
+        agent_name=FACTS_AGENT,
+        instructions=instructions,
+        prompt_version=version,
+        prompt=prompt,
+        output_schema=FactExtractionDraft,
+        parse=lambda content: parse_output(content, FactExtractionDraft),
+        validate=validate,
+        next_model_on_invalid=True,
+    )
+    attempts = tuple(ctx.attempts[first_attempt:])
+    if call.value is None:
+        return FactExtractionOutcome(
+            None, ResultSource.DEGRADED, attempts, tuple(call.issues), call.exhausted
+        )
+    return FactExtractionOutcome(
+        call.value, ResultSource.MODEL, attempts, tuple([*call.issues, *dropped])
+    )

@@ -4,6 +4,7 @@ from app.api.routes import (
     admin,
     catalog,
     deletion,
+    guide,
     health,
     identity,
     preferences,
@@ -19,4 +20,5 @@ api_router.include_router(catalog.router, prefix="/v1")
 api_router.include_router(trips.router, prefix="/v1")
 api_router.include_router(previews.router, prefix="/v1")
 api_router.include_router(deletion.router, prefix="/v1")
+api_router.include_router(guide.router, prefix="/v1")
 api_router.include_router(admin.router, prefix="/v1")

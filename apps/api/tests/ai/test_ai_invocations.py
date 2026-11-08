@@ -20,6 +20,8 @@ DDL_COLUMNS = {
     "latency_ms",
     "input_tokens",
     "output_tokens",
+    "agent_run_id",
+    "error_code",
 }
 
 
@@ -47,6 +49,7 @@ async def test_record_invocation_shape(db: Any, caplog: pytest.LogCaptureFixture
     assert row["provider_model"] == "GEMINI:gemini-2.5-flash"
     assert row["purpose"] == "PLAN_GENERATE" and row["outcome"] == "VALIDATION_FAILED"
     assert row["account_id"] == ACCOUNT and row["corpus_revision"] is None
+    assert row["error_code"] == "UNKNOWN_PLACE_ID" and row["agent_run_id"] == run_id
     assert db.commits == 1
     assert "role=SELECTOR" in caplog.text and "error=UNKNOWN_PLACE_ID" in caplog.text
     assert str(ACCOUNT) not in caplog.text

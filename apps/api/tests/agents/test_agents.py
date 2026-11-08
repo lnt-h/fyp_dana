@@ -21,13 +21,15 @@ from app.agents.runtime import AgentContext, build_agent, load_instructions
 from app.agents.schemas import (
     AnswerStatus,
     EvidenceItem,
+    Pick,
     RationaleStop,
     ResultSource,
+    SelectionResult,
 )
 from app.agents.selector import select_places
 from app.agents.writer import write_guide_answer, write_rationales
 from app.ai.invocations import Purpose
-from app.ai.providers import GROQ_DEFAULT, Role, role_chain
+from app.ai.providers import GEMINI_FLASH, GEMINI_FLASH_LITE, GROQ_DEFAULT, Role, role_chain
 from app.ai.quota import Bucket
 from app.ai.redaction import CandidateDto
 
@@ -135,9 +137,10 @@ async def test_selector_repairs_once_then_succeeds() -> None:
     assert [r["outcome"] for r in sink.rows] == ["VALIDATION_FAILED", "OK"]
 
 
-async def test_selector_falls_back_to_rule_based_after_failed_repair() -> None:
-    runner = ScriptedRunner([picks(IDS[0]), "not json at all"])
-    ctx, _, _ = ctx_for(runner)
+async def test_selector_falls_back_to_rule_based_after_whole_chain() -> None:
+    # Flash invalid → Flash repair unparsable → Flash-Lite invalid → Groq invalid → rule-based.
+    runner = ScriptedRunner([picks(IDS[0]), "not json at all", picks(IDS[0]), picks(IDS[1])])
+    ctx, ledger, sink = ctx_for(runner)
     out = await select_places(
         ctx, request_text="x", candidates=CANDIDATES, days=1, locale="en", must_see=[IDS[4]]
     )
@@ -145,7 +148,56 @@ async def test_selector_falls_back_to_rule_based_after_failed_repair() -> None:
     assert out.result.picks[0].place_id == str(IDS[4])
     # round-robin across categories after the must-see
     assert [p.place_id for p in out.result.picks[1:4]] == [str(IDS[0]), str(IDS[1]), str(IDS[3])]
-    assert len(out.attempts) == 2
+    assert [c[0] for c in runner.calls] == [
+        GEMINI_FLASH,
+        GEMINI_FLASH,
+        GEMINI_FLASH_LITE,
+        GROQ_DEFAULT,
+    ]
+    assert [a.error_code for a in out.attempts] == [
+        "validation_failed",
+        "malformed_output",
+        "validation_failed",
+        "validation_failed",
+    ]
+    assert [r["error_code"] for r in sink.rows] == [a.error_code for a in out.attempts]
+    assert ledger.used[Bucket.GROQ] == 1
+
+
+TRUNCATED = '{"picks":[{"place_id":"' + str(IDS[0]) + '","rank":1,"day_hint":1},{"place_id":"0000'
+
+
+async def test_selector_truncated_output_moves_to_next_model_without_repair() -> None:
+    # Gemini thinking tokens used the output budget: Agno leaves the cut-off JSON as a string.
+    runner = ScriptedRunner([TRUNCATED, picks(IDS[1], IDS[0])])
+    ctx, _, sink = ctx_for(runner)
+    out = await select_places(ctx, request_text="x", candidates=CANDIDATES, days=1, locale="en")
+    assert out.source is ResultSource.MODEL
+    assert [c[0] for c in runner.calls] == [GEMINI_FLASH, GEMINI_FLASH_LITE]
+    assert "previous_answer_rejected" not in runner.calls[1][1]
+    assert [r["outcome"] for r in sink.rows] == ["VALIDATION_FAILED", "OK"]
+    assert [r["error_code"] for r in sink.rows] == ["malformed_output", None]
+    assert out.issues == ()
+
+
+async def test_selector_truncated_everywhere_degrades_to_rule_based() -> None:
+    runner = ScriptedRunner([TRUNCATED, TRUNCATED, TRUNCATED])
+    ctx, _, sink = ctx_for(runner)
+    out = await select_places(ctx, request_text="x", candidates=CANDIDATES, days=1, locale="en")
+    assert out.source is ResultSource.RULE_BASED and out.result.picks
+    assert len(runner.calls) == 3
+    assert {r["error_code"] for r in sink.rows} == {"malformed_output"}
+
+
+def test_selector_specs_leave_room_for_output() -> None:
+    # SelectionResult for MAX_PICKS picks is ~1k tokens; Gemini 3 thinking tokens count
+    # against max_output_tokens, so Flash runs with low thinking and a larger budget.
+    for spec in role_chain(Role.SELECTOR):
+        assert spec.max_output_tokens is not None and spec.max_output_tokens >= 4096
+        if spec.model_id == GEMINI_FLASH:
+            assert spec.thinking_level == "low"
+    assert set(SelectionResult.model_fields) == {"picks"}
+    assert set(Pick.model_fields) == {"place_id", "rank", "day_hint"}
 
 
 async def test_selector_provider_error_falls_through_to_groq() -> None:

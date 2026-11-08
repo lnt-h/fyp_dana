@@ -5,6 +5,7 @@ from sqlalchemy import exists, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import DEMO_SHARED_SUBJECT
 from app.models.account import Account
 from app.models.planning import AccountDeletionJob
 
@@ -39,7 +40,9 @@ class SQLAlchemyAccountRepository:
         if existing is not None:
             return existing
 
-        deleted = await self._session.scalar(
+        # The shared demo subject (owner demo builds only) is never locked out: deleting the
+        # demo account purges it and the next demo request starts a fresh one.
+        deleted = clerk_user_id != DEMO_SHARED_SUBJECT and await self._session.scalar(
             select(
                 exists().where(
                     AccountDeletionJob.status == "COMPLETED",

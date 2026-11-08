@@ -45,6 +45,9 @@ logger = logging.getLogger("gonarra.ingestion")
 
 PROVIDER_KEY = "wikidata"
 SPARQL_ENDPOINT = "https://query.wikidata.org/sparql"
+API_URL = "https://www.wikidata.org/w/api.php"
+HUMAN_QID = "Q5"
+ENTITY_BATCH = 50
 IMPORTER_VERSION = "wikidata-1"
 RELEASE_ID = "wdqs-live"
 ENTITY_URL = "https://www.wikidata.org/wiki/{qid}"
@@ -260,6 +263,48 @@ async def fetch_items(
     )
     response.raise_for_status()
     return parse_bindings(response.json()["results"]["bindings"])
+
+
+def human_qids_from(body: dict[str, Any]) -> set[str]:
+    """``wbgetentities`` (props=claims) response → QIDs whose P31 includes Q5 (human)."""
+    humans: set[str] = set()
+    for qid, entity in (body.get("entities") or {}).items():
+        for claim in ((entity or {}).get("claims") or {}).get("P31") or []:
+            value = (((claim or {}).get("mainsnak") or {}).get("datavalue") or {}).get("value")
+            if isinstance(value, dict) and value.get("id") == HUMAN_QID:
+                humans.add(str(qid))
+    return humans
+
+
+async def fetch_human_qids(
+    client: httpx.AsyncClient, qids: Sequence[str], *, batch_size: int = ENTITY_BATCH
+) -> set[str]:
+    """Which of ``qids`` are humans (P31=Q5); one ``wbgetentities`` request per 50 QIDs.
+    A failed batch is logged and treated as "not known to be human"."""
+    unique = sorted({q for q in qids if _QID.match(q)}, key=lambda q: int(q[1:]))
+    humans: set[str] = set()
+    for start in range(0, len(unique), batch_size):
+        batch = unique[start : start + batch_size]
+        params = {
+            "action": "wbgetentities",
+            "ids": "|".join(batch),
+            "props": "claims",
+            "format": "json",
+        }
+        try:
+            response = await get_with_retries(
+                client, API_URL, params=params, headers={"User-Agent": USER_AGENT}
+            )
+            response.raise_for_status()
+            body = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            logger.warning("wikidata wbgetentities failed batch=%d error=%s", start, exc)
+            continue
+        if "error" in body:
+            logger.warning("wikidata wbgetentities error batch=%d", start)
+            continue
+        humans |= human_qids_from(body)
+    return humans
 
 
 def make_client() -> httpx.AsyncClient:

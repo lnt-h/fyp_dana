@@ -159,7 +159,8 @@ async def test_fetch_files_batches_and_follows_normalisation() -> None:
     assert all(str(request.url).startswith(API_URL) for request in requests)
     assert all(request.headers["user-agent"] == USER_AGENT for request in requests)
     params = requests[0].url.params
-    assert params["prop"] == "imageinfo" and "extmetadata" in params["iiprop"]
+    assert params["prop"] == "imageinfo|categories" and "extmetadata" in params["iiprop"]
+    assert params["clshow"] == "!hidden"
     assert isinstance(results["File:A_b.jpg"], CommonsFile)
     assert results["File:A_b.jpg"].title == "File:A b.jpg"  # type: ignore[union-attr]
     assert isinstance(results["File:C.jpg"], CommonsFile)

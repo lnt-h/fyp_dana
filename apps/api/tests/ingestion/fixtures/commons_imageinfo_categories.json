@@ -1,0 +1,274 @@
+{
+    "batchcomplete": true,
+    "query": {
+        "pages": [
+            {
+                "pageid": 87362911,
+                "ns": 6,
+                "title": "File:Phuoc Lam Pagoda 3.jpg",
+                "imagerepository": "local",
+                "imageinfo": [
+                    {
+                        "size": 6696099,
+                        "width": 3888,
+                        "height": 5184,
+                        "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/36/Phuoc_Lam_Pagoda_3.jpg/1280px-Phuoc_Lam_Pagoda_3.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+                        "thumbwidth": 1280,
+                        "thumbheight": 1707,
+                        "thumbmime": "image/jpeg",
+                        "responsiveUrls": {
+                            "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/36/Phuoc_Lam_Pagoda_3.jpg/3840px-Phuoc_Lam_Pagoda_3.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+                        },
+                        "thumbattribs": {
+                            "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/36/Phuoc_Lam_Pagoda_3.jpg/1280px-Phuoc_Lam_Pagoda_3.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+                            "decoding": "async",
+                            "loading": "lazy",
+                            "width": 1280,
+                            "height": 1707,
+                            "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/36/Phuoc_Lam_Pagoda_3.jpg/3840px-Phuoc_Lam_Pagoda_3.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+                        },
+                        "url": "https://upload.wikimedia.org/wikipedia/commons/3/36/Phuoc_Lam_Pagoda_3.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+                        "descriptionurl": "https://commons.wikimedia.org/wiki/File:Phuoc_Lam_Pagoda_3.jpg",
+                        "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=87362911",
+                        "sha1": "8cd37c0ed225b8e47f0e554a25de4ec2727cc4dc",
+                        "extmetadata": {
+                            "ObjectName": {
+                                "value": "Phuoc Lam Pagoda 3",
+                                "source": "mediawiki-metadata"
+                            },
+                            "ImageDescription": {
+                                "value": "Phuoc Lam Pagoda in Hoi An, Vietnam.",
+                                "source": "commons-desc-page"
+                            },
+                            "Credit": {
+                                "value": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+                                "source": "commons-desc-page"
+                            },
+                            "Artist": {
+                                "value": "<a href=\"//commons.wikimedia.org/wiki/User:Christophe95\" title=\"User:Christophe95\">Christophe95</a>",
+                                "source": "commons-desc-page"
+                            },
+                            "LicenseShortName": {
+                                "value": "CC BY-SA 4.0",
+                                "source": "commons-desc-page",
+                                "hidden": ""
+                            },
+                            "UsageTerms": {
+                                "value": "Creative Commons Attribution-Share Alike 4.0",
+                                "source": "commons-desc-page"
+                            },
+                            "AttributionRequired": {
+                                "value": "true",
+                                "source": "commons-desc-page",
+                                "hidden": ""
+                            },
+                            "Copyrighted": {
+                                "value": "True",
+                                "source": "commons-desc-page",
+                                "hidden": ""
+                            },
+                            "License": {
+                                "value": "cc-by-sa-4.0",
+                                "source": "commons-templates",
+                                "hidden": ""
+                            }
+                        },
+                        "mime": "image/jpeg"
+                    }
+                ],
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Phuoc Lam Pagoda"
+                    }
+                ]
+            },
+            {
+                "pageid": 89105007,
+                "ns": 6,
+                "title": "File:Hội An, Chùa Cầu, 2020-01 CN-04.jpg",
+                "imagerepository": "local",
+                "imageinfo": [
+                    {
+                        "size": 8773549,
+                        "width": 4362,
+                        "height": 2594,
+                        "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/H%E1%BB%99i_An%2C_Ch%C3%B9a_C%E1%BA%A7u%2C_2020-01_CN-04.jpg/1280px-H%E1%BB%99i_An%2C_Ch%C3%B9a_C%E1%BA%A7u%2C_2020-01_CN-04.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+                        "thumbwidth": 1280,
+                        "thumbheight": 761,
+                        "thumbmime": "image/jpeg",
+                        "responsiveUrls": {
+                            "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/H%E1%BB%99i_An%2C_Ch%C3%B9a_C%E1%BA%A7u%2C_2020-01_CN-04.jpg/3840px-H%E1%BB%99i_An%2C_Ch%C3%B9a_C%E1%BA%A7u%2C_2020-01_CN-04.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+                        },
+                        "thumbattribs": {
+                            "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/H%E1%BB%99i_An%2C_Ch%C3%B9a_C%E1%BA%A7u%2C_2020-01_CN-04.jpg/1280px-H%E1%BB%99i_An%2C_Ch%C3%B9a_C%E1%BA%A7u%2C_2020-01_CN-04.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+                            "decoding": "async",
+                            "loading": "lazy",
+                            "width": 1280,
+                            "height": 761,
+                            "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/H%E1%BB%99i_An%2C_Ch%C3%B9a_C%E1%BA%A7u%2C_2020-01_CN-04.jpg/3840px-H%E1%BB%99i_An%2C_Ch%C3%B9a_C%E1%BA%A7u%2C_2020-01_CN-04.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+                        },
+                        "url": "https://upload.wikimedia.org/wikipedia/commons/5/5c/H%E1%BB%99i_An%2C_Ch%C3%B9a_C%E1%BA%A7u%2C_2020-01_CN-04.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+                        "descriptionurl": "https://commons.wikimedia.org/wiki/File:H%E1%BB%99i_An,_Ch%C3%B9a_C%E1%BA%A7u,_2020-01_CN-04.jpg",
+                        "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=89105007",
+                        "sha1": "fc1c142db5f88d9a4abdee05dea164bd67ae3649",
+                        "extmetadata": {
+                            "ObjectName": {
+                                "value": "Hội An, Chùa Cầu, 2020-01 CN-04",
+                                "source": "mediawiki-metadata"
+                            },
+                            "GPSLatitude": {
+                                "value": "15.877096",
+                                "source": "commons-desc-page"
+                            },
+                            "GPSLongitude": {
+                                "value": "108.326201",
+                                "source": "commons-desc-page"
+                            },
+                            "ImageDescription": {
+                                "value": "<a href=\"https://en.wikipedia.org/wiki/H%E1%BB%99i_An\" class=\"extiw\" title=\"w:Hội An\">Hội An</a> (<a href=\"https://en.wikipedia.org/wiki/Vietnam\" class=\"extiw\" title=\"w:Vietnam\">Vietnam</a>) – Chùa Cầu, “Japanese Bridge” with temple – eastern bridge portal",
+                                "source": "commons-desc-page"
+                            },
+                            "Credit": {
+                                "value": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+                                "source": "commons-desc-page"
+                            },
+                            "Artist": {
+                                "value": "<a href=\"//commons.wikimedia.org/wiki/User:Carschten\" title=\"User:Carschten\">Steffen Schmitz</a> <small>(<a href=\"//commons.wikimedia.org/wiki/Category:Photographs_by_Carschten\" title=\"Category:Photographs by Carschten\">more photos</a>)</small>",
+                                "source": "commons-desc-page"
+                            },
+                            "LicenseShortName": {
+                                "value": "CC BY-SA 4.0",
+                                "source": "commons-desc-page",
+                                "hidden": ""
+                            },
+                            "UsageTerms": {
+                                "value": "Creative Commons Attribution-Share Alike 4.0",
+                                "source": "commons-desc-page"
+                            },
+                            "AttributionRequired": {
+                                "value": "true",
+                                "source": "commons-desc-page",
+                                "hidden": ""
+                            },
+                            "Attribution": {
+                                "value": " <big>© Steffen Schmitz (<a href=\"https://de.wikipedia.org/wiki/Benutzer:Carschten\" class=\"extiw\" title=\"de:Benutzer:Carschten\">Carschten</a>) / <a href=\"//commons.wikimedia.org/wiki/Wikimedia_Commons\" title=\"Wikimedia Commons\">Wikimedia Commons</a> / <a rel=\"nofollow\" class=\"external text\" href=\"https://creativecommons.org/licenses/by-sa/4.0/deed.en\">CC BY-SA 4.0</a></big>",
+                                "source": "commons-desc-page",
+                                "hidden": ""
+                            },
+                            "Copyrighted": {
+                                "value": "True",
+                                "source": "commons-desc-page",
+                                "hidden": ""
+                            },
+                            "License": {
+                                "value": "cc-by-sa-4.0",
+                                "source": "commons-templates",
+                                "hidden": ""
+                            }
+                        },
+                        "mime": "image/jpeg"
+                    }
+                ],
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Japanese Bridge"
+                    }
+                ]
+            },
+            {
+                "pageid": 152932659,
+                "ns": 6,
+                "title": "File:Raffi kojian-hoi an-155621875.jpg",
+                "imagerepository": "local",
+                "imageinfo": [
+                    {
+                        "size": 3747676,
+                        "width": 4000,
+                        "height": 3000,
+                        "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Raffi_kojian-hoi_an-155621875.jpg/1280px-Raffi_kojian-hoi_an-155621875.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+                        "thumbwidth": 1280,
+                        "thumbheight": 960,
+                        "thumbmime": "image/jpeg",
+                        "responsiveUrls": {
+                            "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Raffi_kojian-hoi_an-155621875.jpg/3840px-Raffi_kojian-hoi_an-155621875.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+                        },
+                        "thumbattribs": {
+                            "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Raffi_kojian-hoi_an-155621875.jpg/1280px-Raffi_kojian-hoi_an-155621875.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+                            "decoding": "async",
+                            "loading": "lazy",
+                            "width": 1280,
+                            "height": 960,
+                            "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Raffi_kojian-hoi_an-155621875.jpg/3840px-Raffi_kojian-hoi_an-155621875.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+                        },
+                        "url": "https://upload.wikimedia.org/wikipedia/commons/4/4f/Raffi_kojian-hoi_an-155621875.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+                        "descriptionurl": "https://commons.wikimedia.org/wiki/File:Raffi_kojian-hoi_an-155621875.jpg",
+                        "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=152932659",
+                        "sha1": "7b4bb43eb2282bd29f0558860fb0c8b31cfc97c2",
+                        "extmetadata": {
+                            "ObjectName": {
+                                "value": "Raffi kojian-hoi an-155621875",
+                                "source": "mediawiki-metadata"
+                            },
+                            "GPSLatitude": {
+                                "value": "15.877161",
+                                "source": "commons-desc-page"
+                            },
+                            "GPSLongitude": {
+                                "value": "108.326116",
+                                "source": "commons-desc-page"
+                            },
+                            "ImageDescription": {
+                                "value": "Cement tile floor in Hoi An",
+                                "source": "commons-desc-page"
+                            },
+                            "Credit": {
+                                "value": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+                                "source": "commons-desc-page"
+                            },
+                            "Artist": {
+                                "value": "<a href=\"//commons.wikimedia.org/wiki/User:RaffiKojian\" title=\"User:RaffiKojian\">RaffiKojian</a>",
+                                "source": "commons-desc-page"
+                            },
+                            "LicenseShortName": {
+                                "value": "CC BY 4.0",
+                                "source": "commons-desc-page",
+                                "hidden": ""
+                            },
+                            "UsageTerms": {
+                                "value": "Creative Commons Attribution 4.0",
+                                "source": "commons-desc-page"
+                            },
+                            "AttributionRequired": {
+                                "value": "true",
+                                "source": "commons-desc-page",
+                                "hidden": ""
+                            },
+                            "Copyrighted": {
+                                "value": "True",
+                                "source": "commons-desc-page",
+                                "hidden": ""
+                            },
+                            "License": {
+                                "value": "cc-by-4.0",
+                                "source": "commons-templates",
+                                "hidden": ""
+                            }
+                        },
+                        "mime": "image/jpeg"
+                    }
+                ],
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Tile floors in Hoi An"
+                    }
+                ]
+            }
+        ]
+    },
+    "limits": {
+        "categories": 500
+    }
+}

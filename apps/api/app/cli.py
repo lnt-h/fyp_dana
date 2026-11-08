@@ -12,6 +12,8 @@ Content pipeline (DEC-022, app/ingestion/cli.py): `policy list|activate`, `areas
 
 Grounded descriptions (D3, app/research/enrich.py):
     uv run python -m app.cli enrich descriptions [--limit 150] [--food-cafe-cap 40]
+AI-extracted facts (DEC-028, app/curation/fact_extract.py):
+    uv run python -m app.cli enrich facts [--limit 120] [--max-searches 200] [--max-model-calls 250]
 Then `publish auto`, `publish summary` and `publish audit-sample`.
 """
 
@@ -265,6 +267,21 @@ PROVIDERS: tuple[ProviderSeed, ...] = (
         {
             "description": (CANONICAL, None),
             "cited_urls": (CANONICAL, None),
+            "model": (CANONICAL, None),
+        },
+    ),
+    # DEC-028 (2026-11-08): facts and short descriptions extracted by the grounded writer from
+    # cited evidence (app/curation/fact_extract.py); prompts and raw responses are never stored.
+    ProviderSeed(
+        "gonarra_ai_facts",
+        "Gonarra AI-extracted facts",
+        "AI_SERVICE",
+        "https://github.com/lnt-h/fyp_dana/blob/main/apps/api/data/README.md",
+        "Facts and short descriptions extracted from cited sources (enrich facts, DEC-028)",
+        "Facts extracted by Gonarra with AI assistance, only from the cited sources",
+        {
+            "facts": (CANONICAL, None),
+            "short_description": (CANONICAL, None),
             "model": (CANONICAL, None),
         },
     ),
@@ -707,6 +724,72 @@ def enrich_descriptions_command(
         typer.echo(f"    VI: {sample.description_vi}")
         typer.echo(f"    EN: {sample.description_en}")
         typer.echo(f"    cited: {' | '.join(sample.cited_urls)}")
+
+
+@enrich_app.command("facts")
+def enrich_facts_command(
+    limit: int = typer.Option(120, min=1, help="Published places to process."),
+    max_searches: int = typer.Option(200, min=0, help="Tavily searches for this run."),
+    max_model_calls: int = typer.Option(250, min=1, help="Writer model calls for this run."),
+    retry: bool = typer.Option(False, "--retry", help="Also places already processed."),
+) -> None:
+    """Extract address, hours, price and short descriptions from cited sources (DEC-028).
+
+    Stages them for `publish auto`; facts are published as AI_EXTRACTED with the source link.
+    Audit afterwards with `publish audit-sample`.
+    """
+    from app.config import get_settings
+    from app.curation.fact_extract import FactsReport, build_fact_extractor
+    from app.ingestion.common import PolicyNotActiveError
+
+    settings = get_settings()
+
+    async def run() -> FactsReport:
+        extractor, close = build_fact_extractor(settings, session_factory)
+        try:
+            async with session_factory() as session:
+                return await extractor.run(
+                    session,
+                    city_code=settings.default_city_code,
+                    limit=limit,
+                    max_searches=max_searches,
+                    max_model_calls=max_model_calls,
+                    retry=retry,
+                )
+        finally:
+            await close()
+            await engine.dispose()
+
+    try:
+        report = asyncio.run(run())
+    except PolicyNotActiveError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(
+        f"enrich facts: selected={report.selected} extracted={report.extracted_places} "
+        f"no_facts={report.no_facts} failed={report.failed}"
+    )
+    typer.echo(
+        f"  tavily searches={report.tavily_calls} cached={report.tavily_cached} "
+        f"pages_fetched={report.pages_fetched} wikidata_requests={report.wikimedia_requests} "
+        f"overpass_requests={report.overpass_requests}"
+    )
+    typer.echo(
+        "  model calls: "
+        + (", ".join(f"{k}={v}" for k, v in sorted(report.model_calls.items())) or "none")
+    )
+    typer.echo(
+        "  accepted fields: "
+        + (", ".join(f"{k}={v}" for k, v in sorted(report.by_field.items())) or "none")
+        + "  grounding: "
+        + (", ".join(f"{k}={v}" for k, v in sorted(report.by_grounding.items())) or "none")
+    )
+    if report.issues:
+        typer.echo(
+            "  dropped fields: " + ", ".join(f"{k}={v}" for k, v in report.issues.most_common())
+        )
+    if report.stopped:
+        typer.echo(f"  stopped: {report.stopped}")
 
 
 def _register_pipeline_commands() -> None:

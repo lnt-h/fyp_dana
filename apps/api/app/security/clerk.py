@@ -12,7 +12,7 @@ from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.config import Settings, get_settings
+from app.config import DEMO_SHARED_SUBJECT, Settings, get_settings
 from app.db.session import get_db_session
 from app.errors import AppError
 from app.models.account import Account
@@ -46,8 +46,13 @@ class ClerkTokenVerifier:
             decode_kwargs["audience"] = self._settings.clerk_audience
             decode_kwargs["options"]["verify_aud"] = True
         claims = jwt.decode(token, signing_key.key, **decode_kwargs)
+        # Authorized parties are enforced only when the token carries ``azp``. Clerk mints
+        # ``azp`` for browser-origin sessions; native session tokens (Expo / React Native via
+        # @clerk/clerk-expo) carry none. This mirrors Clerk's own backend SDKs. A token without
+        # ``azp`` is still fully verified above (signature, issuer, exp, nbf, iat, sub).
         authorized_parties = self._settings.authorized_parties
-        if authorized_parties and claims.get("azp") not in authorized_parties:
+        azp = claims.get("azp")
+        if authorized_parties and azp is not None and azp not in authorized_parties:
             raise jwt.InvalidTokenError("Unauthorized token party")
         return AuthenticatedUser(subject=claims["sub"], session_id=claims.get("sid"))
 
@@ -58,8 +63,22 @@ def get_token_verifier() -> ClerkTokenVerifier:
 
 
 async def get_current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> AuthenticatedUser:
+    # Owner demo builds (``GONARRA_DEMO_SHARED_USER``): no Authorization header at all means the
+    # shared demo account. The verifier (and its JWKS client) is never built on this path, so it
+    # works without Clerk configuration. A header that is present is always verified below.
+    if settings.demo_shared_user and "authorization" not in request.headers:
+        return AuthenticatedUser(subject=DEMO_SHARED_SUBJECT, session_id=None)
+    return await verify_credentials(credentials)
+
+
+async def verify_credentials(
+    credentials: HTTPAuthorizationCredentials | None,
+) -> AuthenticatedUser:
+    """Verify a bearer token with Clerk (401 when missing or invalid, 503 when unconfigured)."""
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -162,7 +181,7 @@ async def get_optional_user(request: Request) -> AuthenticatedUser | None:
     if scheme.lower() != "bearer" or not token.strip():
         return None
     credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token.strip())
-    return await get_current_user(credentials)
+    return await verify_credentials(credentials)
 
 
 async def get_optional_account(

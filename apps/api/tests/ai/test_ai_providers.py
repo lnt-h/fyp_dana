@@ -49,8 +49,8 @@ def test_make_model_builds_agno_models(settings: Settings) -> None:
     gemini, lite, groq = (make_model(spec, settings) for spec in role_chain(Role.SELECTOR))
     assert isinstance(gemini, Gemini) and gemini.id == "gemini-3.6-flash"
     assert gemini.api_key == GEMINI_KEY
-    assert gemini.max_output_tokens == 2048
-    assert gemini.thinking_level is None
+    assert gemini.max_output_tokens == 4096
+    assert gemini.thinking_level == "low" and lite.thinking_level is None
     assert isinstance(lite, Gemini) and lite.id == "gemini-3.5-flash-lite"
     assert isinstance(groq, Groq) and groq.id == "openai/gpt-oss-120b"
     assert groq.api_key == GROQ_KEY

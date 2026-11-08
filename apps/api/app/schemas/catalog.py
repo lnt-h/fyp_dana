@@ -87,6 +87,10 @@ class Citation(BaseModel):
     trust_level: TrustLevel = "VERIFIED"
 
 
+FactOrigin = Literal["SOURCE", "OWNER", "AI_EXTRACTED"]
+FactGrounding = Literal["STRONG", "WEAK"]
+
+
 class PlaceFact(BaseModel):
     """One operational fact. UNKNOWN is never collapsed into an empty value (FR-005)."""
 
@@ -101,6 +105,21 @@ class PlaceFact(BaseModel):
         default=None, description="Most recent supporting source (1.0); also listed in sources."
     )
     sources: list[Citation]
+    origin: FactOrigin = Field(
+        default="SOURCE",
+        description=(
+            "1.0.4 (DEC-028): SOURCE (open data or official source), OWNER (owner sheet) or "
+            "AI_EXTRACTED (extracted by Gonarra's grounded writer from the cited source; label "
+            "it 'Summarised from sources' and show the source link)."
+        ),
+    )
+    grounding: FactGrounding | None = Field(
+        default=None,
+        description=(
+            "1.0.4: AI_EXTRACTED only. STRONG = the extraction quote matches the cited text; "
+            "WEAK = it matches only partly. Null for other origins."
+        ),
+    )
 
 
 class ClosureRule(BaseModel):

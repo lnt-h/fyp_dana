@@ -173,6 +173,8 @@ def _fact(fact: FactRecord) -> PlaceFact:
         freshness="STALE" if fact.is_stale else "CURRENT",
         source=citations[0] if citations else None,
         sources=citations,
+        origin=fact.origin if fact.origin in ("SOURCE", "OWNER", "AI_EXTRACTED") else "SOURCE",
+        grounding=fact.grounding if fact.origin == "AI_EXTRACTED" else None,
     )
 
 

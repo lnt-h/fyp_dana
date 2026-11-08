@@ -244,6 +244,9 @@ class PlaceFact(Base):
     review_state: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'DRAFT'"))
     conflict_state: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'NONE'"))
     conflict_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # 0009 (DEC-028): SOURCE | OWNER | AI_EXTRACTED; grounding STRONG | WEAK for AI_EXTRACTED.
+    origin: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'SOURCE'"))
+    grounding: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
     )

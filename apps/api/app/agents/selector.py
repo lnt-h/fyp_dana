@@ -115,6 +115,9 @@ async def select_places(
         parse=lambda content: parse_output(content, SelectionResult),
         validate=validate,
         repair_prompt=repair,
+        # DEC-026: Flash → Flash-Lite → Groq are all tried before the rule-based selector.
+        next_model_on_invalid=True,
+        next_model_after_repair=True,
     )
     if call.value is None:
         return fallback(call.issues)

@@ -8,11 +8,13 @@ same session (its commits release savepoints), so nothing is left behind.
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
+import httpx
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
@@ -25,6 +27,8 @@ from app.main import create_app
 from app.models.account import Account
 from app.planning.orchestrator import PlanningOrchestrator
 from app.planning.workflows import get_planning_workflow
+from app.routing.google_routes import COMPUTE_ROUTE_MATRIX_URL, GoogleRoutesProvider
+from app.routing.provider import RoutesProvider
 from app.security.clerk import get_account_allowing_deletion
 
 pytestmark = pytest.mark.integration
@@ -225,7 +229,13 @@ async def test_propose_trip_end_to_end_over_sse(session: AsyncSession) -> None:
         assert stale.status_code == 409
 
 
-async def _planner_app(db: AsyncSession, day_count: int = 2) -> tuple[Any, uuid.UUID, set[Any]]:
+async def _planner_app(
+    db: AsyncSession,
+    day_count: int = 2,
+    *,
+    settings: Settings | None = None,
+    routes_provider: RoutesProvider | None = None,
+) -> tuple[Any, uuid.UUID, set[Any]]:
     account = Account(clerk_user_id=f"planner_{uuid.uuid4()}")
     db.add(account)
     await db.flush()
@@ -253,7 +263,7 @@ async def _planner_app(db: AsyncSession, day_count: int = 2) -> tuple[Any, uuid.
     async def shared() -> AsyncIterator[AsyncSession]:
         yield db
 
-    settings = Settings(
+    settings = settings or Settings(
         _env_file=None,  # type: ignore[call-arg]
         environment="test",
         routes_estimate_enabled=True,
@@ -263,7 +273,9 @@ async def _planner_app(db: AsyncSession, day_count: int = 2) -> tuple[Any, uuid.
     app.dependency_overrides[get_account_allowing_deletion] = lambda: Account(
         id=account_id, clerk_user_id=clerk_user_id
     )
-    app.dependency_overrides[get_planning_workflow] = lambda: PlanningOrchestrator(shared, settings)
+    app.dependency_overrides[get_planning_workflow] = lambda: PlanningOrchestrator(
+        shared, settings, routes_provider=routes_provider
+    )
     return app, trip_id, seeded
 
 
@@ -350,6 +362,83 @@ async def test_regenerate_reuses_preview_preferences_and_replays_idempotently(
         )
         assert saved.status_code == 200, saved.text
         assert saved.json()["planning_preferences"]["allowed_modes"] == ["WALK"]
+
+
+def _legs(preview: dict[str, Any]) -> list[dict[str, Any]]:
+    return [leg for day in preview["days"] for leg in day["legs"]]
+
+
+async def test_routes_provider_estimate_one_day_preview(session: AsyncSession) -> None:
+    # DEC-023: GONARRA_ROUTES_PROVIDER=estimate forces the haversine estimate even with a
+    # (possibly unusable) Google key configured.
+    settings = Settings(
+        _env_file=None,  # type: ignore[call-arg]
+        environment="development",
+        routes_provider="estimate",
+        google_maps_api_key="unused-google-key",
+    )
+    app, trip_id, seeded = await _planner_app(session, day_count=1, settings=settings)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        created = await client.post(
+            f"/v1/trips/{trip_id}/plan-previews",
+            json={"source": "GENERATE", "expected_trip_revision": 0, "locale": "en"},
+        )
+    assert created.status_code == 201, created.text
+    preview = created.json()
+    assert len(preview["days"]) == 1
+    stops = [stop for day in preview["days"] for stop in day["stops"]]
+    assert len(stops) >= 2 and {uuid.UUID(s["place_id"]) for s in stops} <= seeded
+    legs = _legs(preview)
+    assert legs
+    assert all(leg["estimated"] is True for leg in legs)
+    assert all(leg["availability"] == "AVAILABLE" and leg["duration_s"] for leg in legs)
+    conflicts = [c for leg in legs for c in leg["conflicts"]]
+    assert any(c["type"] == "LEG_ESTIMATED" and c["severity"] == "INFO" for c in conflicts)
+    assert not any(c["type"] == "LEG_UNAVAILABLE" for c in conflicts)
+    # Routing never blocks an estimated plan (unknown hours may still make it WARNING).
+    assert preview["plan_health"] in ("GOOD", "WARNING")
+
+
+async def test_google_routes_403_degrades_to_unavailable_legs(
+    session: AsyncSession, caplog: pytest.LogCaptureFixture
+) -> None:
+    calls: list[httpx.Request] = []
+
+    def forbidden(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(403, json={"error": {"status": "PERMISSION_DENIED"}})
+
+    client_403 = httpx.AsyncClient(transport=httpx.MockTransport(forbidden))
+    provider = GoogleRoutesProvider("google-key-403", client=client_403)
+    settings = Settings(
+        _env_file=None,  # type: ignore[call-arg]
+        environment="development",
+        routes_provider="google",
+        google_maps_api_key="google-key-403",
+    )
+    app, trip_id, _ = await _planner_app(
+        session, day_count=1, settings=settings, routes_provider=provider
+    )
+    caplog.set_level(logging.WARNING, logger="gonarra.routing")
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            created = await client.post(
+                f"/v1/trips/{trip_id}/plan-previews",
+                json={"source": "GENERATE", "expected_trip_revision": 0, "locale": "en"},
+            )
+    finally:
+        await client_403.aclose()
+    assert created.status_code == 201, created.text  # degraded, never a 500
+    preview = created.json()
+    assert calls and all(str(r.url) == COMPUTE_ROUTE_MATRIX_URL for r in calls)
+    legs = _legs(preview)
+    assert legs and all(leg["availability"] == "UNAVAILABLE" for leg in legs)
+    assert all(leg["estimated"] is False for leg in legs)
+    failures = [r for r in caplog.records if "routes matrix_failed" in r.getMessage()]
+    assert len(failures) == 1
+    assert "status=403" in failures[0].getMessage()
+    assert "google-key-403" not in caplog.text
+    assert preview["assumptions"]  # the missing routes are disclosed
 
 
 async def test_failed_propose_releases_its_idempotency_claim(session: AsyncSession) -> None:

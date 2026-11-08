@@ -93,14 +93,29 @@ def _groq(role: Role, *, max_tokens: int, timeout_s: float) -> ModelSpec:
     return ModelSpec(Provider.GROQ, GROQ_DEFAULT, role, True, max_tokens, timeout_s)
 
 
+# Gemini 3 thinking tokens count against ``max_output_tokens``. With the default (dynamic)
+# thinking, gemini-3.6-flash spent 1 073 of 2 048 tokens thinking on a 24-candidate selector
+# prompt (7.8 s) and sometimes all but ~100, which cut the JSON mid-string ("Unterminated
+# string", 2026-11-08). ``thinking_level="low"`` measured 0 thinking tokens and 3.4 s for the same
+# prompt; Flash-Lite does not think by default. Budgets keep headroom over the largest output.
+_FLASH_THINKING = "low"
+
 # Timeouts are per provider request; the agent runtime adds 5 s for the whole Agno run. The
 # planning chains are kept short so that a proposal with every model failing still finishes in
 # well under a minute (then the rule-based selector / null rationales take over).
 _CHAINS: dict[Role, tuple[ModelSpec, ...]] = {
     Role.SELECTOR: (
-        _gemini(GEMINI_FLASH, Role.SELECTOR, max_tokens=2048, timeout_s=15.0),
-        _gemini(GEMINI_FLASH_LITE, Role.SELECTOR, max_tokens=2048, timeout_s=12.0),
-        _groq(Role.SELECTOR, max_tokens=2048, timeout_s=15.0),
+        # SelectionResult is IDs + ranks only: ~30 tokens per pick, ≤ 24 picks ≈ 750 tokens.
+        _gemini(
+            GEMINI_FLASH,
+            Role.SELECTOR,
+            max_tokens=4096,
+            timeout_s=15.0,
+            thinking_level=_FLASH_THINKING,
+        ),
+        _gemini(GEMINI_FLASH_LITE, Role.SELECTOR, max_tokens=4096, timeout_s=12.0),
+        # gpt-oss always reasons and its reasoning counts against max_tokens as well.
+        _groq(Role.SELECTOR, max_tokens=4096, timeout_s=15.0),
     ),
     # Researcher never runs on Gemini (ADR-014).
     Role.RESEARCHER: (_groq(Role.RESEARCHER, max_tokens=2048, timeout_s=30.0),),
@@ -109,7 +124,13 @@ _CHAINS: dict[Role, tuple[ModelSpec, ...]] = {
         _groq(Role.WRITER_RATIONALE, max_tokens=2048, timeout_s=12.0),
     ),
     Role.WRITER_GUIDE: (
-        _gemini(GEMINI_FLASH, Role.WRITER_GUIDE, max_tokens=1536, timeout_s=20.0),
+        _gemini(
+            GEMINI_FLASH,
+            Role.WRITER_GUIDE,
+            max_tokens=1536,
+            timeout_s=20.0,
+            thinking_level=_FLASH_THINKING,
+        ),
         _groq(Role.WRITER_GUIDE, max_tokens=1536, timeout_s=20.0),
     ),
     # Offline enrichment (no traveler waiting): longer timeouts, Flash-Lite first (free-tier RPD).
@@ -121,7 +142,13 @@ _CHAINS: dict[Role, tuple[ModelSpec, ...]] = {
         ModelSpec(Provider.GEMINI, GEMINI_EMBEDDING, Role.EMBEDDING, False, None, 15.0),
     ),
     Role.JUDGE: (
-        _gemini(GEMINI_FLASH, Role.JUDGE, max_tokens=1024, timeout_s=60.0),
+        _gemini(
+            GEMINI_FLASH,
+            Role.JUDGE,
+            max_tokens=1024,
+            timeout_s=60.0,
+            thinking_level=_FLASH_THINKING,
+        ),
         _groq(Role.JUDGE, max_tokens=1024, timeout_s=60.0),
     ),
 }

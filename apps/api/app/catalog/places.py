@@ -27,6 +27,7 @@ from sqlalchemy import (
     or_,
     select,
     table,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +40,7 @@ from app.models.catalog import (
     MediaAsset,
     Place,
     PlaceClosureRule,
+    PlaceFact,
     PlaceLocalization,
     PlaceMedia,
     PublicationMedia,
@@ -142,6 +144,26 @@ class FactSourceRecord:
     homepage_url: str | None
 
 
+_ORIGIN_COLUMN: list[bool] = []
+
+
+async def _fact_origin_available(session: AsyncSession) -> bool:
+    """Transitional (2026-11-08): True once migration 0009 added ``place_facts.origin``.
+
+    Lets a database still at 0008 serve place details (origin reads as SOURCE) until the owner
+    runs ``alembic upgrade head``; the answer is cached per process (restart after upgrading).
+    """
+    if not _ORIGIN_COLUMN:
+        found = await session.scalar(
+            text(
+                "SELECT EXISTS (SELECT 1 FROM information_schema.columns "
+                "WHERE table_name = 'place_facts' AND column_name = 'origin')"
+            )
+        )
+        _ORIGIN_COLUMN.append(bool(found))
+    return _ORIGIN_COLUMN[0]
+
+
 @dataclass(frozen=True)
 class FactRecord:
     place_fact_id: uuid.UUID
@@ -153,6 +175,8 @@ class FactRecord:
     valid_until: date | None
     is_stale: bool
     sources: tuple[FactSourceRecord, ...]
+    origin: str = "SOURCE"  # SOURCE | OWNER | AI_EXTRACTED (0009, DEC-028)
+    grounding: str | None = None
 
 
 @dataclass(frozen=True)
@@ -435,6 +459,14 @@ class PlacesRepository:
             )
         ).all()
         fact_ids = [row.place_fact_id for row in fact_rows]
+        origins: dict[uuid.UUID, tuple[str, str | None]] = {}
+        if fact_ids and await _fact_origin_available(self._session):
+            origin_rows = await self._session.execute(
+                select(PlaceFact.id, PlaceFact.origin, PlaceFact.grounding).where(
+                    PlaceFact.id.in_(fact_ids)
+                )
+            )
+            origins = {row[0]: (row[1], row[2]) for row in origin_rows.all()}
         sources: dict[uuid.UUID, list[FactSourceRecord]] = {}
         if fact_ids:
             source_rows = (
@@ -484,6 +516,8 @@ class PlacesRepository:
                 valid_until=row.valid_until,
                 is_stale=bool(row.is_stale),
                 sources=tuple(sources.get(row.place_fact_id, ())),
+                origin=origins.get(row.place_fact_id, ("SOURCE", None))[0],
+                grounding=origins.get(row.place_fact_id, ("SOURCE", None))[1],
             )
             for row in fact_rows
         ]

@@ -21,6 +21,14 @@ categories in code (``categories.map_osm_tags``); unmapped elements are skipped.
   Latin script (Vietnamese included). A ``name`` in Hangul, CJK, Cyrillic, Thai … (e.g. a Korean
   label on Chùa Cầu) is never used as the Vietnamese name; such an element without ``name:vi`` is
   skipped (``skipped_foreign_name``), since it could never pass the gate and duplicated places.
+* Code-name filter (2026-11-08): a name that is not a real proper name is never used. Pure codes
+  (``A1``, ``D 5``, ``B-12``: ``^[A-Z]{1,3}[ -]?[0-9]{1,3}$``), numeric-only names and names with
+  fewer than 3 letters (e.g. the Mỹ Sơn tower-group labels) are dropped per locale; an element
+  whose VI name is dropped is skipped (``skipped_code_name``). Travellers never search for them.
+* Name sanity (2026-11-08): ``name:en`` must be in Latin script too (else dropped, so no locale
+  carries a Hangul/CJK/... name), and an element whose ``wikidata`` tag is a human (P31=Q5,
+  checked with ``wbgetentities``; memorials are sometimes tagged with the person) is skipped
+  (``skipped_human_name``): its name is a person's name, not a place's.
 * Shared-identity dedupe (2026-11-08): before creating a place, an element within
   ``MATCH_RADIUS_M`` of an existing place whose accepted record shares its ``wikidata`` QID or a
   Wikimedia Commons file (``wikimedia_commons`` / ``image`` / Wikidata P18) is linked to that place.
@@ -34,7 +42,7 @@ import logging
 import re
 import unicodedata
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import unquote, urlparse
@@ -68,14 +76,15 @@ from app.ingestion.common import (
     start_run,
 )
 from app.ingestion.wikidata import PROVIDER_KEY as WIKIDATA_KEY
-from app.ingestion.wikidata import get_with_retries
+from app.ingestion.wikidata import fetch_human_qids, get_with_retries
 from app.models.catalog import Place
 from app.models.providers import ImportRecord
 
 logger = logging.getLogger("gonarra.ingestion")
 
 PROVIDER_KEY = "openstreetmap"
-IMPORTER_VERSION = "osm-3"  # osm-2: FOOD/CAFE bloat filter; osm-3: script filter, shared-id dedupe
+# osm-2: bloat filter; osm-3: script filter, shared-id dedupe; osm-4: code, EN-script, human names
+IMPORTER_VERSION = "osm-4"
 RELEASE_ID = "overpass-live"
 LICENSE_CODE = "ODbL-1.0"
 ATTRIBUTION = "© OpenStreetMap contributors"
@@ -99,6 +108,8 @@ SELECTORS: tuple[str, ...] = (
 )
 
 _QID = re.compile(r"^Q[0-9]+$")
+_CODE_NAME = re.compile(r"^[A-Z]{1,3}[ -]?\d{1,3}$")
+MIN_NAME_LETTERS = 3
 
 # Draft bloat filter: FOOD/CAFE elements need at least one of these tags to be imported.
 SPARSE_FILTER_CATEGORIES = frozenset({"FOOD", "CAFE"})
@@ -209,6 +220,14 @@ def latin_script(text: str) -> bool:
     return bool(letters) and all(unicodedata.name(ch, "").startswith("LATIN") for ch in letters)
 
 
+def proper_name(text: str) -> bool:
+    """False for codes (``A1``, ``D 5``), numeric-only names and names with < 3 letters."""
+    value = " ".join(text.split())
+    if not value or _CODE_NAME.match(value):
+        return False
+    return sum(1 for ch in value if ch.isalpha()) >= MIN_NAME_LETTERS
+
+
 def commons_file_name(value: str | None) -> str | None:
     """A Commons file name from an OSM ``wikimedia_commons`` / ``image`` value, else None."""
     if not value:
@@ -255,13 +274,30 @@ class OsmElement:
 
     @property
     def names(self) -> dict[str, str]:
-        """``name:vi`` (else ``name`` when in Latin script) and ``name:en``; never translated."""
+        """``name:vi`` (else ``name`` when in Latin script) and ``name:en``; never translated.
+
+        Code-like names (see ``proper_name``) are dropped.
+        """
         vi = (self.tags.get("name:vi") or "").strip()
         if not vi:
             local = (self.tags.get("name") or "").strip()
             vi = local if latin_script(local) else ""
         en = (self.tags.get("name:en") or "").strip()
-        return {locale: value for locale, value in (("vi", vi), ("en", en)) if value}
+        en = en if latin_script(en) else ""
+        return {
+            locale: value
+            for locale, value in (("vi", vi), ("en", en))
+            if value and proper_name(value)
+        }
+
+    @property
+    def has_code_name(self) -> bool:
+        """A usable-script VI name exists but is a code, not a proper name."""
+        vi = (self.tags.get("name:vi") or "").strip()
+        if not vi:
+            local = (self.tags.get("name") or "").strip()
+            vi = local if latin_script(local) else ""
+        return bool(vi) and not proper_name(vi)
 
     @property
     def commons_files(self) -> set[str]:
@@ -388,6 +424,8 @@ class OsmReport(RunReport):
     unmapped: int = 0
     skipped_sparse: int = 0
     skipped_foreign_name: int = 0
+    skipped_code_name: int = 0
+    skipped_human_name: int = 0
     matched_wikidata: int = 0
     matched_shared: int = 0
     matched_name: int = 0
@@ -412,10 +450,12 @@ async def import_osm(
     http = client or make_client()
     try:
         elements = await fetch_elements(http, box)
+        qids = [e.wikidata_id for e in elements if e.wikidata_id and e.category is not None]
+        humans = await fetch_human_qids(http, [q for q in qids if q]) if qids else set()
     finally:
         if own_client:
             await http.aclose()
-    return await stage_elements(session, city_code=city_code, elements=elements)
+    return await stage_elements(session, city_code=city_code, elements=elements, human_qids=humans)
 
 
 def _names_of(raw_name: str | None, payload: Mapping[str, Any]) -> set[str]:
@@ -526,7 +566,11 @@ async def match_by_shared_identity(
 
 
 async def stage_elements(
-    session: AsyncSession, *, city_code: str, elements: Sequence[OsmElement]
+    session: AsyncSession,
+    *,
+    city_code: str,
+    elements: Sequence[OsmElement],
+    human_qids: Iterable[str] = (),
 ) -> OsmReport:
     policy = await require_active_policy(session, PROVIDER_KEY)
     city = await load_city(session, city_code)
@@ -537,7 +581,12 @@ async def stage_elements(
     dense = [element for element in categorised if not element.is_sparse]
     report.skipped_sparse = len(categorised) - len(dense)
     mapped = [element for element in dense if element.names.get("vi")]
-    report.skipped_foreign_name = len(dense) - len(mapped)
+    report.skipped_code_name = sum(1 for element in dense if element.has_code_name)
+    report.skipped_foreign_name = len(dense) - len(mapped) - report.skipped_code_name
+    humans = set(human_qids)
+    named = [element for element in mapped if element.wikidata_id not in humans]
+    report.skipped_human_name = len(mapped) - len(named)
+    mapped = named
     checksum = sha256_hex(canonical_json([element.payload() for element in mapped]))
     run = await start_run(
         session,
@@ -673,13 +722,14 @@ async def stage_elements(
     finish_run(run, report)
     await session.commit()
     logger.info(
-        "osm import accepted=%d rejected=%d unmapped=%d sparse=%d foreign_name=%d shared=%d "
-        "created=%d",
+        "osm import accepted=%d rejected=%d unmapped=%d sparse=%d foreign_name=%d code_name=%d "
+        "shared=%d created=%d",
         report.accepted,
         report.rejected,
         report.unmapped,
         report.skipped_sparse,
         report.skipped_foreign_name,
+        report.skipped_code_name,
         report.matched_shared,
         report.created_places,
     )

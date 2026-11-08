@@ -173,13 +173,17 @@ async def run_chain[P, T](
     tool_call_limit: int | None = None,
     timeout_s: float | None = None,
     next_model_on_invalid: bool = False,
+    next_model_after_repair: bool = False,
 ) -> CallResult[T]:
     """Walk ``role_chain(role)`` until a valid result, the repair budget or the chain runs out.
 
     ``parse`` raises ``ValueError`` on schema failure; ``validate`` returns ``(value, issues)``
-    where ``value is None`` means invalid. A provider error moves to the next model; an invalid
-    result triggers one repair (if ``repair_prompt``) on the next available model in the chain,
-    starting with the same one.
+    where ``value is None`` means invalid. A provider error or unparsable (e.g. truncated) output
+    moves to the next model; an invalid result triggers one repair (if ``repair_prompt``) on the
+    same model. ``next_model_on_invalid`` moves an invalid result without a repair to the next
+    model; with ``next_model_after_repair`` too, a failed repair also moves on, so every model
+    in the chain is tried before the caller's fallback. Every attempt is recorded with its
+    ``error_code``.
     """
     chain = role_chain(role)
     ensure_clean(prompt, allowed_ids=allowed_ids)
@@ -232,14 +236,25 @@ async def run_chain[P, T](
 
         value: T | None = None
         issues: list[str] = []
+        malformed = False
         if outcome is Outcome.OK and output is not None:
             try:
-                value, issues = validate(parse(output.content))
+                parsed = parse(output.content)
             except ValueError as exc:
-                value, issues = None, [str(exc)[:200]]
+                # Agno leaves ``content`` as the raw string when it cannot build the output
+                # schema from it: truncated JSON (output budget spent, e.g. on Gemini thinking)
+                # or no JSON at all. A repair prompt on the same model would hit the same limit,
+                # so this attempt fails and the chain moves on.
+                malformed = output_schema is not None and isinstance(output.content, str)
+                value, issues = None, ["malformed_output" if malformed else str(exc)[:200]]
+            else:
+                try:
+                    value, issues = validate(parsed)
+                except ValueError as exc:
+                    value, issues = None, [str(exc)[:200]]
             if value is None:
                 outcome = Outcome.VALIDATION_FAILED
-                error_code = "validation_failed"
+                error_code = "malformed_output" if malformed else "validation_failed"
 
         metrics = output.metrics if output is not None else None
         attempt = Attempt(
@@ -272,13 +287,16 @@ async def run_chain[P, T](
             return CallResult(value, issues, repaired, provider_model=attempt.provider_model)
         if outcome is Outcome.VALIDATION_FAILED:
             last_issues = issues
+            if malformed:
+                start = index + 1  # unparsable output: next model, the repair stays unused
+                continue
             if repair_prompt is not None and not repaired:
                 repaired = True
                 current_prompt = repair_prompt(issues)
                 start = index  # repair on the same model first
                 continue
-            if next_model_on_invalid and not repaired:
-                start = index + 1
+            if next_model_on_invalid and (not repaired or next_model_after_repair):
+                start = index + 1  # later models get a try (after a repair: with its note)
                 continue
             return CallResult(None, issues, repaired, provider_model=attempt.provider_model)
         last_issues = [error_code or "provider_error"]

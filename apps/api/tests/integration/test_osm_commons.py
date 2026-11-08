@@ -14,19 +14,31 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.catalog.places import PlacesRepository
 from app.config import get_settings
 from app.curation.auto_publish import auto_publish
 from app.curation.embedding import Embedding
-from app.ingestion.common import load_city
+from app.curation.fact_extract import FactCandidate, FactExtractor, _Evidence
+from app.ingestion.common import (
+    get_or_create_revision,
+    get_or_create_source,
+    load_city,
+    require_active_policy,
+)
 from app.ingestion.commons import (
+    Article,
     CommonsFile,
+    PageImage,
     Rejected,
+    add_page_images,
+    place_articles,
     place_images,
     stage_files,
 )
 from app.ingestion.osm import OsmElement, stage_elements
 from app.ingestion.policies import activate_policy
 from app.ingestion.wikidata import WikidataItem, stage_items
+from app.ingestion.wikidata_link import stage_links
 from app.ingestion.wikipedia import PageSummary, stage_summaries
 from app.models.catalog import CatalogPublication, MediaAsset, Place, PlaceMedia, PublicationMedia
 from app.models.providers import ImportRecord
@@ -382,3 +394,229 @@ async def test_commons_media_is_licensed_ordered_idempotent_and_published(
         .where(ImportRecord.place_id == place_id, ImportRecord.validation_status == "REJECTED")
     )
     assert records == 3  # NC file (twice: two runs) and the missing file
+
+
+async def test_wikipedia_page_image_is_staged_with_article_provenance(
+    session: AsyncSession,
+) -> None:
+    for key in ("wikidata", "wikipedia", "wikimedia_commons"):
+        await activate_policy(session, key, f"test terms {key}")
+    qid, token = _qid(), _token()
+    await stage_items(
+        session,
+        city_code=CITY,
+        items=[_wikidata(qid, lng=HOI_AN[0], lat=HOI_AN[1])],
+        policy_key="wikidata",
+    )
+    place_id = await _place_for(session, "wikidata", qid)
+    city = await load_city(session, CITY)
+    articles = [a for a in await place_articles(session, city.id) if a.place_id == place_id]
+    assert len(articles) == 1 and articles[0].qid == qid
+    assert articles[0].articles == [Article("vi", f"T {qid} vi"), Article("en", f"T {qid} en")]
+    lead = f"File:Lead {token}.jpg"
+    images = {
+        Article("vi", f"T {qid} vi"): PageImage(
+            "vi", f"T {qid} vi", f"https://vi.wikipedia.org/wiki/T_{qid}", "42", qid, lead
+        ),
+        # The EN article is about another item (e.g. the parent complex): never used.
+        Article("en", f"T {qid} en"): PageImage(
+            "en", f"T {qid} en", f"https://en.wikipedia.org/wiki/T_{qid}", "7", "Q1", "File:P.jpg"
+        ),
+    }
+    candidates, wrong = add_page_images([], articles, images, skip=set())
+    assert wrong == 1 and [c.titles for c in candidates] == [[lead]]
+    report = await stage_files(
+        session, city_code=CITY, candidates=candidates, files={lead: _file(lead)}
+    )
+    assert (report.accepted, report.places_with_media, report.places_with_page_image) == (1, 1, 1)
+    record = await session.scalar(
+        select(ImportRecord.allowed_payload).where(
+            ImportRecord.place_id == place_id, ImportRecord.raw_name == lead
+        )
+    )
+    assert record is not None
+    provenance = record["_provenance"]
+    assert provenance["via"] == "wikipedia_page_image"
+    locator = await session.scalar(
+        text("SELECT locator FROM source_revisions WHERE id = :id"),
+        {"id": provenance["via_source_revision_id"]},
+    )
+    assert locator == f"https://vi.wikipedia.org/wiki/T_{qid}"
+    count = await session.scalar(
+        select(func.count()).select_from(PlaceMedia).where(PlaceMedia.place_id == place_id)
+    )
+    assert count == 1
+
+
+async def test_osm_code_and_human_names_are_skipped(session: AsyncSession) -> None:
+    await activate_policy(session, "openstreetmap", "test terms openstreetmap")
+    human = _qid()
+    code = _osm(
+        {"name": "A7", "historic": "ruins"}, lng=HOI_AN[0], lat=HOI_AN[1], category="HERITAGE"
+    )
+    statue = _osm(
+        {"name": f"Tượng {human}", "historic": "memorial", "wikidata": human},
+        lng=HOI_AN[0],
+        lat=HOI_AN[1] + 0.0003,
+        category="HERITAGE",
+    )
+    report = await stage_elements(
+        session, city_code=CITY, elements=[code, statue], human_qids={human}
+    )
+    assert (report.skipped_code_name, report.skipped_human_name) == (1, 1)
+    assert report.record_count == 0 and report.created_places == 0
+
+
+async def test_wikidata_link_names_an_osm_place_and_backfills_a_tagged_one(
+    session: AsyncSession,
+) -> None:
+    for key in ("wikidata", "openstreetmap"):
+        await activate_policy(session, key, f"test terms {key}")
+    token = _token()
+    linked_qid, tagged_qid, human_qid = _qid(), _qid(), _qid()
+    name = f"Chùa Thử Nghiệm {token}"
+    plain = _osm(
+        {"name": name, "amenity": "place_of_worship"},
+        lng=HOI_AN[0],
+        lat=HOI_AN[1],
+        category="RELIGIOUS_SITE",
+    )
+    tagged = _osm(
+        {"name": f"Núi Thử {token}", "natural": "peak", "wikidata": tagged_qid},
+        lng=HOI_AN[0] + 0.003,
+        lat=HOI_AN[1],
+        category="NATURE",
+    )
+    statue = _osm(
+        {"name": f"Đài Thử {token}", "historic": "memorial", "wikidata": human_qid},
+        lng=HOI_AN[0] - 0.003,
+        lat=HOI_AN[1],
+        category="HERITAGE",
+    )
+    await stage_elements(session, city_code=CITY, elements=[plain, tagged, statue])
+    plain_id = await _place_for(session, "openstreetmap", plain.upstream_id)
+    tagged_id = await _place_for(session, "openstreetmap", tagged.upstream_id)
+    items = [
+        WikidataItem(
+            qid=linked_qid,
+            lng=HOI_AN[0] + 0.001,  # ~107 m
+            lat=HOI_AN[1],
+            labels={"vi": name, "en": f"Test Pagoda {token}"},
+            descriptions={"en": "pagoda in Hội An"},
+            aliases={},
+            sitelinks={"vi": name},
+            class_labels=("pagoda",),
+            images=(f"Pagoda {token}.jpg",),
+        ),
+        WikidataItem(
+            qid=tagged_qid,
+            lng=HOI_AN[0] + 0.004,
+            lat=HOI_AN[1],
+            labels={"vi": f"Núi Thử {token}"},
+            descriptions={},
+            aliases={},
+            sitelinks={},
+            class_labels=("mountain",),
+        ),
+    ]
+    report = await stage_links(session, city_code=CITY, items=items, humans={human_qid})
+    assert (report.linked, report.backfilled) == (1, 1)
+    assert any(qid == human_qid for _slug, qid in report.humans)
+    assert await _place_for(session, "wikidata", linked_qid) == plain_id
+    payload = await session.scalar(
+        select(ImportRecord.allowed_payload).where(
+            ImportRecord.place_id == plain_id, ImportRecord.upstream_id == linked_qid
+        )
+    )
+    assert payload is not None and "location" not in payload
+    assert payload["_provenance"]["match"]["method"] == "NAME_AND_DISTANCE"
+    tagged_payload = await session.scalar(
+        select(ImportRecord.allowed_payload).where(
+            ImportRecord.place_id == tagged_id, ImportRecord.upstream_id == tagged_qid
+        )
+    )
+    assert tagged_payload is not None
+    assert tagged_payload["_provenance"]["match"]["method"] == "OSM_WIKIDATA_TAG"
+    again = await stage_links(session, city_code=CITY, items=items, humans={human_qid})
+    assert again.linked == 0 or again.skipped_unchanged
+
+
+async def test_ai_extracted_fact_is_published_with_origin_and_cited_link(
+    session: AsyncSession,
+) -> None:
+    from app.agents.schemas import FactExtraction, ValidatedFact
+
+    for key in ("wikidata", "wikipedia", "gonarra_ai_facts"):
+        await activate_policy(session, key, f"test terms {key}")
+    qid = _qid()
+    await stage_items(
+        session,
+        city_code=CITY,
+        items=[_wikidata(qid, lng=HOI_AN[0], lat=HOI_AN[1])],
+        policy_key="wikidata",
+    )
+    place_id = await _place_for(session, "wikidata", qid)
+    await _summaries(session, place_id, qid)
+    web_source = await get_or_create_source(
+        session,
+        data_provider_id=None,
+        publisher="example.vn",
+        source_kind="WEB",
+        license_code="UNKNOWN",
+        attribution_text="example.vn",
+    )
+    page = await get_or_create_revision(
+        session,
+        source_id=web_source.id,
+        locator=f"https://example.vn/{qid}",
+        content_sha256=uuid.uuid4().hex * 2,
+        title="Giờ mở cửa",
+    )
+    evidence = _Evidence()
+    evidence.add(
+        "web1", "Mở cửa 7h-17h. Miễn phí vé.", kind="WEB", revision=page.id, url=page.locator
+    )
+    extraction = FactExtraction(
+        facts=(ValidatedFact("ADMISSION_PRICE", {"free": True}, "web1", "Miễn phí vé", "STRONG"),),
+        short_description={"vi": ("Ngôi chùa thử.", "desc:vi")},
+    )
+    candidate = FactCandidate(
+        place_id=place_id,
+        slug="x",
+        name_vi="x",
+        name_en=None,
+        category="RELIGIOUS_SITE",
+        area_code=None,
+        unknown=("ADDRESS_VI", "OPENING_HOURS", "ADMISSION_PRICE"),
+        short_missing=(),
+    )
+    policy = await require_active_policy(session, "gonarra_ai_facts")
+    city = await load_city(session, CITY)
+    source = await get_or_create_source(
+        session,
+        data_provider_id=policy.provider_id,
+        publisher="Gonarra",
+        source_kind="REFERENCE",
+        license_code="GONARRA-AI-FACTS",
+        attribution_text="Facts extracted by Gonarra",
+    )
+    extractor = FactExtractor.__new__(FactExtractor)
+    staged = await extractor._stage(
+        session, policy, city.id, source.id, candidate, extraction, evidence
+    )
+    assert staged
+    result = await auto_publish(
+        session, city_code=CITY, embedder=FakeEmbedder(), place_ids=[place_id]
+    )
+    assert result.outcomes[0].status == "published", result.outcomes[0].reasons
+    facts = await PlacesRepository(session).list_published_facts(place_id)
+    price = next(f for f in facts if f.field_code == "ADMISSION_PRICE")
+    assert (price.knowledge_state, price.origin, price.grounding) == (
+        "KNOWN",
+        "AI_EXTRACTED",
+        "STRONG",
+    )
+    assert price.value == {"free": True}
+    assert [s.locator for s in price.sources] == [f"https://example.vn/{qid}"]
+    address = next(f for f in facts if f.field_code == "ADDRESS_VI")
+    assert (address.knowledge_state, address.origin) == ("UNKNOWN", "SOURCE")

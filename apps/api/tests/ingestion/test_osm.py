@@ -19,6 +19,7 @@ from app.ingestion.osm import (
     latin_script,
     parse_elements,
     parse_osm_opening_hours,
+    proper_name,
 )
 
 BBOX = (107.2, 14.9, 108.95, 16.35)
@@ -253,3 +254,32 @@ async def test_fetch_elements_rejects_partial_results() -> None:
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(RuntimeError):
             await fetch_elements(client, BBOX, backoff_s=0)
+
+
+@pytest.mark.parametrize(
+    "name", ["A1", "A10", "D 5", "B-12", "MS 3", "12", "123 45", "Ab", "A", "  ", "Q.1"]
+)
+def test_code_like_names_are_not_proper_names(name: str) -> None:
+    assert not proper_name(name)
+
+
+@pytest.mark.parametrize(
+    "name", ["Chùa Cầu", "Mỹ Sơn", "Cafe 43", "Bãi Mỹ Khê", "Tháp A1 Mỹ Sơn", "Hội An", "Ba Na"]
+)
+def test_real_names_are_proper_names(name: str) -> None:
+    assert proper_name(name)
+
+
+def test_code_named_element_is_dropped_and_flagged() -> None:
+    element = _element({"name": "A1", "name:en": "A1"})
+    assert element.names == {} and element.has_code_name
+    element = _element({"name": "D5", "name:en": "My Son Tower Group D"})
+    assert element.names == {"en": "My Son Tower Group D"} and element.has_code_name
+    element = _element({"name": "Chùa Cầu", "name:en": "B2"})
+    assert element.names == {"vi": "Chùa Cầu"} and not element.has_code_name
+    assert not _element({"name": "日本橋"}).has_code_name
+
+
+def test_english_name_must_be_latin_script_too() -> None:
+    element = _element({"name": "Chùa Cầu", "name:en": "日本橋"})
+    assert element.names == {"vi": "Chùa Cầu"}

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Gonarra API
-  version: 1.0.3
+  version: 1.0.4
   summary: Gonarra /v1 contract (REST + SSE) for the traveler app and operator endpoints.
   description: |
     Document ID GONARRA-API, version 1.0, status Draft (re-baseline DEC-013..021, 2026-11-06: Đà Nẵng only
@@ -40,6 +40,11 @@ info:
     `PlanPreview.assumptions` are stored as stable keys and rendered in the response locale. API-021
     `Idempotency-Key` replays the completed regeneration (`409 idempotency_key_reused` for another body).
     `City.code` is narrowed to `da-nang` (Đà Nẵng only, incl. the Hội An area; owner 2026-11-08).
+    1.0.4 (2026-11-08): AI-extracted facts (DEC-028). `PlaceFact.origin` (`SOURCE` | `OWNER` |
+    `AI_EXTRACTED`; absent means `SOURCE`) and `PlaceFact.grounding` (`STRONG` | `WEAK`, AI_EXTRACTED only, else
+    null). An AI_EXTRACTED fact was extracted by Gonarra's grounded writer from the cited source (never
+    invented); clients label it "Tóm tắt từ nguồn" / "Summarised from sources" and show the source link.
+    ADMISSION_PRICE values may be `{free: true}` or `{currency, adult, child?, amount}`.
 servers:
   - url: https://api.example.invalid
     description: Placeholder; hostname pending OQ-039.
@@ -2134,6 +2139,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Citation'
+        origin:
+          description: 1.0.4 (DEC-028). SOURCE = from an open-data or official source record; OWNER = owner sheet; AI_EXTRACTED = extracted by Gonarra's grounded writer from the cited source (label it "Summarised from sources" and show the source link). Absent means SOURCE.
+          type: string
+          enum: [SOURCE, OWNER, AI_EXTRACTED]
+        grounding:
+          description: 1.0.4. AI_EXTRACTED only. STRONG = the extraction quote matches the cited text; WEAK = it matches only partly. Null for other origins.
+          type: [string, 'null']
+          enum: [STRONG, WEAK, null]
     ClosureRule:
       type: object
       description: Curator-reviewed calendar rule (ADR-011 0.3); AI never writes these. params shape depends on rule_kind.

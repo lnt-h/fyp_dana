@@ -390,6 +390,8 @@ CREATE TABLE place_facts (
     review_state   text        NOT NULL DEFAULT 'DRAFT',
     conflict_state text        NOT NULL DEFAULT 'NONE',
     conflict_note  text,
+    origin         text        NOT NULL DEFAULT 'SOURCE',  -- migration 0009, DEC-028
+    grounding      text,                                   -- migration 0009, DEC-028
     created_at     timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT pk_place_facts PRIMARY KEY (id),
     CONSTRAINT fk_place_facts_place_id FOREIGN KEY (place_id) REFERENCES places (id) ON DELETE CASCADE,
@@ -406,13 +408,18 @@ CREATE TABLE place_facts (
     CONSTRAINT ck_place_facts_review_state CHECK (review_state IN ('DRAFT', 'APPROVED', 'REJECTED', 'SUPERSEDED')),
     CONSTRAINT ck_place_facts_approved_verified CHECK (review_state NOT IN ('APPROVED', 'SUPERSEDED') OR verified_at IS NOT NULL),
     CONSTRAINT ck_place_facts_conflict_state CHECK (conflict_state IN ('NONE', 'OPEN', 'RESOLVED')),
-    CONSTRAINT ck_place_facts_conflict_note CHECK (conflict_state = 'NONE' OR conflict_note IS NOT NULL)
+    CONSTRAINT ck_place_facts_conflict_note CHECK (conflict_state = 'NONE' OR conflict_note IS NOT NULL),
+    CONSTRAINT ck_place_facts_origin CHECK (origin IN ('SOURCE', 'OWNER', 'AI_EXTRACTED')),
+    CONSTRAINT ck_place_facts_grounding CHECK (grounding IN ('STRONG', 'WEAK')),
+    CONSTRAINT ck_place_facts_grounding_origin CHECK (grounding IS NULL OR origin = 'AI_EXTRACTED')
 );
 -- Q-C3: the single current approved fact per place and field.
 CREATE UNIQUE INDEX uq_place_facts_place_id_field_code_approved
     ON place_facts (place_id, field_code) WHERE review_state = 'APPROVED';
 CREATE INDEX ix_place_facts_field_code ON place_facts (field_code);
-COMMENT ON TABLE place_facts IS 'Versioned operational/structured facts with explicit KNOWN/UNKNOWN/NOT_APPLICABLE (BR-024, FR-006, FR-012). AI never writes here (BRU-002).';
+COMMENT ON TABLE place_facts IS 'Versioned operational/structured facts with explicit KNOWN/UNKNOWN/NOT_APPLICABLE (BR-024, FR-006, FR-012). AI never invents facts; AI_EXTRACTED rows are extracted from a cited evidence revision by the grounded writer and parsed by code (DEC-028, revises BRU-002).';
+COMMENT ON COLUMN place_facts.origin IS 'SOURCE | OWNER | AI_EXTRACTED (migration 0009, DEC-028): AI_EXTRACTED = extracted by the grounded writer from the cited evidence revision, never invented; label it in the UI.';
+COMMENT ON COLUMN place_facts.grounding IS 'STRONG | WEAK for AI_EXTRACTED facts: the model quote overlaps the cited evidence text by >= 0.5 of its tokens (STRONG) or not (WEAK); NULL otherwise.';
 
 -- Approved/superseded facts are frozen except for review_state (APPROVED -> SUPERSEDED).
 CREATE OR REPLACE FUNCTION fn_guard_place_fact_update() RETURNS trigger
@@ -1051,15 +1058,15 @@ CREATE TABLE guide_sessions (
     CONSTRAINT fk_guide_sessions_trip_id_account_id FOREIGN KEY (trip_id, account_id)
         REFERENCES trips (id, account_id) ON DELETE CASCADE,
     CONSTRAINT fk_guide_sessions_place_id FOREIGN KEY (place_id) REFERENCES places (id) ON DELETE RESTRICT,
-    CONSTRAINT ck_guide_sessions_locale CHECK (locale IN ('vi', 'en')),
-    CONSTRAINT ck_guide_sessions_context CHECK (trip_id IS NOT NULL OR place_id IS NOT NULL)
+    CONSTRAINT ck_guide_sessions_locale CHECK (locale IN ('vi', 'en'))
+    -- Migration 0008: no context CHECK; place_id NULL = city-level session (DEC-017, API-024).
 );
 -- Q-Q1: my recent Guide sessions.
 CREATE INDEX ix_guide_sessions_account_id_created_at ON guide_sessions (account_id, created_at DESC);
 CREATE INDEX ix_guide_sessions_trip_id_account_id ON guide_sessions (trip_id, account_id);
 CREATE INDEX ix_guide_sessions_place_id ON guide_sessions (place_id);
 CREATE INDEX ix_guide_sessions_expires_at ON guide_sessions (expires_at);                -- Q-Q3 retention sweep
-COMMENT ON TABLE guide_sessions IS 'Private Guide conversation scoped to a published place or an owned trip (FR-056, FR-069).';
+COMMENT ON TABLE guide_sessions IS 'Private Guide conversation: city-level (place_id NULL), or one published place; optionally linked to an owned trip (FR-056, FR-069, DEC-017).';
 
 CREATE TABLE guide_messages (
     id                uuid        NOT NULL DEFAULT gen_random_uuid(),
@@ -1079,7 +1086,7 @@ CREATE TABLE guide_messages (
         (role = 'TRAVELER' AND input_mode IN ('TEXT', 'VOICE_TRANSCRIPT', 'PHOTO'))
         OR (role = 'ASSISTANT' AND input_mode IS NULL)),
     CONSTRAINT ck_guide_messages_answer_status CHECK (
-        (role = 'ASSISTANT' AND answer_status IN ('ANSWERED', 'INSUFFICIENT_EVIDENCE', 'NOT_RECOGNISED'))
+        (role = 'ASSISTANT' AND answer_status IN ('ANSWERED', 'ANSWERED_WEB_UNVERIFIED', 'INSUFFICIENT_EVIDENCE', 'NOT_RECOGNISED'))
         OR (role = 'TRAVELER' AND answer_status IS NULL)),
     CONSTRAINT ck_guide_messages_content_length CHECK (length(content) BETWEEN 1 AND 4000)
 );
@@ -1143,7 +1150,8 @@ CREATE TABLE idempotency_records (
     CONSTRAINT pk_idempotency_records PRIMARY KEY (account_id, operation, idempotency_key),
     CONSTRAINT fk_idempotency_records_account_id FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE,
     CONSTRAINT ck_idempotency_records_operation CHECK (operation IN
-        ('TRIP_SAVE', 'PREVIEW_CREATE', 'DAY_REGENERATE', 'ACCOUNT_DELETE')),
+        ('TRIP_SAVE', 'PREVIEW_CREATE', 'DAY_REGENERATE', 'ACCOUNT_DELETE', 'TRIP_CREATE', 'PREVIEW_EDIT', 'PUBLISH',
+         'GUIDE_ASK')),
     CONSTRAINT ck_idempotency_records_key_length CHECK (length(idempotency_key) BETWEEN 8 AND 128),
     CONSTRAINT ck_idempotency_records_request_sha256_format CHECK (request_sha256 ~ '^[0-9a-f]{64}$'),
     CONSTRAINT ck_idempotency_records_state CHECK (state IN ('IN_PROGRESS', 'COMPLETED')),

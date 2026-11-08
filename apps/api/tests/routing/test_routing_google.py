@@ -88,6 +88,24 @@ async def test_http_error_degrades_to_error_elements(httpx_mock: HTTPXMock) -> N
     assert all(not e.available and e.error for e in elements)
 
 
+async def test_forbidden_key_stops_after_first_block_with_one_warning(
+    httpx_mock: HTTPXMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    # 403 (key restricted, API not enabled, billing): later blocks would fail the same way.
+    httpx_mock.add_response(url=COMPUTE_ROUTE_MATRIX_URL, status_code=403)
+    caplog.set_level("WARNING", logger="gonarra.routing")
+    elements = await GoogleRoutesProvider(KEY).compute_matrix(_pts(30), _pts(27), "DRIVE")
+    assert len(httpx_mock.get_requests()) == 1
+    assert len(elements) == 30 * 27
+    assert all(not e.available and e.error for e in elements)
+    assert {(e.origin_index, e.destination_index) for e in elements} == {
+        (o, d) for o in range(30) for d in range(27)
+    }
+    warnings = [r for r in caplog.records if "matrix_failed" in r.getMessage()]
+    assert len(warnings) == 1 and "status=403" in warnings[0].getMessage()
+    assert KEY not in caplog.text
+
+
 async def test_timeout_degrades(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_exception(httpx.ReadTimeout("slow"), url=COMPUTE_ROUTE_MATRIX_URL)
     elements = await GoogleRoutesProvider(KEY).compute_matrix(_pts(1), _pts(1), "DRIVE")

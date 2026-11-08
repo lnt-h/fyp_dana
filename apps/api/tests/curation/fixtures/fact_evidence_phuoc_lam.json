@@ -1,0 +1,17 @@
+{
+  "place": {"name_vi": "Chùa Phước Lâm", "name_en": "Phuoc Lam Pagoda"},
+  "evidence": [
+    {"id": "osm", "kind": "OSM", "text": "address: 46, Nguyễn Trường Tộ, Cẩm Phô, Hội An\nopening_hours: Mo-Su 07:00-17:00"},
+    {"id": "web1", "kind": "WEB", "text": "Chùa Phước Lâm nằm tại số 46 đường Nguyễn Trường Tộ, phường Cẩm Phô. Chùa mở cửa từ 7h00 đến 17h00 tất cả các ngày trong tuần. Du khách tham quan chùa miễn phí, không cần mua vé."},
+    {"id": "web2", "kind": "WEB", "text": "Vé tham quan phố cổ Hội An: người lớn 120.000 đồng, trẻ em 60.000 đồng. Liên hệ 0905 123 456 để đặt tour."},
+    {"id": "desc:vi", "kind": "DESCRIPTION", "text": "Chùa Phước Lâm là một ngôi chùa cổ ở Hội An, được xây dựng vào thế kỷ 17."},
+    {"id": "desc:en", "kind": "DESCRIPTION", "text": "Phuoc Lam Pagoda is an old pagoda in Hoi An, built in the 17th century."}
+  ],
+  "model_output": {
+    "address_vi": {"text": "46 Nguyễn Trường Tộ, Cẩm Phô, Hội An", "evidence_id": "web1", "quote": "nằm tại số 46 đường Nguyễn Trường Tộ, phường Cẩm Phô"},
+    "opening_hours": {"rules": [{"days": [1, 2, 3, 4, 5, 6, 7], "open": "07:00", "close": "17:00"}], "evidence_id": "web1", "quote": "Chùa mở cửa từ 7h00 đến 17h00 tất cả các ngày trong tuần"},
+    "admission_price": {"free": true, "adult_vnd": null, "child_vnd": null, "evidence_id": "web1", "quote": "Du khách tham quan chùa miễn phí"},
+    "short_description_vi": {"text": "Ngôi chùa cổ từ thế kỷ 17 ở Hội An.", "evidence_id": "desc:vi"},
+    "short_description_en": {"text": "A 17th-century pagoda in Hoi An.", "evidence_id": "desc:en"}
+  }
+}

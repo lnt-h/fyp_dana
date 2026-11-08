@@ -58,9 +58,9 @@ ACCOUNTLESS_PURPOSES = frozenset(
 _INSERT = text(
     "/* ai:invocation */ INSERT INTO ai_invocations "
     "(id, account_id, purpose, provider_model, prompt_version, corpus_revision, outcome, "
-    "latency_ms, input_tokens, output_tokens) "
+    "latency_ms, input_tokens, output_tokens, agent_run_id, error_code) "
     "VALUES (:id, :account_id, :purpose, :provider_model, :prompt_version, :corpus_revision, "
-    ":outcome, :latency_ms, :input_tokens, :output_tokens)"
+    ":outcome, :latency_ms, :input_tokens, :output_tokens, :agent_run_id, :error_code)"
 )
 
 
@@ -88,10 +88,11 @@ async def record_invocation(
 ) -> uuid.UUID | None:
     """Insert one metadata row in its own short transaction; returns its id.
 
-    ``role``, ``agent_run_id`` and ``error_code`` have no column in the current DDL and are
-    only logged. A database failure is logged and returns ``None`` (telemetry never fails a
-    request). Contract violations (missing account for a traveler purpose, negative numbers)
-    raise ``ValueError`` because they are programming errors.
+    ``agent_run_id`` and ``error_code`` are stored (migration 0003 columns); ``error_code`` is a
+    machine-readable code, never provider text. ``role`` has no column and is only logged. A
+    database failure is logged and returns ``None`` (telemetry never fails a request). Contract
+    violations (missing account for a traveler purpose, negative numbers) raise ``ValueError``
+    because they are programming errors.
     """
     if account_id is None and purpose not in ACCOUNTLESS_PURPOSES:
         raise ValueError(f"{purpose.value} invocations require account_id")
@@ -110,6 +111,8 @@ async def record_invocation(
         "latency_ms": latency_ms,
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
+        "agent_run_id": agent_run_id,
+        "error_code": error_code[:64] if error_code else None,
     }
     try:
         async with session_factory() as session:

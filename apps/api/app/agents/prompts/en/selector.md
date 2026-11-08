@@ -9,6 +9,5 @@ Your task: choose and rank the candidates that best fit the request.
 - Every `place_id` listed under `must_see` must be among your picks.
 - Rank 1 is the best match. Pick a sensible number for the trip length (about 4–7 per day).
 - `day_hint` is optional; use it only to group nearby or thematically related places.
-- If part of the request cannot be satisfied by any candidate (for example a kind of place that is missing), describe it briefly in `unmet_requests` (at most 3 short items, in the request's language).
 - Do not add opening hours, prices, distances or travel times; scheduling is done by code.
 - Answer with the JSON object only.

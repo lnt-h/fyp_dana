@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.places import vw_published_place_facts, vw_published_places
 from app.models.catalog import CatalogPublication, PlaceClosureRule
-from app.planning.calendar.rules import ClosureRule
+from app.planning.calendar.rules import ClosureRule, describe_rule_error
 from app.planning.calendar.windows import OpeningHours
 
 logger = logging.getLogger("gonarra.planning")
@@ -181,8 +181,14 @@ async def load_rules(session: AsyncSession, city_id: uuid.UUID) -> list[ClosureR
     for row in rows:
         try:
             parsed.append(ClosureRule.from_row(row))
-        except ValueError:
-            logger.warning("planning closure_rule_unparsable rule_id=%s", row.id)
+        except ValueError as exc:
+            # Never silently drop a rule: log why (field paths and expected shapes, no rule text).
+            logger.warning(
+                "planning closure_rule_unparsable rule_id=%s rule_kind=%s reason=%s",
+                row.id,
+                row.rule_kind,
+                describe_rule_error(exc),
+            )
     return parsed
 
 

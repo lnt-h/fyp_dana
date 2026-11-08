@@ -40,7 +40,7 @@ from typing import Final
 from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import Settings, get_settings
+from app.config import DEMO_SHARED_SUBJECT, Settings, get_settings
 from app.models.account import Account
 from app.models.ai import AIInvocation, AIQuotaLedger
 from app.models.guide import GuideSession
@@ -132,7 +132,10 @@ async def run_job(
 
     try:
         if subject is not None:
-            if user_deleter is None:
+            if subject == DEMO_SHARED_SUBJECT:
+                # Shared demo account: not a Clerk user, so there is nothing to delete at Clerk.
+                logger.warning('{"event": "deletion_clerk_skipped_demo", "job_id": "%s"}', job_id)
+            elif user_deleter is None:
                 logger.warning('{"event": "deletion_clerk_not_configured", "job_id": "%s"}', job_id)
             else:
                 await user_deleter.delete_user(subject)

@@ -2,7 +2,8 @@
 
 policy list | policy activate <provider_key> --terms-version <text>
 areas load
-ingest wikidata | ingest wikipedia | ingest osm | ingest commons | ingest sheet <csv>
+ingest wikidata | ingest wikidata-link | ingest wikipedia | ingest osm | ingest commons |
+  ingest sheet <csv>
 web-candidates promote
 publish auto [--dry-run] [--include-withdrawn] [--no-embed]
 publish summary            (release-gate counts: published total, by area, Hội An area)
@@ -37,6 +38,7 @@ from app.ingestion.osm import import_osm
 from app.ingestion.policies import activate_policy, list_policies
 from app.ingestion.sheet import import_sheet
 from app.ingestion.wikidata import import_wikidata
+from app.ingestion.wikidata_link import LinkReport, import_wikidata_links
 from app.ingestion.wikipedia import import_wikipedia
 
 policy_app = typer.Typer(help="Provider policies (ADR-006 default deny).", no_args_is_help=True)
@@ -90,10 +92,19 @@ def _echo_run(report: RunReport) -> None:
             f"  skipped (FOOD/CAFE without name:en/website/hours/cuisine/wikidata): {sparse}"
         )
     for label, attribute in (
+        ("skipped (non-Latin name, no name:vi)", "skipped_foreign_name"),
+        ("skipped (code-like name, e.g. A1)", "skipped_code_name"),
+        ("skipped (wikidata tag is a person)", "skipped_human_name"),
         ("matched by wikidata tag", "matched_wikidata"),
         ("matched by name within 100 m", "matched_name"),
         ("with parsed opening hours", "with_opening_hours"),
         ("places with photos", "places_with_media"),
+        ("Wikipedia articles looked up for page images", "page_image_articles"),
+        ("page images dropped (article about another subject)", "page_image_wrong_subject"),
+        ("places with a Wikipedia page image", "places_with_page_image"),
+        ("places with a Commons geosearch photo", "places_with_geosearch"),
+        ("places with a Commons search photo", "places_with_search"),
+        ("Commons geosearch/search/imageinfo requests", "extra_requests"),
         ("media assets", "media_assets"),
     ):
         value = getattr(report, attribute, None)
@@ -205,6 +216,34 @@ def _ingest(work: Callable[[AsyncSession], Awaitable[RunReport]]) -> None:
 def ingest_wikidata() -> None:
     """Import tourism-relevant Wikidata items inside the city boundary."""
     _ingest(lambda s: import_wikidata(s, city_code=_city()))
+
+
+@ingest_app.command("wikidata-link")
+def ingest_wikidata_link() -> None:
+    """Link places without a QID to their Wikidata item (name + distance + place type)."""
+    try:
+        report = _run(lambda s: import_wikidata_links(s, city_code=_city()))
+    except PolicyNotActiveError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    _echo_links(report)
+
+
+def _echo_links(report: LinkReport) -> None:
+    if report.skipped_unchanged:
+        typer.echo("wikidata-link: unchanged, run skipped")
+        return
+    typer.echo(
+        f"wikidata-link: candidates={report.candidates} items={report.items} "
+        f"linked={report.linked} backfilled={report.backfilled} "
+        f"not_a_place_items={report.not_a_place}"
+    )
+    for slug, qid in report.humans:
+        typer.echo(f"  person, not a place (wikidata tag P31=Q5): {slug} -> {qid}")
+    for slug, qid in report.duplicates:
+        typer.echo(f"  duplicate (QID already on another place): {slug} -> {qid}")
+    for slug, qid in report.contested:
+        typer.echo(f"  contested (a closer place took the item): {slug} -> {qid}")
 
 
 @ingest_app.command("wikipedia")
