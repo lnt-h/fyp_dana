@@ -12,9 +12,11 @@ from app.ingestion.categories import map_osm_tags
 from app.ingestion.common import USER_AGENT
 from app.ingestion.osm import (
     OVERPASS_ENDPOINTS,
+    OsmElement,
     build_query,
     commons_file_name,
     fetch_elements,
+    latin_script,
     parse_elements,
     parse_osm_opening_hours,
 )
@@ -129,6 +131,24 @@ def test_build_query_uses_south_west_north_east_and_requires_names() -> None:
     assert query.endswith("out center tags;")
     assert query.count('["name"]') == 7
     assert 'nwr["amenity"="place_of_worship"]' in query
+
+
+def _element(tags: dict[str, str]) -> OsmElement:
+    return OsmElement("node", 1, 108.3, 15.87, tags, "HERITAGE")
+
+
+def test_non_latin_local_name_is_never_the_vietnamese_name() -> None:
+    assert latin_script("Chùa Cầu Đà Nẵng") and latin_script("Cafe 43")
+    for foreign in ("일본건설다리", "日本橋", "Японский мост", "สะพาน"):
+        assert not latin_script(foreign)
+        assert _element({"name": foreign}).names == {}
+        assert _element({"name": foreign, "name:en": "Japanese Bridge"}).names == {
+            "en": "Japanese Bridge"
+        }
+        assert _element({"name": foreign, "name:vi": "Chùa Cầu"}).names == {"vi": "Chùa Cầu"}
+    assert _element({"name": "Chùa Cầu"}).names == {"vi": "Chùa Cầu"}
+    tags = {"name": "x", "wikimedia_commons": "File:Chua_Cau.jpg", "image": "https://a.example/x"}
+    assert _element(tags).commons_files == {"Chua Cau.jpg"}
 
 
 def test_commons_file_name_from_osm_tags() -> None:

@@ -301,6 +301,7 @@ CREATE TABLE place_localizations (
     short_description      text,
     description            text,
     translation_origin     text        NOT NULL,
+    name_is_source_fallback boolean    NOT NULL DEFAULT false,  -- migration 0007
     review_state           text        NOT NULL DEFAULT 'DRAFT',
     reviewed_at            timestamptz,
     created_at             timestamptz NOT NULL DEFAULT now(),
@@ -309,7 +310,7 @@ CREATE TABLE place_localizations (
     CONSTRAINT uq_place_localizations_place_id_locale_localization_revision UNIQUE (place_id, locale, localization_revision),
     CONSTRAINT ck_place_localizations_locale CHECK (locale IN ('vi', 'en')),
     CONSTRAINT ck_place_localizations_localization_revision CHECK (localization_revision > 0),
-    CONSTRAINT ck_place_localizations_translation_origin CHECK (translation_origin IN ('ORIGINAL', 'HUMAN_TRANSLATION', 'AI_DRAFT')),
+    CONSTRAINT ck_place_localizations_translation_origin CHECK (translation_origin IN ('ORIGINAL', 'HUMAN_TRANSLATION', 'AI_DRAFT', 'AI_SUMMARY')),
     CONSTRAINT ck_place_localizations_review_state CHECK (review_state IN ('DRAFT', 'APPROVED', 'REJECTED', 'SUPERSEDED')),
     CONSTRAINT ck_place_localizations_approved_complete CHECK (
         review_state NOT IN ('APPROVED', 'SUPERSEDED') OR (reviewed_at IS NOT NULL AND description IS NOT NULL))
@@ -318,6 +319,8 @@ CREATE TABLE place_localizations (
 CREATE UNIQUE INDEX uq_place_localizations_place_id_locale_approved
     ON place_localizations (place_id, locale) WHERE review_state = 'APPROVED';
 COMMENT ON TABLE place_localizations IS 'Reviewed VI/EN names and original descriptions (BR-004, FR-011). AI_DRAFT needs curator approval (FR-019).';
+COMMENT ON COLUMN place_localizations.translation_origin IS 'ORIGINAL | HUMAN_TRANSLATION | AI_DRAFT | AI_SUMMARY (migration 0007; the description was written by the grounded writer from cited source revisions; label it in the UI).';
+COMMENT ON COLUMN place_localizations.name_is_source_fallback IS 'true = this locale has no source name; the original Vietnamese proper name is reused unchanged (never translated).';
 
 CREATE TABLE place_aliases (
     id                uuid        NOT NULL DEFAULT gen_random_uuid(),
@@ -1112,11 +1115,11 @@ CREATE TABLE ai_invocations (
     CONSTRAINT pk_ai_invocations PRIMARY KEY (id),
     CONSTRAINT fk_ai_invocations_account_id FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE,
     CONSTRAINT ck_ai_invocations_purpose CHECK (purpose IN
-        ('PLAN_GENERATE', 'PLAN_REPAIR', 'DAY_REGENERATE', 'GUIDE_ANSWER', 'PHOTO_IDENTIFY', 'CORPUS_EMBED', 'QUERY_EMBED', 'TRANSLATION_DRAFT')),
+        ('PLAN_GENERATE', 'PLAN_REPAIR', 'DAY_REGENERATE', 'RESEARCH', 'GUIDE_ANSWER', 'PHOTO_IDENTIFY', 'CORPUS_EMBED', 'QUERY_EMBED', 'TRANSLATION_DRAFT', 'CONTENT_SUMMARY')),
     CONSTRAINT ck_ai_invocations_outcome CHECK (outcome IN
         ('OK', 'VALIDATION_FAILED', 'PROVIDER_ERROR', 'TIMEOUT', 'QUOTA_EXCEEDED', 'REFUSED_BY_CAP')),
     CONSTRAINT ck_ai_invocations_traveler_purpose CHECK (
-        account_id IS NOT NULL OR purpose IN ('CORPUS_EMBED', 'TRANSLATION_DRAFT')),
+        account_id IS NOT NULL OR purpose IN ('CORPUS_EMBED', 'TRANSLATION_DRAFT', 'CONTENT_SUMMARY')),
     CONSTRAINT ck_ai_invocations_numbers CHECK (
         latency_ms >= 0 AND (input_tokens IS NULL OR input_tokens >= 0) AND (output_tokens IS NULL OR output_tokens >= 0))
 );
@@ -1297,13 +1300,10 @@ SELECT kc.id AS knowledge_chunk_id,
     ON cp.place_id = kc.place_id AND cp.state = 'PUBLISHED' AND cp.corpus_revision = kc.corpus_revision
  WHERE kc.review_state = 'APPROVED';
 
--- Reference seed (migration 0002 data step). Names from BRD §5.1; enabled after each city gate (MET-011).
+-- Reference seed. Gonarra covers Đà Nẵng only (owner 2026-11-08); Hội An is an area of Đà Nẵng
+-- (2025 merger), not a city. Other cities were removed (`app.cli seed` deletes unreferenced rows).
 INSERT INTO cities (code, name_vi, name_en) VALUES
-    ('ha-noi',            'Hà Nội',               'Ha Noi'),
-    ('ho-chi-minh-city',  'Thành phố Hồ Chí Minh', 'Ho Chi Minh City'),
-    ('da-nang',           'Đà Nẵng',              'Da Nang'),
-    ('hoi-an',            'Hội An',               'Hoi An'),
-    ('hue',               'Huế',                  'Hue');
+    ('da-nang',           'Đà Nẵng',              'Da Nang');
 
 -- Operational fact vocabulary; 180-day staleness from ASM-008.
 INSERT INTO fact_fields (code, is_operational, required_for_publication, value_kind, stale_after_days) VALUES

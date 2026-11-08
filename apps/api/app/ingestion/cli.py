@@ -25,7 +25,8 @@ from app.config import get_settings
 from app.curation.audit_sample import audit_rows, write_csv
 from app.curation.auto_publish import GATE_RULES, PublishReport, auto_publish
 from app.curation.embedding import ChunkEmbedder, DisabledEmbedder, GeminiChunkEmbedder
-from app.curation.operator import OperatorService
+from app.curation.operator import OperatorService, takedown_place
+from app.curation.system import system_account_id
 from app.curation.web_promotion import promote_pending
 from app.db.session import engine, session_factory
 from app.ingestion.areas import DATA_DIR, hoi_an_area_codes, load_areas, write_area_boundaries
@@ -271,6 +272,36 @@ def publish_auto(
         )
     )
     _echo_publish(report, verbose=verbose)
+
+
+@publish_app.command("takedown")
+def publish_takedown(
+    slug: str = typer.Argument(..., help="Place slug, e.g. place-3."),
+    reason: str = typer.Option(..., "--reason", help="Audited withdrawal reason."),
+    retire: bool = typer.Option(
+        True, "--retire/--no-retire", help="Also mark the place RETIRED (never re-published)."
+    ),
+) -> None:
+    """Owner takedown of one place by slug: withdraw its publication and retire it."""
+
+    async def work(session: AsyncSession) -> tuple[object, bool, bool]:
+        city = await load_city(session, _city())
+        actor = await system_account_id(session)
+        return await takedown_place(
+            session,
+            city_id=city.id,
+            slug=slug,
+            reason=reason,
+            actor_account_id=actor,
+            retire=retire,
+        )
+
+    try:
+        place_id, withdrawn, retired = _run(work)
+    except LookupError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"takedown {slug} ({place_id}): withdrawn={withdrawn} retired={retired}")
 
 
 @publish_app.command("summary")

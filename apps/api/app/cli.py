@@ -21,8 +21,9 @@ from datetime import timedelta
 from pathlib import Path
 
 import typer
-from sqlalchemy import func, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.curation.system import SYSTEM_ACCOUNT_CLERK_USER_ID
@@ -62,11 +63,10 @@ class CitySeed:
 
 
 CITIES: tuple[CitySeed, ...] = (
+    # Đà Nẵng only (owner 2026-11-08): the product has a single city. Hội An is an area of Đà Nẵng
+    # (2025 merger), not a city. The former disabled roadmap rows (ha-noi, ho-chi-minh-city, hue)
+    # are removed by the seed when nothing references them (remove_stale_cities).
     CitySeed("da-nang", "Đà Nẵng", "Da Nang", True, DA_NANG_BOUNDARY_EWKT),
-    # Roadmap cities (DEC-013): present but disabled. Hội An is an area of Đà Nẵng, not a city.
-    CitySeed("ha-noi", "Hà Nội", "Ha Noi", False, None),
-    CitySeed("ho-chi-minh-city", "Thành phố Hồ Chí Minh", "Ho Chi Minh City", False, None),
-    CitySeed("hue", "Huế", "Hue", False, None),
 )
 
 # Travel areas of Đà Nẵng (ADR-012 0.4, OQ-121): curator-defined, not wards. Boundaries stay NULL
@@ -358,6 +358,25 @@ PROVIDERS: tuple[ProviderSeed, ...] = (
 PROVIDER_POLICY_TERMS_VERSION = "UNRECORDED"
 
 
+async def remove_stale_cities(session: AsyncSession) -> list[str]:
+    """Delete city rows not in :data:`CITIES` that nothing references (idempotent).
+
+    Each delete runs in a savepoint; a city still referenced (areas, places, trips …) raises a
+    foreign-key error and is kept. Returns the codes that were deleted."""
+    keep = [city.code for city in CITIES]
+    stale = (await session.execute(select(City.id, City.code).where(City.code.not_in(keep)))).all()
+    removed: list[str] = []
+    for city_id, code in stale:
+        try:
+            async with session.begin_nested():
+                await session.execute(delete(City).where(City.id == city_id))
+        except IntegrityError:
+            typer.echo(f"city {code} is still referenced; kept", err=True)
+            continue
+        removed.append(code)
+    return removed
+
+
 async def seed_reference_data(session: AsyncSession) -> dict[str, int]:
     """Upsert cities, areas, categories, fact fields, providers, policies and field rules.
 
@@ -385,6 +404,7 @@ async def seed_reference_data(session: AsyncSession) -> dict[str, int]:
             )
         )
 
+    await remove_stale_cities(session)
     city_id = await session.scalar(select(City.id).where(City.code == "da-nang"))
     assert city_id is not None
     for sort_order, (code, name_vi, name_en) in enumerate(AREAS, start=1):

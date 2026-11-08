@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import Annotated, Any
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
 from jwt.exceptions import PyJWTError
@@ -145,5 +145,40 @@ async def get_current_account(
     :func:`get_account_allowing_deletion` uses to refuse a still-valid token of a purged subject.
     """
     if deletion_pending:
+        raise deletion_in_progress()
+    return account
+
+
+# ---- Optional authentication (public catalog reads, 2026-11-08) ------------------------------
+
+
+async def get_optional_user(request: Request) -> AuthenticatedUser | None:
+    """``None`` for a guest (no bearer token); a present token must still be valid (401).
+
+    Reads the header directly instead of through the ``HTTPBearer`` dependency so the generated
+    contract does not mark these routes as requiring a token (routes declare
+    ``security: [{}, HTTPBearer]`` themselves)."""
+    scheme, _, token = (request.headers.get("authorization") or "").partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        return None
+    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token.strip())
+    return await get_current_user(credentials)
+
+
+async def get_optional_account(
+    user: Annotated[AuthenticatedUser | None, Depends(get_optional_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> Account | None:
+    """The caller's account when a valid token is sent, else ``None`` (guest).
+
+    Used only by the public catalog reads (cities, categories, place search and detail), which
+    expose published catalog data and no personal data. Same rules as
+    :func:`get_current_account` once a token is present (401 for a purged subject, 409
+    ``deletion_in_progress`` while a deletion job is open).
+    """
+    if user is None:
+        return None
+    account = await get_account_allowing_deletion(user, session)
+    if await has_open_deletion_job(session, account.id):
         raise deletion_in_progress()
     return account

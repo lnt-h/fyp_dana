@@ -435,3 +435,32 @@ async def test_pool_famous_means_a_wikipedia_lead_not_any_description(
     pool = {p.place_id: p for p in await load_pool(db, city_id)}
     assert pool[wiki].famous is True
     assert pool[plain].famous is False
+
+
+async def test_takedown_by_slug_withdraws_and_retires(session: AsyncSession) -> None:
+    from app.curation.operator import takedown_place
+    from app.curation.system import system_account_id
+
+    db = session
+    city_id = await db.scalar(text("SELECT id FROM cities WHERE code = 'da-nang'"))
+    slug = f"wt-dup-{uuid.uuid4().hex[:8]}"
+    place = await _publish(db, city_id, slug, "HERITAGE", "SRID=4326;POINT(108.3262 15.8771)")
+    actor = await system_account_id(db)
+    result = await takedown_place(
+        db, city_id=city_id, slug=slug, reason="duplicate of Chùa Cầu", actor_account_id=actor
+    )
+    assert result == (place, True, True)
+    state = (
+        await db.execute(
+            text(
+                "SELECT p.workflow_state, cp.state FROM places p JOIN catalog_publications cp"
+                " ON cp.place_id = p.id WHERE p.id = :p"
+            ),
+            {"p": place},
+        )
+    ).one()
+    assert tuple(state) == ("RETIRED", "WITHDRAWN")
+    again = await takedown_place(
+        db, city_id=city_id, slug=slug, reason="again", actor_account_id=actor
+    )
+    assert again == (place, False, False)  # idempotent

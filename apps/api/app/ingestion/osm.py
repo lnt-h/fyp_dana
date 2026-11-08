@@ -17,6 +17,13 @@ categories in code (``categories.map_osm_tags``); unmapped elements are skipped.
   an unmapped element (no import record, no place; counted as ``skipped_sparse``). Such elements
   can never pass the gate (no English name, no description source, no facts), and they made up
   most of the drafts. Every other category is imported unchanged.
+* Script filter (2026-11-08): the VI name is ``name:vi``, else ``name`` only when it is written in
+  Latin script (Vietnamese included). A ``name`` in Hangul, CJK, Cyrillic, Thai … (e.g. a Korean
+  label on Chùa Cầu) is never used as the Vietnamese name; such an element without ``name:vi`` is
+  skipped (``skipped_foreign_name``), since it could never pass the gate and duplicated places.
+* Shared-identity dedupe (2026-11-08): before creating a place, an element within
+  ``MATCH_RADIUS_M`` of an existing place whose accepted record shares its ``wikidata`` QID or a
+  Wikimedia Commons file (``wikimedia_commons`` / ``image`` / Wikidata P18) is linked to that place.
 * OSM data is ODbL: every element is recorded as a source revision (locator = element URL) under
   the source "OpenStreetMap" with the attribution "© OpenStreetMap contributors".
 """
@@ -25,6 +32,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -67,7 +75,7 @@ from app.models.providers import ImportRecord
 logger = logging.getLogger("gonarra.ingestion")
 
 PROVIDER_KEY = "openstreetmap"
-IMPORTER_VERSION = "osm-2"  # osm-2: FOOD/CAFE draft bloat filter
+IMPORTER_VERSION = "osm-3"  # osm-2: FOOD/CAFE bloat filter; osm-3: script filter, shared-id dedupe
 RELEASE_ID = "overpass-live"
 LICENSE_CODE = "ODbL-1.0"
 ATTRIBUTION = "© OpenStreetMap contributors"
@@ -195,6 +203,12 @@ def parse_osm_opening_hours(raw: str) -> dict[str, Any] | None:
 # ---- Elements -----------------------------------------------------------------------------
 
 
+def latin_script(text: str) -> bool:
+    """True when every letter is Latin (Vietnamese diacritics and ``đ`` included)."""
+    letters = [ch for ch in text if ch.isalpha()]
+    return bool(letters) and all(unicodedata.name(ch, "").startswith("LATIN") for ch in letters)
+
+
 def commons_file_name(value: str | None) -> str | None:
     """A Commons file name from an OSM ``wikimedia_commons`` / ``image`` value, else None."""
     if not value:
@@ -241,10 +255,21 @@ class OsmElement:
 
     @property
     def names(self) -> dict[str, str]:
-        """``name:vi`` (else ``name``, the local name) and ``name:en``; never translated."""
-        vi = (self.tags.get("name:vi") or self.tags.get("name") or "").strip()
+        """``name:vi`` (else ``name`` when in Latin script) and ``name:en``; never translated."""
+        vi = (self.tags.get("name:vi") or "").strip()
+        if not vi:
+            local = (self.tags.get("name") or "").strip()
+            vi = local if latin_script(local) else ""
         en = (self.tags.get("name:en") or "").strip()
         return {locale: value for locale, value in (("vi", vi), ("en", en)) if value}
+
+    @property
+    def commons_files(self) -> set[str]:
+        files = {
+            commons_file_name(self.tags.get("wikimedia_commons")),
+            commons_file_name(self.tags.get("image")),
+        }
+        return {name for name in files if name}
 
     @property
     def wikidata_id(self) -> str | None:
@@ -362,7 +387,9 @@ def make_client() -> httpx.AsyncClient:
 class OsmReport(RunReport):
     unmapped: int = 0
     skipped_sparse: int = 0
+    skipped_foreign_name: int = 0
     matched_wikidata: int = 0
+    matched_shared: int = 0
     matched_name: int = 0
     with_opening_hours: int = 0
     by_category: dict[str, int] = field(default_factory=dict)
@@ -437,6 +464,67 @@ async def match_by_name(
     return None
 
 
+def _payload_commons(payload: Mapping[str, Any]) -> set[str]:
+    files: set[str] = set()
+    for key in ("wikimedia_commons", "image"):
+        value = payload.get(key)
+        values = value if isinstance(value, list) else [value]
+        for item in values:
+            if not isinstance(item, str) or not item.strip():
+                continue
+            # Wikidata P18 values are bare file names; OSM values are File:… or URLs.
+            name = commons_file_name(item) or (
+                item.strip().replace("_", " ") if key == "image" and ":" not in item else None
+            )
+            if name:
+                files.add(name)
+    return files
+
+
+async def match_by_shared_identity(
+    session: AsyncSession,
+    *,
+    city_id: uuid.UUID,
+    qid: str | None,
+    commons: set[str],
+    lng: float,
+    lat: float,
+    radius_m: float = MATCH_RADIUS_M,
+) -> uuid.UUID | None:
+    """Closest place within ``radius_m`` whose accepted record shares the element's Wikidata QID
+    (an OSM ``wikidata`` tag or a Wikidata item id) or one of its Commons files."""
+    if not qid and not commons:
+        return None
+    point = func.ST_GeogFromText(ewkt_point(lng, lat))
+    rows = (
+        await session.execute(
+            select(
+                ImportRecord.place_id,
+                ImportRecord.upstream_id,
+                ImportRecord.allowed_payload,
+                func.ST_Distance(ImportRecord.location, point).label("distance"),
+            )
+            .join(Place, Place.id == ImportRecord.place_id)
+            .where(
+                Place.city_id == city_id,
+                Place.workflow_state != "RETIRED",
+                ImportRecord.validation_status == "ACCEPTED",
+                func.ST_DWithin(ImportRecord.location, point, radius_m),
+            )
+            .order_by("distance", ImportRecord.place_id)
+        )
+    ).all()
+    for row in rows:
+        if row.place_id is None:
+            continue
+        payload = row.allowed_payload or {}
+        if qid and (payload.get("wikidata") == qid or row.upstream_id == qid):
+            return uuid.UUID(str(row.place_id))
+        if commons and commons & _payload_commons(payload):
+            return uuid.UUID(str(row.place_id))
+    return None
+
+
 async def stage_elements(
     session: AsyncSession, *, city_code: str, elements: Sequence[OsmElement]
 ) -> OsmReport:
@@ -446,8 +534,10 @@ async def stage_elements(
     report = OsmReport(provider_key=PROVIDER_KEY)
     categorised = [element for element in elements if element.category is not None]
     report.unmapped = len(elements) - len(categorised)
-    mapped = [element for element in categorised if not element.is_sparse]
-    report.skipped_sparse = len(categorised) - len(mapped)
+    dense = [element for element in categorised if not element.is_sparse]
+    report.skipped_sparse = len(categorised) - len(dense)
+    mapped = [element for element in dense if element.names.get("vi")]
+    report.skipped_foreign_name = len(dense) - len(mapped)
     checksum = sha256_hex(canonical_json([element.payload() for element in mapped]))
     run = await start_run(
         session,
@@ -498,6 +588,18 @@ async def stage_elements(
             place_id = await place_for_identity(session, wikidata_provider, qid)
             if place_id is not None:
                 report.matched_wikidata += 1
+        if place_id is None:
+            place_id = await match_by_shared_identity(
+                session,
+                city_id=city.id,
+                qid=qid,
+                commons=element.commons_files,
+                lng=element.lng,
+                lat=element.lat,
+            )
+            if place_id is not None:
+                match_method = "NAME_AND_DISTANCE"  # nearby + shared QID / Commons file
+                report.matched_shared += 1
         if place_id is None:
             place_id = await match_by_name(
                 session,
@@ -571,11 +673,14 @@ async def stage_elements(
     finish_run(run, report)
     await session.commit()
     logger.info(
-        "osm import accepted=%d rejected=%d unmapped=%d sparse=%d created=%d",
+        "osm import accepted=%d rejected=%d unmapped=%d sparse=%d foreign_name=%d shared=%d "
+        "created=%d",
         report.accepted,
         report.rejected,
         report.unmapped,
         report.skipped_sparse,
+        report.skipped_foreign_name,
+        report.matched_shared,
         report.created_places,
     )
     return report

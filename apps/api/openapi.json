@@ -1241,6 +1241,22 @@
             ],
             "title": "Description"
           },
+          "description_origin": {
+            "anyOf": [
+              {
+                "enum": [
+                  "SOURCE",
+                  "AI_SUMMARY"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "1.0.3. SOURCE = text from a cited source (Wikipedia lead, operator sheet, Wikidata); AI_SUMMARY = summarised by Gonarra's grounded writer from the listed sources (label it in the UI). Null when there is no description.",
+            "title": "Description Origin"
+          },
           "entrance_location": {
             "anyOf": [
               {
@@ -1281,6 +1297,12 @@
           "name_en": {
             "title": "Name En",
             "type": "string"
+          },
+          "name_is_source_fallback": {
+            "default": false,
+            "description": "1.0.3. True when `name` (EN locale) is the original Vietnamese proper name reused unchanged because no source gives an English name; never a machine translation.",
+            "title": "Name Is Source Fallback",
+            "type": "boolean"
           },
           "name_vi": {
             "description": "Vietnamese name, always present (FR-076).",
@@ -1423,6 +1445,12 @@
             "title": "Name",
             "type": "string"
           },
+          "name_is_source_fallback": {
+            "default": false,
+            "description": "1.0.3. True when `name` (EN locale) is the original Vietnamese proper name reused unchanged because no source gives an English name; never a machine translation.",
+            "title": "Name Is Source Fallback",
+            "type": "boolean"
+          },
           "name_vi": {
             "description": "Vietnamese name, always present (FR-076).",
             "title": "Name Vi",
@@ -1520,6 +1548,7 @@
       "PlanPreview": {
         "properties": {
           "assumptions": {
+            "description": "Plan assumptions, rendered in the response locale (stored as stable keys).",
             "items": {
               "type": "string"
             },
@@ -1614,6 +1643,17 @@
             ],
             "title": "Plan Health",
             "type": "string"
+          },
+          "planning_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanningPreferences"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Effective preferences (request > trip > account) this preview was generated with; day regeneration reuses them and Save copies them to the trip. Null for previews created before 1.0.3 or from a saved itinerary without stored preferences."
           },
           "preview_revision": {
             "description": "Revision represented by this body.",
@@ -3486,6 +3526,7 @@
           }
         },
         "security": [
+          {},
           {
             "HTTPBearer": []
           }
@@ -3533,6 +3574,7 @@
           }
         },
         "security": [
+          {},
           {
             "HTTPBearer": []
           }
@@ -4094,6 +4136,7 @@
           }
         },
         "security": [
+          {},
           {
             "HTTPBearer": []
           }
@@ -4195,6 +4238,7 @@
           }
         },
         "security": [
+          {},
           {
             "HTTPBearer": []
           }

@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.curation.common import commit, get_place
@@ -92,3 +92,38 @@ class OperatorService:
                 for city in cities
             ]
         )
+
+
+async def takedown_place(
+    session: AsyncSession,
+    *,
+    city_id: uuid.UUID,
+    slug: str,
+    reason: str,
+    actor_account_id: uuid.UUID,
+    retire: bool = True,
+) -> tuple[uuid.UUID, bool, bool]:
+    """Owner takedown by slug (CLI ``publish takedown``): withdraw the current publication if
+    any (``fn_withdraw_place``, audited) and, with ``retire``, mark the place RETIRED so the
+    pipeline never re-publishes or re-matches it. Returns ``(place_id, withdrawn, retired)``.
+    Commits; raises ``LookupError`` for an unknown slug."""
+    place = await session.scalar(
+        select(Place).where(Place.city_id == city_id, Place.slug == slug).with_for_update()
+    )
+    if place is None:
+        raise LookupError(f"no place with slug {slug!r} in this city")
+    published = await session.scalar(
+        select(CatalogPublication.id).where(
+            CatalogPublication.place_id == place.id, CatalogPublication.state == "PUBLISHED"
+        )
+    )
+    if published is not None:
+        await session.execute(select(func.fn_withdraw_place(place.id, actor_account_id, reason)))
+    retired = False
+    if retire and place.workflow_state != "RETIRED":
+        await session.execute(
+            update(Place).where(Place.id == place.id).values(workflow_state="RETIRED")
+        )
+        retired = True
+    await session.commit()
+    return place.id, published is not None, retired

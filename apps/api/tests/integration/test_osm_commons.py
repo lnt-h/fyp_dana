@@ -230,6 +230,57 @@ async def test_osm_dedupes_creates_and_feeds_opening_hours_to_the_gate(
     assert "openstreetmap.org/node/" in str(fact[2])
 
 
+async def test_osm_foreign_names_are_skipped_and_shared_commons_links_not_creates(
+    session: AsyncSession,
+) -> None:
+    for key in ("wikidata", "openstreetmap"):
+        await activate_policy(session, key, f"test terms {key}")
+    qid = _qid()
+    image = f"Chua Cau {qid}.jpg"
+    await stage_items(
+        session,
+        city_code=CITY,
+        items=[_wikidata(qid, lng=HOI_AN[0], lat=HOI_AN[1], images=(image,))],
+        policy_key="wikidata",
+    )
+    bridge = await _place_for(session, "wikidata", qid)
+    # A Korean label without name:vi (the "일본건설다리" / place-3 duplicate): never imported.
+    korean = _osm(
+        {"name": "일본건설다리", "historic": "monument"},
+        lng=HOI_AN[0] + 0.0002,
+        lat=HOI_AN[1],
+        category="HERITAGE",
+    )
+    # A differently named element ~50 m away sharing the Commons photo: linked, not created.
+    shared = _osm(
+        {
+            "name": f"Cầu Nhật Bản {qid}",
+            "historic": "monument",
+            "wikimedia_commons": f"File:{image.replace(' ', '_')}",
+        },
+        lng=HOI_AN[0] + 0.0005,
+        lat=HOI_AN[1],
+        category="HERITAGE",
+    )
+    # Same photo but ~1.1 km away: a different place.
+    far = _osm(
+        {"name": f"Đình xa {qid}", "historic": "monument", "image": f"File:{image}"},
+        lng=HOI_AN[0] + 0.0105,
+        lat=HOI_AN[1],
+        category="HERITAGE",
+    )
+    report = await stage_elements(session, city_code=CITY, elements=[korean, shared, far])
+    assert report.skipped_foreign_name == 1
+    assert (report.matched_shared, report.created_places) == (1, 1)
+    assert await _place_for(session, "openstreetmap", shared.upstream_id) == bridge
+    assert await _place_for(session, "openstreetmap", far.upstream_id) != bridge
+    korean_rows = await session.scalar(
+        text("SELECT count(*) FROM import_records WHERE upstream_id = :id"),
+        {"id": korean.upstream_id},
+    )
+    assert korean_rows == 0
+
+
 def _file(title: str, *, license_code: str = "CC-BY-SA-4.0") -> CommonsFile:
     slug = title.removeprefix("File:").replace(" ", "_")
     return CommonsFile(

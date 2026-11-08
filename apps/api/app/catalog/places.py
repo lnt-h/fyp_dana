@@ -30,6 +30,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.catalog.reference import AreaRecord
 from app.models.catalog import (
@@ -38,6 +39,7 @@ from app.models.catalog import (
     MediaAsset,
     Place,
     PlaceClosureRule,
+    PlaceLocalization,
     PlaceMedia,
     PublicationMedia,
     Source,
@@ -115,9 +117,14 @@ class PlaceSummaryRecord:
     thumbnail: MediaRecord | None = None
     # Published places are always VERIFIED (architecture §5 trust label contract).
     trust_level: Literal["VERIFIED"] = "VERIFIED"
+    # Migration 0007: the EN name is the Vietnamese proper name reused unchanged.
+    name_en_is_source_fallback: bool = False
 
     def name(self, locale: str) -> str:
         return self.name_en if locale == "en" else self.name_vi
+
+    def name_is_source_fallback(self, locale: str) -> bool:
+        return locale == "en" and self.name_en_is_source_fallback
 
     def short_description(self, locale: str) -> str | None:
         return self.short_description_en if locale == "en" else self.short_description_vi
@@ -178,6 +185,9 @@ class PlaceDetailRecord:
     facts: tuple[FactRecord, ...]
     media: tuple[MediaRecord, ...]
     closure_rules: tuple[ClosureRuleRecord, ...]
+    # place_localizations.translation_origin of each published localization (0007: AI_SUMMARY).
+    translation_origin_vi: str = "ORIGINAL"
+    translation_origin_en: str = "ORIGINAL"
 
 
 def _lat(geography: Any) -> Any:
@@ -186,6 +196,10 @@ def _lat(geography: Any) -> Any:
 
 def _lng(geography: Any) -> Any:
     return func.ST_X(func.geometry(geography), type_=Float)
+
+
+_LOC_VI = aliased(PlaceLocalization, name="loc_vi")
+_LOC_EN = aliased(PlaceLocalization, name="loc_en")
 
 
 def published_places_select() -> Select[Any]:
@@ -206,10 +220,12 @@ def published_places_select() -> Select[Any]:
             _lat(vw.c.location).label("lat"),
             _lng(vw.c.location).label("lng"),
             vw.c.visit_minutes_suggested,
+            _LOC_EN.name_is_source_fallback.label("name_en_is_source_fallback"),
         )
         .select_from(vw)
         .join(CatalogPublication, CatalogPublication.id == vw.c.catalog_publication_id)
         .join(Place, Place.id == vw.c.place_id)
+        .join(_LOC_EN, _LOC_EN.id == CatalogPublication.localization_en_id)
     )
 
 
@@ -229,6 +245,7 @@ def summary_from_row(row: Any, thumbnail: MediaRecord | None = None) -> PlaceSum
         lng=row.lng,
         visit_minutes_suggested=row.visit_minutes_suggested,
         thumbnail=thumbnail,
+        name_en_is_source_fallback=bool(row.name_en_is_source_fallback),
     )
 
 
@@ -339,6 +356,8 @@ class PlacesRepository:
                     vw.c.published_at,
                     vw.c.description_vi,
                     vw.c.description_en,
+                    _LOC_VI.translation_origin.label("translation_origin_vi"),
+                    _LOC_EN.translation_origin.label("translation_origin_en"),
                     vw.c.visit_minutes_min,
                     vw.c.visit_minutes_max,
                     _lat(vw.c.entrance_location).label("entrance_lat"),
@@ -347,6 +366,7 @@ class PlacesRepository:
                     Area.name_en.label("area_name_en"),
                     Area.sort_order.label("area_sort_order"),
                 )
+                .join(_LOC_VI, _LOC_VI.id == CatalogPublication.localization_vi_id)
                 .outerjoin(
                     Area,
                     and_(
@@ -379,6 +399,8 @@ class PlacesRepository:
             published_at=row.published_at,
             description_vi=row.description_vi,
             description_en=row.description_en,
+            translation_origin_vi=row.translation_origin_vi,
+            translation_origin_en=row.translation_origin_en,
             visit_minutes_min=row.visit_minutes_min,
             visit_minutes_max=row.visit_minutes_max,
             entrance_lat=row.entrance_lat,

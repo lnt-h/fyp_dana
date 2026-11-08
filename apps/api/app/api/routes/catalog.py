@@ -5,7 +5,7 @@ of an enabled city are ever returned (FR-001, FR-004); they always carry ``trust
 """
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,13 +43,18 @@ from app.schemas.catalog import (
     SearchSort,
 )
 from app.schemas.common import ErrorResponse
-from app.security.clerk import get_current_account
+from app.security.clerk import get_optional_account
 
 router = APIRouter(tags=["catalog"])
 
 Session = Annotated[AsyncSession, Depends(get_db_session)]
-CurrentAccount = Annotated[Account, Depends(get_current_account)]
+# Public catalog reads (2026-11-08): guests are anonymous; a sent token must be valid.
+OptionalAccount = Annotated[Account | None, Depends(get_optional_account)]
 
+# Optional bearer auth in the generated contract (openapi 1.0.3 `security: [{}, HTTPBearer]`).
+PUBLIC: dict[str, Any] = {"security": [{}, {"HTTPBearer": []}]}
+
+# 401 only for an invalid token; a request without a token is served anonymously.
 AUTH_RESPONSES: dict[int | str, dict[str, object]] = {
     401: {"model": ErrorResponse},
     503: {"model": ErrorResponse},
@@ -57,7 +62,7 @@ AUTH_RESPONSES: dict[int | str, dict[str, object]] = {
 
 
 async def resolve_locale(
-    account: CurrentAccount,
+    account: OptionalAccount,
     session: Session,
     locale: Annotated[
         Locale | None,
@@ -66,6 +71,8 @@ async def resolve_locale(
 ) -> str:
     if locale is not None:
         return locale
+    if account is None:
+        return DEFAULT_LOCALE
     return await PreferencesRepository(session).get_locale(account.id) or DEFAULT_LOCALE
 
 
@@ -132,6 +139,7 @@ def _summary(place: PlaceSummaryRecord, locale: str) -> PlaceSummary:
         area_code=place.area_code,
         name_vi=place.name_vi,
         name=place.name(locale),
+        name_is_source_fallback=place.name_is_source_fallback(locale),
         short_description=place.short_description(locale),
         location=GeoPoint(latitude=place.lat, longitude=place.lng),
         visit_minutes_suggested=place.visit_minutes_suggested,
@@ -206,10 +214,15 @@ def _detail(detail: PlaceDetailRecord, locale: str) -> PlaceDetail:
         if detail.entrance_lat is not None and detail.entrance_lng is not None
         else None
     )
+    description = detail.description_en if locale == "en" else detail.description_vi
+    origin = detail.translation_origin_en if locale == "en" else detail.translation_origin_vi
     return PlaceDetail(
         **_summary(detail.summary, locale).model_dump(),
         name_en=detail.summary.name_en,
-        description=detail.description_en if locale == "en" else detail.description_vi,
+        description=description,
+        description_origin=(
+            None if not description else "AI_SUMMARY" if origin == "AI_SUMMARY" else "SOURCE"
+        ),
         visit_minutes_min=detail.visit_minutes_min,
         visit_minutes_max=detail.visit_minutes_max,
         entrance_location=entrance,
@@ -265,15 +278,17 @@ def _near(raw: str | None, radius_m: int) -> Near | None:
     return Near(lat=lat, lng=lng, radius_m=float(radius_m))
 
 
-@router.get("/cities", response_model=CityList, responses=AUTH_RESPONSES)
-async def list_cities(account: CurrentAccount, session: Session) -> CityList:
+@router.get("/cities", response_model=CityList, responses=AUTH_RESPONSES, openapi_extra=PUBLIC)
+async def list_cities(account: OptionalAccount, session: Session) -> CityList:
     """Enabled cities with their travel areas (FR-001; one city, Đà Nẵng, for the FYP)."""
     cities = await ReferenceRepository(session).list_enabled_cities()
     return CityList(items=[_city(city) for city in cities])
 
 
-@router.get("/categories", response_model=CategoryList, responses=AUTH_RESPONSES)
-async def list_categories(account: CurrentAccount, session: Session) -> CategoryList:
+@router.get(
+    "/categories", response_model=CategoryList, responses=AUTH_RESPONSES, openapi_extra=PUBLIC
+)
+async def list_categories(account: OptionalAccount, session: Session) -> CategoryList:
     categories = await ReferenceRepository(session).list_categories()
     return CategoryList(
         items=[
@@ -287,6 +302,7 @@ async def list_categories(account: CurrentAccount, session: Session) -> Category
     "/places",
     response_model=PlaceSummaryPage,
     responses={**AUTH_RESPONSES, 400: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+    openapi_extra=PUBLIC,
 )
 async def search_places(
     session: Session,
@@ -359,6 +375,7 @@ async def search_places(
     "/places/{place_id}",
     response_model=PlaceDetail,
     responses={**AUTH_RESPONSES, 404: {"model": ErrorResponse}},
+    openapi_extra=PUBLIC,
 )
 async def get_place(place_id: uuid.UUID, session: Session, locale: ResolvedLocale) -> PlaceDetail:
     """Current publication of a place with facts, freshness, attribution and closure rules."""

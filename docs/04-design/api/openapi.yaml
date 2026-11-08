@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Gonarra API
-  version: 1.0.2
+  version: 1.0.3
   summary: Gonarra /v1 contract (REST + SSE) for the traveler app and operator endpoints.
   description: |
     Document ID GONARRA-API, version 1.0, status Draft (re-baseline DEC-013..021, 2026-11-06: Đà Nẵng only
@@ -31,6 +31,15 @@ info:
     with new severity `INFO` (owner demo without Google Routes: straight-line estimates, only when
     `GONARRA_ENVIRONMENT` is development, test or demo; INFO never changes `plan_health`). `Conflict.severity`
     enum gains `INFO`.
+    1.0.3 (2026-11-08): review fixes and owner demo items. Public catalog reads: API-008 `listCities`,
+    API-009 `listCategories`, API-010 `searchPlaces` and API-011 `getPlace` accept requests without a
+    token (guests; `security: [{}, HTTPBearer]`); a token that is sent must still be valid (401). Content
+    origin labels: `PlaceSummary.name_is_source_fallback` (EN name is the Vietnamese proper name reused
+    unchanged) and `PlaceDetail.description_origin` (`SOURCE` | `AI_SUMMARY`). `PlanPreview.planning_preferences`
+    (effective preferences the preview was generated with; reused by API-021 and copied to the trip on Save).
+    `PlanPreview.assumptions` are stored as stable keys and rendered in the response locale. API-021
+    `Idempotency-Key` replays the completed regeneration (`409 idempotency_key_reused` for another body).
+    `City.code` is narrowed to `da-nang` (Đà Nẵng only, incl. the Hội An area; owner 2026-11-08).
 servers:
   - url: https://api.example.invalid
     description: Placeholder; hostname pending OQ-039.
@@ -256,7 +265,9 @@ paths:
       summary: List the enabled launch cities
       tags: [catalog]
       security:
+        - {}
         - HTTPBearer: []
+      x-public: true  # 1.0.3: guests allowed; a sent token must be valid (401 otherwise)
       parameters:
         - $ref: '#/components/parameters/Locale'
       responses:
@@ -284,7 +295,9 @@ paths:
       summary: List place categories (interests in the preference form)
       tags: [catalog]
       security:
+        - {}
         - HTTPBearer: []
+      x-public: true  # 1.0.3: guests allowed; a sent token must be valid (401 otherwise)
       responses:
         '200':
           description: Categories ordered by sort_order.
@@ -314,7 +327,9 @@ paths:
         PUBLISHED catalog publication are returned (FR-004).
       tags: [catalog]
       security:
+        - {}
         - HTTPBearer: []
+      x-public: true  # 1.0.3: guests allowed; a sent token must be valid (401 otherwise)
       parameters:
         - name: city_id
           in: query
@@ -407,7 +422,9 @@ paths:
       summary: Read one published place with facts, freshness and attribution
       tags: [catalog]
       security:
+        - {}
         - HTTPBearer: []
+      x-public: true  # 1.0.3: guests allowed; a sent token must be valid (401 otherwise)
       parameters:
         - $ref: '#/components/parameters/PlaceId'
         - $ref: '#/components/parameters/Locale'
@@ -847,6 +864,9 @@ paths:
       description: |
         Locked stops keep place, day and visit duration (solver constraints, ADR-011); all other days are copied
         unchanged. Appends a DAY_REGENERATED revision. Streams like API-018 with `Accept: text/event-stream`.
+        Uses the preview's `planning_preferences` (1.0.3). With `Idempotency-Key` (DAY_REGENERATE), a retry with
+        the same key and body replays the completed revision (`preview_ready` / 201) instead of 409
+        `revision_conflict`; the same key with another body is 409 `idempotency_key_reused`.
       tags: [planning]
       security:
         - HTTPBearer: []
@@ -1942,7 +1962,8 @@ components:
           format: uuid
         code:
           type: string
-          description: Stable city code. FYP release enables `da-nang` only (the Hội An area belongs to it, DEC-013).
+          description: Stable city code. Gonarra covers Đà Nẵng only (the Hội An area belongs to it, DEC-013; other cities removed 1.0.3).
+          enum: [da-nang]
           examples: [da-nang]
         name_vi:
           type: string
@@ -2031,6 +2052,10 @@ components:
         name:
           type: string
           description: Name in the requested locale.
+        name_is_source_fallback:
+          type: boolean
+          default: false
+          description: 1.0.3. True when `name` (EN locale) is the original Vietnamese proper name reused unchanged because no source gives an English name; never a machine translation.
         short_description:
           type: [string, 'null']
         location:
@@ -2153,6 +2178,10 @@ components:
               type: string
             description:
               type: [string, 'null']
+            description_origin:
+              type: [string, 'null']
+              enum: [SOURCE, AI_SUMMARY, null]
+              description: 1.0.3. SOURCE = text from a cited source (Wikipedia lead, operator sheet, Wikidata); AI_SUMMARY = summarised by Gonarra's grounded writer from the listed sources (label it in the UI). Null when there is no description.
             visit_minutes_min:
               type: [integer, 'null']
             visit_minutes_max:
@@ -2589,8 +2618,14 @@ components:
             $ref: '#/components/schemas/ItineraryDay'
         assumptions:
           type: array
+          description: 1.0.3. Plan assumptions rendered in the response locale (stored as stable keys, de-duplicated).
           items:
             type: string
+        planning_preferences:
+          description: 1.0.3. Effective preferences (request > trip > account) this preview was generated with; API-021 reuses them and Save copies them to the trip. Null for older previews.
+          oneOf:
+            - $ref: '#/components/schemas/PlanningPreferences'
+            - type: 'null'
         model_version:
           type: [string, 'null']
         prompt_version:
