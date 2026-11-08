@@ -4,11 +4,12 @@
 
 1. ``VALIDATING`` — ownership, optional ``Idempotency-Key`` claim (operation ``GUIDE_ASK``),
    the traveler message is stored.
-2. ``RETRIEVING`` — PLACE scope: Tier 1 evidence of the pinned place; CITY scope: entity →
-   lexical → vector, rank-fused (:mod:`app.guide.retrieval`).
+2. ``RETRIEVING`` — after the per-account question quota and the Guide budget are reserved
+   (an over-quota question spends no embedding quota). PLACE scope: Tier 1 evidence of the
+   pinned place; CITY scope: entity → lexical → vector, rank-fused (:mod:`app.guide.retrieval`).
 3. No evidence → ``INSUFFICIENT_EVIDENCE`` without a model call. (Extension point: the labelled
    ``WEB_UNVERIFIED`` web fallback would run here with stage ``SEARCHING_WEB``; out of scope.)
-4. ``ANSWERING`` — per-account question quota, then the writer through the shared runtime
+4. ``ANSWERING`` — the writer through the shared runtime
    (redactor + quota ledger + invocation metadata). Citations are re-validated against the
    supplied evidence; an answer without a valid citation is ``INSUFFICIENT_EVIDENCE``.
 5. The assistant message is stored with its citations; ``text`` deltas then the terminal
@@ -284,9 +285,17 @@ class GuideService:
             sink.emit(self._error(command.request_id, abort.code, abort.message, abort.retryable))
         except asyncio.CancelledError:
             raise
-        except Exception:
-            logger.exception(
-                json.dumps({"request_id": command.request_id, "event": "guide_ask_failed"})
+        except Exception as exc:  # noqa: BLE001 - reported as an error event
+            # No traceback or exception text: either may carry the question or bound SQL
+            # parameters (privacy rule: never log user questions).
+            logger.error(
+                json.dumps(
+                    {
+                        "request_id": command.request_id,
+                        "event": "guide_ask_failed",
+                        "error": type(exc).__name__,
+                    }
+                )
             )
             sink.emit(
                 self._error(
@@ -379,10 +388,21 @@ class GuideService:
                 city_id, _ = await self._city_of(store, session)
                 await store.commit()
 
-            sink.emit({"type": "progress", "stage": "RETRIEVING"})
-            async with self._uow() as store:
-                retrieved = await self._retrieve(store, session, city_id, command)
-            composed = await self._answer(command, session, retrieved, history, sink)
+            ledger = self._ledger or QuotaLedger(self._sf, self._settings)
+            async with QuotaBudget(ledger, account_id=command.account_id) as budget:
+                # The account question quota (and the Guide budget) is reserved before
+                # retrieval, so an over-quota question spends no embedding or model quota.
+                decision = await budget.acquire(GUIDE_BUDGET)
+                if not decision.allowed:
+                    raise GuideAbort(
+                        "quota_exceeded", "Daily Guide question limit reached", retryable=True
+                    )
+                sink.emit({"type": "progress", "stage": "RETRIEVING"})
+                async with self._uow() as store:
+                    retrieved = await self._retrieve(store, session, city_id, command)
+                composed = await self._answer(
+                    command, session, retrieved, history, sink, ledger=ledger, budget=budget
+                )
 
             async with self._uow() as store:
                 await self._owned(store, command.account_id, session.id, lock=True)
@@ -450,46 +470,42 @@ class GuideService:
         retrieved: RetrievalResult,
         history: list[tuple[str, str]],
         sink: EventSink,
+        *,
+        ledger: QuotaLedger,
+        budget: QuotaBudget,
     ) -> ComposedAnswer:
+        """Answer from the retrieved evidence. ``budget`` already holds ``GUIDE_BUDGET``; the
+        account question is committed only when a model answered (released otherwise)."""
         if not retrieved.evidence:
             # Extension point (ADR-010 1.0, out of scope here): the deterministic web fallback,
             # stage SEARCHING_WEB, answer_status ANSWERED_WEB_UNVERIFIED, WEB citations.
             return insufficient(session.locale)
         items, by_id = evidence_items(retrieved.evidence)
-        ledger = self._ledger or QuotaLedger(self._sf, self._settings)
-        async with QuotaBudget(ledger, account_id=command.account_id) as budget:
-            decision = await budget.acquire(GUIDE_BUDGET)
-            if not decision.allowed:
-                raise GuideAbort(
-                    "quota_exceeded", "Daily Guide question limit reached", retryable=True
-                )
-            sink.emit({"type": "progress", "stage": "ANSWERING"})
-            ctx = AgentContext(
-                settings=self._settings,
-                ledger=ledger,
-                session_factory=self._sf,
-                purpose=Purpose.GUIDE_ANSWER,
-                account_id=command.account_id,
-                budget=budget,
-                runner=self._runner,
+        sink.emit({"type": "progress", "stage": "ANSWERING"})
+        ctx = AgentContext(
+            settings=self._settings,
+            ledger=ledger,
+            session_factory=self._sf,
+            purpose=Purpose.GUIDE_ANSWER,
+            account_id=command.account_id,
+            budget=budget,
+            runner=self._runner,
+        )
+        try:
+            outcome = await write_guide_answer(
+                ctx,
+                question=command.question.content,
+                evidence=items,
+                locale="en" if session.locale == "en" else "vi",
+                history=history,
             )
-            try:
-                outcome = await write_guide_answer(
-                    ctx,
-                    question=command.question.content,
-                    evidence=items,
-                    locale="en" if session.locale == "en" else "vi",
-                    history=history,
-                )
-            except RedactionError as exc:
-                raise GuideAbort(
-                    "unsupported_request", "The question could not be sent to the Guide safely"
-                ) from exc
-            if not _model_answered(outcome):
-                raise GuideAbort(
-                    "ai_unavailable", "The Guide is unavailable right now", retryable=True
-                )
-            await budget.commit(Bucket.ACCOUNT_QUESTIONS)
+        except RedactionError as exc:
+            raise GuideAbort(
+                "unsupported_request", "The question could not be sent to the Guide safely"
+            ) from exc
+        if not _model_answered(outcome):
+            raise GuideAbort("ai_unavailable", "The Guide is unavailable right now", retryable=True)
+        await budget.commit(Bucket.ACCOUNT_QUESTIONS)
         if outcome.dropped_claims:
             logger.info("guide citations dropped_claims=%d", outcome.dropped_claims)
         return compose(outcome.answer, by_id, session.locale)

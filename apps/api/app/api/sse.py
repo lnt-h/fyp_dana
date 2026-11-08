@@ -17,7 +17,7 @@ from fastapi import Request
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 
-from app.observability import error_payload
+from app.observability import error_payload, log_failure
 
 logger = logging.getLogger("gonarra.sse")
 
@@ -139,8 +139,8 @@ async def stream_sink(
         sink.close()
         try:
             await task
-        except Exception:
-            logger.exception(json.dumps({"request_id": request_id, "event": "stream_run_failed"}))
+        except Exception as exc:  # noqa: BLE001 - reported as an error event
+            log_failure(logger, "stream_run_failed", exc, request_id=request_id)
             yield error_event(request_id)
     finally:
         sink.close()

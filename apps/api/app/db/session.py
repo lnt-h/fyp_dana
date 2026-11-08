@@ -5,7 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.config import get_settings
 
 settings = get_settings()
-engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+# hide_parameters: bound values (Guide questions, request text, coordinates) never appear in
+# SQLAlchemy exception messages, so they cannot reach logs (privacy rule, BR-046).
+engine = create_async_engine(settings.database_url, pool_pre_ping=True, hide_parameters=True)
 session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
 

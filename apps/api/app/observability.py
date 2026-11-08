@@ -2,6 +2,7 @@ import json
 import logging
 import re
 import time
+import traceback
 import uuid
 from typing import Any
 
@@ -16,6 +17,29 @@ from app.errors import AppError
 
 logger = logging.getLogger("gonarra.request")
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
+INTERNAL_ERROR_MESSAGE = "An unexpected error occurred"
+
+
+def exception_summary(exc: BaseException, *, frames: int = 8) -> dict[str, Any]:
+    """Loggable description of ``exc`` without its message, arguments or locals.
+
+    Exception text can carry user questions, request text, bound SQL parameters or coordinates
+    (privacy rule: never log them), so only the exception class and the innermost code
+    locations (``module:line:function``) are kept.
+    """
+    stack = traceback.extract_tb(exc.__traceback__)[-frames:]
+    return {
+        "error": type(exc).__name__,
+        "at": [
+            f"{frame.filename.rsplit('/', 1)[-1]}:{frame.lineno}:{frame.name}" for frame in stack
+        ],
+    }
+
+
+def log_failure(log: logging.Logger, event: str, exc: BaseException, **fields: Any) -> None:
+    """Log an unexpected failure as one JSON line: ``event``, ``fields`` and
+    :func:`exception_summary` — never the exception text or a full traceback."""
+    log.error(json.dumps({"event": event, **fields, **exception_summary(exc)}))
 
 
 def error_payload(
@@ -42,8 +66,10 @@ class RequestContextMiddleware:
 
     Assigns ``X-Request-ID`` (client value if it matches :data:`REQUEST_ID_PATTERN`, else a
     UUID4), exposes it as ``request.state.request_id``, echoes it on the response and logs one
-    JSON line per request once the response has completed. The body is never buffered, so
-    streaming responses (SSE) pass straight through. Non-HTTP scopes are untouched.
+    JSON line per request once the response has completed. An unhandled exception becomes a 500
+    ``internal_error`` envelope carrying the request id, never the exception text. The body is
+    never buffered, so streaming responses (SSE) pass straight through. Non-HTTP scopes are
+    untouched.
     """
 
     def __init__(self, app: ASGIApp) -> None:
@@ -71,8 +97,40 @@ class RequestContextMiddleware:
                 MutableHeaders(scope=message)["x-request-id"] = request_id
             await send(message)
 
+        response_started = False
+
+        async def send_tracking(message: Message) -> None:
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send_with_request_id(message)
+
         try:
-            await self.app(scope, receive, send_with_request_id)
+            try:
+                await self.app(scope, receive, send_tracking)
+            except Exception as exc:  # noqa: BLE001 - catch-all: JSON envelope, no exception text
+                # Handled here rather than by an ``Exception`` handler: Starlette re-raises after
+                # such a handler, and the server would then log the exception text (which can
+                # carry bound parameters or user text). Nothing is re-raised.
+                log_failure(logger, "unhandled_exception", exc, request_id=request_id)
+                if response_started:
+                    return  # the body is partly sent; the server closes the connection
+                body = json.dumps(
+                    error_payload(
+                        "internal_error", INTERNAL_ERROR_MESSAGE, request_id, retryable=True
+                    )
+                ).encode()
+                await send_with_request_id(
+                    {
+                        "type": "http.response.start",
+                        "status": 500,
+                        "headers": [
+                            (b"content-type", b"application/json"),
+                            (b"content-length", str(len(body)).encode()),
+                        ],
+                    }
+                )
+                await send_with_request_id({"type": "http.response.body", "body": body})
         finally:
             logger.info(
                 json.dumps(

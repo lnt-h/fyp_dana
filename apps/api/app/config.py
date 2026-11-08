@@ -14,6 +14,9 @@ from pydantic import AliasChoices, AnyHttpUrl, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ESTIMATE_ENVIRONMENTS = frozenset({"development", "test", "demo"})
+# Environments where provider persistence policies in DRAFT status may be used (ADR-006);
+# staging and production require ACTIVE policies.
+DRAFT_POLICY_ENVIRONMENTS = frozenset({"development", "test", "demo"})
 # Environments where the shared demo user (``demo_shared_user``) may be switched on.
 DEMO_USER_ENVIRONMENTS = frozenset({"development", "test", "demo"})
 # Subject (in place of a Clerk ``sub``) of the one account shared by every unsigned demo caller.
@@ -29,9 +32,12 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Gonarra API"
+    # Fails safe: unset means ``production`` (no /docs, no estimates, no demo user, ACTIVE provider
+    # policies only). Local development sets ``GONARRA_ENVIRONMENT=development`` in
+    # ``apps/api/.env``; the test suite sets ``test`` (``tests/conftest.py``).
     # ``demo``: owner demo builds without Google Maps Platform (estimate routing may be enabled,
     # legs are labelled ``estimated``). Never used for staging or production.
-    environment: Literal["development", "test", "demo", "staging", "production"] = "development"
+    environment: Literal["development", "test", "demo", "staging", "production"] = "production"
     database_url: str = "postgresql+psycopg://gonarra:gonarra@localhost:5432/gonarra"
     clerk_issuer: AnyHttpUrl | None = None
     clerk_jwks_url: AnyHttpUrl | None = None
@@ -129,6 +135,11 @@ class Settings(BaseSettings):
                 "development, test or demo"
             )
         return self
+
+    @property
+    def draft_policies_allowed(self) -> bool:
+        """Whether DRAFT provider policies may stand in for ACTIVE ones (never staging/prod)."""
+        return self.environment in DRAFT_POLICY_ENVIRONMENTS
 
     @property
     def estimates_allowed(self) -> bool:

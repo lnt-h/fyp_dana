@@ -14,6 +14,11 @@ jobs:
     defaults:
       run:
         working-directory: apps/api
+    env:
+      # Unset environment means production (fail-safe); CI runs as test. Integration tests refuse
+      # a database whose name does not end in _test/_it/_ci (tests/conftest.py).
+      GONARRA_ENVIRONMENT: test
+      GONARRA_DATABASE_URL: postgresql+psycopg://gonarra:gonarra@localhost:5432/gonarra_test
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
@@ -30,6 +35,9 @@ jobs:
       - name: Start PostgreSQL extensions
         working-directory: ${{ github.workspace }}
         run: docker compose up -d db --wait
+      - name: Create the disposable integration database
+        working-directory: ${{ github.workspace }}
+        run: docker compose exec -T db psql -U gonarra -d postgres -c "CREATE DATABASE gonarra_test"
       - run: uv run alembic upgrade head
       - run: uv run python -m app.cli seed
       - run: uv run pytest -m integration
