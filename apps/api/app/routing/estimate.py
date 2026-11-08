@@ -1,9 +1,10 @@
-"""Haversine estimate provider — TESTS AND LOCAL DEVELOPMENT ONLY.
+"""Haversine estimate provider — TESTS, LOCAL DEVELOPMENT AND OWNER DEMO ONLY.
 
-BRU-006: no straight-line or model value is ever accepted as a leg shown to a traveler. This
-provider exists so the planner can be exercised without a Google Maps key. It refuses to be
-constructed when ``Settings.environment == "production"``, is not metered and is never
-persisted to ``routes_matrix_cache``; legs from it are marked ``estimated`` by the matrix service.
+BRU-006: no straight-line or model value is ever accepted as a measured leg. This provider exists
+so the planner can be exercised without a Google Maps key. It refuses to be constructed outside
+``development``, ``test`` and ``demo`` (``Settings.estimates_allowed``), is not metered and is
+never persisted to ``routes_matrix_cache``; legs from it are marked ``estimated`` by the matrix
+service and carry ``estimated=true`` plus a ``LEG_ESTIMATED`` notice in the API.
 """
 
 from __future__ import annotations
@@ -31,8 +32,10 @@ SPEED_M_PER_S: dict[str, float] = {
 
 class EstimateProvider:
     def __init__(self, settings: Settings) -> None:
-        if settings.environment == "production":
-            raise EstimateNotAllowedError("routes estimate provider cannot run in production")
+        if not settings.estimates_allowed:
+            raise EstimateNotAllowedError(
+                f"routes estimate provider cannot run in {settings.environment}"
+            )
 
     @property
     def kind(self) -> ProviderKind:

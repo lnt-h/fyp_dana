@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import httpx
 import pytest
@@ -135,6 +136,44 @@ def test_estimate_impossible_in_production() -> None:
         )
     with pytest.raises(EstimateNotAllowedError):
         EstimateProvider(prod)
+
+
+def test_routes_provider_setting_forces_choice() -> None:
+    demo_estimate = Settings(
+        environment="demo", routes_provider="estimate", google_maps_api_key=KEY
+    )
+    assert isinstance(select_provider(demo_estimate), EstimateProvider)  # key present, ignored
+    with pytest.raises(EstimateNotAllowedError):
+        select_provider(Settings(environment="production", routes_provider="estimate"))
+    none = Settings(routes_provider="none", google_maps_api_key=KEY)
+    assert isinstance(select_provider(none, estimate_enabled=True), NoRoutesProvider)
+    google = Settings(routes_provider="google")
+    assert isinstance(select_provider(google, estimate_enabled=True), NoRoutesProvider)
+    keyed = Settings(routes_provider="google", google_maps_api_key=KEY)
+    assert isinstance(select_provider(keyed), GoogleRoutesProvider)
+
+
+def test_routes_provider_env_and_hermetic_env_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    # tests/conftest.py: a developer's .env (with an unusable Maps key) is never read in tests.
+    (tmp_path / ".env").write_text("GONARRA_GOOGLE_MAPS_API_KEY=leaked\n")
+    monkeypatch.chdir(tmp_path)
+    assert Settings().google_maps_api_key is None
+    monkeypatch.setenv("GONARRA_ROUTES_PROVIDER", "estimate")
+    monkeypatch.setenv("GONARRA_ENVIRONMENT", "demo")
+    assert isinstance(select_provider(Settings()), EstimateProvider)
+
+
+def test_estimate_allowed_in_demo_refused_in_staging() -> None:
+    demo = Settings(environment="demo")
+    assert isinstance(select_provider(demo, estimate_enabled=True), EstimateProvider)
+    assert isinstance(select_provider(demo), NoRoutesProvider)  # flag off: never estimated
+    staging = Settings(environment="staging")
+    with pytest.raises(EstimateNotAllowedError):
+        select_provider(staging, estimate_enabled=True)
+    with pytest.raises(EstimateNotAllowedError):
+        EstimateProvider(staging)
 
 
 async def test_estimate_provider_is_unmetered_and_not_persistable() -> None:

@@ -91,6 +91,7 @@ async def render_days(
                 distance_m=leg.distance_m,
                 duration_s=leg.duration_s,
                 measured_at=leg.measured_at,
+                estimated=leg.estimated,
                 conflicts=leg.conflicts,
             )
             for leg in day.legs

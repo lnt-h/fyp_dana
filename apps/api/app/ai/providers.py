@@ -22,10 +22,17 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("gonarra.ai")
 
-GEMINI_FLASH = "gemini-2.5-flash"
-GEMINI_FLASH_LITE = "gemini-2.5-flash-lite"
+# Chat models (SPK-004 + live key probe 2026-11-08): the originally pinned ``gemini-2.5-flash``,
+# ``gemini-2.5-flash-lite`` and Groq ``llama-3.3-70b-versatile`` answer 404 for new API keys.
+# Probe latencies with a JSON responseSchema: gemini-3.5-flash-lite 1.0 s, gemini-3.6-flash 3.0 s;
+# gemini-3.8-flash / 3.7-flash / flash-latest think by default (24-30 s) and are not used. Groq
+# openai/gpt-oss-120b: tool calling 0.7 s. Constant names keep the quota buckets stable
+# (GEMINI_FLASH / GEMINI_FLASH_LITE / GROQ).
+GEMINI_FLASH = "gemini-3.6-flash"
+GEMINI_FLASH_LITE = "gemini-3.5-flash-lite"
 GEMINI_EMBEDDING = "gemini-embedding-001"
-GROQ_LLAMA_70B = "llama-3.3-70b-versatile"
+GROQ_GPT_OSS_120B = "openai/gpt-oss-120b"
+GROQ_DEFAULT = GROQ_GPT_OSS_120B
 
 # knowledge_chunks.embedding is vector(768), pinned to gemini-embedding-001 (OQ-126).
 EMBEDDING_DIMENSIONS = 768
@@ -65,30 +72,44 @@ class ModelSpec:
     json_mode: bool
     max_output_tokens: int | None
     timeout_s: float
+    # Gemini 3 thinking level ("low" / "high"); ``None`` keeps the model default (the measured
+    # configuration). SPK-004: thinking-by-default models hit 504 at ~28 s for 30 candidates.
+    thinking_level: str | None = None
 
 
-def _gemini(model_id: str, role: Role, *, max_tokens: int, timeout_s: float) -> ModelSpec:
-    return ModelSpec(Provider.GEMINI, model_id, role, False, max_tokens, timeout_s)
+def _gemini(
+    model_id: str,
+    role: Role,
+    *,
+    max_tokens: int,
+    timeout_s: float,
+    thinking_level: str | None = None,
+) -> ModelSpec:
+    return ModelSpec(Provider.GEMINI, model_id, role, False, max_tokens, timeout_s, thinking_level)
 
 
 def _groq(role: Role, *, max_tokens: int, timeout_s: float) -> ModelSpec:
-    return ModelSpec(Provider.GROQ, GROQ_LLAMA_70B, role, True, max_tokens, timeout_s)
+    return ModelSpec(Provider.GROQ, GROQ_DEFAULT, role, True, max_tokens, timeout_s)
 
 
+# Timeouts are per provider request; the agent runtime adds 5 s for the whole Agno run. The
+# planning chains are kept short so that a proposal with every model failing still finishes in
+# well under a minute (then the rule-based selector / null rationales take over).
 _CHAINS: dict[Role, tuple[ModelSpec, ...]] = {
     Role.SELECTOR: (
-        _gemini(GEMINI_FLASH, Role.SELECTOR, max_tokens=2048, timeout_s=30.0),
-        _groq(Role.SELECTOR, max_tokens=2048, timeout_s=30.0),
+        _gemini(GEMINI_FLASH, Role.SELECTOR, max_tokens=2048, timeout_s=15.0),
+        _gemini(GEMINI_FLASH_LITE, Role.SELECTOR, max_tokens=2048, timeout_s=12.0),
+        _groq(Role.SELECTOR, max_tokens=2048, timeout_s=15.0),
     ),
     # Researcher never runs on Gemini (ADR-014).
-    Role.RESEARCHER: (_groq(Role.RESEARCHER, max_tokens=2048, timeout_s=45.0),),
+    Role.RESEARCHER: (_groq(Role.RESEARCHER, max_tokens=2048, timeout_s=30.0),),
     Role.WRITER_RATIONALE: (
-        _gemini(GEMINI_FLASH_LITE, Role.WRITER_RATIONALE, max_tokens=2048, timeout_s=30.0),
-        _groq(Role.WRITER_RATIONALE, max_tokens=2048, timeout_s=30.0),
+        _gemini(GEMINI_FLASH_LITE, Role.WRITER_RATIONALE, max_tokens=2048, timeout_s=18.0),
+        _groq(Role.WRITER_RATIONALE, max_tokens=2048, timeout_s=12.0),
     ),
     Role.WRITER_GUIDE: (
-        _gemini(GEMINI_FLASH, Role.WRITER_GUIDE, max_tokens=1536, timeout_s=30.0),
-        _groq(Role.WRITER_GUIDE, max_tokens=1536, timeout_s=30.0),
+        _gemini(GEMINI_FLASH, Role.WRITER_GUIDE, max_tokens=1536, timeout_s=20.0),
+        _groq(Role.WRITER_GUIDE, max_tokens=1536, timeout_s=20.0),
     ),
     Role.EMBEDDING: (
         ModelSpec(Provider.GEMINI, GEMINI_EMBEDDING, Role.EMBEDDING, False, None, 15.0),
@@ -148,6 +169,7 @@ def make_model(spec: ModelSpec, settings: Settings) -> Model:
             api_key=key,
             max_output_tokens=spec.max_output_tokens,
             timeout=spec.timeout_s,
+            thinking_level=spec.thinking_level,
         )
     else:
         model = _SafeGroq(

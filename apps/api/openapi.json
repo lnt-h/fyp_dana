@@ -565,6 +565,19 @@
       },
       "Conflict": {
         "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Trip date the conflict applies to.",
+            "title": "Date"
+          },
           "message": {
             "anyOf": [
               {
@@ -576,16 +589,40 @@
             ],
             "title": "Message"
           },
+          "rule_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "place_closure_rules row behind a calendar conflict.",
+            "title": "Rule Id"
+          },
           "severity": {
+            "description": "BLOCKING → plan BLOCKED; WARNING → plan at most WARNING; INFO is a notice only and never changes plan_health.",
             "enum": [
               "BLOCKING",
-              "WARNING"
+              "WARNING",
+              "INFO"
             ],
             "title": "Severity",
             "type": "string"
           },
+          "stop_ids": {
+            "description": "Stops involved.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Stop Ids",
+            "type": "array"
+          },
           "type": {
-            "description": "WEB_PLACE_UNVERIFIED is an extension (architecture §3.2 step 7).",
+            "description": "Plan Health conflict type (ADR-011). LEG_ESTIMATED (INFO, openapi 1.0.2) marks a leg whose distance/duration is a demo estimate, not a Google Routes measurement.",
             "enum": [
               "CLOSED_AT_PLANNED_TIME",
               "LEG_UNAVAILABLE",
@@ -593,7 +630,14 @@
               "OPENING_HOURS_UNKNOWN",
               "FACT_STALE",
               "MUST_SEE_NOT_INCLUDED",
-              "WEB_PLACE_UNVERIFIED"
+              "CLOSED_ON_DATE",
+              "LEG_MODE_RESTRICTED",
+              "LUNAR_EVENT_CONFLICT",
+              "TICKET_VALIDITY",
+              "SEASONAL_WARNING",
+              "WEB_PLACE_UNVERIFIED",
+              "WEB_PLACE_UNRESOLVED",
+              "LEG_ESTIMATED"
             ],
             "title": "Type",
             "type": "string"
@@ -925,6 +969,12 @@
               }
             ],
             "title": "Duration S"
+          },
+          "estimated": {
+            "default": false,
+            "description": "True when distance_m/duration_s are a straight-line demo estimate (owner demo without Google Routes), not a measurement. Such legs also carry a LEG_ESTIMATED conflict.",
+            "title": "Estimated",
+            "type": "boolean"
           },
           "from_stop_id": {
             "format": "uuid",
@@ -5410,7 +5460,7 @@
     },
     "/v1/trips/{trip_id}/plan-previews": {
       "post": {
-        "description": "M2 shell: owner and body are validated; the injected workflow (stub until M3) runs.",
+        "description": "Owner and body are validated here; the injected workflow (the M3 orchestrator) runs.",
         "operationId": "create_plan_preview_v1_trips__trip_id__plan_previews_post",
         "parameters": [
           {

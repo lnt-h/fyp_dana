@@ -1,12 +1,14 @@
-"""Planning workflow seam (architecture §3.2). M2 ships the Protocol and a stub only.
+"""Planning workflow seam (architecture §3.2).
 
 The routes validate ownership and the body, then hand a command and an event sink to the
-injected :class:`PlanningWorkflow`. M3 replaces :class:`NotImplementedWorkflow` with the
-deterministic ``propose_trip`` / ``regenerate_day`` orchestrator by overriding
-:func:`get_planning_workflow` (FastAPI dependency) — no route change needed.
+injected :class:`PlanningWorkflow`. :func:`get_planning_workflow` (FastAPI dependency) returns the
+deterministic ``propose_trip`` / ``regenerate_day`` orchestrator
+(:class:`app.planning.orchestrator.PlanningOrchestrator`); :class:`NotImplementedWorkflow` stays
+for tests.
 
-This module must not import ``app.api`` or ``app.agents`` (import-linter); the sink is a
-structural Protocol that ``app.api.sse.ProgressSink`` satisfies.
+This module must not import ``app.api`` or ``app.agents`` directly (import-linter); only the
+orchestrator talks to the agent roles. The sink is a structural Protocol that
+``app.api.sse.ProgressSink`` satisfies.
 """
 
 import uuid
@@ -83,5 +85,9 @@ class NotImplementedWorkflow:
 
 
 def get_planning_workflow() -> PlanningWorkflow:
-    """FastAPI dependency; M3 overrides it (``app.dependency_overrides`` or a new default)."""
-    return NotImplementedWorkflow()
+    """FastAPI dependency: the M3 orchestrator over the app's session factory and settings."""
+    from app.config import get_settings
+    from app.db.session import session_factory
+    from app.planning.orchestrator import PlanningOrchestrator
+
+    return PlanningOrchestrator(session_factory, get_settings())

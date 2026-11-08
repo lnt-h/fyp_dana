@@ -5,8 +5,8 @@ provider Protocol and the two non-Google implementations that are safe to constr
 
 * :class:`NoRoutesProvider` — no key configured: every element is UNAVAILABLE (Plan Health then
   reports ``LEG_UNAVAILABLE``). Production-safe; nothing is estimated.
-* :class:`app.routing.estimate.EstimateProvider` — haversine estimate for tests and local
-  development only; refuses to exist when ``Settings.environment == "production"``.
+* :class:`app.routing.estimate.EstimateProvider` — haversine estimate for tests, local
+  development and the owner demo only; refuses to exist in ``staging`` and ``production``.
 
 :func:`select_provider` is the only place that decides which one the app uses.
 """
@@ -125,7 +125,7 @@ def haversine_m(a: LatLng, b: LatLng) -> float:
 
 
 class EstimateNotAllowedError(RuntimeError):
-    """Raised when the estimate provider is requested in production."""
+    """Raised when the estimate provider is requested outside development, test or demo."""
 
 
 def select_provider(
@@ -136,16 +136,36 @@ def select_provider(
 ) -> RoutesProvider:
     """Pick the Routes provider for this process.
 
+    ``settings.routes_provider`` (``GONARRA_ROUTES_PROVIDER``) ``none`` / ``estimate`` /
+    ``google`` forces that choice (``estimate`` still raises in staging/production; ``google``
+    without a key is :class:`NoRoutesProvider`). ``auto`` (default):
+
     1. Google Routes when ``google_maps_api_key`` is configured.
     2. Otherwise, when ``estimate_enabled`` (setting ``routes_estimate_enabled`` /
-       ``GONARRA_ROUTES_ESTIMATE_ENABLED``) and the environment is not production, the haversine
-       :class:`EstimateProvider` for local development.
+       ``GONARRA_ROUTES_ESTIMATE_ENABLED``) and the environment is ``development``, ``test`` or
+       ``demo``, the haversine :class:`EstimateProvider`.
     3. Otherwise :class:`NoRoutesProvider` (all legs UNAVAILABLE).
 
-    Asking for estimates in production is a misconfiguration and raises, so it cannot ship.
+    Asking for estimates in staging or production is a misconfiguration and raises, so it cannot
+    ship.
     """
-    if estimate_enabled and settings.environment == "production":
-        raise EstimateNotAllowedError("routes estimate provider cannot be enabled in production")
+    choice = settings.routes_provider
+    if choice == "none":
+        return NoRoutesProvider()
+    if choice == "estimate":
+        from app.routing.estimate import EstimateProvider
+
+        return EstimateProvider(settings)  # raises outside development/test/demo
+    if choice == "google":
+        if settings.google_maps_api_key is None:
+            return NoRoutesProvider()
+        from app.routing.google_routes import GoogleRoutesProvider
+
+        return GoogleRoutesProvider(settings.google_maps_api_key, client=client)
+    if estimate_enabled and not settings.estimates_allowed:
+        raise EstimateNotAllowedError(
+            f"routes estimate provider cannot be enabled in {settings.environment}"
+        )
     if settings.google_maps_api_key is not None:
         from app.routing.google_routes import GoogleRoutesProvider
 

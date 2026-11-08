@@ -931,6 +931,13 @@ export interface components {
             duration_s?: number | null;
             /** Format: date-time */
             measured_at?: string | null;
+            /**
+             * @description 1.0.2. True when distance_m / duration_s are a straight-line demo estimate (no Google Routes key;
+             *     development, test and demo environments only), not a measurement. Such a leg also carries a
+             *     `LEG_ESTIMATED` (INFO) conflict. Never true in staging or production.
+             * @default false
+             */
+            estimated: boolean;
             conflicts?: components["schemas"]["Conflict"][];
         };
         Conflict: {
@@ -938,11 +945,15 @@ export interface components {
              * @description Plan Health is code (ADR-011 0.3). Calendar rules: CLOSED_ON_DATE and LEG_MODE_RESTRICTED are
              *     blocking; LUNAR_EVENT_CONFLICT, TICKET_VALIDITY and SEASONAL_WARNING are warnings. Web stops
              *     (ADR-014): WEB_PLACE_UNVERIFIED caps the plan at WARNING; WEB_PLACE_UNRESOLVED is blocking.
+             *     LEG_ESTIMATED (1.0.2, severity INFO) marks a leg whose values are a demo estimate (`Leg.estimated`).
              * @enum {string}
              */
-            type: "CLOSED_AT_PLANNED_TIME" | "LEG_UNAVAILABLE" | "DAY_WINDOW_EXCEEDED" | "OPENING_HOURS_UNKNOWN" | "FACT_STALE" | "MUST_SEE_NOT_INCLUDED" | "CLOSED_ON_DATE" | "LEG_MODE_RESTRICTED" | "LUNAR_EVENT_CONFLICT" | "TICKET_VALIDITY" | "SEASONAL_WARNING" | "WEB_PLACE_UNVERIFIED" | "WEB_PLACE_UNRESOLVED";
-            /** @enum {string} */
-            severity: "BLOCKING" | "WARNING";
+            type: "CLOSED_AT_PLANNED_TIME" | "LEG_UNAVAILABLE" | "DAY_WINDOW_EXCEEDED" | "OPENING_HOURS_UNKNOWN" | "FACT_STALE" | "MUST_SEE_NOT_INCLUDED" | "CLOSED_ON_DATE" | "LEG_MODE_RESTRICTED" | "LUNAR_EVENT_CONFLICT" | "TICKET_VALIDITY" | "SEASONAL_WARNING" | "WEB_PLACE_UNVERIFIED" | "WEB_PLACE_UNRESOLVED" | "LEG_ESTIMATED";
+            /**
+             * @description BLOCKING → plan BLOCKED; WARNING → plan at most WARNING; INFO (1.0.2) is a notice only and never changes plan_health.
+             * @enum {string}
+             */
+            severity: "BLOCKING" | "WARNING" | "INFO";
             message?: string;
             /**
              * Format: uuid

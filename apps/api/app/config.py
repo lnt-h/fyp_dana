@@ -10,8 +10,10 @@ free tier; change it only with a decision in ``docs/decisions.md``.
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import AnyHttpUrl, SecretStr, field_validator
+from pydantic import AliasChoices, AnyHttpUrl, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+ESTIMATE_ENVIRONMENTS = frozenset({"development", "test", "demo"})
 
 
 class Settings(BaseSettings):
@@ -19,10 +21,13 @@ class Settings(BaseSettings):
         env_file=".env",
         env_prefix="GONARRA_",
         extra="ignore",
+        populate_by_name=True,
     )
 
     app_name: str = "Gonarra API"
-    environment: Literal["development", "test", "staging", "production"] = "development"
+    # ``demo``: owner demo builds without Google Maps Platform (estimate routing may be enabled,
+    # legs are labelled ``estimated``). Never used for staging or production.
+    environment: Literal["development", "test", "demo", "staging", "production"] = "development"
     database_url: str = "postgresql+psycopg://gonarra:gonarra@localhost:5432/gonarra"
     clerk_issuer: AnyHttpUrl | None = None
     clerk_jwks_url: AnyHttpUrl | None = None
@@ -50,11 +55,25 @@ class Settings(BaseSettings):
     google_maps_api_key: SecretStr | None = None
 
     # Feature flags (ADR-014 research agent; DEC-019 Could-scope prices).
-    research_agent_enabled: bool = False
+    # Research agent in propose_trip: off by default (SPK-004: 107-212 s per run). When on, it runs
+    # only for a thin catalog pool and under ``research_timeout_s``; on timeout the plan proceeds.
+    research_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "research_enabled", "GONARRA_RESEARCH_ENABLED", "GONARRA_RESEARCH_AGENT_ENABLED"
+        ),
+    )
+    research_timeout_s: float = 45.0
     stay_prices_enabled: bool = False
-    # Haversine Routes estimates for local development when no Google Maps key is set (M3-B).
-    # Never allowed in production (select_provider raises); estimates are never cached.
+    # Haversine Routes estimates when no Google Maps key is set (M3-B; demo mode). Allowed only
+    # in development, test and demo (select_provider raises in staging/production); estimates are
+    # never cached and every estimated leg carries ``estimated=true`` plus a LEG_ESTIMATED notice.
     routes_estimate_enabled: bool = False
+    # Routes provider choice (GONARRA_ROUTES_PROVIDER): ``auto`` = Google when a key is set, else
+    # the estimate when routes_estimate_enabled, else none. ``estimate`` forces the haversine
+    # estimate even when a (possibly unusable) Google key is present — still refused in
+    # staging/production. ``google`` never estimates; ``none`` makes every leg UNAVAILABLE.
+    routes_provider: Literal["auto", "google", "estimate", "none"] = "auto"
 
     # Free-tier quota caps (DEC-018, architecture §3.3). Exceeding a cap degrades, never fails
     # silently. Per-account caps are per calendar day (UTC+7); global caps per day unless noted.
@@ -89,6 +108,11 @@ class Settings(BaseSettings):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @property
+    def estimates_allowed(self) -> bool:
+        """Whether the haversine estimate provider may exist in this environment."""
+        return self.environment in ESTIMATE_ENVIRONMENTS
 
     @property
     def authorized_parties(self) -> frozenset[str]:

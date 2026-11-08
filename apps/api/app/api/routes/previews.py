@@ -38,6 +38,11 @@ IdempotencyKeyHeader = Annotated[str | None, Header(alias="Idempotency-Key")]
 # Terminal ``error`` codes → HTTP status in JSON mode.
 ERROR_STATUS: dict[str, int] = {
     "not_implemented": 501,
+    "resource_not_found": 404,
+    "preview_closed": 410,
+    "preview_expired": 410,
+    "trip_not_saved": 409,
+    "internal_error": 503,
     "quota_exceeded": 429,
     "revision_conflict": 409,
     "unsupported_request": 422,
@@ -115,7 +120,7 @@ async def create_plan_preview(
     account: Annotated[Account, Depends(get_current_account)],
     idempotency_key: IdempotencyKeyHeader = None,
 ) -> Response:
-    """M2 shell: owner and body are validated; the injected workflow (stub until M3) runs."""
+    """Owner and body are validated here; the injected workflow (the M3 orchestrator) runs."""
     key = idempotency.normalize_key(idempotency_key, required=False)
     trip = await service.owned_trip(trip_id)
     command = ProposeTripCommand(

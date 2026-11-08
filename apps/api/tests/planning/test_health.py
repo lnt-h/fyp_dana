@@ -80,9 +80,20 @@ def stop(n: int, place: PlaceRef | None, arrive: str, leave: str, **extra: Any) 
 
 
 def leg(
-    a: HealthStop, b: HealthStop, mode: str = "DRIVE", availability: str = "AVAILABLE"
+    a: HealthStop,
+    b: HealthStop,
+    mode: str = "DRIVE",
+    availability: str = "AVAILABLE",
+    estimated: bool = False,
 ) -> HealthLeg:
-    return HealthLeg(a.stop_id, b.stop_id, mode, availability, 600)  # type: ignore[arg-type]
+    return HealthLeg(
+        a.stop_id,
+        b.stop_id,
+        mode,  # type: ignore[arg-type]
+        availability,  # type: ignore[arg-type]
+        600,
+        estimated=estimated,
+    )
 
 
 def day(
@@ -122,7 +133,8 @@ def test_severity_table_matches_contract() -> None:
         "DAY_WINDOW_EXCEEDED",
         "WEB_PLACE_UNRESOLVED",
     }
-    assert len(CONFLICT_SEVERITY) == 13
+    assert {t for t, s in CONFLICT_SEVERITY.items() if s == "INFO"} == {"LEG_ESTIMATED"}
+    assert len(CONFLICT_SEVERITY) == 14
 
 
 def test_closed_at_planned_time_outside_hours() -> None:
@@ -356,7 +368,27 @@ def test_web_place_unresolved_blocks() -> None:
     assert result.plan_health == "BLOCKED"
 
 
-def test_all_13_types_and_deterministic_order() -> None:
+def test_estimated_leg_is_info_and_keeps_plan_good() -> None:
+    a = stop(1, MUSEUM, "09:00", "10:30")
+    b = stop(2, BEACH, "11:00", "12:00")
+    result = run(HealthPlan(days=(day(TUE, a, b, legs=(leg(a, b, estimated=True),)),)))
+    assert types(result) == ["LEG_ESTIMATED"]
+    (notice,) = result.conflicts
+    assert notice.severity == "INFO" and not notice.blocking
+    assert notice.stop_ids == (a.stop_id, b.stop_id)
+    assert notice.message_key == "plan_health.conflict.leg_estimated"
+    assert result.plan_health == "GOOD"
+
+
+def test_estimated_flag_ignored_on_unavailable_leg() -> None:
+    a = stop(1, MUSEUM, "09:00", "10:30")
+    b = stop(2, BEACH, "11:00", "12:00")
+    unavailable = leg(a, b, availability="UNAVAILABLE", estimated=True)
+    result = run(HealthPlan(days=(day(TUE, a, b, legs=(unavailable,)),)))
+    assert types(result) == ["LEG_UNAVAILABLE"] and result.plan_health == "BLOCKED"
+
+
+def test_all_14_types_and_deterministic_order() -> None:
     rules = [
         rule(20, "WEEKLY", "CLOSED", {"weekdays": [1]}),  # museum closed Mondays
         area(21, "LUNAR_DATE", "EVENT", {"lunar_days": [14]}),
@@ -398,7 +430,7 @@ def test_all_13_types_and_deterministic_order() -> None:
                 sun_web,
                 sun_bad_web,
                 sun_museum,
-                legs=(leg(sun_house, sun_bridge),),
+                legs=(leg(sun_house, sun_bridge, estimated=True),),
             ),
         ),
         must_see_place_ids=(uuid.UUID(int=0xF00D),),

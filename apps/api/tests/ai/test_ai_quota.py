@@ -133,7 +133,7 @@ async def test_select_model_uses_budget_reservation_first(db: Any, settings: Set
         await budget.acquire(PROPOSE_BUDGET)
         pick = await select_model(role_chain(Role.SELECTOR), ledger, budget=budget)
         assert pick is not None and pick.index == 0
-        assert pick.spec.model_id == "gemini-2.5-flash"
+        assert pick.spec.model_id == "gemini-3.6-flash"
         assert pick.reservation.bucket is Bucket.GEMINI_FLASH
     rows = {key[2]: row for key, row in db.ledger.items()}
     assert rows["GEMINI_FLASH"]["reserved"] == 1  # handed to the caller, not double-booked
@@ -142,10 +142,17 @@ async def test_select_model_uses_budget_reservation_first(db: Any, settings: Set
 async def test_chain_falls_back_to_groq_then_exhausts(
     db: Any, settings_factory: Callable[..., Settings]
 ) -> None:
-    ledger = ledger_for(db, settings_factory(quota_gemini_flash_per_day=0, quota_groq_per_day=1))
+    ledger = ledger_for(
+        db,
+        settings_factory(
+            quota_gemini_flash_per_day=0,
+            quota_gemini_flash_lite_per_day=0,
+            quota_groq_per_day=1,
+        ),
+    )
     chain = role_chain(Role.SELECTOR)
     pick = await select_model(chain, ledger)
-    assert pick is not None and pick.spec.model_id == "llama-3.3-70b-versatile" and pick.index == 1
+    assert pick is not None and pick.spec.model_id == "openai/gpt-oss-120b" and pick.index == 2
     await ledger.commit(pick.reservation)
     assert await select_model(chain, ledger) is None
 
@@ -155,7 +162,7 @@ async def test_chain_skips_unconfigured_provider(
 ) -> None:
     ledger = ledger_for(db, settings_factory(gemini_api_key=None))
     pick = await select_model(role_chain(Role.WRITER_GUIDE), ledger)
-    assert pick is not None and pick.spec.model_id == "llama-3.3-70b-versatile"
+    assert pick is not None and pick.spec.model_id == "openai/gpt-oss-120b"
     assert not any(key[2] == "GEMINI_FLASH" for key in db.ledger)  # nothing reserved for it
 
 
@@ -166,4 +173,4 @@ async def test_chain_retry_after_failed_call(db: Any, settings: Settings) -> Non
     assert first is not None and first.index == 0
     await ledger.commit(first.reservation)  # attempted, failed validation
     second = await select_model(chain[first.index + 1 :], ledger)
-    assert second is not None and second.spec.model_id == "llama-3.3-70b-versatile"
+    assert second is not None and second.spec.model_id == "openai/gpt-oss-120b"

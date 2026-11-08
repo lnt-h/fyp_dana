@@ -66,9 +66,9 @@ packages = ["app"]
 root_package = "app"
 include_external_packages = false
 
-# Architecture §2 import rules, limited to modules that exist today. Add the planning, routing,
-# agents and guide contracts (solver/calendar/health/routing never import agents or ai; agents
-# import only ai and agents.schemas; api imports workflows only) when those packages land.
+# Architecture §2 import rules, limited to modules that exist today. Add the guide contracts when
+# that package lands. Only the planning orchestrator (app.planning.orchestrator) may call the
+# agent roles and research adapters; the rest of planning and trips never import them.
 [[tool.importlinter.contracts]]
 name = "Schemas and models do not import the HTTP layer"
 type = "forbidden"
@@ -151,10 +151,46 @@ forbidden_modules = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "Trips and planning do not import the HTTP layer or agents"
+name = "Trips and planning do not import the HTTP layer or agents (except the orchestrator)"
 type = "forbidden"
 source_modules = ["app.trips", "app.planning"]
-forbidden_modules = ["app.api", "app.main", "app.agents"]
+forbidden_modules = ["app.api", "app.main", "app.agents", "app.research"]
+ignore_imports = [
+  "app.planning.orchestrator -> app.agents.*",
+  "app.planning.orchestrator -> app.research.*",
+]
+
+[[tool.importlinter.contracts]]
+name = "Agents import only app.ai, app.config and their own modules (architecture §2)"
+type = "forbidden"
+source_modules = ["app.agents"]
+forbidden_modules = [
+  "app.api",
+  "app.main",
+  "app.db",
+  "app.models",
+  "app.repositories",
+  "app.catalog",
+  "app.curation",
+  "app.ingestion",
+  "app.planning",
+  "app.research",
+  "app.routing",
+  "app.trips",
+  "app.security",
+]
+
+[[tool.importlinter.contracts]]
+name = "AI infrastructure does not import agents or research"
+type = "forbidden"
+source_modules = ["app.ai"]
+forbidden_modules = ["app.agents", "app.research"]
+
+[[tool.importlinter.contracts]]
+name = "Research adapters do not import the HTTP layer or the planner"
+type = "forbidden"
+source_modules = ["app.research"]
+forbidden_modules = ["app.api", "app.main", "app.planning", "app.trips"]
 
 [[tool.importlinter.contracts]]
 name = "Calendar rules and Plan Health are pure code (no AI, HTTP, DB, curation or routing)"
@@ -170,4 +206,5 @@ forbidden_modules = [
   "app.curation",
   "app.routing",
   "app.planning.workflows",
+  "app.planning.orchestrator",
 ]

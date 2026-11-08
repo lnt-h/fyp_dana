@@ -36,11 +36,14 @@ from app.models.planning import (
     TripDay,
     TripStop,
 )
+from app.models.providers import DataProvider
 from app.models.reference import City, FactField
 from app.repositories.accounts import subject_sha256
 from app.trips.snapshot import PlanSnapshot, PublishedPlace, SnapshotDay, SnapshotLeg, SnapshotStop
 
 TripSort = Literal["-updated_at", "start_date"]
+# data_providers row behind demo-estimated legs (registered by the planner on first use).
+ROUTES_ESTIMATE_PROVIDER_KEY = "routes_estimate"
 OPEN_DELETION_STATES = ("REQUESTED", "IN_PROGRESS", "FAILED")
 
 
@@ -333,11 +336,13 @@ class SQLAlchemyTripStore:
                 )
             )
         if day_ids:
-            legs = await self.session.scalars(
-                select(RouteLeg).where(RouteLeg.trip_day_id.in_(list(day_ids.values())))
+            leg_rows = await self.session.execute(
+                select(RouteLeg, DataProvider.provider_key)
+                .outerjoin(DataProvider, DataProvider.id == RouteLeg.data_provider_id)
+                .where(RouteLeg.trip_day_id.in_(list(day_ids.values())))
             )
             by_day = {day_id: index for index, day_id in day_ids.items()}
-            for leg in legs:
+            for leg, provider_key in leg_rows.tuples():
                 days[by_day[leg.trip_day_id]].legs.append(
                     SnapshotLeg(
                         from_stop_id=leg.from_stop_id,
@@ -349,6 +354,7 @@ class SQLAlchemyTripStore:
                         data_provider_id=leg.data_provider_id,
                         measured_at=leg.measured_at,
                         expires_at=leg.expires_at,
+                        estimated=provider_key == ROUTES_ESTIMATE_PROVIDER_KEY,
                     )
                 )
             for day in days.values():

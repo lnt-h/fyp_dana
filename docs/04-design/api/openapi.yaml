@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Gonarra API
-  version: 1.0.1
+  version: 1.0.2
   summary: Gonarra /v1 contract (REST + SSE) for the traveler app and operator endpoints.
   description: |
     Document ID GONARRA-API, version 1.0, status Draft (re-baseline DEC-013..021, 2026-11-06: Đà Nẵng only
@@ -27,6 +27,10 @@ info:
     published by the automated pipeline (`python -m app.cli pipeline run`). Kept: API-037 (owner emergency takedown)
     and API-042 (release-gate counts). `409 deletion_in_progress` listed on every authenticated /v1 route except
     API-006/API-007.
+    1.0.2 (2026-11-08): `Leg.estimated` (boolean, default false) and Plan Health conflict type `LEG_ESTIMATED`
+    with new severity `INFO` (owner demo without Google Routes: straight-line estimates, only when
+    `GONARRA_ENVIRONMENT` is development, test or demo; INFO never changes `plan_health`). `Conflict.severity`
+    enum gains `INFO`.
 servers:
   - url: https://api.example.invalid
     description: Placeholder; hostname pending OQ-039.
@@ -2374,6 +2378,13 @@ components:
         measured_at:
           type: [string, 'null']
           format: date-time
+        estimated:
+          type: boolean
+          default: false
+          description: |
+            1.0.2. True when distance_m / duration_s are a straight-line demo estimate (no Google Routes key;
+            development, test and demo environments only), not a measurement. Such a leg also carries a
+            `LEG_ESTIMATED` (INFO) conflict. Never true in staging or production.
         conflicts:
           type: array
           items:
@@ -2388,6 +2399,7 @@ components:
             Plan Health is code (ADR-011 0.3). Calendar rules: CLOSED_ON_DATE and LEG_MODE_RESTRICTED are
             blocking; LUNAR_EVENT_CONFLICT, TICKET_VALIDITY and SEASONAL_WARNING are warnings. Web stops
             (ADR-014): WEB_PLACE_UNVERIFIED caps the plan at WARNING; WEB_PLACE_UNRESOLVED is blocking.
+            LEG_ESTIMATED (1.0.2, severity INFO) marks a leg whose values are a demo estimate (`Leg.estimated`).
           enum:
             - CLOSED_AT_PLANNED_TIME
             - LEG_UNAVAILABLE
@@ -2402,9 +2414,11 @@ components:
             - SEASONAL_WARNING
             - WEB_PLACE_UNVERIFIED
             - WEB_PLACE_UNRESOLVED
+            - LEG_ESTIMATED
         severity:
           type: string
-          enum: [BLOCKING, WARNING]
+          description: BLOCKING → plan BLOCKED; WARNING → plan at most WARNING; INFO (1.0.2) is a notice only and never changes plan_health.
+          enum: [BLOCKING, WARNING, INFO]
         message:
           type: string
         rule_id:

@@ -74,6 +74,8 @@ class SnapshotLeg(_Snap):
     data_provider_id: uuid.UUID | None = None
     measured_at: datetime | None = None
     expires_at: datetime | None = None
+    # Demo estimate (EstimateProvider), not a Google Routes measurement (openapi Leg.estimated).
+    estimated: bool = False
     conflicts: list[Conflict] = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -132,7 +134,12 @@ class PublishedPlace(BaseModel):
     visit_minutes_max: int
 
 
-SEVERITY_HEALTH: dict[str, PlanHealth] = {"BLOCKING": "BLOCKED", "WARNING": "WARNING"}
+# INFO notices (LEG_ESTIMATED) are shown but never change plan_health.
+SEVERITY_HEALTH: dict[str, PlanHealth] = {
+    "BLOCKING": "BLOCKED",
+    "WARNING": "WARNING",
+    "INFO": "GOOD",
+}
 
 
 def evaluate_health(snapshot: PlanSnapshot) -> tuple[PlanHealth, list[Conflict]]:
@@ -166,7 +173,7 @@ def evaluate_health(snapshot: PlanSnapshot) -> tuple[PlanHealth, list[Conflict]]
         level = SEVERITY_HEALTH[reason.severity]
         if level == "BLOCKED":
             health = "BLOCKED"
-        elif health == "GOOD":
+        elif level == "WARNING" and health == "GOOD":
             health = "WARNING"
     if health == "GOOD" and any(
         leg.availability != "AVAILABLE" for day in snapshot.days for leg in day.legs
