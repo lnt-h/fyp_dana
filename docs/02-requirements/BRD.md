@@ -7,7 +7,7 @@
 | Date | 2026-11-09 |
 | Owner | Lê Ngọc Tấn Hiền (student author, product owner, operator) |
 | Approver | trantrongminh, FYP mentor (full name and title pending, OQ-001) |
-| Status | Draft — [Pending] mentor sign-off at M0 (DEC-013, DEC-015, DEC-022, DEC-023, DEC-025 and DEC-028 need explicit confirmation; OQ-131, OQ-132, OQ-133, OQ-135) |
+| Status | Draft — [Pending] mentor sign-off at M0 (DEC-013, DEC-015, DEC-022, DEC-023, DEC-031, DEC-032 and DEC-033 need explicit confirmation; OQ-131, OQ-132, OQ-135, OQ-136) |
 | Lineage | Condensed from BRD 0.4 and the re-baseline requirements 1.2 (DEC-013..DEC-028). IDs preserved; withdrawn or merged IDs are listed, never renumbered. Full previous text at git tag `docs-sdlc-full`. |
 
 This document holds the business half of the requirements: product, personas, objectives and metrics, scope,
@@ -30,14 +30,14 @@ off to booking partners.
 The thesis claim is a *source-checked local layer*: every place, fact and answer carries an attributed source, a
 source-check date and a trust label, and a user study measures this against ChatGPT/Gemini (DEC-020). Since
 DEC-022 no content is reviewed by a human: `VERIFIED` means "passed Gonarra's automated source checks", and no copy
-claims human review. Descriptions and facts may be summarised or extracted by AI **from supplied sources only** and
-are labelled "Summarised from sources" (DEC-025, DEC-028).
+claims human review. Catalog descriptions and facts come only from human-written, openly licensed sources and the
+owner sheet, never from a model (DEC-031); a place without a description says "No description yet" (DEC-033).
 
 | Persona | Description |
 |---|---|
 | P-01 Linh | Domestic weekend traveler, 27, Android, Vietnamese; 2 days in Đà Nẵng with a friend; wants a plan that fits and a driver-ready address. |
 | P-02 Tom | International first-time visitor, 34, iPhone, English only; 2 relaxed days in the Hội An area; cannot read Vietnamese addresses, distrusts unsourced AI answers. |
-| P-03 Operator (rev. 1, DEC-022; was Curator) | Lê Ngọc Tấn Hiền at a terminal: maintains the CSV sheet and the closure-rule YAML, runs the ingestion and enrichment CLIs, watches the release-gate count and can unpublish a place in an emergency. No review UI. |
+| P-03 Operator (rev. 1, DEC-022; was Curator) | Lê Ngọc Tấn Hiền at a terminal: maintains the CSV sheet and the closure-rule YAML, runs the ingestion and publication CLIs, watches the release-gate count and can unpublish a place in an emergency. No review UI. |
 | P-04 Study participant | P-01/P-02 profiles under consent, using pseudonymous study accounts. |
 
 ## 2. Objectives and metrics
@@ -60,7 +60,7 @@ are labelled "Summarised from sources" (DEC-025, DEC-028).
 | MET-006 | Saved-trip integrity | Saved itineraries changed without Save + unsaved edits lost, under failure injection | 0 |
 | MET-007 | Guide grounding | Sampled answers fully supported by their cited evidence ÷ sampled answers (independent check, OQ-111) | ≥ 95% |
 | MET-008 | Correct refusal | Out-of-evidence questions answered `insufficient_evidence` ÷ such questions | ≥ 90% |
-| MET-011 rev. 3 | Catalog coverage — release gate (rev. 2 by DEC-022, rev. 3 by DEC-025) | Auto-published bilingual Đà Nẵng places that pass the automated publication gate, and of those the places in the Hội An area codes (`hoi-an-old-town`, `hoi-an-beaches-islands`); weekly from `GET /v1/admin/cities/summary`; plus a random 10% `audit-sample` CSV hand-checked by the owner and reported as an accuracy figure (a measurement, not a review; it includes AI-extracted facts, DEC-028) | ≥ 100 Đà Nẵng; ≥ 30 Hội An area; audit accuracy reported |
+| MET-011 rev. 4 | Catalog coverage — release gate (rev. 2 by DEC-022, rev. 3 by DEC-025, rev. 4 by DEC-031/DEC-033) | Auto-published, **complete-card** Đà Nẵng places that pass the automated publication gate: both-locale names, category, area, a location inside the city boundary and ≥ 1 attributed source revision (a description is optional, DEC-033 option A); of those, the places in the Hội An area codes (`hoi-an-old-town`, `hoi-an-beaches-islands`); weekly from `GET /v1/admin/cities/summary`. Reported separately: places with human-written VI **and** EN descriptions (target ≥ 60 via the owner sheet), and a random 10% `audit-sample` CSV hand-checked by the owner as an accuracy figure (a measurement, not a review). | ≥ 100 Đà Nẵng; ≥ 30 Hội An area; human-written descriptions and audit accuracy reported |
 | MET-014 | Comparative accuracy and trust | Per participant, the same Đà Nẵng prompt in Gonarra and in ChatGPT or Gemini: errors per day (closed place, wrong hours, non-existent place), trust rating (Likert), whether the trust label was noticed | Gonarra errors/day < baseline; label noticed by a majority; targets fixed in the [test plan](../07-verification/TEST_PLAN.md) before the study |
 
 Withdrawn as standalone metrics (thresholds kept where named): MET-009 → FR-061 acceptance; MET-010 → NFR-012;
@@ -73,7 +73,7 @@ is enabled; Hà Nội, TP. Hồ Chí Minh and Huế are roadmap. One trip = one 
 
 | Priority | Items |
 |---|---|
-| Must | Place search; proposal from a prompt plus preferences; timeline and map (iPhone / Apple Maps first for the demo, Android map deferred: DEC-023, OQ-135); Plan Health including calendar rules; edits and explicit Save; place card; city-level text Guide with sources; trust label on every surface; catalog-first research agent with an existence check and auto-promotion (Google Places in the design; open-data matching under DEC-023, OQ-134); booking handoff links (Agoda, Booking.com, Klook, 12Go); accounts and account deletion; automated ingestion pipeline (Wikidata, OSM, Wikipedia, Wikimedia Commons photos, owner CSV; DEC-024) with a deterministic publication gate, grounded AI-summarised descriptions (DEC-025) and AI-extracted facts from supplied sources (DEC-028); owner-maintained closure-rule YAML; operator takedown and release-gate count (DEC-022) |
+| Must | Place search; proposal from a prompt plus preferences; timeline and map (iPhone / Apple Maps first for the demo, Android map deferred: DEC-023, OQ-135); Plan Health including calendar rules; edits and explicit Save; place card; city-level text Guide with sources; trust label on every surface; catalog-first research agent with an existence check and auto-promotion (Google Places in the design; open-data matching under DEC-023, OQ-134); booking handoff links (Agoda, Booking.com, Klook, 12Go); accounts and account deletion; automated ingestion pipeline (Wikidata, OSM, Wikipedia, Wikimedia Commons photos, owner CSV; DEC-024) with a deterministic publication gate, human-written descriptions from open sources and the owner sheet (Wikivoyage, Wikipedia, OSM, DEC-024/DEC-031/DEC-032); owner-maintained closure-rule YAML; operator takedown and release-gate count (DEC-022) |
 | Should | Stop lock with single-day regeneration; voice questions (on-device STT/TTS); photo identification of published places within 300 m; Today view; trip deletion |
 | Could | Indicative stay prices (LiteAPI), behind a flag, never stored |
 | Won't (roadmap) | Other cities; multi-city trips; in-app booking or payment; flights; social features; check-in or GPS arrival detection; audio tours; turn-by-turn navigation; **unlabelled** web content; an LLM team leader or AgentOS service; human curator review, a review queue or an admin SPA (DEC-022) |
@@ -81,10 +81,11 @@ is enabled; Hà Nội, TP. Hồ Chí Minh and Huế are roadmap. One trip = one 
 Won't items stay on the post-FYP roadmap with extension points but no implementation (DEC-004).
 
 - **Cut order if late (DEC-003 rev. 1):** prices → photo → voice → lock/regeneration → iOS. **Never cut** bilingual
-  content, the Đà Nẵng catalog gate (MET-011 rev. 3) or explicit Save.
-- **Release gate:** MET-011 rev. 3 met (≥ 100 auto-published bilingual Đà Nẵng places passing the code gate,
-  ≥ 30 in the Hội An area codes, 10% owner audit sample reported). The full release criteria (Must FRs, quality
-  thresholds, Should/Could handling) are in [PRD §5](../03-analysis/PRD.md#5-release-and-acceptance-criteria).
+  content, the Đà Nẵng catalog gate (MET-011 rev. 4) or explicit Save.
+- **Release gate:** MET-011 rev. 4 met (≥ 100 auto-published complete-card Đà Nẵng places passing the code gate,
+  ≥ 30 in the Hội An area codes, human-written description count and 10% owner audit sample reported; DEC-033). The
+  full release criteria (Must FRs, quality thresholds, Should/Could handling) are in
+  [PRD §5](../03-analysis/PRD.md#5-release-and-acceptance-criteria).
 - **Naming:** "Gonarra" is a working name; app name, slug, URL scheme, bundle IDs, deep links and hostnames do not
   change without a naming decision.
 
@@ -92,7 +93,7 @@ Won't items stay on the post-FYP roadmap with extension points but no implementa
 
 | ID | Rule |
 |---|---|
-| BRU-002 rev. 2 | (Rev. 1 by DEC-022; rev. 2 by DEC-028.) A model may **propose** a `WEB_UNVERIFIED` candidate only through the research schema (name, source URL, existence-check identifier, Gonarra's existence verdict). It never publishes a place — publishing is the deterministic automated gate in code — and never invents facts, hours, prices, distances or durations. A model may **extract** a fact from supplied sources only: the fact must cite a supplied evidence id; code parses hours and prices into the fact shapes and rejects contact data; the fact is stored with `origin = AI_EXTRACTED`, a `STRONG`/`WEAK` grounding flag and its source link, and shown as "Summarised from sources". Anything else is rejected and stays unknown. |
+| BRU-002 rev. 3 | (Rev. 1 by DEC-022; rev. 2 by DEC-028; rev. 3 by DEC-031.) A model may **propose** a `WEB_UNVERIFIED` candidate only through the research schema (name, source URL, existence-check identifier, Gonarra's existence verdict). It never publishes a place — publishing is the deterministic automated gate in code — and never authors a displayed description or fact, hours, prices, distances or durations. Catalog descriptions and facts come only from human-written, openly licensed sources (Wikidata, OSM, Wikipedia, Wikivoyage, Commons) and the owner sheet; a missing description is shown as "No description yet" (DEC-033) and anything unsupported stays unknown. |
 | BRU-003 rev. 1 | (Revised by DEC-022; was "only after curator review".) A place is `VERIFIED` (published) only after it passes the automated publication gate: VI and EN content present, location inside the Đà Nẵng boundary, category set, every shown fact backed by an attributed source revision, licence recorded. Copy shows "Source-checked · <date>" / "Đã đối chiếu nguồn · <date>" and never claims human review. A web-found place stays `WEB_UNVERIFIED` until it is auto-promoted and published by the gate. |
 | BRU-004 | Provider data is stored only under a named provider policy (provider, field, purpose, class, TTL); unknown combinations are not stored. |
 | BRU-005 | Indicative prices are shown at viewing time only and never stored with a trip. |
@@ -116,11 +117,12 @@ rule BR-046 (nothing identifying reaches AI or search providers) is specified wi
   fixed points, never user GPS; straight-line estimates exist only in development/test/demo and are never cached
   (BRU-006 rev. 1).
 - Tavily and fetched pages: search results and extracted text are ephemeral caches (7 days, pending OQ-122); a
-  fetched page's URL, hash and `retrieved_at` are kept as an immutable source revision, which is the provenance of
-  any AI-summarised description or AI-extracted fact (DEC-025, DEC-028).
+  fetched page's URL, hash and `retrieved_at` are kept as an immutable source revision for the research answer.
+  Catalog content never uses fetched page text (DEC-031).
 - Open data (Wikidata; OSM via Overpass under ODbL with "© OpenStreetMap contributors"; Wikipedia extracts;
-  Wikimedia Commons photos limited to CC0/PD/CC BY/CC BY-SA with a named author, hot-linked) keeps licence and
-  attribution per source and per file and displays it (FR-008, FR-016; DEC-024).
+  Wikivoyage under CC BY-SA 4.0, DEC-032; Wikimedia Commons photos limited to CC0/PD/CC BY/CC BY-SA with a named
+  author, hot-linked) keeps licence and attribution per source and per file and displays it (FR-008, FR-016;
+  DEC-024).
 - LiteAPI prices are never stored (BRU-005).
 - Nothing identifying is sent to any provider: no account IDs, contact data or precise location (BR-046). Free-tier
   terms allow providers to use inputs, so the redactor is a correctness feature (RSK-002).
@@ -133,10 +135,10 @@ rule BR-046 (nothing identifying reaches AI or search providers) is specified wi
 | CON-002 / ASM-004 rev. 1 | One person operates everything; no human review of catalog content (DEC-022); ≥ 15 places auto-published per week from 2026-11-16. | < 10/week for two weeks triggers the cut order; weekly count in `progress.md`. |
 | CON-003 / ASM-002 | FYP submission early February 2027 (planning date 2027-02-01); study with 10–15 consenting participants (≥ 4 per language) by 2027-01-31. | Confirm the date with the faculty (OQ-002); ethics and consent (OQ-004). |
 | CON-005 | Stack: Expo SDK 58 + Clerk (mobile); Python 3.12 FastAPI + SQLAlchemy 2 + Alembic; PostgreSQL 16 + PostGIS + pgvector; OR-Tools; `agno==3.1.12` with imports confined to `app/agents/` and `app/ai/`. | Pins from the day-1 spike (OQ-126, DEC-026). |
-| ASM-017 | The Hội An area contains ≥ 30 places that can pass the gate. | MET-011 rev. 3 missed; count after 4 weeks of ingestion (2026-12-15). |
-| ASM-018 | Tavily free tier (≈ 1 000 credits/month) covers development, enrichment runs and the study with daily caps and 300 credits reserved. | Research disabled near the study; ledger in `ai_quota_ledger` (OQ-122). |
+| ASM-017 | The Hội An area contains ≥ 30 places that can pass the gate. | MET-011 rev. 4 missed; count after 4 weeks of ingestion (2026-12-15). |
+| ASM-018 | Tavily free tier (≈ 1 000 credits/month) covers development, research runs and the study with daily caps and 300 credits reserved. | Research disabled near the study; ledger in `ai_quota_ledger` (OQ-122). |
 | ASM-019 | Hybrid retrieval with `pg_trgm` + pgvector gives acceptable Vietnamese recall without `unaccent`/tsvector. | Guide misses evidence; retrieval spike on the Guide golden set (2027-01-06). |
-| ASM-020 | Free-tier models extract facts from VI/EN pages well enough for `WEB_UNVERIFIED` candidates and AI-extracted facts. | Precision too low; manual count in the research spike and the audit sample. |
+| ASM-020 | Free-tier models extract facts from VI/EN pages well enough for `WEB_UNVERIFIED` research candidates. | Precision too low; manual count in the research spike. |
 | ASM-021 | Agno agents run in-process in FastAPI without workers within a 2 GiB host. | Architecture change; load test before the study (2026-11-20). |
 | ASM-022 | The post-merger Đà Nẵng boundary and the Hội An area can be defined from a licensed open dataset. | `OUTSIDE_CITY` rejects Hội An places; travel-area list instead of wards (OQ-121). |
 
@@ -152,8 +154,8 @@ Live risks (RSK-xxx) are tracked in the [decision log](../decisions.md#4-live-as
 | Operator | The owner acting through the operator allow-list: emergency unpublish and release-gate count only (was "curator"). |
 | Web-found place (`WEB_UNVERIFIED`) | A place found by the research agent on the open web, checked for existence, shown with source URL and fetched date; saveable as a stop; caps Plan Health at `WARNING`. |
 | Trust label | The `VERIFIED` / `WEB_UNVERIFIED` marker shown on every surface that names a place or cites evidence. |
-| AI summary | A VI or EN description written by the grounded writer from supplied source text only (`translation_origin = AI_SUMMARY`), labelled "Tóm tắt từ nguồn" / "Summarised from sources" (DEC-025). |
-| AI-extracted fact | An operational fact (address, opening hours, admission price) extracted from supplied sources with a cited evidence id (`origin = AI_EXTRACTED`, grounding `STRONG`/`WEAK`), labelled "Summarised from sources" with its source link (DEC-028). |
+| Wikivoyage listing | A human-written en/vi Wikivoyage entry (`see/do/eat/drink/buy`) imported under CC BY-SA 4.0 with attribution and a link to the page history; its text may be a place description, its `lastedit` date is the verification date (DEC-032). |
+| "No description yet" | The place-card state when no human-written description exists in the chosen locale; the description is optional at the gate (DEC-033), never machine-translated or AI-written. |
 | Operational fact | A fact that affects a visit: opening hours, admission, address, entrance, closure; "unknown" when unsupported; stale after 180 days. |
 | Area | A travel area of Đà Nẵng (e.g. Hội An Old Town, Sơn Trà) used for filtering, the gate and closure rules; not an administrative ward. |
 | Proposal / preview revision | An unsaved, immutable itinerary version produced or edited; becomes the trip only on explicit Save. |
@@ -173,3 +175,4 @@ Live risks (RSK-xxx) are tracked in the [decision log](../decisions.md#4-live-as
 |---|---|---|---|
 | 0.1–0.4 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | Kit-based BRD for five cities (BR-001..BR-050), two audit fix rounds; kept at tag `docs-sdlc-full` |
 | 2.0 | 2026-11-09 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | Rewritten from the condensed re-baseline requirements 1.2 (Đà Nẵng only, DEC-013..DEC-025) plus DEC-028 (BRU-002 rev. 2) under DEC-029; functional and non-functional requirements moved to the PRD |
+| 2.1 | 2026-11-09 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | DEC-031 (no AI-generated catalog content; BRU-002 rev. 3, DEC-025/028 retired), DEC-032 (Wikivoyage source), DEC-033 (description optional, MET-011 rev. 4); release gate, Must list, data-collection and glossary updated |

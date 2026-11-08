@@ -2,12 +2,12 @@
 
 | Field | Value |
 |---|---|
-| Version / date | 2.0 / 2026-11-09 |
+| Version / date | 2.1 / 2026-11-09 |
 | Owner | Lê Ngọc Tấn Hiền |
 | Approver | FYP mentor — [Pending] |
 | Scope | Đà Nẵng-only FYP release, including the Hội An area (DEC-013); decisions and open questions in [`docs/decisions.md`](../decisions.md) |
 | Companion | [Research protocol](RESEARCH_PROTOCOL.md) (comparative user study, consent forms, session script) |
-| History | 2.0 condenses the 2026-11-04 IEEE 829 set (test plan 0.1, `TEST_CASES.md`, `RTM.md`) and the condensed test plan 1.2 of 2026-11-08 (DEC-022, DEC-023, DEC-025). The full set is kept at git tag `docs-sdlc-full`; `TC-nnn` cited below refer to `TEST_CASES.md` at that tag. |
+| History | 2.0 condenses the 2026-11-04 IEEE 829 set (test plan 0.1, `TEST_CASES.md`, `RTM.md`) and the condensed test plan 1.2 of 2026-11-08 (DEC-022, DEC-023, DEC-025); 2.1 applies DEC-031..DEC-034 (no AI catalog content, Wikivoyage, description optional, API hardening) and MET-011 rev. 4. The full set is kept at git tag `docs-sdlc-full`; `TC-nnn` cited below refer to `TEST_CASES.md` at that tag. |
 
 Nothing in this plan has been executed as an acceptance run. A check passes only at its stated threshold with
 evidence stored; missing evidence means `NOT RUN`, not `PASS`. Unit and integration suites exist and run in CI
@@ -21,7 +21,7 @@ evidence stored; missing evidence means `NOT RUN`, not `PASS`. Unit and integrat
 | API static | Lint, strict types, import contracts (architecture layering; Agno confined to `app/agents/` and `app/ai/`) | Every push and PR | `uv run ruff check .` · `uv run mypy app` · `uv run lint-imports` |
 | API unit | Domain, scheduling, Plan Health, calendar, validators, redactor, quota ledger; agents and providers faked through dependency overrides | Every push and PR | `uv run pytest` (integration excluded by default) |
 | API contract | Generated OpenAPI matches the committed `apps/api/openapi.json` | Every push and PR | `uv run python scripts/export_openapi.py --check` |
-| API integration | Repositories, migrations, seed, SSE, Save/idempotency and quota ledger against a real database; Alembic round trip | Every push and PR | `docker compose up -d db --wait` · `uv run alembic upgrade head` · `uv run python -m app.cli seed` · `uv run pytest -m integration` · `uv run alembic downgrade base && uv run alembic upgrade head` |
+| API integration | Repositories, migrations, seed, SSE, Save/idempotency and quota ledger against a real database; Alembic round trip | Every push and PR | `docker compose up -d db --wait` · create a scratch database named `gonarra_<x>_test` (the name must end `_test`, `_it` or `_ci`; DEC-034) · `GONARRA_DATABASE_URL=...gonarra_<x>_test uv run alembic upgrade head` · `... uv run python -m app.cli seed` · `... uv run pytest -m integration` · `... uv run alembic downgrade base && ... uv run alembic upgrade head` |
 | API image | Docker image builds for arm64 and amd64 | Every push and PR | `docker buildx build --platform linux/arm64,linux/amd64 .` |
 | Mobile | Type check; Expo dependency versions | Every push and PR | `npm run typecheck` · `npm run check:dependencies` |
 | AI evals | Golden sets (§3) against real providers (Gemini, Groq, Tavily, routing); results committed as JSON | Nightly and on dispatch only, never per push (planned, M4) | `uv run pytest -m eval` (marker and `apps/api/evals/` not created yet); Agno `AccuracyEval` with a Groq or Flash-Lite judge; `Case(expected_tool_calls=...)` for the researcher |
@@ -39,7 +39,7 @@ evidence stored; missing evidence means `NOT RUN`, not `PASS`. Unit and integrat
 | MET-006 | Saved-trip integrity | Failure injection {AI, routing, network} × {generate, edit, Save, regenerate}, 3 runs per cell (§5) | 0 saved trips changed without Save; 0 unsaved edits lost |
 | MET-007 | Guide grounding | Eval: citation validity (every claim cites supplied evidence) plus a 20% human claim-to-source sample (OQ-111) | ≥ 95% |
 | MET-008 | Correct refusal | Eval: `insufficient_evidence` precision and recall on answerable + out-of-evidence sets | P and R ≥ 90% |
-| MET-011 rev. 3 | Catalog coverage | Weekly report from `GET /v1/admin/cities/summary`; random 10% `audit-sample` CSV of published places hand-checked by the owner (DEC-025) | ≥ 100 auto-published bilingual places in Đà Nẵng passing the code gate, ≥ 30 in the Hội An area; audit accuracy reported in the thesis |
+| MET-011 rev. 4 | Catalog coverage | Weekly report from `GET /v1/admin/cities/summary`; count of places with human-written VI+EN descriptions; random 10% `audit-sample` CSV of published places hand-checked by the owner (DEC-033) | ≥ 100 auto-published complete-card places in Đà Nẵng passing the code gate, ≥ 30 in the Hội An area; human-written description count and audit accuracy reported in the thesis |
 | MET-014 | Itinerary errors per day | `evals/score_itinerary.py` on study outputs: closed place, wrong hours, non-existent place, per planned day | Reported per arm; Gonarra lower than the baseline is the thesis claim, no pass threshold |
 | Eval-only | Selection validity | Selector output IDs ⊆ candidates, no duplicates, must-sees present (after ≤ 1 repair) | 100% |
 | Eval-only | Hallucinated-place rate | Stops whose `place_id` is not a published Đà Nẵng place and not a labelled web candidate | 0 |
@@ -95,8 +95,8 @@ Level: U unit · I integration · E eval (real providers) · M manual.
 | VT-024 | Failure injection matrix | I, M | 36 runs (27 if regeneration is cut) per release candidate; MET-006 = 0 | TC-117 |
 | VT-025 | Automated gate rejects incomplete candidates | U, I | Each of: missing VI content, missing EN content, location outside the Đà Nẵng boundary, no category, a shown fact without an attributed source revision, a cited source without a licence → not published, the failed check named in the run report and counted per reason in the city summary; a complete candidate publishes with actor `system:gonarra-pipeline` | FR-013 rev. 1, FR-014 rev. 1, DEC-022 |
 | VT-026 | Auto-publish idempotent; unpublish sticks | I | Running the gate twice on unchanged input creates no second publication and no duplicate place; an operator-unpublished place is not re-published unless its source revision changes; unpublish and city summary refused for non-operators | FR-014 rev. 1, FR-018 rev. 1, NFR-012 rev. 1 |
-| VT-027 | No model publishes; grounded extraction; unknown stays unknown | U | No code path from `agents`/`ai` writes publications, `place_facts` or `place_closure_rules` (import-linter + test); a model-extracted fact must cite a supplied evidence ID, is parsed by code into the fact shape, stored with `origin = AI_EXTRACTED` and a grounding flag, and contact data is rejected (DEC-028); a CSV/open-data row without a source yields "unknown" | BRU-002 rev. 1, FR-011 rev. 1 |
-| VT-028 | Copy never claims human review; closure YAML load | U, M | Grep of VI/EN locale files and API-served strings finds 0 occurrences of "Verified", "reviewed", "kiểm duyệt", "curator"; `VERIFIED` renders "Source-checked · <date>" / "Đã đối chiếu nguồn · <date>"; AI-written text labelled "Summarised from sources" / "Tóm tắt từ nguồn"; loading `closure_rules/da-nang.yaml` twice is idempotent, records the git revision and rejects an invalid rule naming it | FR-098 rev. 1, FR-107 rev. 1, DEC-022, DEC-025 |
+| VT-027 | No model authors catalog content; unknown stays unknown | U | No code path from `agents`/`ai` writes publications, `place_facts`, descriptions or `place_closure_rules` (import-linter + test); the gate rule `AI_CONTENT` rejects any localization with `translation_origin` `AI_SUMMARY`/`AI_DRAFT` and any fact with `origin = AI_EXTRACTED`; a CSV/open-data row without a source yields "unknown" (DEC-031) | BRU-002 rev. 3, FR-011 rev. 2 |
+| VT-028 | Copy never claims human review; closure YAML load | U, M | Grep of VI/EN locale files and API-served strings finds 0 occurrences of "Verified", "reviewed", "kiểm duyệt", "curator"; `VERIFIED` renders "Source-checked · <date>" / "Đã đối chiếu nguồn · <date>"; Wikivoyage text shows its attribution and CC BY-SA 4.0 link (DEC-032); no catalog surface carries an AI label; loading `closure_rules/da-nang.yaml` twice is idempotent, records the git revision and rejects an invalid rule naming it | FR-098 rev. 1, FR-107 rev. 1, DEC-022, DEC-032 |
 | VT-029 | Estimated legs stay out of acceptance | U, I | Estimate routing refuses to start when `GONARRA_ENVIRONMENT` is `staging` or `production`; estimated legs carry `estimated=true` and INFO `LEG_ESTIMATED`, are shown with "≈" and are never cached | DEC-023, BRU-006 rev. 1 |
 
 ### 4.1 Reference journey HA-02 (two days in the Hội An area)
@@ -131,8 +131,8 @@ Steps 1, 2, 4 (without lock), 5 and 6 are Must; step 3 is recorded "Not applicab
   Accessibility Scanner + TalkBack, iOS Accessibility Inspector + VoiceOver, contrast checker on screenshots.
 - **Bilingual (NFR-026).** i18n key parity between `vi` and `en` with no empty values; every traveller screen walked in
   each language with 0 untranslated strings; Guide answers 100% in the request language; times in Vietnam local time
-  whatever the device time zone; content never machine-translated to pass the gate (stated exception: grounded
-  `AI_SUMMARY` descriptions, DEC-025).
+  whatever the device time zone; content never machine-translated, paraphrased or AI-written to pass the gate
+  (DEC-031); a place without a human-written description shows "No description yet" / "Chưa có mô tả" (DEC-033).
 
 Defect severity: **Blocking** breaks a Must criterion, an exit metric, privacy or data integrity, or prevents a
 study task — fixed before exit; **Major** breaks a Should criterion or degrades a Must one with a workaround — fixed
@@ -157,7 +157,7 @@ Full procedure, consent forms and script: [RESEARCH_PROTOCOL.md](RESEARCH_PROTOC
 
 | Environment | Purpose | Notes |
 |---|---|---|
-| Local | Development, unit and integration runs | PostgreSQL 16 + PostGIS + pgvector from the root `docker-compose.yml`; `apps/api/.env` is never committed. Run unit tests with `GONARRA_DEMO_SHARED_USER` off, and integration tests against a freshly migrated database, not the developer catalog |
+| Local | Development, unit and integration runs | PostgreSQL 16 + PostGIS + pgvector from the root `docker-compose.yml`; `apps/api/.env` is never committed. Run unit tests with `GONARRA_DEMO_SHARED_USER` off, and integration tests against a freshly migrated scratch database whose name ends `_test` / `_it` / `_ci` (DEC-034 refuses the developer catalog) |
 | CI (GitHub Actions, `.github/workflows/ci.yml`) | Gate on every pull request and every push to `main` | Job `api`: Python 3.12 via `uv`, `uv sync --locked --all-groups`, then the API commands below and the multi-arch image build; job `mobile`: Node 22, `npm ci`, then the mobile commands |
 | Demo (`GONARRA_ENVIRONMENT=demo`) | Owner demos only | May enable estimate routing (DEC-023) and the shared demo user (`GONARRA_DEMO_SHARED_USER`, mobile `EXPO_PUBLIC_DEMO_NO_AUTH`). Never used for acceptance or study runs |
 | Staging | Performance, failure injection, acceptance | Second Compose project and database on the study host (OQ-110, OQ-129); measured router only (OQ-132) |
@@ -172,6 +172,8 @@ uv run lint-imports
 uv run pytest                                   # unit; integration excluded by default
 uv run python scripts/export_openapi.py --check
 docker compose up -d db --wait                  # from the repository root
+docker compose exec -T db createdb -U gonarra gonarra_it   # name must end _test / _it / _ci (DEC-034)
+export GONARRA_DATABASE_URL=postgresql+asyncpg://gonarra:gonarra@localhost:5432/gonarra_it
 uv run alembic upgrade head
 uv run python -m app.cli seed
 uv run pytest -m integration
@@ -184,7 +186,7 @@ Mobile (`apps/mobile`): `npm run typecheck` · `npm run check:dependencies`.
 ## 8. Entry and exit criteria
 
 - Entry (any level): commit recorded; CI `api` and `mobile` green on it; `/health` and `/ready` return 200 on the target environment.
-- Entry (evals, acceptance): golden sets frozen and tagged; MET-011 rev. 3 met for runs on the real catalog; acceptance and study runs use a measured router, never the estimate provider (DEC-023, OQ-132); migrations at head on a clean database.
+- Entry (evals, acceptance): golden sets frozen and tagged; MET-011 rev. 4 met for runs on the real catalog; acceptance and study runs use a measured router, never the estimate provider (DEC-023, OQ-132); migrations at head on a clean database.
 - Entry (study): OQ-004 and OQ-131 answered and consent approved; VT-001..VT-029 passed on the study build (VT-015 only if the Guide web fallback ships); pilot session done.
 - Exit (release candidate): all Must criteria pass; HA-02 passes; MET-004 = 100%, MET-005 = 0, MET-006 = 0, MET-007 ≥ 95%, MET-008 ≥ 90%, selection validity 100%, hallucinated-place rate 0; 0 open blocking defects.
 - Exit (release candidate): Should/Could features pass their checks or are disabled and recorded as cut under DEC-003 rev. 1 with the approver's agreement.

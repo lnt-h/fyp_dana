@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Gonarra physical schema (PostgreSQL 16 + PostGIS + pgvector + pgcrypto + pg_trgm)
--- GENERATED from the Alembic migrations at head 20261108_0009 on 2026-11-09. Do not edit by hand:
+-- GENERATED from the Alembic migrations at head 20261109_0010 on 2026-11-09. Do not edit by hand:
 -- the migrations in apps/api/migrations/versions/ are the source of truth (DEC-029).
 -- Narrative and rationale: docs/04-design/data/data-model.md.
 -- Regenerate after every migration (from the repository root, Compose DB running):
@@ -16,7 +16,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict MCSzH36Do0ebXGp4YcFXLtnQuLSrUj0AHmKTQJqBkCHKCzjeWPW7UzDGQLichQI
+\restrict tfMlDwgPsSqKwXaG3bzYMIChplVTGFRdIbJs77QLmnuXufwkaK8IhTT2Y6ngvM5
 
 -- Dumped from database version 16.15 (Debian 16.15-1.pgdg13+2)
 -- Dumped by pg_dump version 16.15 (Debian 16.15-1.pgdg13+2)
@@ -274,7 +274,7 @@ BEGIN
     INSERT INTO catalog_publications (
         place_id, city_id, publication_revision, state, category_code, area_code, location, entrance_location,
         visit_minutes_min, visit_minutes_suggested, visit_minutes_max,
-        localization_vi_id, localization_en_id, corpus_revision, published_by_account_id)
+        localization_vi_id, localization_en_id, corpus_revision, published_by_account_id, is_area)
     SELECT p.id, p.city_id, v_revision, 'PUBLISHED', p.category_code, p.area_code, p.location,
            CASE WHEN v_entrance IS NULL THEN NULL
                 ELSE ST_SetSRID(ST_MakePoint((v_entrance ->> 'lng')::float8, (v_entrance ->> 'lat')::float8), 4326)::geography
@@ -284,7 +284,7 @@ BEGIN
              WHERE pl.place_id = p.id AND pl.locale = 'vi' AND pl.review_state = 'APPROVED'),
            (SELECT pl.id FROM place_localizations pl
              WHERE pl.place_id = p.id AND pl.locale = 'en' AND pl.review_state = 'APPROVED'),
-           v_corpus, p_actor_account_id
+           v_corpus, p_actor_account_id, p.is_area
       FROM places p
      WHERE p.id = p_place_id
     RETURNING id INTO v_publication_id;
@@ -612,6 +612,7 @@ CREATE TABLE public.catalog_publications (
     published_at timestamp with time zone DEFAULT now() NOT NULL,
     state_changed_at timestamp with time zone,
     state_reason text,
+    is_area boolean DEFAULT false NOT NULL,
     CONSTRAINT ck_catalog_publications_publication_revision CHECK ((publication_revision > 0)),
     CONSTRAINT ck_catalog_publications_state CHECK ((state = ANY (ARRAY['PUBLISHED'::text, 'SUPERSEDED'::text, 'WITHDRAWN'::text]))),
     CONSTRAINT ck_catalog_publications_state_change CHECK (((state = 'PUBLISHED'::text) = (state_changed_at IS NULL))),
@@ -624,6 +625,13 @@ CREATE TABLE public.catalog_publications (
 --
 
 COMMENT ON TABLE public.catalog_publications IS 'Immutable publication manifest (snapshot of place attributes + exact revisions). Only state columns change.';
+
+
+--
+-- Name: COLUMN catalog_publications.is_area; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.catalog_publications.is_area IS 'Snapshot of places.is_area at publication (migration 0010); planner pools exclude true.';
 
 
 --
@@ -1190,7 +1198,8 @@ CREATE TABLE public.place_localizations (
     reviewed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     name_is_source_fallback boolean DEFAULT false NOT NULL,
-    CONSTRAINT ck_place_localizations_approved_complete CHECK (((review_state <> ALL (ARRAY['APPROVED'::text, 'SUPERSEDED'::text])) OR ((reviewed_at IS NOT NULL) AND (description IS NOT NULL)))),
+    description_source_revision_id uuid,
+    CONSTRAINT ck_place_localizations_approved_complete CHECK (((review_state <> ALL (ARRAY['APPROVED'::text, 'SUPERSEDED'::text])) OR (reviewed_at IS NOT NULL))),
     CONSTRAINT ck_place_localizations_locale CHECK ((locale = ANY (ARRAY['vi'::text, 'en'::text]))),
     CONSTRAINT ck_place_localizations_localization_revision CHECK ((localization_revision > 0)),
     CONSTRAINT ck_place_localizations_review_state CHECK ((review_state = ANY (ARRAY['DRAFT'::text, 'APPROVED'::text, 'REJECTED'::text, 'SUPERSEDED'::text]))),
@@ -1217,6 +1226,13 @@ COMMENT ON COLUMN public.place_localizations.translation_origin IS 'ORIGINAL | H
 --
 
 COMMENT ON COLUMN public.place_localizations.name_is_source_fallback IS 'true = this locale has no source name; the original Vietnamese proper name is reused unchanged (never translated).';
+
+
+--
+-- Name: COLUMN place_localizations.description_source_revision_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.place_localizations.description_source_revision_id IS 'Source revision of the displayed description (Wikipedia, Wikivoyage, owner sheet) for attribution and licence (migration 0010, DEC-031/DEC-032). NULL when there is no description.';
 
 
 --
@@ -1252,6 +1268,7 @@ CREATE TABLE public.places (
     content_revision integer DEFAULT 1 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_area boolean DEFAULT false NOT NULL,
     CONSTRAINT ck_places_content_revision CHECK ((content_revision > 0)),
     CONSTRAINT ck_places_ready_complete CHECK (((workflow_state <> ALL (ARRAY['READY_TO_PUBLISH'::text, 'PUBLISHED'::text])) OR ((category_code IS NOT NULL) AND (visit_minutes_min IS NOT NULL) AND (visit_minutes_suggested IS NOT NULL) AND (visit_minutes_max IS NOT NULL)))),
     CONSTRAINT ck_places_slug_format CHECK ((slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'::text)),
@@ -1265,6 +1282,13 @@ CREATE TABLE public.places (
 --
 
 COMMENT ON TABLE public.places IS 'Stable Gonarra place identity (candidate until published). location = place position for map and routing fallback (FR-003, FR-054). area_code = travel area within the city (DEC-013); the composite FK keeps area and place in the same city.';
+
+
+--
+-- Name: COLUMN places.is_area; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.places.is_area IS 'true = an area (bay, peninsula, mountain range, old town …): published for the map and the Guide, never a planner stop (migration 0010, DEC-031).';
 
 
 --
@@ -1795,7 +1819,8 @@ CREATE VIEW public.vw_published_places AS
     cp.visit_minutes_suggested,
     cp.visit_minutes_max,
     cp.corpus_revision,
-    cp.published_at
+    cp.published_at,
+    cp.is_area
    FROM ((public.catalog_publications cp
      JOIN public.place_localizations lv ON ((lv.id = cp.localization_vi_id)))
      JOIN public.place_localizations le ON ((le.id = cp.localization_en_id)))
@@ -2385,14 +2410,6 @@ ALTER TABLE ONLY public.knowledge_chunks
 
 
 --
--- Name: knowledge_chunks uq_knowledge_chunks_city_id_place_id_locale_corpus_revision_sec; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.knowledge_chunks
-    ADD CONSTRAINT uq_knowledge_chunks_city_id_place_id_locale_corpus_revision_sec UNIQUE NULLS NOT DISTINCT (city_id, place_id, locale, corpus_revision, section);
-
-
---
 -- Name: media_assets uq_media_assets_object_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2886,6 +2903,13 @@ CREATE INDEX ix_place_facts_field_code ON public.place_facts USING btree (field_
 
 
 --
+-- Name: ix_place_localizations_description_source_revision_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_place_localizations_description_source_revision_id ON public.place_localizations USING btree (description_source_revision_id);
+
+
+--
 -- Name: ix_place_media_media_asset_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3142,6 +3166,13 @@ CREATE UNIQUE INDEX uq_catalog_publications_place_id_published ON public.catalog
 --
 
 CREATE UNIQUE INDEX uq_import_runs_succeeded_release ON public.import_runs USING btree (data_provider_id, city_id, release_id, checksum_sha256, importer_version) WHERE (status = 'SUCCEEDED'::text);
+
+
+--
+-- Name: uq_knowledge_chunks_place_section; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_knowledge_chunks_place_section ON public.knowledge_chunks USING btree (city_id, place_id, locale, corpus_revision, section) WHERE (scope = 'PLACE'::text);
 
 
 --
@@ -3685,6 +3716,14 @@ ALTER TABLE ONLY public.place_facts
 
 
 --
+-- Name: place_localizations fk_place_localizations_description_source_revision_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.place_localizations
+    ADD CONSTRAINT fk_place_localizations_description_source_revision_id FOREIGN KEY (description_source_revision_id) REFERENCES public.source_revisions(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: place_localizations fk_place_localizations_place_id; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4008,5 +4047,5 @@ ALTER TABLE ONLY public.web_place_candidates
 -- PostgreSQL database dump complete
 --
 
-\unrestrict MCSzH36Do0ebXGp4YcFXLtnQuLSrUj0AHmKTQJqBkCHKCzjeWPW7UzDGQLichQI
+\unrestrict tfMlDwgPsSqKwXaG3bzYMIChplVTGFRdIbJs77QLmnuXufwkaK8IhTT2Y6ngvM5
 

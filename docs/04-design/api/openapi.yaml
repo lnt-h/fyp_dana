@@ -1,20 +1,20 @@
 openapi: 3.1.0
 info:
   title: Gonarra API
-  version: 1.0.4
+  version: 1.0.5
   summary: Gonarra /v1 contract (REST + SSE) for the traveler app and operator endpoints.
   description: |
     Document ID GONARRA-API, version 1.0, status Draft (re-baseline DEC-013..021, 2026-11-06: Đà Nẵng only
     incl. the Hội An area; trust labels `VERIFIED` / `WEB_UNVERIFIED` on Stop, PlaceSummary, PlaceDetail and
     Citation; web stops with `web_source`; research and writing stages on the planning stream; calendar and
     web conflict types; `research_used` / `agent_run_id` on PlanPreview; Save acknowledgement for unverified
-    stops (OQ-128); city-level Guide sessions (ADR-010 1.0) with `SEARCHING_WEB` and `ANSWERED_WEB_UNVERIFIED`;
-    curator routes for web candidates, facts, closure rules and chunks). Previously version 0.4, status Draft. Owner Lê Ngọc Tấn Hiền; approver trantrongminh
+    stops (OQ-128); city-level Guide sessions (ADR-010 1.0) with `SEARCHING_WEB` and `ANSWERED_WEB_UNVERIFIED`).
+    Previously version 0.4, status Draft. Owner Lê Ngọc Tấn Hiền; approver trantrongminh
     (pending). Date 2026-11-05 (0.3: curation `chunks[]` embedded on write, Guide Tier 1 evidence; SRC-100 A-028. 0.4: `City.centre`, curator
     queue and import-run fields, API-033 `import_run_id` filter; SRC-100 A-029). Produced with `design/apiDesign_prompt.md` v2.0 (kit commit `6996dae`).
     Narrative, rules and traceability: `docs/04-design/api/api-contract.md`.
 
-    This contract is a superset of the generated `apps/api/openapi.json` (info.version 0.1.0): `/health`, `/ready`
+    This contract is a superset of the generated `apps/api/openapi.json` (info.version 1.0.4): `/health`, `/ready`
     and `/v1/me` and their four schemas are kept unchanged apart from added `x-` extensions. Everything else is
     design, not implementation (SRC-100 A-020).
 
@@ -45,6 +45,17 @@ info:
     null). An AI_EXTRACTED fact was extracted by Gonarra's grounded writer from the cited source (never
     invented); clients label it "Tóm tắt từ nguồn" / "Summarised from sources" and show the source link.
     ADMISSION_PRICE values may be `{free: true}` or `{currency, adult, child?, amount}`.
+    1.0.4 clarifications (2026-11-09, descriptions and error codes only; no schema change): `OPENING_HOURS_UNKNOWN`
+    is severity INFO (DEC-030); `VERIFIED` means published through the automated gate (DEC-022). API-006 answers
+    `409 demo_account_not_deletable` for the shared demo account (demo builds only). A NUL character (U+0000) in
+    any path, query parameter or JSON string answers `422 validation_error`; an unexpected server failure answers
+    `500 internal_error` with the request id and never the exception text.
+    1.0.5 (2026-11-09): DEC-031/DEC-032 retire AI-written catalog content. `PlaceSummary.is_area` marks an area
+    (bay, peninsula, mountain range, old town): shown on the map and answered by the Guide, never a planner stop
+    ('Add to trip' is disabled with 'Area — pick a place inside it'). `PlaceDetail.description_source` gives the
+    attribution, licence and link of the displayed description (Wikivoyage CC BY-SA 4.0, Wikipedia, the owner
+    sheet); `description_origin` is now `SOURCE` or null (`AI_SUMMARY` is retired and never served, and a place
+    without a description shows 'No description yet'). `PlaceFact.origin` no longer produces `AI_EXTRACTED`.
 servers:
   - url: https://api.example.invalid
     description: Placeholder; hostname pending OQ-039.
@@ -232,6 +243,8 @@ paths:
                 $ref: '#/components/schemas/AccountDeletionStatus'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '503':
@@ -1561,7 +1574,8 @@ components:
     Conflict:
       description: |
         `revision_conflict` (context.current_revision), `idempotency_key_reused` (same key, different body),
-        `idempotency_in_progress`, `plan_blocked` (context.reasons), `trip_not_saved`, `deletion_in_progress`.
+        `idempotency_in_progress`, `plan_blocked` (context.reasons), `trip_not_saved`, `deletion_in_progress`,
+        `demo_account_not_deletable` (API-006 for the shared demo account of demo builds; it is never deleted).
         `deletion_in_progress` applies to every authenticated route while an account deletion job is open
         (except GET/POST /v1/me/deletion).
       headers:
@@ -1754,7 +1768,7 @@ components:
     TrustLevel:
       type: string
       description: |
-        DEC-015 trust vocabulary. VERIFIED = published, curator-reviewed catalog content. WEB_UNVERIFIED = a
+        DEC-015 trust vocabulary. VERIFIED = catalog content published through the automated gate (DEC-022). WEB_UNVERIFIED = a
         research-agent candidate with a source URL and fetched date, never a published place; rendered with the
         UnverifiedBadge on every surface and shown "stale" after 7 days.
       enum: [VERIFIED, WEB_UNVERIFIED]
@@ -1806,6 +1820,39 @@ components:
         homepage_url:
           type: [string, 'null']
           format: uri
+    DescriptionSource:
+      type: object
+      description: |
+        1.0.5 (DEC-031/DEC-032). Where the displayed place description comes from. The text is verbatim
+        (markup removed), never model-written. Clients show one line under the description, e.g.
+        'From Wikivoyage · CC BY-SA 4.0' / 'Theo Wikivoyage · CC BY-SA 4.0', linking `url`; an OWNER
+        description is attributed to 'Gonarra'.
+      required: [provider, publisher, license_code, retrieved_at]
+      properties:
+        provider:
+          type: string
+          enum: [WIKIPEDIA, WIKIVOYAGE, OWNER, OTHER]
+        publisher:
+          type: string
+          examples: ['Wikivoyage (en)', 'Wikipedia (vi)']
+        title:
+          type: [string, 'null']
+          description: Page and revision, when known.
+        url:
+          type: [string, 'null']
+          format: uri
+        license_code:
+          type: string
+          examples: [CC-BY-SA-4.0, own-work]
+        license_url:
+          type: [string, 'null']
+          format: uri
+          description: Licence deed, when open.
+        attribution_text:
+          type: [string, 'null']
+        retrieved_at:
+          type: string
+          format: date
     Citation:
       type: object
       description: |
@@ -2074,6 +2121,10 @@ components:
           oneOf:
             - $ref: '#/components/schemas/Media'
             - type: 'null'
+        is_area:
+          type: boolean
+          default: false
+          description: 1.0.5 (DEC-031). True for an area (bay, peninsula, mountain range, old town) — shown on the map and answered by the Guide, but never a planner stop. Clients disable 'Add to trip' and say 'Area — pick a place inside it' / 'Khu vực — chọn điểm cụ thể bên trong'.
     PlaceSummaryPage:
       allOf:
         - $ref: '#/components/schemas/PageInfo'
@@ -2140,11 +2191,11 @@ components:
           items:
             $ref: '#/components/schemas/Citation'
         origin:
-          description: 1.0.4 (DEC-028). SOURCE = from an open-data or official source record; OWNER = owner sheet; AI_EXTRACTED = extracted by Gonarra's grounded writer from the cited source (label it "Summarised from sources" and show the source link). Absent means SOURCE.
+          description: 1.0.4 (DEC-028), narrowed in 1.0.5 (DEC-031). SOURCE = from an open-data or official source record; OWNER = owner sheet. AI_EXTRACTED is retired and no longer produced. Absent means SOURCE.
           type: string
           enum: [SOURCE, OWNER, AI_EXTRACTED]
         grounding:
-          description: 1.0.4. AI_EXTRACTED only. STRONG = the extraction quote matches the cited text; WEAK = it matches only partly. Null for other origins.
+          description: 1.0.4. AI_EXTRACTED only (retired, DEC-031). STRONG = the extraction quote matches the cited text; WEAK = it matches only partly. Null for other origins.
           type: [string, 'null']
           enum: [STRONG, WEAK, null]
     ClosureRule:
@@ -2193,8 +2244,13 @@ components:
               type: [string, 'null']
             description_origin:
               type: [string, 'null']
-              enum: [SOURCE, AI_SUMMARY, null]
-              description: 1.0.3. SOURCE = text from a cited source (Wikipedia lead, operator sheet, Wikidata); AI_SUMMARY = summarised by Gonarra's grounded writer from the listed sources (label it in the UI). Null when there is no description.
+              enum: [SOURCE, null]
+              description: 1.0.3, narrowed in 1.0.5 (DEC-031). SOURCE = human-written text from a cited source (owner sheet, Wikivoyage, Wikipedia); `description_source` attributes it. AI_SUMMARY is retired and never served. Null when there is no description — show 'No description yet' / 'Chưa có mô tả'.
+            description_source:
+              oneOf:
+                - $ref: '#/components/schemas/DescriptionSource'
+                - type: 'null'
+              description: 1.0.5. Attribution, licence and link of the displayed description; null without one.
             visit_minutes_min:
               type: [integer, 'null']
             visit_minutes_max:
@@ -2442,6 +2498,7 @@ components:
             blocking; LUNAR_EVENT_CONFLICT, TICKET_VALIDITY and SEASONAL_WARNING are warnings. Web stops
             (ADR-014): WEB_PLACE_UNVERIFIED caps the plan at WARNING; WEB_PLACE_UNRESOLVED is blocking.
             LEG_ESTIMATED (1.0.2, severity INFO) marks a leg whose values are a demo estimate (`Leg.estimated`).
+            OPENING_HOURS_UNKNOWN is severity INFO (DEC-030): a notice per stop that never changes plan_health.
           enum:
             - CLOSED_AT_PLANNED_TIME
             - LEG_UNAVAILABLE

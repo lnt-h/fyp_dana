@@ -11,8 +11,10 @@
 > leg (`Leg.estimated`, INFO `LEG_ESTIMATED`), stepped create-trip wizard, cover header with date chips, area rails
 > with credited Wikimedia Commons photos. Rejected patterns: ratings and review counts, social features, check-in,
 > expenses, multi-city, and a dark theme for the demo. The demo targets iPhone with Apple Maps first; the Android map
-> (Google Maps SDK) is deferred (OQ-135). AI-summarised descriptions carry the label "Tóm tắt từ nguồn" /
-> "Summarised from sources" (DEC-025).
+> (Google Maps SDK) is deferred (OQ-135). Descriptions are human-written and cited, with attribution and licence shown;
+> a place without one reads "No description yet" / "Chưa có mô tả" (DEC-031, DEC-033).
+>
+> **Visual refresh (2026-11-09):** palette, type, shape, components and anti-noise rules in [`visual-refresh-2026-11-09.md`](./visual-refresh-2026-11-09.md); they supersede the warm paper palette.
 
 ## Document control
 
