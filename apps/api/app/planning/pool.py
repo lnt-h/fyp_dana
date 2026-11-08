@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import bindparam, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.places import vw_published_place_facts, vw_published_places
@@ -39,7 +39,7 @@ class PoolPlace:
     lat: float
     lng: float
     visit_minutes: int
-    famous: bool  # has a curated long description (Wikipedia lead): proxy for "well known"
+    famous: bool  # has a Wikipedia article in the published corpus: proxy for "well known"
     hours: OpeningHours | None
     fact_verified_at: date | None  # oldest verification of a KNOWN operational fact
     corpus_revision: int | None = None
@@ -53,6 +53,29 @@ class PoolPlace:
 
     def summary(self, locale: str) -> str | None:
         return self.summary_en if locale == "en" else self.summary_vi
+
+
+# "Famous" = the published corpus holds a Wikipedia lead for the place (an approved chunk of the
+# current corpus revision sourced from the ``wikipedia`` provider, i.e. a Wikidata sitelink with an
+# article). Any description is NOT a signal: short descriptions and grounded AI_SUMMARY texts exist
+# for most places since 2026-11-08 and would make everything famous.
+WIKIPEDIA_PROVIDER_KEY = "wikipedia"
+_FAMOUS_SQL = text(
+    """
+    SELECT DISTINCT cp.id
+      FROM catalog_publications cp
+      JOIN knowledge_chunks kc
+        ON kc.place_id = cp.place_id
+       AND kc.corpus_revision = cp.corpus_revision
+       AND kc.review_state = 'APPROVED'
+      JOIN knowledge_chunk_sources kcs ON kcs.knowledge_chunk_id = kc.id
+      JOIN source_revisions sr ON sr.id = kcs.source_revision_id
+      JOIN sources s ON s.id = sr.source_id
+      JOIN data_providers dp ON dp.id = s.data_provider_id
+     WHERE cp.id IN :publication_ids
+       AND dp.provider_key = :provider_key
+    """
+).bindparams(bindparam("publication_ids", expanding=True))
 
 
 def parse_hours(value: Any) -> OpeningHours | None:
@@ -77,8 +100,6 @@ async def load_pool(session: AsyncSession, city_id: uuid.UUID) -> list[PoolPlace
                 vw.c.name_en,
                 vw.c.short_description_vi,
                 vw.c.short_description_en,
-                vw.c.description_vi,
-                vw.c.description_en,
                 func.ST_Y(func.geometry(vw.c.location)).label("lat"),
                 func.ST_X(func.geometry(vw.c.location)).label("lng"),
                 vw.c.visit_minutes_suggested,
@@ -105,6 +126,14 @@ async def load_pool(session: AsyncSession, city_id: uuid.UUID) -> list[PoolPlace
             )
         )
     ).all()
+    famous: set[uuid.UUID] = set(
+        (
+            await session.execute(
+                _FAMOUS_SQL,
+                {"publication_ids": publication_ids, "provider_key": WIKIPEDIA_PROVIDER_KEY},
+            )
+        ).scalars()
+    )
     hours: dict[uuid.UUID, OpeningHours | None] = {}
     verified: dict[uuid.UUID, date] = {}
     for fact in facts:
@@ -127,7 +156,7 @@ async def load_pool(session: AsyncSession, city_id: uuid.UUID) -> list[PoolPlace
             lat=float(row.lat),
             lng=float(row.lng),
             visit_minutes=int(row.visit_minutes_suggested),
-            famous=bool(row.description_vi or row.description_en),
+            famous=row.catalog_publication_id in famous,
             hours=hours.get(row.catalog_publication_id),
             fact_verified_at=verified.get(row.catalog_publication_id),
             corpus_revision=row.corpus_revision,

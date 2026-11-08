@@ -89,6 +89,7 @@ from app.routing.provider import (
 )
 from app.schemas.trips import PlanningPreferences
 from app.trips import idempotency
+from app.trips.assumptions import ESTIMATED_LEGS, NO_ROUTES, RESEARCH_SKIPPED, unique_keys
 from app.trips.repository import ROUTES_ESTIMATE_PROVIDER_KEY, SQLAlchemyTripStore
 from app.trips.snapshot import PlanSnapshot, SnapshotDay, evaluate_health
 
@@ -113,21 +114,6 @@ RULE_BASED_VERSION = "gonarra:rule-based-selector@1"
 DEFAULT_DAY_START = time(8, 0)
 DEFAULT_DAY_END = time(20, 0)
 VN_OFFSET = timedelta(hours=7)
-
-_ASSUMPTIONS: dict[str, dict[str, str]] = {
-    "estimated_legs": {
-        "en": "Travel times and distances are estimates (demo mode), not measured routes.",
-        "vi": "Thời gian và quãng đường di chuyển là ước tính (chế độ demo), chưa đo thực tế.",
-    },
-    "no_routes": {
-        "en": "Travel times are unavailable; the order assumes about 30 minutes between stops.",
-        "vi": "Chưa có thời gian di chuyển; thứ tự giả định khoảng 30 phút giữa các điểm.",
-    },
-    "research_skipped": {
-        "en": "Web research did not finish in time; the plan uses Gonarra's catalog only.",
-        "vi": "Tìm kiếm trên web chưa xong kịp; lịch trình chỉ dùng danh mục của Gonarra.",
-    },
-}
 
 
 class PlanningAbort(Exception):
@@ -157,7 +143,7 @@ class RunTrace:
 
     model_version: str | None = None
     prompt_versions: list[str] = field(default_factory=list)
-    assumptions: list[str] = field(default_factory=list)
+    assumptions: list[str] = field(default_factory=list)  # app.trips.assumptions keys
     research_used: bool = False
 
 
@@ -201,6 +187,20 @@ def merge_preferences(
         day_start=start,
         day_end=end,
         must_see=tuple(uuid.UUID(str(pid)) for pid in must),
+    )
+
+
+def planning_preferences_of(prefs: EffectivePreferences) -> PlanningPreferences:
+    """The effective preferences in contract shape, stored on the preview snapshot."""
+    return PlanningPreferences.model_validate(
+        {
+            "pace": prefs.pace,
+            "interest_category_codes": list(prefs.interests)[:20] or None,
+            "allowed_modes": list(prefs.modes) or None,
+            "day_start_time": prefs.day_start.strftime("%H:%M"),
+            "day_end_time": prefs.day_end.strftime("%H:%M"),
+            "must_see_place_ids": [str(pid) for pid in prefs.must_see][:10] or None,
+        }
     )
 
 
@@ -306,42 +306,58 @@ class PlanningOrchestrator:
         body = command.request
         now = self._clock()
         fingerprint = idempotency.request_fingerprint(command.trip_id, body.model_dump(mode="json"))
-        async with self._sf() as session:
-            trip = await self._owned_trip(session, command.account_id, command.trip_id)
-            if body.expected_trip_revision != trip.revision:
-                raise PlanningAbort(
-                    "revision_conflict",
-                    "The trip changed since it was loaded.",
-                    expected_trip_revision=body.expected_trip_revision,
-                    current_revision=trip.revision,
-                )
-            if command.idempotency_key is not None:
-                replay = await self._claim(
-                    session, command.account_id, command.idempotency_key, fingerprint, now
-                )
-                if replay is not None:
-                    sink.emit(replay)
-                    return
-            account_prefs = await PreferencesRepository(session).get_or_default(command.account_id)
-            prefs = merge_preferences(body.preferences, trip.planning_preferences, account_prefs)
-            city_id, trip_revision, day_count = trip.city_id, trip.revision, trip.day_count
-            start_date = trip.start_date
-            saved = (
-                await SQLAlchemyTripStore(session).saved_itinerary(trip.id)
-                if body.source == "SAVED_ITINERARY"
-                else None
-            )
-            pool = await load_pool(session, city_id) if saved is None else []
-            rules = await load_rules(session, city_id) if saved is None else []
-            providers = await self._provider_ids(session)
-            await session.commit()
-
+        claimed = False
+        # Everything after the claim commit runs inside this try, so a failure at any step
+        # releases the IN_PROGRESS claim and a retry with the same key re-evaluates.
         try:
+            async with self._sf() as session:
+                trip = await self._owned_trip(session, command.account_id, command.trip_id)
+                if body.expected_trip_revision != trip.revision:
+                    raise PlanningAbort(
+                        "revision_conflict",
+                        "The trip changed since it was loaded.",
+                        expected_trip_revision=body.expected_trip_revision,
+                        current_revision=trip.revision,
+                    )
+                if command.idempotency_key is not None:
+                    replay = await self._claim(
+                        session,
+                        command.account_id,
+                        idempotency.OP_PREVIEW_CREATE,
+                        command.idempotency_key,
+                        fingerprint,
+                        now,
+                    )
+                    if replay is not None:
+                        sink.emit(replay)
+                        return
+                    claimed = True
+                account_prefs = await PreferencesRepository(session).get_or_default(
+                    command.account_id
+                )
+                prefs = merge_preferences(
+                    body.preferences, trip.planning_preferences, account_prefs
+                )
+                city_id, trip_revision, day_count = trip.city_id, trip.revision, trip.day_count
+                start_date = trip.start_date
+                trip_prefs = dict(trip.planning_preferences or {})
+                saved = (
+                    await SQLAlchemyTripStore(session).saved_itinerary(trip.id)
+                    if body.source == "SAVED_ITINERARY"
+                    else None
+                )
+                pool = await load_pool(session, city_id) if saved is None else []
+                rules = await load_rules(session, city_id) if saved is None else []
+                providers = await self._provider_ids(session)
+                await session.commit()
+
             if saved is not None:
                 # Edit the saved itinerary: no AI, no routing (the saved legs are kept).
                 snapshot = saved.snapshot.model_copy(deep=True)
                 if not snapshot.days:
                     raise PlanningAbort("trip_not_saved", "The trip has no saved itinerary.")
+                if trip_prefs:
+                    snapshot.preferences = PlanningPreferences.model_validate(trip_prefs)
                 health, _ = evaluate_health(snapshot)
                 preview_id, revision, plan_health = await self._persist_new(
                     command, trip_revision, snapshot, health, RunTrace(), now
@@ -358,6 +374,7 @@ class PlanningOrchestrator:
                         )
                     frames = self._frames(day_count, start_date, prefs, now)
                     trace = RunTrace()
+                    stored_prefs = planning_preferences_of(prefs)
                     snapshot, plan_health = await self._plan(
                         progress=progress,
                         ledger=ledger,
@@ -375,13 +392,16 @@ class PlanningOrchestrator:
                         trace=trace,
                         now=now,
                     )
+                    snapshot.preferences = stored_prefs
                     preview_id, revision, plan_health = await self._persist_new(
                         command, trip_revision, snapshot, plan_health, trace, now
                     )
                     await budget.commit(Bucket.ACCOUNT_PROPOSALS)
         except BaseException:
-            if command.idempotency_key is not None:
-                await self._release_claim(command.account_id, command.idempotency_key)
+            if claimed and command.idempotency_key is not None:
+                await self._release_claim(
+                    command.account_id, idempotency.OP_PREVIEW_CREATE, command.idempotency_key
+                )
             raise
         sink.emit(
             {
@@ -399,105 +419,141 @@ class PlanningOrchestrator:
         progress.stage("VALIDATING_REQUEST")
         body = command.request
         now = self._clock()
-        async with self._sf() as session:
-            preview = await session.scalar(
-                select(PlanPreview).where(
-                    PlanPreview.id == command.preview_id,
-                    PlanPreview.account_id == command.account_id,
+        fingerprint = idempotency.request_fingerprint(
+            command.preview_id, body.model_dump(mode="json")
+        )
+        claimed = False
+        try:
+            async with self._sf() as session:
+                preview = await session.scalar(
+                    select(PlanPreview).where(
+                        PlanPreview.id == command.preview_id,
+                        PlanPreview.account_id == command.account_id,
+                    )
                 )
-            )
-            if preview is None:
-                raise PlanningAbort("resource_not_found", "Preview not found")
-            if preview.status != "ACTIVE" or preview.expires_at <= now:
-                raise PlanningAbort("preview_closed", "This preview is no longer available")
-            if body.expected_revision != preview.head_revision:
-                raise PlanningAbort(
-                    "revision_conflict",
-                    "The preview changed since it was loaded.",
-                    expected_revision=body.expected_revision,
-                    current_revision=preview.head_revision,
+                if preview is None:
+                    raise PlanningAbort("resource_not_found", "Preview not found")
+                if command.idempotency_key is not None:
+                    # Before the head-revision check: a retry of a completed regeneration sees a
+                    # moved head and must replay, not answer revision_conflict.
+                    replay = await self._claim(
+                        session,
+                        command.account_id,
+                        idempotency.OP_DAY_REGENERATE,
+                        command.idempotency_key,
+                        fingerprint,
+                        now,
+                    )
+                    if replay is not None:
+                        sink.emit(replay)
+                        return
+                    claimed = True
+                if preview.status != "ACTIVE" or preview.expires_at <= now:
+                    raise PlanningAbort("preview_closed", "This preview is no longer available")
+                if body.expected_revision != preview.head_revision:
+                    raise PlanningAbort(
+                        "revision_conflict",
+                        "The preview changed since it was loaded.",
+                        expected_revision=body.expected_revision,
+                        current_revision=preview.head_revision,
+                    )
+                trip = await self._owned_trip(session, command.account_id, preview.trip_id)
+                if body.day_index > trip.day_count:
+                    raise PlanningAbort("validation_error", "day_index is outside the trip")
+                head = await session.get(PreviewRevision, (preview.id, preview.head_revision))
+                if head is None:
+                    raise PlanningAbort("resource_not_found", "Preview revision not found")
+                parent = PlanSnapshot.model_validate(head.snapshot)
+                account_prefs = await PreferencesRepository(session).get_or_default(
+                    command.account_id
                 )
-            trip = await self._owned_trip(session, command.account_id, preview.trip_id)
-            if body.day_index > trip.day_count:
-                raise PlanningAbort("validation_error", "day_index is outside the trip")
-            head = await session.get(PreviewRevision, (preview.id, preview.head_revision))
-            if head is None:
-                raise PlanningAbort("resource_not_found", "Preview revision not found")
-            parent = PlanSnapshot.model_validate(head.snapshot)
-            account_prefs = await PreferencesRepository(session).get_or_default(command.account_id)
-            prefs = merge_preferences(None, trip.planning_preferences, account_prefs)
-            city_id, day_count, start_date = trip.city_id, trip.day_count, trip.start_date
-            pool = await load_pool(session, city_id)
-            rules = await load_rules(session, city_id)
-            providers = await self._provider_ids(session)
-            await session.commit()
+                # The preferences the preview was generated with win over the trip's stored ones.
+                stored = (
+                    parent.preferences.model_dump(mode="json", exclude_none=True)
+                    if parent.preferences is not None
+                    else trip.planning_preferences
+                )
+                prefs = merge_preferences(None, stored, account_prefs)
+                snapshot_prefs = parent.preferences or planning_preferences_of(prefs)
+                city_id, day_count, start_date = trip.city_id, trip.day_count, trip.start_date
+                pool = await load_pool(session, city_id)
+                rules = await load_rules(session, city_id)
+                providers = await self._provider_ids(session)
+                await session.commit()
 
-        ledger = QuotaLedger(self._sf, self._settings, clock=self._clock)
-        async with QuotaBudget(ledger, account_id=command.account_id) as budget:
-            decision = await budget.acquire(REGENERATE_DAY_BUDGET)
-            if not decision.allowed:
-                raise PlanningAbort(
-                    "quota_exceeded", "Daily planning limit reached; try again tomorrow."
+            ledger = QuotaLedger(self._sf, self._settings, clock=self._clock)
+            async with QuotaBudget(ledger, account_id=command.account_id) as budget:
+                decision = await budget.acquire(REGENERATE_DAY_BUDGET)
+                if not decision.allowed:
+                    raise PlanningAbort(
+                        "quota_exceeded", "Daily planning limit reached; try again tomorrow."
+                    )
+                frames = self._frames(day_count, start_date, prefs, now)
+                target = next(f for f in frames if f.day_index == body.day_index)
+                old_day = next((d for d in parent.days if d.day_index == body.day_index), None)
+                other = [d for d in parent.days if d.day_index != body.day_index]
+                used = {s.place_id for d in other for s in d.stops if s.place_id is not None}
+                requested_locks = set(body.locked_stop_ids or ())
+                locks: dict[uuid.UUID, LockedStop] = {}
+                stop_ids: dict[uuid.UUID, uuid.UUID] = {}
+                if old_day is not None:
+                    position = 0
+                    for stop in old_day.stops:
+                        if stop.place_id is None:
+                            continue
+                        stop_ids[stop.place_id] = stop.id
+                        if stop.is_locked or stop.id in requested_locks:
+                            locks[stop.place_id] = LockedStop(
+                                stop.id, body.day_index, position, stop.visit_minutes
+                            )
+                            position += 1
+                remaining = [p for p in pool if p.place_id not in used]
+                prefs.must_see = tuple(locks) + tuple(
+                    pid for pid in prefs.must_see if pid not in used and pid not in locks
                 )
-            frames = self._frames(day_count, start_date, prefs, now)
-            target = next(f for f in frames if f.day_index == body.day_index)
-            old_day = next((d for d in parent.days if d.day_index == body.day_index), None)
-            other = [d for d in parent.days if d.day_index != body.day_index]
-            used = {s.place_id for d in other for s in d.stops if s.place_id is not None}
-            requested_locks = set(body.locked_stop_ids or ())
-            locks: dict[uuid.UUID, LockedStop] = {}
-            stop_ids: dict[uuid.UUID, uuid.UUID] = {}
-            if old_day is not None:
-                position = 0
-                for stop in old_day.stops:
-                    if stop.place_id is None:
-                        continue
-                    stop_ids[stop.place_id] = stop.id
-                    if stop.is_locked or stop.id in requested_locks:
-                        locks[stop.place_id] = LockedStop(
-                            stop.id, body.day_index, position, stop.visit_minutes
-                        )
-                        position += 1
-            remaining = [p for p in pool if p.place_id not in used]
-            prefs.must_see = tuple(locks) + tuple(
-                pid for pid in prefs.must_see if pid not in used and pid not in locks
-            )
-            trace = RunTrace()
-            day_snapshot, _ = await self._plan(
-                progress=progress,
-                ledger=ledger,
-                budget=budget,
-                account_id=command.account_id,
-                purpose=Purpose.DAY_REGENERATE,
-                locale=body.locale or "vi",
-                request_text=body.instruction or "",
-                prefs=prefs,
-                pool=remaining,
-                rules=rules,
-                city_id=city_id,
-                frames=[target],
-                providers=providers,
-                trace=trace,
-                now=now,
-                locks=locks,
-                stop_ids=stop_ids,
-                evaluate_health=False,
-            )
-            days = sorted([*other, *day_snapshot.days], key=lambda d: d.day_index)
-            dates = {f.day_index: f.date for f in frames}
-            result = evaluate(
-                health_plan(days, dates, pool=by_id(pool), must_see=prefs.must_see),
-                self._windows(pool, rules, city_id, frames),
-                today=vn_today(now),
-            )
-            snapshot = PlanSnapshot(
-                days=days,
-                health_reasons=attach_conflicts(days, result),
-                assumptions=list(dict.fromkeys([*parent.assumptions, *trace.assumptions])),
-                research_used=parent.research_used or trace.research_used,
-            )
-            revision = await self._append_revision(command, snapshot, result.plan_health, trace)
-            await budget.commit(Bucket.ACCOUNT_PROPOSALS)
+                trace = RunTrace()
+                day_snapshot, _ = await self._plan(
+                    progress=progress,
+                    ledger=ledger,
+                    budget=budget,
+                    account_id=command.account_id,
+                    purpose=Purpose.DAY_REGENERATE,
+                    locale=body.locale or "vi",
+                    request_text=body.instruction or "",
+                    prefs=prefs,
+                    pool=remaining,
+                    rules=rules,
+                    city_id=city_id,
+                    frames=[target],
+                    providers=providers,
+                    trace=trace,
+                    now=now,
+                    locks=locks,
+                    stop_ids=stop_ids,
+                    evaluate_health=False,
+                )
+                days = sorted([*other, *day_snapshot.days], key=lambda d: d.day_index)
+                dates = {f.day_index: f.date for f in frames}
+                result = evaluate(
+                    health_plan(days, dates, pool=by_id(pool), must_see=prefs.must_see),
+                    self._windows(pool, rules, city_id, frames),
+                    today=vn_today(now),
+                )
+                snapshot = PlanSnapshot(
+                    days=days,
+                    health_reasons=attach_conflicts(days, result),
+                    assumptions=unique_keys([*parent.assumptions, *trace.assumptions]),
+                    research_used=parent.research_used or trace.research_used,
+                    preferences=snapshot_prefs,
+                )
+                revision = await self._append_revision(command, snapshot, result.plan_health, trace)
+                await budget.commit(Bucket.ACCOUNT_PROPOSALS)
+        except BaseException:
+            if claimed and command.idempotency_key is not None:
+                await self._release_claim(
+                    command.account_id, idempotency.OP_DAY_REGENERATE, command.idempotency_key
+                )
+            raise
         sink.emit(
             {
                 "type": "preview_ready",
@@ -584,9 +640,9 @@ class PlanningOrchestrator:
         output = await asyncio.to_thread(schedule, inp)
         days = build_days(inp, output, provider_ids=providers, now=now, stop_ids=stop_ids)
         if output.buffered:
-            trace.assumptions.append(_ASSUMPTIONS["no_routes"][locale])
+            trace.assumptions.append(NO_ROUTES)
         if any(leg.estimated for day in days for leg in day.legs):
-            trace.assumptions.append(_ASSUMPTIONS["estimated_legs"][locale])
+            trace.assumptions.append(ESTIMATED_LEGS)
 
         # 6. Plan Health
         plan_health = "GOOD"
@@ -611,7 +667,7 @@ class PlanningOrchestrator:
         snapshot = PlanSnapshot(
             days=days,
             health_reasons=reasons,
-            assumptions=list(dict.fromkeys(trace.assumptions)),
+            assumptions=unique_keys(trace.assumptions),
             research_used=trace.research_used,
         )
         return snapshot, plan_health
@@ -673,7 +729,7 @@ class PlanningOrchestrator:
                 "interests": ",".join(prefs.interests),
                 "picks_wanted": str(target),
             },
-            max_picks=target,
+            max_picks=max(target, len(must_see)),
         )
         if outcome.source not in (ResultSource.MODEL, ResultSource.REPAIRED):
             return rule_pick
@@ -756,10 +812,10 @@ class PlanningOrchestrator:
                 trace.research_used = True
         except TimeoutError:
             logger.info("planning research_timeout")
-            trace.assumptions.append(_ASSUMPTIONS["research_skipped"][locale])
+            trace.assumptions.append(RESEARCH_SKIPPED)
         except Exception:  # noqa: BLE001 - research must never fail the plan
             logger.warning("planning research_failed")
-            trace.assumptions.append(_ASSUMPTIONS["research_skipped"][locale])
+            trace.assumptions.append(RESEARCH_SKIPPED)
         finally:
             await fetcher.aclose()
 
@@ -876,6 +932,7 @@ class PlanningOrchestrator:
         self,
         session: AsyncSession,
         account_id: uuid.UUID,
+        operation: str,
         key: str,
         fingerprint: str,
         now: datetime,
@@ -883,7 +940,7 @@ class PlanningOrchestrator:
         store = SQLAlchemyTripStore(session)
         existing = await store.claim_idempotency(
             account_id,
-            idempotency.OP_PREVIEW_CREATE,
+            operation,
             key,
             fingerprint,
             idempotency.expires_at(now),
@@ -900,13 +957,13 @@ class PlanningOrchestrator:
             "plan_health": stored.body.get("plan_health"),
         }
 
-    async def _release_claim(self, account_id: uuid.UUID, key: str) -> None:
+    async def _release_claim(self, account_id: uuid.UUID, operation: str, key: str) -> None:
         try:
             async with self._sf() as session:
                 await session.execute(
                     delete(IdempotencyRecord).where(
                         IdempotencyRecord.account_id == account_id,
-                        IdempotencyRecord.operation == idempotency.OP_PREVIEW_CREATE,
+                        IdempotencyRecord.operation == operation,
                         IdempotencyRecord.idempotency_key == key,
                         IdempotencyRecord.state == "IN_PROGRESS",
                     )
@@ -1030,6 +1087,19 @@ class PlanningOrchestrator:
             await session.execute(
                 update(PlanPreview).where(PlanPreview.id == preview.id).values(head_revision=number)
             )
+            if command.idempotency_key is not None:
+                await SQLAlchemyTripStore(session).complete_idempotency(
+                    command.account_id,
+                    idempotency.OP_DAY_REGENERATE,
+                    command.idempotency_key,
+                    status=201,
+                    body={
+                        "preview_id": str(preview.id),
+                        "preview_revision": number,
+                        "plan_health": plan_health,
+                    },
+                    resource_id=preview.id,
+                )
             await session.commit()
             return number
 

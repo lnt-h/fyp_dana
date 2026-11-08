@@ -3,11 +3,21 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from app.agents.schemas import DescriptionSource
 from app.curation.auto_publish import Contributions
-from app.research.enrich import EnrichCandidate, needs_description, prioritise, search_query
+from app.research.enrich import (
+    EnrichCandidate,
+    Enricher,
+    EnrichReport,
+    needs_description,
+    prioritise,
+    search_query,
+)
+from app.research.fetch import FetchedPage, FetchStatus
+from app.research.tavily import SearchHit, SearchResponse, SearchStatus
 
 WIKI = DescriptionSource(
     url="https://vi.wikipedia.org/wiki/X", title="X", text="x", kind="WIKIPEDIA"
@@ -103,3 +113,47 @@ def test_search_query_scopes_by_area_and_expands_codes() -> None:
     assert search_query(cand("c", name_vi="Bãi Bụt", area_code="da-nang-center")) == (
         "Bãi Bụt Đà Nẵng"
     )
+
+
+class _Search:
+    async def search(self, query: str) -> SearchResponse:
+        hits = (
+            SearchHit("https://app.tavily.com/search?q=chua", "Tavily", ""),
+            SearchHit("https://webcache.googleusercontent.com/search?q=cache:x", "Cache", ""),
+            SearchHit("https://example.vn/redirects-to-bing", "Redirect", ""),
+            SearchHit("https://example.vn/chua-cau", "Primary", ""),
+        )
+        return SearchResponse(query, SearchStatus.OK, hits)
+
+
+class _Fetcher:
+    def __init__(self) -> None:
+        self.urls: list[str] = []
+
+    async def fetch(self, url: str) -> FetchedPage:
+        self.urls.append(url)
+        final = "https://www.bing.com/search?q=x" if "redirects" in url else url
+        return FetchedPage(
+            url=url,
+            status=FetchStatus.OK,
+            final_url=final,
+            text="Chùa Cầu là cây cầu cổ có mái che ở Hội An.",
+            source_revision_id=uuid.uuid4(),
+            retrieved_at=datetime(2026, 11, 8, tzinfo=UTC),
+        )
+
+
+async def test_aggregator_and_search_cache_pages_are_never_sources() -> None:
+    fetcher = _Fetcher()
+    enricher = Enricher(
+        settings=None,  # type: ignore[arg-type]
+        session_factory=None,  # type: ignore[arg-type]
+        ctx=None,  # type: ignore[arg-type]
+        fetcher=fetcher,  # type: ignore[arg-type]
+        search=_Search(),  # type: ignore[arg-type]
+    )
+    gathered = await enricher.gather_sources(
+        cand("chua-cau", website="https://app.tavily.com/extract"), EnrichReport(provider_key="x")
+    )
+    assert all("tavily" not in url and "webcache" not in url for url in fetcher.urls)
+    assert [s.url for s in gathered.sources] == ["https://example.vn/chua-cau"]

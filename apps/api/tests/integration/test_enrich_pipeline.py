@@ -213,3 +213,64 @@ async def test_enrich_stages_ai_summary_and_gate_publishes_it(session: AsyncSess
 
     again = await enricher.run(session, city_code=CITY, limit=5, place_ids=[place_id])
     assert again.selected == 0  # published and already enriched: skipped
+
+
+async def test_retry_insufficient_reselects_places_with_a_rejected_marker(
+    session: AsyncSession,
+) -> None:
+    for key in ("wikidata", "gonarra_ai_summary"):
+        await activate_policy(session, key, f"test terms {key}")
+    qid = f"Q8{uuid.uuid4().int % 10**9:09d}"
+    await stage_items(
+        session,
+        city_code=CITY,
+        items=[
+            WikidataItem(
+                qid=qid,
+                lng=108.2230,
+                lat=16.0600,
+                labels={"vi": f"Bảo tàng thử {qid}"},
+                descriptions={},
+                aliases={},
+                sitelinks={},
+                class_labels=("museum",),
+                category="MUSEUM",
+            )
+        ],
+        policy_key="wikidata",
+    )
+    place_id = uuid.UUID(
+        str(
+            await session.scalar(
+                text(
+                    "SELECT i.place_id FROM external_place_identities i JOIN data_providers d "
+                    "ON d.id = i.data_provider_id WHERE d.provider_key = 'wikidata' "
+                    "AND i.upstream_id = :qid"
+                ),
+                {"qid": qid},
+            )
+        )
+    )
+    settings = Settings(_env_file=None, gemini_api_key="test-key")  # type: ignore[call-arg]
+    ctx = AgentContext(
+        settings=settings,
+        ledger=Ledger(settings),  # type: ignore[arg-type]
+        session_factory=sink_session,  # type: ignore[arg-type]
+        purpose=Purpose.CONTENT_SUMMARY,
+        runner=Runner([]),
+    )
+    enricher = Enricher(
+        settings=settings,
+        session_factory=sink_session,  # type: ignore[arg-type]
+        ctx=ctx,
+        fetcher=NoFetch(),  # type: ignore[arg-type]
+        search=NoSearch(),  # type: ignore[arg-type]
+    )
+    first = await enricher.run(session, city_code=CITY, limit=5, place_ids=[place_id])
+    assert (first.selected, first.no_sources) == (1, 1)  # a REJECTED marker is stored
+    plain = await enricher.run(session, city_code=CITY, limit=5, place_ids=[place_id])
+    assert plain.selected == 0  # the marker skips it
+    retry = await enricher.run(
+        session, city_code=CITY, limit=5, place_ids=[place_id], retry_insufficient=True
+    )
+    assert retry.selected == 1  # --retry-insufficient tries it again

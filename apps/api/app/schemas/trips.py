@@ -259,7 +259,18 @@ class PlanPreview(BaseModel):
     health_reasons: list[Conflict] = Field(default_factory=list)
     expires_at: datetime
     days: list[ItineraryDay]
-    assumptions: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(
+        default_factory=list,
+        description="Plan assumptions, rendered in the response locale (stored as stable keys).",
+    )
+    planning_preferences: PlanningPreferences | None = Field(
+        default=None,
+        description=(
+            "Effective preferences (request > trip > account) this preview was generated with; "
+            "day regeneration reuses them and Save copies them to the trip. Null for previews "
+            "created before 1.0.3 or from a saved itinerary without stored preferences."
+        ),
+    )
     research_used: bool = Field(default=False, description="Extension (architecture §5).")
     model_version: str | None = None
     prompt_version: str | None = None

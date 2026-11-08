@@ -41,7 +41,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.runtime import AgentContext
 from app.agents.schemas import DescriptionSource, PlaceDescription
-from app.agents.validators import normalise_url
+from app.agents.validators import blocked_source_host, normalise_url
 from app.agents.writer import write_place_description
 from app.ai.invocations import Purpose
 from app.ai.quota import QuotaLedger, SessionFactory
@@ -217,18 +217,26 @@ def _https(url: str | None) -> str | None:
 
 def _skipped_host(url: str) -> bool:
     host = (urlsplit(url).hostname or "").lower()
-    return any(marker in host for marker in SKIPPED_HOSTS)
+    return blocked_source_host(url) or any(marker in host for marker in SKIPPED_HOSTS)
 
 
 async def load_candidates(
-    session: AsyncSession, *, city_code: str, place_ids: Sequence[uuid.UUID] | None = None
+    session: AsyncSession,
+    *,
+    city_code: str,
+    place_ids: Sequence[uuid.UUID] | None = None,
+    retry_insufficient: bool = False,
 ) -> list[EnrichCandidate]:
-    """Draft places that need a description, with what is already known about them."""
+    """Draft places that need a description, with what is already known about them.
+
+    Places with an enrichment record are skipped; with ``retry_insufficient`` only those with an
+    ACCEPTED record are, so places that ended in a REJECTED marker (insufficient evidence or no
+    sources) are tried again."""
     city = await load_city(session, city_code)
     areas = load_areas(city_code)
     hoi_an = hoi_an_area_codes(areas)
     categories = set((await session.scalars(select(Category.code))).all())
-    enriched = await _already_enriched(session)
+    enriched = await _already_enriched(session, include_insufficient=not retry_insufficient)
     statement = select(Place).where(
         Place.city_id == city.id, Place.workflow_state.not_in(("RETIRED", "PUBLISHED"))
     )
@@ -368,6 +376,8 @@ class Enricher:
             page = await self._fetcher.fetch(url)
             if not page.ok or page.source_revision_id is None:
                 return
+            if _skipped_host(page.final_url or page.url):  # redirected to an aggregator
+                return
             report.pages_fetched += 1
             key = normalise_url(page.url)
             if key in revisions:
@@ -409,10 +419,12 @@ class Enricher:
     ) -> EnrichReport:
         report = EnrichReport(provider_key=AI_SUMMARY_PROVIDER_KEY)
         policy = await require_active_policy(session, AI_SUMMARY_PROVIDER_KEY)
-        candidates = await load_candidates(session, city_code=city_code, place_ids=place_ids)
-        if retry_insufficient:
-            accepted = await _already_enriched(session, include_insufficient=False)
-            candidates = [c for c in candidates if c.place_id not in accepted]
+        candidates = await load_candidates(
+            session,
+            city_code=city_code,
+            place_ids=place_ids,
+            retry_insufficient=retry_insufficient,
+        )
         chosen = prioritise(candidates, limit=limit, food_cafe_cap=food_cafe_cap)
         report.selected = len(chosen)
         city = await load_city(session, city_code)

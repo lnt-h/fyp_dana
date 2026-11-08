@@ -364,7 +364,8 @@ class SQLAlchemyTripStore:
         return SavedItinerary(snapshot=snapshot, trip_day_ids=day_ids)
 
     async def replace_itinerary(self, trip: Trip, snapshot: PlanSnapshot) -> Trip:
-        """Replace saved days/stops/legs with ``snapshot`` and advance the trip revision.
+        """Replace saved days/stops/legs with ``snapshot`` and advance the trip revision; the
+        snapshot's effective planning preferences, when present, become the trip's.
 
         Runs inside the caller's transaction (ADR-009): the trip row must already be locked.
         """
@@ -416,11 +417,17 @@ class SQLAlchemyTripStore:
                     )
                 )
             await self.session.flush()
-        await self.session.execute(
-            update(Trip)
-            .where(Trip.id == trip.id)
-            .values(revision=Trip.revision + 1, status="SAVED", saved_at=datetime.now(UTC))
-        )
+        values: dict[str, Any] = {
+            "revision": Trip.revision + 1,
+            "status": "SAVED",
+            "saved_at": datetime.now(UTC),
+        }
+        if snapshot.preferences is not None:
+            # The preferences the saved plan was generated with become the trip's own.
+            values["planning_preferences"] = snapshot.preferences.model_dump(
+                mode="json", exclude_none=True
+            )
+        await self.session.execute(update(Trip).where(Trip.id == trip.id).values(**values))
         await self.session.flush()
         await self.session.refresh(trip)
         return trip

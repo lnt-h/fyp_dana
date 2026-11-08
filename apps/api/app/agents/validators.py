@@ -88,6 +88,40 @@ def normalise_url(url: str) -> str:
     return urlunsplit((scheme, netloc, path, parts.query, ""))
 
 
+# Aggregator and self-referential hosts: search APIs, search engines and their caches return
+# snippets of other pages (or of our own query), never a primary source. They are never fetched as
+# sources nor accepted as cited URLs. Matched on the host or any sub-domain of it.
+BLOCKED_SOURCE_DOMAINS: tuple[str, ...] = (
+    "tavily.com",
+    "google.com",
+    "googleusercontent.com",
+    "bing.com",
+    "bing.net",
+    "duckduckgo.com",
+    "yahoo.com",
+    "yandex.com",
+    "yandex.ru",
+    "baidu.com",
+    "coccoc.com",
+    "search.brave.com",
+    "startpage.com",
+    "ecosia.org",
+    "archive.ph",
+    "archive.today",
+    "cachedview.nl",
+)
+
+
+def blocked_source_host(url: str) -> bool:
+    """True when ``url`` is a search API / search engine / cache page (never a source)."""
+    host = (urlsplit(url.strip()).hostname or "").lower().rstrip(".")
+    if not host:
+        return False
+    if host.startswith("webcache.") or host.startswith("cache."):
+        return True
+    return any(host == d or host.endswith("." + d) for d in BLOCKED_SOURCE_DOMAINS)
+
+
 # ---------------------------------------------------------------------------------------------
 # Parsing model content
 # ---------------------------------------------------------------------------------------------
@@ -442,7 +476,8 @@ def validate_description(
 
     * ``insufficient_evidence`` → valid, nothing to store (texts are ignored).
     * Both locales present, 2-4 sentences and ≥ 60 characters each.
-    * ≥ 1 cited URL, and every cited URL is one of ``supplied_urls`` (normalised).
+    * ≥ 1 cited URL, and every cited URL is one of ``supplied_urls`` (normalised) and not an
+      aggregator / search-engine / cache host (:func:`blocked_source_host`).
     * No prices, hours, phone numbers, ratings, URLs or e-mails (facts are never model-authored).
     * Every number in a text (years, counts) occurs in the supplied source text.
     """
@@ -453,7 +488,9 @@ def validate_description(
     cited: list[str] = []
     for url in draft.cited_urls:
         normalised = normalise_url(url)
-        if normalised not in supplied:
+        if blocked_source_host(normalised):
+            issues.append("cited_url_blocked_host")
+        elif normalised not in supplied:
             issues.append("cited_url_not_supplied")
         elif normalised not in cited:
             cited.append(normalised)

@@ -8,7 +8,7 @@ Scoring per candidate (higher first):
 
 * category matches an interest (explicit ``interest_category_codes`` or a keyword in the request
   text) → +100;
-* famous-vs-hidden: a place with a curated long description (Wikipedia lead) counts as *famous*.
+* famous-vs-hidden: a place with a Wikipedia lead in the published corpus counts as *famous*.
   Default and "famous" requests favour famous places; "hidden gem / local" requests favour the
   others;
 * greedy diversity while picking: −30 per already picked place of the same category, +8 for a
@@ -28,6 +28,8 @@ from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
+from app.catalog.normalize import fold_words
+
 Pace = Literal["RELAXED", "BALANCED", "PACKED"]
 FamePreference = Literal["FAMOUS", "HIDDEN"]
 
@@ -43,60 +45,112 @@ DEFAULT_FAME_BONUS = 10
 CATEGORY_REPEAT_PENALTY = 30
 NEW_AREA_BONUS = 8
 
-# Accent-folded keywords (VI and EN) → category codes.
+# Keywords → category codes, matched on whole words / phrases (word boundaries).
+#
+# Vietnamese keywords are matched WITH their diacritics: folded single syllables collide with
+# common words ("đến" → "den" ≈ "đền", "cho" ≈ "chợ", "bài/bãi" → "bai"), so a request like
+# "Tôi muốn đến Hội An, gợi ý cho gia đình" must not read as temples, markets or beaches.
+# ``_FOLDED_KEYWORDS`` adds only multi-syllable phrases that stay unambiguous without accents,
+# for travelers who type without diacritics ("bai bien", "bao tang").
 _KEYWORDS: dict[str, tuple[str, ...]] = {
-    "BEACH": ("beach", "bien", "swim", "tam bien", "bai"),
-    "FOOD": ("food", "eat", "an uong", "mon an", "dac san", "quan an", "restaurant", "street food"),
-    "CAFE": ("cafe", "coffee", "ca phe"),
-    "MUSEUM": ("museum", "bao tang", "history", "lich su"),
-    "RELIGIOUS_SITE": ("temple", "pagoda", "chua", "church", "nha tho", "den", "spiritual"),
-    "MARKET": ("market", "cho", "shopping", "mua sam"),
-    "NIGHTLIFE": ("night", "bar", "pub", "ve dem", "buoi toi", "nightlife"),
-    "NATURE": ("nature", "thien nhien", "hike", "trek", "forest", "rung", "nui", "mountain"),
-    "VIEWPOINT": ("view", "sunset", "hoang hon", "ngam canh", "panorama"),
-    "HERITAGE": ("heritage", "di san", "old town", "pho co", "ancient", "co kinh"),
-    "THEME_PARK": ("theme park", "amusement", "cong vien", "kids", "tre em", "family"),
-    "CRAFT_VILLAGE": ("craft", "lang nghe", "pottery", "gom", "handicraft", "thu cong"),
+    "BEACH": ("beach", "swim", "biển", "bãi biển", "tắm biển"),
+    "FOOD": (
+        "food",
+        "eat",
+        "restaurant",
+        "street food",
+        "ăn uống",
+        "món ăn",
+        "đặc sản",
+        "quán ăn",
+        "ẩm thực",
+    ),
+    "CAFE": ("cafe", "coffee", "cà phê"),
+    "MUSEUM": ("museum", "history", "bảo tàng", "lịch sử"),
+    "RELIGIOUS_SITE": ("temple", "pagoda", "church", "spiritual", "chùa", "nhà thờ", "đền"),
+    "MARKET": ("market", "shopping", "chợ", "mua sắm"),
+    "NIGHTLIFE": ("night out", "bar", "pub", "nightlife", "về đêm", "buổi tối"),
+    "NATURE": (
+        "nature",
+        "hike",
+        "trek",
+        "forest",
+        "mountain",
+        "thiên nhiên",
+        "rừng",
+        "núi",
+    ),
+    "VIEWPOINT": ("view", "sunset", "panorama", "hoàng hôn", "ngắm cảnh"),
+    "HERITAGE": ("heritage", "old town", "ancient", "di sản", "phố cổ", "cổ kính"),
+    "THEME_PARK": ("theme park", "amusement", "kids", "công viên", "trẻ em"),
+    "CRAFT_VILLAGE": ("craft", "pottery", "handicraft", "làng nghề", "gốm", "thủ công"),
+}
+_FOLDED_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "BEACH": ("bai bien", "tam bien"),
+    "FOOD": ("an uong", "mon an", "dac san", "quan an", "am thuc"),
+    "CAFE": ("ca phe",),
+    "MUSEUM": ("bao tang",),
+    "RELIGIOUS_SITE": ("nha tho",),
+    "MARKET": ("mua sam",),
+    "NIGHTLIFE": ("ve dem", "buoi toi"),
+    "NATURE": ("thien nhien",),
+    "VIEWPOINT": ("hoang hon", "ngam canh"),
+    "HERITAGE": ("di san", "pho co", "co kinh"),
+    "THEME_PARK": ("cong vien", "tre em"),
+    "CRAFT_VILLAGE": ("lang nghe", "thu cong"),
 }
 _HIDDEN = (
     "hidden",
     "local",
     "off the beaten",
     "less touristy",
-    "it nguoi",
-    "an khach",
-    "dia phuong",
+    "ít người",
+    "vắng khách",
+    "địa phương",
 )
-_FAMOUS = ("famous", "must see", "iconic", "highlight", "noi tieng", "noi bat", "biet tieng")
+_HIDDEN_FOLDED = ("it nguoi biet", "vang khach", "dia phuong")
+_FAMOUS = ("famous", "must see", "iconic", "highlight", "nổi tiếng", "nổi bật", "biết tiếng")
+_FAMOUS_FOLDED = ("noi bat",)
+
+
+def _words(text: str) -> str:
+    """Lower-case NFC text with punctuation as spaces, padded for whole-phrase matching."""
+    lowered = unicodedata.normalize("NFC", text).casefold()
+    return " " + " ".join(re.sub(r"[^\w]+", " ", lowered).split()) + " "
 
 
 def fold(text: str) -> str:
-    """Lower-case, accent-free, ``đ`` → ``d``, punctuation as spaces."""
-    decomposed = unicodedata.normalize("NFD", text.lower()).replace("đ", "d")
-    stripped = "".join(ch for ch in decomposed if unicodedata.category(ch) != "Mn")
-    return " " + re.sub(r"[^\w]+", " ", stripped).strip() + " "
+    """Accent-free words (``đ`` → ``d``), padded for whole-phrase matching."""
+    return " " + fold_words(text) + " "
 
 
-def _has(folded: str, phrase: str) -> bool:
-    return f" {phrase} " in folded
+def _has(padded: str, phrase: str) -> bool:
+    return f" {phrase} " in padded
+
+
+def _matches(text: str, exact: Iterable[str], folded: Iterable[str]) -> bool:
+    words, plain = _words(text), fold(text)
+    return any(_has(words, unicodedata.normalize("NFC", w)) for w in exact) or any(
+        _has(plain, w) for w in folded
+    )
 
 
 def interests_from_text(text: str | None) -> frozenset[str]:
     if not text:
         return frozenset()
-    folded = fold(text)
     return frozenset(
-        code for code, words in _KEYWORDS.items() if any(_has(folded, w) for w in words)
+        code
+        for code, words in _KEYWORDS.items()
+        if _matches(text, words, _FOLDED_KEYWORDS.get(code, ()))
     )
 
 
 def fame_preference(text: str | None) -> FamePreference | None:
     if not text:
         return None
-    folded = fold(text)
-    if any(_has(folded, w) for w in _HIDDEN):
+    if _matches(text, _HIDDEN, _HIDDEN_FOLDED):
         return "HIDDEN"
-    if any(_has(folded, w) for w in _FAMOUS):
+    if _matches(text, _FAMOUS, _FAMOUS_FOLDED):
         return "FAMOUS"
     return None
 

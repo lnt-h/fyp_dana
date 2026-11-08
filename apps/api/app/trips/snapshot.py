@@ -19,7 +19,14 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.errors import AppError, validation_failed
-from app.schemas.trips import Conflict, PlanHealth, PreviewEditOperation, TravelMode, TrustLevel
+from app.schemas.trips import (
+    Conflict,
+    PlanHealth,
+    PlanningPreferences,
+    PreviewEditOperation,
+    TravelMode,
+    TrustLevel,
+)
 
 LegAvailability = Literal["AVAILABLE", "UNAVAILABLE", "EXPIRED"]
 
@@ -103,9 +110,14 @@ class SnapshotDay(_Snap):
 class PlanSnapshot(_Snap):
     days: list[SnapshotDay]
     health_reasons: list[Conflict] = Field(default_factory=list)
+    # Stable assumption keys (app.trips.assumptions), localized at response time; snapshots
+    # written before 2026-11-08 may hold localized text, which passes through unchanged.
     assumptions: list[str] = Field(default_factory=list)
     research_used: bool = False
     agent_run_id: uuid.UUID | None = None
+    # Effective planning preferences used to generate this preview (request > trip > account),
+    # so day regeneration and edits reuse them; null for snapshots without a generation run.
+    preferences: PlanningPreferences | None = None
 
     @model_validator(mode="after")
     def _unique(self) -> Self:
@@ -433,6 +445,7 @@ class _Editor:
             assumptions=list(self.snapshot.assumptions),
             research_used=self.snapshot.research_used,
             agent_run_id=self.snapshot.agent_run_id,
+            preferences=self.snapshot.preferences,
         )
 
 

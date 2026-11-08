@@ -9,7 +9,7 @@ from agent_fakes import FakeLedger, InvocationSink, ScriptedRunner, make_setting
 
 from app.agents.runtime import AgentContext
 from app.agents.schemas import DescriptionSource, PlaceDescriptionDraft, ResultSource
-from app.agents.validators import fact_kinds, validate_description
+from app.agents.validators import blocked_source_host, fact_kinds, validate_description
 from app.agents.writer import write_place_description
 from app.ai.invocations import Purpose
 from app.ai.providers import GROQ_DEFAULT, Provider, Role, role_chain
@@ -56,6 +56,17 @@ def test_valid_draft_is_normalised() -> None:
 def test_unsupplied_url_rejects_the_draft() -> None:
     result = check(draft(cited_urls=[WIKI, "https://other.example/made-up"]))
     assert not result.ok and "cited_url_not_supplied" in result.issues
+
+
+def test_aggregator_citation_is_rejected_even_when_supplied() -> None:
+    tavily = "https://app.tavily.com/search?q=chua+cau"
+    cache = "https://webcache.googleusercontent.com/search?q=cache:x"
+    for url in (tavily, cache, "https://www.bing.com/search?q=x"):
+        result = validate_description(
+            draft(cited_urls=[WIKI, url]), supplied_urls=[WIKI, url], source_text=SOURCE_TEXT
+        )
+        assert not result.ok and "cited_url_blocked_host" in result.issues
+    assert not blocked_source_host(WIKI) and not blocked_source_host("https://nottavily.com/x")
 
 
 def test_no_citation_rejects_the_draft() -> None:

@@ -31,6 +31,7 @@ from app.planning.orchestrator import (
     _Progress,
     choose_anchor,
     merge_preferences,
+    planning_preferences_of,
 )
 from app.planning.pool import PoolPlace
 from app.planning.rule_selector import (
@@ -254,6 +255,21 @@ def test_keyword_and_fame_parsing_vi_en() -> None:
     assert fame_preference(None) is None
 
 
+def test_keywords_do_not_collide_with_common_vietnamese_words() -> None:
+    # "đến" (go to) is not "đền" (temple), "cho" (for) is not "chợ" (market), "gia đình" is
+    # not a beach; folded single syllables must not trigger interests.
+    assert interests_from_text("Tôi muốn đến Hội An, gợi ý cho gia đình") == frozenset()
+    assert interests_from_text("toi muon den hoi an, goi y cho gia dinh") == frozenset()
+    assert interests_from_text("bài viết hay") == frozenset()
+    assert fame_preference("Tôi muốn nói tiếng Anh") is None
+    # Diacritic-aware and multi-word folded keywords still match.
+    assert "RELIGIOUS_SITE" in interests_from_text("thăm đền và chùa")
+    assert "MARKET" in interests_from_text("đi chợ Hàn")
+    assert "BEACH" in interests_from_text("bai bien My Khe")
+    assert "MUSEUM" in interests_from_text("bao tang Cham")
+    assert "MUSEUM" not in interests_from_text("nhân viên lịch sự")
+
+
 def test_merge_preferences_request_wins() -> None:
     class Account:
         pace = "RELAXED"
@@ -327,7 +343,7 @@ async def test_plan_without_routing_provider_still_returns_blocked_plan() -> Non
     )
     assert health == "BLOCKED"
     assert any(c.type == "LEG_UNAVAILABLE" for leg in legs for c in leg.conflicts)
-    assert any("unavailable" in a for a in trace.assumptions)
+    assert "no_routes" in trace.assumptions  # a stable key, localized at response time
 
 
 async def test_estimate_refused_in_production_degrades_to_unavailable() -> None:
@@ -390,3 +406,32 @@ async def test_selector_valid_pick_is_used_and_rationales_written() -> None:
     assert all(s.rationale == "Fits you." for s in snapshot.days[0].stops)
     # BR-046: the selector prompt carries ids, names and categories, never coordinates.
     assert orch_runner.prompts and all("108.2" not in p for p in orch_runner.prompts)
+
+
+async def test_selector_accepts_more_must_sees_than_the_pace_target() -> None:
+    # RELAXED, 1 day → target 5 picks; 6 must-sees must not make the model output invalid.
+    cfg = settings(gemini_api_key="gem-test", routes_estimate_enabled=True)
+    must = tuple(p.place_id for p in POOL[:6])
+    answer = {"picks": [{"place_id": str(pid), "rank": i} for i, pid in enumerate(must, 1)]}
+    runner = Runner([answer])
+
+    async def run(agent: Agent, prompt: str) -> RunOutput:
+        if runner.answers:
+            return await runner(agent, prompt)
+        return RunOutput(content="{}", messages=[Message(role="assistant", content="x")])
+
+    orch = PlanningOrchestrator(
+        fake_session, cfg, matrix_cache=FakeCache(), agent_runner=run, clock=lambda: NOW
+    )
+    _, _, _, trace = await run_plan(orch, cfg, pref=prefs(pace="RELAXED", must_see=must))
+    assert len(runner.models) == 1  # accepted on the first attempt, no repair
+    assert trace.model_version == "GEMINI:gemini-3.6-flash"
+
+
+def test_planning_preferences_round_trip_through_the_snapshot() -> None:
+    effective = prefs(pace="PACKED", modes=("WALK",), day_start=time(9, 30))
+    stored = planning_preferences_of(effective)
+    assert stored.allowed_modes == ["WALK"] and stored.day_start_time == "09:30"
+    again = merge_preferences(None, stored.model_dump(mode="json", exclude_none=True), None)
+    assert again.modes == ("WALK",) and again.pace == "PACKED"
+    assert again.day_start == time(9, 30) and again.day_end == time(20, 0)

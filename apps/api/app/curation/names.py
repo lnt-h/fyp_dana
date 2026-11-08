@@ -10,8 +10,7 @@ would need translated. The name is reused unchanged and flagged
 
 from __future__ import annotations
 
-import re
-import unicodedata
+from app.catalog.normalize import fold_words
 
 PROPER_NAME_CATEGORIES = frozenset({"FOOD", "CAFE", "MARKET", "RELIGIOUS_SITE", "CRAFT_VILLAGE"})
 
@@ -68,14 +67,8 @@ GENERIC_PREFIXES: tuple[str, ...] = (
 )
 
 
-def _fold(value: str) -> str:
-    decomposed = unicodedata.normalize("NFD", value.casefold()).replace("đ", "d")
-    stripped = "".join(ch for ch in decomposed if unicodedata.category(ch) != "Mn")
-    return " ".join(re.sub(r"[^\w\s]", " ", stripped).split())
-
-
 def has_generic_prefix(name: str) -> bool:
-    folded = _fold(name)
+    folded = fold_words(name)
     return any(folded == p or folded.startswith(p + " ") for p in GENERIC_PREFIXES)
 
 
