@@ -57,7 +57,8 @@ class Conflict(BaseModel):
     type: ConflictType = Field(
         description=(
             "Plan Health conflict type (ADR-011). LEG_ESTIMATED (INFO, openapi 1.0.2) marks a leg "
-            "whose distance/duration is a demo estimate, not a Google Routes measurement."
+            "whose distance/duration is a demo estimate, not a Google Routes measurement. "
+            "OPENING_HOURS_UNKNOWN is INFO (DEC-030): a notice that never changes plan_health."
         )
     )
     severity: ConflictSeverity = Field(
