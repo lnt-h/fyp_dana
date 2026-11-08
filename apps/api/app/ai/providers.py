@@ -48,6 +48,7 @@ class Role(StrEnum):
     RESEARCHER = "RESEARCHER"
     WRITER_RATIONALE = "WRITER_RATIONALE"
     WRITER_GUIDE = "WRITER_GUIDE"
+    WRITER_DESCRIPTION = "WRITER_DESCRIPTION"  # offline grounded place descriptions (D3)
     EMBEDDING = "EMBEDDING"
     JUDGE = "JUDGE"
 
@@ -110,6 +111,11 @@ _CHAINS: dict[Role, tuple[ModelSpec, ...]] = {
     Role.WRITER_GUIDE: (
         _gemini(GEMINI_FLASH, Role.WRITER_GUIDE, max_tokens=1536, timeout_s=20.0),
         _groq(Role.WRITER_GUIDE, max_tokens=1536, timeout_s=20.0),
+    ),
+    # Offline enrichment (no traveler waiting): longer timeouts, Flash-Lite first (free-tier RPD).
+    Role.WRITER_DESCRIPTION: (
+        _gemini(GEMINI_FLASH_LITE, Role.WRITER_DESCRIPTION, max_tokens=2048, timeout_s=30.0),
+        _groq(Role.WRITER_DESCRIPTION, max_tokens=2048, timeout_s=30.0),
     ),
     Role.EMBEDDING: (
         ModelSpec(Provider.GEMINI, GEMINI_EMBEDDING, Role.EMBEDDING, False, None, 15.0),

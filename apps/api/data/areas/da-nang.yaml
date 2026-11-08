@@ -6,9 +6,17 @@
 # Assignment is first match in the order below, so the narrow Hội An areas come first and
 # `ba-na-hoa-vang` (the broad western/northern remainder of the former Đà Nẵng) comes last.
 # A place outside every polygon gets no area and fails the publication gate (MISSING_AREA).
+#
+# Optional per area: `name_vi` / `name_en` (written to the areas table by `areas load`, which
+# also creates an area missing from the seed) and `hoi_an_area: true` (the "Hội An area" group
+# counted by the release gate: >= 30 published places). Real tourist clusters only; there is
+# deliberately no catch-all area (scattered mountains and former-Quảng Nam villages stay out).
 city: da-nang
 areas:
   - code: hoi-an-old-town
+    name_vi: Phố cổ Hội An
+    name_en: Hoi An Ancient Town
+    hoi_an_area: true
     # Inland Hội An: Ancient Town, Cẩm Phô, Tân An, Thanh Hà pottery village, Trà Quế, Cẩm Kim.
     # The eastern edge follows the coast diagonally so An Bàng and Cửa Đại stay coastal.
     polygon:
@@ -19,18 +27,38 @@ areas:
       - [108.322, 15.920]
       - [108.270, 15.920]
   - code: hoi-an-beaches-islands
-    # An Bàng, Cửa Đại, Cẩm Thanh coconut forest, Hà My, Cù Lao Chàm (Cham Islands).
+    name_vi: Biển và đảo Hội An (An Bàng, Cửa Đại, Cù Lao Chàm)
+    name_en: Hoi An beaches and islands (An Bang, Cua Dai, Cham Islands)
+    hoi_an_area: true
+    # An Bàng, Cửa Đại, Cẩm Thanh coconut forest, Hà My, Cù Lao Chàm (Cham Islands). The east
+    # edge reaches 108.70 so the outer islets of the Cù Lao Chàm group are covered.
     polygon:
       - [108.322, 15.920]
       - [108.337, 15.895]
       - [108.360, 15.872]
       - [108.360, 15.800]
-      - [108.620, 15.800]
-      - [108.620, 16.010]
+      - [108.700, 15.800]
+      - [108.700, 16.010]
       - [108.400, 16.010]
       - [108.300, 15.960]
       - [108.300, 15.920]
+  - code: hoi-an-outskirts
+    name_vi: Ven Hội An (Thanh Chiêm, Gò Nổi, Nam Phước)
+    name_en: Hoi An outskirts (Thanh Chiem, Go Noi, Nam Phuoc)
+    hoi_an_area: true
+    # Countryside within ~8 km of the Ancient Town not covered above: the Quảng Nam citadel and
+    # Điện Bàn museum at Thanh Chiêm, Gò Nổi island, Nam Phước across the Thu Bồn river and the
+    # villages north of Trà Quế. Listed after the two Hội An areas (first match wins).
+    polygon:
+      - [108.245, 15.825]
+      - [108.360, 15.825]
+      - [108.360, 15.850]
+      - [108.300, 15.850]
+      - [108.300, 15.935]
+      - [108.245, 15.935]
   - code: son-tra
+    name_vi: Bán đảo Sơn Trà
+    name_en: Son Tra Peninsula
     # Sơn Trà peninsula (Linh Ứng pagoda, Bãi Bụt, Bàn Cờ peak) and the river-mouth north shore.
     polygon:
       - [108.236, 16.095]
@@ -40,23 +68,34 @@ areas:
       - [108.230, 16.170]
       - [108.215, 16.110]
   - code: my-khe-ngu-hanh-son
-    # East bank of the Hàn river south of Sơn Trà: Mỹ Khê, Bắc Mỹ An, Non Nước, Marble Mountains.
+    name_vi: Biển Mỹ Khê – Ngũ Hành Sơn
+    name_en: My Khe Beach – Marble Mountains
+    # East bank of the Hàn river south of Sơn Trà: Mỹ Khê, Bắc Mỹ An, Non Nước, Marble Mountains,
+    # and An Hải (the east-bank river front between the Rồng and Thuận Phước bridges).
     polygon:
       - [108.226, 15.960]
       - [108.300, 15.960]
       - [108.330, 16.000]
       - [108.300, 16.095]
       - [108.236, 16.095]
-      - [108.228, 16.060]
+      - [108.2285, 16.095]
+      - [108.2285, 16.060]
   - code: da-nang-center
-    # Hải Châu and Thanh Khê west of the Hàn river (Dragon Bridge, Cham Museum, Hàn market).
+    name_vi: Trung tâm Đà Nẵng (Hải Châu, Thanh Khê)
+    name_en: Da Nang city centre
+    # Hải Châu and Thanh Khê west of the Hàn river (Dragon Bridge, Cham Museum, Hàn market). The
+    # east edge follows the west bank (Bạch Đằng) up to the Thuận Phước bridge at the river mouth.
     polygon:
       - [108.140, 15.990]
       - [108.226, 15.990]
       - [108.228, 16.060]
+      - [108.2275, 16.085]
+      - [108.222, 16.095]
       - [108.215, 16.110]
       - [108.140, 16.100]
   - code: ba-na-hoa-vang
+    name_vi: Bà Nà – Hòa Vang
+    name_en: Ba Na Hills – Hoa Vang
     # Bà Nà Hills, Hòa Vang, Liên Chiểu and Hải Vân pass: the rest of the former Đà Nẵng.
     # The northern edge stops at the Hải Vân ridge so Bạch Mã and Lăng Cô (Huế) stay outside.
     polygon:
@@ -70,3 +109,21 @@ areas:
       - [108.050, 16.215]
       - [107.950, 16.120]
       - [107.800, 16.100]
+  - code: my-son
+    name_vi: Thánh địa Mỹ Sơn
+    name_en: My Son Sanctuary
+    # The Mỹ Sơn Cham temple valley (UNESCO) and its visitor area in Duy Phú, Duy Xuyên.
+    polygon:
+      - [108.090, 15.735]
+      - [108.160, 15.735]
+      - [108.160, 15.800]
+      - [108.090, 15.800]
+  - code: tam-ky
+    name_vi: Tam Kỳ – Tam Thanh
+    name_en: Tam Ky – Tam Thanh
+    # Tam Kỳ town (Quảng Nam museum, Khương Mỹ towers) and the Tam Thanh mural village coast.
+    polygon:
+      - [108.440, 15.500]
+      - [108.580, 15.500]
+      - [108.580, 15.620]
+      - [108.440, 15.620]

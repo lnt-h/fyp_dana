@@ -82,6 +82,57 @@ class GroundedAnswer(_Strict):
     claims: list[Claim] = Field(default_factory=list, max_length=MAX_CLAIMS)
 
 
+# grounded_writer, DESCRIPTION profile (offline ``enrich descriptions``, 2026-11-08 D3)
+
+MAX_DESCRIPTION_CHARS = 700
+MAX_DESCRIPTION_SOURCES = 4
+DescriptionText = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_DESCRIPTION_CHARS)
+]
+
+
+class PlaceDescriptionDraft(_Strict):
+    """Bilingual place description written only from the supplied source texts.
+
+    Both texts are written natively in their language (not word-for-word translations).
+    ``insufficient_evidence`` true means nothing is stored.
+    """
+
+    insufficient_evidence: bool = Field(
+        description="true when the sources do not describe this place well enough."
+    )
+    description_vi: DescriptionText | None = Field(
+        default=None, description="2-3 sentences in Vietnamese, or null if insufficient."
+    )
+    description_en: DescriptionText | None = Field(
+        default=None, description="2-3 sentences in English, or null if insufficient."
+    )
+    cited_urls: list[UrlText] = Field(
+        default_factory=list,
+        max_length=MAX_DESCRIPTION_SOURCES,
+        description="URLs (copied exactly from the sources) that support the text.",
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class DescriptionSource:
+    """One supplied source text; the writer redacts and caps it before building the prompt."""
+
+    url: str
+    title: str | None
+    text: str
+    kind: str  # WIKIPEDIA | OFFICIAL_SITE | WEB_SEARCH
+
+
+@dataclass(frozen=True, slots=True)
+class PlaceDescription:
+    """A validated draft: both locales present, cited URLs normalised and all supplied."""
+
+    description_vi: str
+    description_en: str
+    cited_urls: tuple[str, ...]
+
+
 # ---------------------------------------------------------------------------------------------
 # researcher
 # ---------------------------------------------------------------------------------------------
@@ -242,6 +293,19 @@ class GuideAnswerOutcome:
     attempts: Sequence[Attempt] = ()
     dropped_claims: int = 0
     issues: Sequence[str] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class DescriptionOutcome:
+    """``description`` is None for insufficient evidence, a rejected draft or a degraded call
+    (``source`` tells which: MODEL with ``insufficient_evidence`` / DEGRADED)."""
+
+    description: PlaceDescription | None
+    source: ResultSource
+    insufficient_evidence: bool = False
+    attempts: Sequence[Attempt] = ()
+    issues: Sequence[str] = ()
+    exhausted: bool = False
 
 
 @dataclass(frozen=True, slots=True)

@@ -9,6 +9,10 @@ Usage from apps/api:
 Content pipeline (DEC-022, app/ingestion/cli.py): `policy list|activate`, `areas load`,
 `ingest wikidata|wikipedia|osm|commons|sheet`, `web-candidates promote`, `publish auto [--dry-run]`,
 `closure-rules load` and `pipeline run` (all steps). See apps/api/data/README.md.
+
+Grounded descriptions (D3, app/research/enrich.py):
+    uv run python -m app.cli enrich descriptions [--limit 150] [--food-cafe-cap 40]
+Then `publish auto`, `publish summary` and `publish audit-sample`.
 """
 
 import asyncio
@@ -78,6 +82,14 @@ AREAS: tuple[tuple[str, str, str], ...] = (
         "Biển và đảo Hội An (An Bàng, Cửa Đại, Cù Lao Chàm)",
         "Hoi An beaches and islands (An Bang, Cua Dai, Cham Islands)",
     ),
+    # 2026-11-08: real tourist clusters outside the first six polygons (data/areas/da-nang.yaml).
+    (
+        "hoi-an-outskirts",
+        "Ven Hội An (Thanh Chiêm, Gò Nổi, Nam Phước)",
+        "Hoi An outskirts (Thanh Chiem, Go Noi, Nam Phuoc)",
+    ),
+    ("my-son", "Thánh địa Mỹ Sơn", "My Son Sanctuary"),
+    ("tam-ky", "Tam Kỳ – Tam Thanh", "Tam Ky – Tam Thanh"),
 )
 
 CATEGORIES: tuple[tuple[str, str, str], ...] = (
@@ -238,6 +250,22 @@ PROVIDERS: tuple[ProviderSeed, ...] = (
             "width": (CANONICAL, None),
             "height": (CANONICAL, None),
             "mime": (CANONICAL, None),
+        },
+    ),
+    # D3 (2026-11-08): grounded AI descriptions (app/research/enrich.py). The description is
+    # Gonarra's own text written only from the cited source revisions; prompts and raw model
+    # responses are never stored.
+    ProviderSeed(
+        "gonarra_ai_summary",
+        "Gonarra grounded AI descriptions",
+        "AI_SERVICE",
+        "https://github.com/lnt-h/fyp_dana/blob/main/apps/api/data/README.md",
+        "Place descriptions summarised from cited sources (enrich descriptions, D3)",
+        "Short description written by Gonarra with AI assistance, only from the cited sources",
+        {
+            "description": (CANONICAL, None),
+            "cited_urls": (CANONICAL, None),
+            "model": (CANONICAL, None),
         },
     ),
     ProviderSeed(
@@ -587,6 +615,78 @@ def routes_warm_command(
             f"requested={stats.requested_elements} quota_denied={stats.quota_denied_elements} "
             f"failed={stats.failed_elements} cached_writes={stats.cached_writes}"
         )
+
+
+enrich_app = typer.Typer(help="Grounded AI enrichment (D3).", no_args_is_help=True)
+app.add_typer(enrich_app, name="enrich")
+
+
+@enrich_app.command("descriptions")
+def enrich_descriptions_command(
+    limit: int = typer.Option(150, min=1, help="Places to process (Tavily ≈ 1 000/month)."),
+    food_cafe_cap: int = typer.Option(40, min=0, help="Maximum FOOD + CAFE places."),
+    retry_insufficient: bool = typer.Option(
+        False, "--retry-insufficient", help="Also retry places that had insufficient evidence."
+    ),
+    samples: int = typer.Option(5, min=0, help="Random enriched samples to print."),
+) -> None:
+    """Write grounded VI/EN descriptions for prioritised draft places (then run `publish auto`).
+
+    Sources: Wikipedia extracts, the OSM website, else a Tavily search. Every provider call goes
+    through the quota ledger; the run stops gracefully when quota is exhausted.
+    """
+    import random
+
+    from app.config import get_settings
+    from app.ingestion.common import PolicyNotActiveError
+    from app.research.enrich import EnrichReport, build_enricher
+
+    settings = get_settings()
+
+    async def run() -> EnrichReport:
+        enricher, close = build_enricher(settings, session_factory)
+        try:
+            async with session_factory() as session:
+                return await enricher.run(
+                    session,
+                    city_code=settings.default_city_code,
+                    limit=limit,
+                    food_cafe_cap=food_cafe_cap,
+                    retry_insufficient=retry_insufficient,
+                )
+        finally:
+            await close()
+            await engine.dispose()
+
+    try:
+        report = asyncio.run(run())
+    except PolicyNotActiveError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(
+        f"enrich: selected={report.selected} enriched={report.enriched} "
+        f"(hoi_an_area={report.hoi_an_enriched}) insufficient_evidence={report.insufficient} "
+        f"no_sources={report.no_sources} failed={report.failed}"
+    )
+    typer.echo(
+        f"  tavily searches={report.tavily_calls} cached={report.tavily_cached} "
+        f"pages_fetched={report.pages_fetched}"
+    )
+    typer.echo(
+        "  model calls: "
+        + (", ".join(f"{k}={v}" for k, v in sorted(report.model_calls.items())) or "none")
+    )
+    if report.issues:
+        typer.echo(
+            "  validation issues: " + ", ".join(f"{k}={v}" for k, v in report.issues.most_common())
+        )
+    if report.stopped:
+        typer.echo(f"  stopped: {report.stopped}")
+    for sample in random.sample(report.samples, min(samples, len(report.samples))):
+        typer.echo(f"\n  [{sample.slug}] {sample.name_vi}")
+        typer.echo(f"    VI: {sample.description_vi}")
+        typer.echo(f"    EN: {sample.description_en}")
+        typer.echo(f"    cited: {' | '.join(sample.cited_urls)}")
 
 
 def _register_pipeline_commands() -> None:

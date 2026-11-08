@@ -12,6 +12,11 @@ categories in code (``categories.map_osm_tags``); unmapped elements are skipped.
   ``wikidata=Q…`` whose item is already a place enriches it; else a place with the same
   normalized name (diacritic-insensitive) within ``MATCH_RADIUS_M`` is enriched; otherwise a new
   DRAFT (IMPORTED) place is created, exactly like the Wikidata importer.
+* Draft bloat filter (2026-11-08): a FOOD or CAFE element with none of ``name:en``,
+  ``website``/``contact:website``, ``opening_hours``, ``cuisine`` or ``wikidata`` is skipped like
+  an unmapped element (no import record, no place; counted as ``skipped_sparse``). Such elements
+  can never pass the gate (no English name, no description source, no facts), and they made up
+  most of the drafts. Every other category is imported unchanged.
 * OSM data is ODbL: every element is recorded as a source revision (locator = element URL) under
   the source "OpenStreetMap" with the attribution "© OpenStreetMap contributors".
 """
@@ -62,7 +67,7 @@ from app.models.providers import ImportRecord
 logger = logging.getLogger("gonarra.ingestion")
 
 PROVIDER_KEY = "openstreetmap"
-IMPORTER_VERSION = "osm-1"
+IMPORTER_VERSION = "osm-2"  # osm-2: FOOD/CAFE draft bloat filter
 RELEASE_ID = "overpass-live"
 LICENSE_CODE = "ODbL-1.0"
 ATTRIBUTION = "© OpenStreetMap contributors"
@@ -86,6 +91,17 @@ SELECTORS: tuple[str, ...] = (
 )
 
 _QID = re.compile(r"^Q[0-9]+$")
+
+# Draft bloat filter: FOOD/CAFE elements need at least one of these tags to be imported.
+SPARSE_FILTER_CATEGORIES = frozenset({"FOOD", "CAFE"})
+SPARSE_FILTER_SIGNAL_TAGS: tuple[str, ...] = (
+    "name:en",
+    "website",
+    "contact:website",
+    "opening_hours",
+    "cuisine",
+    "wikidata",
+)
 
 
 def build_query(bbox: tuple[float, float, float, float]) -> str:
@@ -236,6 +252,13 @@ class OsmElement:
         return value if _QID.match(value) else None
 
     @property
+    def is_sparse(self) -> bool:
+        """A FOOD/CAFE element without any signal tag (not imported; see module docstring)."""
+        if self.category not in SPARSE_FILTER_CATEGORIES:
+            return False
+        return not any((self.tags.get(tag) or "").strip() for tag in SPARSE_FILTER_SIGNAL_TAGS)
+
+    @property
     def opening_hours(self) -> dict[str, Any] | None:
         return parse_osm_opening_hours(self.tags.get("opening_hours") or "")
 
@@ -338,6 +361,7 @@ def make_client() -> httpx.AsyncClient:
 @dataclass
 class OsmReport(RunReport):
     unmapped: int = 0
+    skipped_sparse: int = 0
     matched_wikidata: int = 0
     matched_name: int = 0
     with_opening_hours: int = 0
@@ -420,8 +444,10 @@ async def stage_elements(
     city = await load_city(session, city_code)
     areas = load_areas(city_code)
     report = OsmReport(provider_key=PROVIDER_KEY)
-    mapped = [element for element in elements if element.category is not None]
-    report.unmapped = len(elements) - len(mapped)
+    categorised = [element for element in elements if element.category is not None]
+    report.unmapped = len(elements) - len(categorised)
+    mapped = [element for element in categorised if not element.is_sparse]
+    report.skipped_sparse = len(categorised) - len(mapped)
     checksum = sha256_hex(canonical_json([element.payload() for element in mapped]))
     run = await start_run(
         session,
@@ -545,10 +571,11 @@ async def stage_elements(
     finish_run(run, report)
     await session.commit()
     logger.info(
-        "osm import accepted=%d rejected=%d unmapped=%d created=%d",
+        "osm import accepted=%d rejected=%d unmapped=%d sparse=%d created=%d",
         report.accepted,
         report.rejected,
         report.unmapped,
+        report.skipped_sparse,
         report.created_places,
     )
     return report

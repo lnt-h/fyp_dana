@@ -4,6 +4,10 @@
   ``None`` rationales, never an error.
 * ``GUIDE_ANSWER`` (Gemini Flash → Groq): claims must cite supplied ``evidence_ids``; claims
   citing anything else are dropped and zero claims means ``INSUFFICIENT_EVIDENCE``.
+* ``DESCRIPTION`` (Gemini Flash-Lite → Groq; offline ``enrich descriptions``, D3): a VI and an
+  EN description written only from supplied source texts, citing supplied URLs only, with no
+  prices, hours, phone numbers or ratings (:func:`validate_description`). One repair call, then
+  the next model; ``insufficient_evidence`` stores nothing.
 """
 
 from __future__ import annotations
@@ -15,22 +19,36 @@ from collections.abc import Sequence
 
 from app.agents.runtime import AgentContext, load_instructions, run_chain
 from app.agents.schemas import (
+    MAX_DESCRIPTION_SOURCES,
     AnswerStatus,
+    DescriptionOutcome,
+    DescriptionSource,
     EvidenceItem,
     GroundedAnswer,
     GuideAnswerOutcome,
     Locale,
+    PlaceDescription,
+    PlaceDescriptionDraft,
     RationaleOutcome,
     RationaleSet,
     RationaleStop,
     ResultSource,
 )
-from app.agents.validators import parse_output, validate_citations, validate_rationales
+from app.agents.validators import (
+    DescriptionCheck,
+    parse_output,
+    validate_citations,
+    validate_description,
+    validate_rationales,
+)
 from app.ai.providers import Role
+from app.ai.redaction import URL as REDACTED_URL
 from app.ai.redaction import redact_text
 
 RATIONALE_AGENT = "writer_rationale"
 GUIDE_AGENT = "writer_guide"
+DESCRIPTION_AGENT = "writer_description"
+MAX_SOURCE_CHARS = 3000
 MAX_EVIDENCE = 24
 MAX_HISTORY_TURNS = 4
 
@@ -172,3 +190,115 @@ async def write_guide_answer(
     return GuideAnswerOutcome(
         call.value, ResultSource.MODEL, attempts, dropped_total, tuple(call.issues)
     )
+
+
+def build_description_prompt(
+    *,
+    name_vi: str,
+    name_en: str | None,
+    category: str | None,
+    area: str | None,
+    sources: Sequence[DescriptionSource],
+) -> tuple[str, list[str], str]:
+    """``(prompt, supplied_urls, source_text)``; every text is redacted (BR-046) and capped.
+
+    A source whose URL would be redacted (credential parameters) is not supplied.
+    """
+    supplied: list[str] = []
+    items: list[dict[str, str | None]] = []
+    texts: list[str] = []
+    for source in sources[:MAX_DESCRIPTION_SOURCES]:
+        url = redact_text(source.url)
+        if REDACTED_URL in url or url in supplied:
+            continue
+        text = redact_text(source.text)[:MAX_SOURCE_CHARS]
+        if not text.strip():
+            continue
+        supplied.append(url)
+        texts.append(text)
+        items.append(
+            {
+                "url": url,
+                "kind": source.kind,
+                "title": redact_text(source.title)[:200] if source.title else None,
+                "text": text,
+            }
+        )
+    payload = {
+        "place": {
+            "name_vi": redact_text(name_vi),
+            "name_en": redact_text(name_en) if name_en else None,
+            "category": category,
+            "area": area,
+        },
+        "sources": items,
+    }
+    return json.dumps(payload, ensure_ascii=False), supplied, "\n".join(texts)
+
+
+async def write_place_description(
+    ctx: AgentContext,
+    *,
+    name_vi: str,
+    name_en: str | None,
+    category: str | None,
+    area: str | None,
+    sources: Sequence[DescriptionSource],
+) -> DescriptionOutcome:
+    """Validated bilingual description, or ``None`` (insufficient evidence / degraded).
+
+    Never raises for model, validation or quota failures.
+    """
+    first_attempt = len(ctx.attempts)
+    prompt, supplied, source_text = build_description_prompt(
+        name_vi=name_vi, name_en=name_en, category=category, area=area, sources=sources
+    )
+    if not supplied:
+        return DescriptionOutcome(
+            None, ResultSource.DEGRADED, insufficient_evidence=True, issues=("no_sources",)
+        )
+    instructions, version = load_instructions(DESCRIPTION_AGENT, "en")
+    insufficient = False
+
+    def validate(draft: PlaceDescriptionDraft) -> tuple[PlaceDescription | None, list[str]]:
+        nonlocal insufficient
+        check: DescriptionCheck = validate_description(
+            draft, supplied_urls=supplied, source_text=source_text
+        )
+        if check.insufficient_evidence:
+            insufficient = True
+            # A sentinel value stops the chain; the caller stores nothing.
+            return PlaceDescription("", "", ()), []
+        return check.description, list(check.issues)
+
+    def repair(issues: list[str]) -> str:
+        return json.dumps(
+            {
+                "previous_answer_rejected": issues[:10],
+                "request": json.loads(prompt),
+            },
+            ensure_ascii=False,
+        )
+
+    call = await run_chain(
+        ctx,
+        Role.WRITER_DESCRIPTION,
+        agent_name=DESCRIPTION_AGENT,
+        instructions=instructions,
+        prompt_version=version,
+        prompt=prompt,
+        output_schema=PlaceDescriptionDraft,
+        parse=lambda content: parse_output(content, PlaceDescriptionDraft),
+        validate=validate,
+        repair_prompt=repair,
+        next_model_on_invalid=True,
+    )
+    attempts = tuple(ctx.attempts[first_attempt:])
+    if call.value is None:
+        return DescriptionOutcome(
+            None, ResultSource.DEGRADED, False, attempts, tuple(call.issues), call.exhausted
+        )
+    if insufficient:
+        return DescriptionOutcome(None, ResultSource.MODEL, True, attempts, tuple(call.issues))
+    source = ResultSource.REPAIRED if call.repaired else ResultSource.MODEL
+    return DescriptionOutcome(call.value, source, False, attempts, tuple(call.issues))
