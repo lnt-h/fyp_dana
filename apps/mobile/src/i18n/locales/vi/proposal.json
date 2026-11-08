@@ -55,7 +55,11 @@
     "goToStopA11y": "Đến điểm dừng {{number}}, {{name}}",
     "onDate": "Ngày {{date}}",
     "affects": "Ảnh hưởng: {{stops}}",
-    "affectedStop": "Ngày {{day}} #{{number}} {{name}}"
+    "affectedStop": "Ngày {{day}} #{{number}} {{name}}",
+    "notices": "Cần biết",
+    "severityInfo": "Lưu ý",
+    "noticeDays_one": "Ngày {{days}}",
+    "noticeDays_other": "Các ngày {{days}}"
   },
   "conflict": {
     "CLOSED_AT_PLANNED_TIME": "Đóng cửa vào giờ dự kiến",
@@ -70,7 +74,8 @@
     "TICKET_VALIDITY": "Vé có thể không dùng được cho lịch này",
     "SEASONAL_WARNING": "Lưu ý theo mùa",
     "WEB_PLACE_UNVERIFIED": "Tìm trên web, chưa đối chiếu nguồn",
-    "WEB_PLACE_UNRESOLVED": "Không xác nhận được địa điểm từ web"
+    "WEB_PLACE_UNRESOLVED": "Không xác nhận được địa điểm từ web",
+    "LEG_ESTIMATED": "Quãng đường và thời gian đi chỉ là ước tính"
   },
   "itinerary": {
     "title": "Lịch trình theo ngày",
@@ -193,7 +198,9 @@
     "database_unavailable": "Dịch vụ tạm gián đoạn. Thử lại.",
     "resource_not_found": "Không tìm thấy mục này.",
     "internal_error": "Có lỗi xảy ra. Thử lại.",
-    "authentication_required": "Phiên đăng nhập đã hết. Hãy đăng nhập lại để tiếp tục."
+    "authentication_required": "Phiên đăng nhập đã hết. Hãy đăng nhập lại để tiếp tục.",
+    "unsupported_request": "Chưa hỗ trợ thay đổi này.",
+    "trip_not_saved": "Hãy lưu chuyến đi trước rồi thử lại."
   },
   "sheet": {
     "subtitle": "Ngày {{day}} · điểm dừng {{number}} · {{time}}",

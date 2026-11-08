@@ -156,7 +156,7 @@
       "VERIFYING_WEB_PLACES_0": "Checking that each place really exists…",
       "VERIFYING_WEB_PLACES_1": "Web places will be labelled Not source-checked…",
       "ROUTING_0": "Measuring the distance between stops…",
-      "ROUTING_1": "Working out real travel times…",
+      "ROUTING_1": "Working out travel times between stops…",
       "SCHEDULING_0": "Fitting stops into each day…",
       "SCHEDULING_1": "Setting a time for every stop…",
       "CHECKING_HEALTH_0": "Cross-checking opening hours…",
@@ -184,7 +184,9 @@
       "database_unavailable": "The service is briefly unavailable. Try again.",
       "network": "No connection. Try again.",
       "internal_error": "Something went wrong. Try again.",
-      "authentication_required": "Your session ended. Sign in again to continue."
+      "authentication_required": "Your session ended. Sign in again to continue.",
+      "revision_conflict": "This draft changed elsewhere. Open it again to continue.",
+      "trip_not_saved": "Save this trip first, then try again."
     }
   }
 }

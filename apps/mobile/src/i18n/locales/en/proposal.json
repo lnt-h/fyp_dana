@@ -55,7 +55,11 @@
     "goToStopA11y": "Go to stop {{number}}, {{name}}",
     "onDate": "On {{date}}",
     "affects": "Affects: {{stops}}",
-    "affectedStop": "Day {{day}} #{{number}} {{name}}"
+    "affectedStop": "Day {{day}} #{{number}} {{name}}",
+    "notices": "Good to know",
+    "severityInfo": "Notice",
+    "noticeDays_one": "Day {{days}}",
+    "noticeDays_other": "Days {{days}}"
   },
   "conflict": {
     "CLOSED_AT_PLANNED_TIME": "Closed at planned time",
@@ -70,7 +74,8 @@
     "TICKET_VALIDITY": "Ticket may not be valid for this plan",
     "SEASONAL_WARNING": "Seasonal notice",
     "WEB_PLACE_UNVERIFIED": "Found on the web, not source-checked",
-    "WEB_PLACE_UNRESOLVED": "Web place could not be confirmed"
+    "WEB_PLACE_UNRESOLVED": "Web place could not be confirmed",
+    "LEG_ESTIMATED": "Travel times are estimates, not measured routes"
   },
   "itinerary": {
     "title": "Day-by-day itinerary",
@@ -193,7 +198,9 @@
     "database_unavailable": "The service is briefly unavailable. Try again.",
     "resource_not_found": "This item was not found.",
     "internal_error": "Something went wrong. Try again.",
-    "authentication_required": "Your session ended. Sign in again to continue."
+    "authentication_required": "Your session ended. Sign in again to continue.",
+    "unsupported_request": "This change isn't supported yet.",
+    "trip_not_saved": "Save this trip first, then try again."
   },
   "sheet": {
     "subtitle": "Day {{day}} · stop {{number}} · {{time}}",

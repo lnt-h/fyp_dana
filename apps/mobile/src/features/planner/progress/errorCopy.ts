@@ -4,7 +4,7 @@ import type { ErrorDetail } from '../../../lib/api/types';
 
 const knownCodes = [
   'ai_unavailable', 'route_unavailable', 'quota_exceeded', 'validation_error', 'unsupported_request', 'resource_not_found', 'authentication_required',
-  'preview_expired', 'preview_closed', 'database_unavailable', 'network', 'internal_error',
+  'preview_expired', 'preview_closed', 'database_unavailable', 'network', 'internal_error', 'revision_conflict', 'trip_not_saved',
 ] as const;
 type KnownCode = typeof knownCodes[number];
 

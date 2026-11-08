@@ -156,7 +156,7 @@
       "VERIFYING_WEB_PLACES_0": "Đang kiểm tra từng địa điểm có thật…",
       "VERIFYING_WEB_PLACES_1": "Địa điểm từ web sẽ được gắn nhãn Chưa đối chiếu nguồn…",
       "ROUTING_0": "Đang đo quãng đường giữa các điểm…",
-      "ROUTING_1": "Đang tính thời gian di chuyển thực tế…",
+      "ROUTING_1": "Đang tính thời gian đi giữa các điểm…",
       "SCHEDULING_0": "Đang xếp các điểm vào từng ngày…",
       "SCHEDULING_1": "Đang sắp giờ cho từng điểm dừng…",
       "CHECKING_HEALTH_0": "Đang đối chiếu giờ mở cửa…",
@@ -184,7 +184,9 @@
       "database_unavailable": "Dịch vụ tạm gián đoạn. Thử lại.",
       "network": "Không có kết nối. Thử lại.",
       "internal_error": "Có lỗi xảy ra. Thử lại.",
-      "authentication_required": "Phiên đăng nhập đã hết. Hãy đăng nhập lại để tiếp tục."
+      "authentication_required": "Phiên đăng nhập đã hết. Hãy đăng nhập lại để tiếp tục.",
+      "revision_conflict": "Bản nháp vừa được thay đổi ở nơi khác. Hãy mở lại để tiếp tục.",
+      "trip_not_saved": "Hãy lưu chuyến đi trước rồi thử lại."
     }
   }
 }

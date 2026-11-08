@@ -130,14 +130,17 @@ export type PlaceCard = Omit<Schemas['PlaceCard'], 'address_vi' | 'entrance'> & 
   entrance: PlaceFact;
 };
 
-/** Plan Health conflict (13 types; calendar rules carry `rule_id`/`date`, web stops carry `stop_ids`). */
+/**
+ * Plan Health conflict (13 health types plus the INFO notice `LEG_ESTIMATED`, contract 1.0.2; calendar rules carry
+ * `rule_id`/`date`, web stops carry `stop_ids`). Severity INFO is a notice and never a warning.
+ */
 export type Conflict = Schemas['Conflict'];
 export type ConflictType = Conflict['type'];
 
 export const CONFLICT_TYPES: readonly ConflictType[] = [
   'CLOSED_AT_PLANNED_TIME', 'LEG_UNAVAILABLE', 'DAY_WINDOW_EXCEEDED', 'OPENING_HOURS_UNKNOWN', 'FACT_STALE', 'MUST_SEE_NOT_INCLUDED',
   'CLOSED_ON_DATE', 'LEG_MODE_RESTRICTED', 'LUNAR_EVENT_CONFLICT', 'TICKET_VALIDITY', 'SEASONAL_WARNING', 'WEB_PLACE_UNVERIFIED',
-  'WEB_PLACE_UNRESOLVED',
+  'WEB_PLACE_UNRESOLVED', 'LEG_ESTIMATED',
 ];
 
 /** Itinerary stop; `place_id`/`catalog_publication_id` are null for a `WEB_UNVERIFIED` stop. */
@@ -181,8 +184,8 @@ export type ErrorResponse = Schemas['ErrorResponse'];
 type PlanningStreamSchema = Schemas['PlanningStreamEvent'];
 
 /**
- * Planning stream stages in order (architecture §5). RESEARCHING and VERIFYING_WEB_PLACES run only when the catalog pool
- * is thin; WRITING writes rationales.
+ * Planning stream stages in order (architecture §5). RESEARCHING runs only when the catalog pool is thin; WRITING only
+ * when an AI key is configured (it writes rationales). VERIFYING_WEB_PLACES stays in the contract but is not emitted.
  */
 export type PlanningStage = NonNullable<PlanningStreamSchema['stage']>;
 
@@ -190,8 +193,8 @@ export const PLANNING_STAGES: readonly PlanningStage[] = [
   'VALIDATING_REQUEST', 'SELECTING_PLACES', 'RESEARCHING', 'VERIFYING_WEB_PLACES', 'ROUTING', 'SCHEDULING', 'CHECKING_HEALTH', 'WRITING',
 ];
 
-/** Stages that appear only when the research path runs; screens show them once reported. */
-export const OPTIONAL_PLANNING_STAGES: readonly PlanningStage[] = ['RESEARCHING', 'VERIFYING_WEB_PLACES'];
+/** Stages that appear only when the server reports them (research path, AI rationales); screens show them once seen. */
+export const OPTIONAL_PLANNING_STAGES: readonly PlanningStage[] = ['RESEARCHING', 'VERIFYING_WEB_PLACES', 'WRITING'];
 
 /** Agent role reporting a stage (`selector`, `researcher`, `grounded_writer`). */
 export type PlanningAgent = NonNullable<PlanningStreamSchema['agent']>;

@@ -51,7 +51,8 @@ export function DayCard({ day, date, cityName, open, active, places, selectedSto
   const { t } = useTranslation();
   const conflicts = [...day.stops.flatMap(stop => stop.conflicts ?? []), ...day.legs.flatMap(leg => leg.conflicts ?? [])];
   const blocking = conflicts.filter(conflict => conflict.severity === 'BLOCKING').length;
-  const warnings = conflicts.length - blocking;
+  // INFO notices (e.g. estimated legs) are not warnings and are not counted here.
+  const warnings = conflicts.filter(conflict => conflict.severity === 'WARNING').length;
   const first = formatTime(day.stops[0]?.planned_arrival);
   const last = formatTime(day.stops[day.stops.length - 1]?.planned_departure);
   const summary = [date, t('proposal.day.stops', { count: day.stops.length }), first && last ? `${first} – ${last}` : null].filter(Boolean).join(' · ');

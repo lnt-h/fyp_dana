@@ -23,7 +23,8 @@ import { formatDate } from '../../place/format';
 import { formatTime } from '../timeline/format';
 import { HealthGlyph, type PlannerIconName } from '../timeline/icons';
 import { useProposal, type ProposalData } from '../timeline/useProposal';
-import { collectIssues, countIssues, type HealthIssue } from './reasons';
+import { HealthNotices } from './HealthNotices';
+import { collectIssues, collectNotices, countIssues, type HealthIssue } from './reasons';
 
 export function HealthDetailScreen({ previewId }: { previewId: Uuid }) {
   const { t } = useTranslation();
@@ -65,6 +66,8 @@ function HealthDetail({ data, health, previewId, insetsBottom }: { data: Proposa
   const [dayFilter, setDayFilter] = useState<number | null>(null);
   const issues = useMemo(() => collectIssues(data.days, data.healthReasons), [data.days, data.healthReasons]);
   const visible = dayFilter == null ? issues : issues.filter(issue => issue.dayIndex === dayFilter || issue.dayIndex == null);
+  const notices = useMemo(() => collectNotices(data.days, data.healthReasons), [data.days, data.healthReasons]);
+  const visibleNotices = dayFilter == null ? notices : notices.filter(notice => !notice.dayIndexes.length || notice.dayIndexes.includes(dayFilter));
   const { blocking, warnings } = countIssues(visible);
   const shortcutsDisabled = offline || data.readOnly || (!!pending && pending.status !== 'expired');
 
@@ -118,6 +121,7 @@ function HealthDetail({ data, health, previewId, insetsBottom }: { data: Proposa
     <View style={updating ? x.dim : undefined}>
       {section(t('proposal.health.mustFix'), visible.filter(issue => issue.severity === 'BLOCKING'), 'BLOCKING')}
       {section(t('proposal.health.worthChecking'), visible.filter(issue => issue.severity !== 'BLOCKING'), 'WARNING')}
+      <HealthNotices dayCount={dayFilter == null ? data.days.length : 1} notices={visibleNotices} style={x.notices} />
       {!visible.length ? <View style={x.good}>
         <Icon color={colors.tealText} name="check" size={22} />
         <Text style={x.goodText}>{dayFilter ? t('proposal.healthDetail.noIssues') : dayEnds ? t('proposal.healthDetail.goodBody', { end: dayEnds }) : t('proposal.health.goodNote')}</Text>
@@ -220,6 +224,7 @@ const edgeColor: Record<PlanHealth, string> = { BLOCKED: palette.error, GOOD: co
 const tileColor: Record<PlanHealth, string> = { BLOCKED: colors.dangerBg, GOOD: colors.surfaceTint, WARNING: colors.warnBg };
 
 const x = StyleSheet.create({
+  notices: { marginTop: spacing.lg },
   screen: { flex: 1, backgroundColor: colors.canvas },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   headerTitle: { ...typography.headline, flex: 1, textAlign: 'center' },
