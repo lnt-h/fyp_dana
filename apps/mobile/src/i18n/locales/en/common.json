@@ -14,6 +14,11 @@
   "loadError": {
     "offline": "Can't reach Gonarra. Check your connection and try again.",
     "busy": "The service is busy or paused. Please try again in a few minutes.",
-    "server": "Gonarra's server ran into a problem. Please try again."
-  }
+    "server": "Gonarra's server ran into a problem. Please try again.",
+    "auth": "Your session has ended. Sign in again to continue."
+  },
+  "aiMark": "Written by AI",
+  "seeAll": "See all",
+  "dismiss": "Dismiss",
+  "signInAgain": "Sign in again"
 }

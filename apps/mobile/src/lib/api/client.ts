@@ -5,7 +5,8 @@
  * - `X-Request-ID` (fresh UUID, echoed by the server and in error envelopes),
  * - `Accept-Language` (current app locale, `vi` or `en`),
  * - `Idempotency-Key` when the caller passes one (mutating planning/Save calls; reuse the key on retry).
- * Non-2xx responses throw `ApiError` with the parsed envelope; a lost connection rejects with `TypeError` (fetch).
+ * Non-2xx responses throw `ApiError` with the parsed envelope; a lost connection rejects with `TypeError` (fetch), and so
+ * does a JSON request that gets no response within `REQUEST_TIMEOUT_MS` (same "network" error kind for every caller).
  * Nothing here logs tokens, request bodies or locations.
  */
 import * as Crypto from 'expo-crypto';
@@ -73,17 +74,43 @@ export async function throwIfNotOk(response: ResponseLike): Promise<void> {
 
 export type ApiResponse<T> = { data: T; status: number; headers: { get(name: string): string | null } };
 
+/** JSON requests that get no response within this time fail as a network error (SSE streams are not limited). */
+export const REQUEST_TIMEOUT_MS = 30_000;
+
+/** Raised when a JSON request times out: a `TypeError`, like a lost connection, so every caller maps it to "network". */
+export class RequestTimeoutError extends TypeError {
+  constructor() {
+    super('Network request timed out');
+    this.name = 'RequestTimeoutError';
+  }
+}
+
 /** One JSON request; resolves with the parsed body (undefined for 204) plus status and headers. */
 export async function apiRequestRaw<T>(path: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
-  const response = await fetch(buildUrl(path, options.query), {
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    headers: await buildHeaders(options),
-    method: options.method ?? 'GET',
-    signal: options.signal,
-  });
-  await throwIfNotOk(response);
-  const text = response.status === 204 ? '' : await response.text();
-  return { data: (text ? JSON.parse(text) : undefined) as T, headers: response.headers, status: response.status };
+  const timeout = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; timeout.abort(); }, REQUEST_TIMEOUT_MS);
+  // The caller's own abort still wins (and still rejects with its AbortError).
+  const onCallerAbort = () => timeout.abort();
+  if (options.signal?.aborted) timeout.abort();
+  options.signal?.addEventListener('abort', onCallerAbort);
+  try {
+    const response = await fetch(buildUrl(path, options.query), {
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      headers: await buildHeaders(options),
+      method: options.method ?? 'GET',
+      signal: timeout.signal,
+    });
+    await throwIfNotOk(response);
+    const text = response.status === 204 ? '' : await response.text();
+    return { data: (text ? JSON.parse(text) : undefined) as T, headers: response.headers, status: response.status };
+  } catch (error) {
+    if (timedOut && !options.signal?.aborted) throw new RequestTimeoutError();
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    options.signal?.removeEventListener('abort', onCallerAbort);
+  }
 }
 
 /** One JSON request; resolves with the parsed body. */

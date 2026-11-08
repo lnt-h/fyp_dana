@@ -5,11 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CircleButton, GlassBadge, Icon, type IconName, categoryIcon, Photo, PrimaryButton, SecondaryButton, SectionHeader, Skeleton, usePhotoFailed } from '../../components/ui';
+import { AiMark, CategoryBadge, CircleButton, GlassBadge, Icon, Photo, PrimaryButton, SecondaryButton, SectionHeader, Skeleton, usePhotoFailed } from '../../components/ui';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-import { currentLocale, type AppLocale } from '../../i18n';
-import { getPlace, listCategories, loadErrorKind, type LoadErrorKind } from '../../lib/api/source';
-import type { Category, GeoPoint, Media, PlaceDetail, PlaceFact } from '../../lib/api/types';
+import { currentLocale } from '../../i18n';
+import { ApiError, getPlace, listCategories, loadErrorKind, type LoadErrorKind } from '../../lib/api/source';
+import type { Category, Citation, GeoPoint, Media, PlaceDetail, PlaceFact } from '../../lib/api/types';
 import { colors } from '../../theme/colors';
 import { elevation } from '../../theme/elevation';
 import { radii, spacing } from '../../theme/spacing';
@@ -17,20 +17,22 @@ import { fonts, typography } from '../../theme/typography';
 import { FactIcon, factIcon, type FactIconName } from './components/FactIcon';
 import { HeroGallery } from './components/HeroGallery';
 import { ScreenMessage, isNotFound } from './components/PlaceUI';
-import { SourceLine, StaleBadge, UnknownBadge } from './components/SourceLine';
+import { SourceLine, StaleBadge } from './components/SourceLine';
 import { factPoint, formatFactValue, isStaleFact, type FactLabels } from './format';
 
 type Load = { state: 'loading' } | { state: 'ready'; place: PlaceDetail } | { state: 'notFound' } | { state: 'error'; kind: LoadErrorKind };
 
-/** Facts always listed (UNKNOWN shown as *chưa rõ*); ADDRESS_VI lives in the driver panel. */
-const coreFacts = ['OPENING_HOURS', 'ADMISSION_PRICE', 'ENTRANCE_LOCATION'] as const;
-/** Other operational facts, listed only when KNOWN (SCR-033). */
-const optionalFacts = ['PAYMENT_METHODS', 'DRESS_CODE', 'ACCESS_RULES'] as const;
+/** Facts shown as tiles, only when KNOWN (anti-noise rule 1); ADDRESS_VI lives in the driver card. */
+const tileFacts = ['OPENING_HOURS', 'ADMISSION_PRICE', 'ENTRANCE_LOCATION', 'PAYMENT_METHODS', 'DRESS_CODE', 'ACCESS_RULES'] as const;
+/** Facts named once in the quiet "Not listed yet: …" line when UNKNOWN (unknown stays unknown, never invented). */
+const missingFacts = ['OPENING_HOURS', 'ADMISSION_PRICE', 'ADDRESS_VI'] as const;
 
 const HERO_HEIGHT = 380;
-const surfaceBorder = colors.hairline;
+/** Height of the bottom action bar above the safe-area inset (scroll padding so nothing hides under it). */
+const ACTION_BAR = 52 + spacing.sm * 2;
 
-const unknownFact = (field_code: string): PlaceFact => ({ field_code, freshness: 'CURRENT', knowledge_state: 'UNKNOWN', sources: [], value: null });
+/** A place id the server rejects as malformed (422 on the path) is a place that does not exist for the user. */
+const isMissingPlace = (error: unknown) => isNotFound(error) || (error instanceof ApiError && error.status === 422);
 
 function directionsUrls({ latitude, longitude }: GeoPoint) {
   return {
@@ -47,7 +49,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [mapsFailed, setMapsFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const language = i18n.language;
+  const language = i18n.resolvedLanguage;
   const reducedMotion = useReducedMotion();
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   // Layout offsets for the "Sources: …" link: the inner column inside the scroll, then the credits inside the column.
@@ -59,7 +61,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
     setLoad({ state: 'loading' });
     getPlace(placeId)
       .then(place => { if (alive) setLoad({ place, state: 'ready' }); })
-      .catch((error: unknown) => { if (alive) setLoad(isNotFound(error) ? { state: 'notFound' } : { kind: loadErrorKind(error), state: 'error' }); });
+      .catch((error: unknown) => { if (alive) setLoad(isMissingPlace(error) ? { state: 'notFound' } : { kind: loadErrorKind(error), state: 'error' }); });
     listCategories().then(items => { if (alive) setCategories(items); }).catch(() => undefined);
     return () => { alive = false; };
   }, [placeId, attempt, language]);
@@ -73,9 +75,11 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
       <View accessibilityLabel={t('place.loading')} accessibilityLiveRegion="polite" accessible style={s.fill}>
         <Skeleton height={HERO_HEIGHT} radius={0} />
         <View style={s.skeletonBody}>
-          <Skeleton height={56} radius={radii.inset} />
-          <Skeleton height={150} radius={radii.card} />
-          <Skeleton height={220} radius={radii.card} />
+          <Skeleton height={24} width="45%" />
+          <View style={s.tiles}>
+            {[0, 1, 2, 3].map(index => <View key={index} style={s.skeletonTile}><Skeleton height={104} radius={radii.card} /></View>)}
+          </View>
+          <Skeleton height={132} radius={radii.card} />
         </View>
       </View>
       <View style={[s.floatingBack, { top: insets.top + spacing.xs }]}>{backButton}</View>
@@ -103,32 +107,37 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
   const categoryName = category ? (locale === 'vi' ? category.name_vi : category.name_en) : undefined;
   const otherName = locale === 'vi' ? place.name_en : place.name_vi;
   const facts = new Map(place.facts.map(fact => [fact.field_code, fact]));
-  const labels: FactLabels = { child: price => t('place.facts.childPrice', { price }), free: t('place.facts.free') };
-  const address = facts.get('ADDRESS_VI') ?? unknownFact('ADDRESS_VI');
-  const addressText = address.knowledge_state === 'KNOWN' ? formatFactValue(address.value, locale, labels) : null;
+  const labels: FactLabels = {
+    allDay: t('place.hours.allDay'),
+    child: price => t('place.facts.childPrice', { price }),
+    closed: days => t('place.hours.closed', { days }),
+    everyDay: t('place.hours.everyDay'),
+    free: t('place.facts.free'),
+  };
+  const knownValue = (fact: PlaceFact | undefined) => (fact?.knowledge_state === 'KNOWN' ? formatFactValue(fact.value, locale, labels) : null);
+  const address = facts.get('ADDRESS_VI');
+  const addressText = knownValue(address);
   const entrancePoint = place.entrance_location ?? factPoint(facts.get('ENTRANCE_LOCATION'));
   const target = entrancePoint ?? place.location;
-  const listed: PlaceFact[] = [
-    ...coreFacts.map(code => facts.get(code) ?? unknownFact(code)),
-    ...optionalFacts.flatMap(code => { const fact = facts.get(code); return fact?.knowledge_state === 'KNOWN' ? [fact] : []; }),
-  ];
-  const quickValue = (code: string) => {
+
+  // Known facts only, as tiles (anti-noise rule 1). Unknown ones are named once, quietly, below the tiles.
+  const tiles: FactTile[] = [];
+  for (const code of tileFacts) {
     const fact = facts.get(code);
-    return fact?.knowledge_state === 'KNOWN' ? formatFactValue(fact.value, locale, labels) : null;
-  };
-  const quick: { key: string; icon: FactIconName; label: string; value: string | null }[] = [
-    { icon: 'clock', key: 'hours', label: t('place.quick.hours'), value: quickValue('OPENING_HOURS') },
-    { icon: 'walk', key: 'visit', label: t('place.quick.visit'), value: place.visit_minutes_suggested ? t('place.visitAbout', { count: place.visit_minutes_suggested }) : null },
-    { icon: 'ticket', key: 'price', label: t('place.quick.price'), value: quickValue('ADMISSION_PRICE') },
-  ];
+    if (fact?.knowledge_state !== 'KNOWN') continue;
+    const value = code === 'ENTRANCE_LOCATION' ? (entrancePoint ? t('place.facts.entrancePinned') : null) : knownValue(fact);
+    if (value) tiles.push({ aiExtracted: fact.origin === 'AI_EXTRACTED', code, icon: factIcon(code), label: t(`place.facts.${code}`), stale: isStaleFact(fact), value });
+  }
+  if (place.visit_minutes_suggested) {
+    tiles.splice(Math.min(1, tiles.length), 0, { code: 'VISIT', icon: 'walk', label: t('place.quick.visit'), value: t('place.visitAbout', { count: place.visit_minutes_suggested }) });
+  }
+  const missing = missingFacts.filter(code => (facts.get(code)?.knowledge_state ?? 'UNKNOWN') === 'UNKNOWN').map(code => t(`place.missing.${code}`));
+  const anyAiFact = tiles.some(tile => tile.aiExtracted);
+
   const photos = place.media?.filter(media => media.media_asset_id !== place.thumbnail?.media_asset_id) ?? [];
-  const areaName = place.area ? (locale === 'vi' ? place.area.name_vi : place.area.name_en) : null;
-  const publishers = [...new Set(place.attributions.map(item => item.publisher).filter(Boolean))];
-  const tags: { key: string; label: string; icon: IconName }[] = [
-    ...(categoryName ? [{ icon: 'heritage' as const, key: 'category', label: categoryName }] : []),
-    ...(areaName ? [{ icon: 'map-pin' as const, key: 'area', label: areaName }] : []),
-    ...(place.trust_level === 'VERIFIED' ? [{ icon: 'shield' as const, key: 'trust', label: t('place.tags.verified') }] : []),
-  ];
+  // Short area name for the hero chip: "Hội An beaches and islands (An Bàng, …)" → "Hội An beaches and islands".
+  const areaName = place.area ? (locale === 'vi' ? place.area.name_vi : place.area.name_en).replace(/\s*\(.*\)\s*$/, '') : null;
+  const sources = uniqueSources(place.facts);
 
   async function openDirections() {
     setMapsFailed(false);
@@ -140,9 +149,9 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
     setMapsFailed(true);
   }
 
-  /** Scrolls to the sources & credits section (the "Sources: …" line and the AI-summary label link here). */
+  /** Scrolls to the sources & credits section ("Summarised from sources" captions link here). */
   function scrollToSources() {
-    scrollRef.current?.scrollTo({ animated: !reducedMotion, y: Math.max(0, innerY.current + attributionsY.current - spacing.xxxl - spacing.md) });
+    scrollRef.current?.scrollTo({ animated: !reducedMotion, y: Math.max(0, innerY.current + attributionsY.current - spacing.xl) });
   }
 
   function share() {
@@ -150,9 +159,24 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
     Share.share({ message: lines.join('\n') }).catch(() => undefined);
   }
 
+  const hasSources = sources.length > 0 || place.attributions.length > 0;
+  const summaryCaption = (hint: string) => <Pressable
+    accessibilityHint={hint}
+    accessibilityLabel={t('place.facts.aiExtracted')}
+    accessibilityRole={hasSources ? 'link' : 'text'}
+    disabled={!hasSources}
+    hitSlop={{ bottom: 8, top: 8 }}
+    onPress={scrollToSources}
+    style={({ pressed }) => [s.aiCaption, pressed && { opacity: 0.6 }]}
+  >
+    <AiMark decorative size={14} />
+    <Text style={s.aiCaptionText}>{t('place.facts.aiExtracted')}</Text>
+    {hasSources ? <Icon color={colors.textMuted} name="chevron-down" size={14} /> : null}
+  </Pressable>;
+
   return <View style={s.screen}>
     <StatusBar style="light" />
-    <ScrollView ref={scrollRef} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} contentContainerStyle={[s.scroll, { paddingBottom: ACTION_BAR + insets.bottom + spacing.lg }]} showsVerticalScrollIndicator={false}>
       <HeroGallery
         categoryCode={place.category_code}
         height={HERO_HEIGHT}
@@ -163,64 +187,52 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
         topLeft={backButton}
         topRight={<CircleButton accessibilityLabel={t('place.share')} icon="share" onPress={share} />}
       >
-        {otherName !== place.name && <Text numberOfLines={1} style={s.otherName}>{otherName}</Text>}
+        {otherName !== place.name && <Text numberOfLines={2} style={s.otherName}>{otherName}</Text>}
         {/* EN only: the English name is the Vietnamese proper name because no source gives an English one (never translated). */}
         {locale === 'en' && place.name_is_source_fallback ? <Text numberOfLines={2} style={s.nameNote}>{t('place.nameSourceFallback')}</Text> : null}
-        {tags.length ? <View style={s.tags}>
-          {tags.map(tag => <GlassBadge icon={tag.key === 'category' ? categoryIcon(place.category_code) : tag.icon} key={tag.key} label={tag.label} />)}
+        {categoryName || areaName ? <View style={s.tags}>
+          {categoryName ? <CategoryBadge code={place.category_code} label={categoryName} variant="chip" /> : null}
+          {areaName ? <GlassBadge icon="map-pin" label={areaName} /> : null}
         </View> : null}
       </HeroGallery>
 
       <View onLayout={event => { innerY.current = event.nativeEvent.layout.y; }} style={s.inner}>
-        <View style={s.quickRow}>
-          {quick.map(item => <View accessibilityLabel={`${item.label}: ${item.value ?? t('place.unknown')}`} accessible key={item.key} style={s.quick}>
-            <View style={s.quickIcon}><FactIcon name={item.icon} size={18} /></View>
-            <Text numberOfLines={1} style={s.quickLabel}>{item.label}</Text>
-            <Text numberOfLines={2} style={[s.quickValue, !item.value && s.muted]}>{item.value ?? t('place.unknown')}</Text>
-          </View>)}
-        </View>
-        {publishers.length ? <Pressable
-          accessibilityHint={t('place.sources.hint')}
-          accessibilityRole="link"
-          onPress={scrollToSources}
-          style={({ pressed }) => [s.sourcesLine, pressed && { opacity: 0.6 }]}
-        >
-          <Icon color={colors.tealText} name="doc" size={16} />
-          <Text numberOfLines={2} style={s.sourcesText}>{t('place.sources.line', { publishers: publishers.join(', ') })}</Text>
-          <Icon color={colors.tealText} name="chevron-down" size={16} />
-        </Pressable> : null}
+        {tiles.length > 0 || missing.length > 0 ? <>
+          <SectionHeader style={s.firstSection} title={t('place.facts.title')} />
+          {tiles.length > 0 ? <View style={s.tiles}>
+            {tiles.map(tile => <View
+              accessibilityLabel={`${tile.label}: ${tile.value}${tile.aiExtracted ? `. ${t('place.facts.aiExtracted')}` : ''}`}
+              accessible
+              key={tile.code}
+              style={[s.tile, tile.value.length > 24 && s.tileWide]}
+            >
+              <View style={s.tileHead}>
+                <View style={[s.tileIcon, { backgroundColor: tone.bg }]}><FactIcon color={tone.fg} name={tile.icon} size={18} /></View>
+                {tile.aiExtracted ? <AiMark decorative size={14} /> : null}
+              </View>
+              <Text maxFontSizeMultiplier={1.4} style={s.tileLabel}>{tile.label}</Text>
+              <Text maxFontSizeMultiplier={1.4} selectable style={s.tileValue}>{tile.value}</Text>
+              {tile.stale ? <StaleBadge /> : null}
+            </View>)}
+          </View> : null}
+          {anyAiFact ? summaryCaption(t('place.facts.aiExtractedHint')) : null}
+          {missing.length > 0 ? <Text style={s.missing}>{t('place.missing.line', { items: missing.join(', ') })}</Text> : null}
+        </> : null}
 
-        <View accessibilityLabel={t('place.driver.a11y', { address: addressText ?? t('place.driver.addressUnknown'), name: place.name_vi })} accessible style={s.driver}>
+        <View accessibilityLabel={addressText ? t('place.driver.a11y', { address: addressText, name: place.name_vi }) : t('place.driver.a11yName', { name: place.name_vi })} accessible style={s.driver}>
           <View style={s.driverHead}>
-            <View style={s.driverIcon}><Icon color={colors.white} name="car" size={20} /></View>
+            <View style={s.driverIcon}><Icon color={colors.white} name="car" size={18} /></View>
             <Text style={s.driverCap}>{t('place.driver.cap')}</Text>
           </View>
           <Text style={s.driverName}>{place.name_vi}</Text>
-          <Text style={[s.driverAddress, !addressText && s.driverUnknown]}>{addressText ?? t('place.driver.addressUnknown')}</Text>
-          {address.knowledge_state === 'KNOWN' && isStaleFact(address) && <StaleBadge onDark />}
-        </View>
-        {address.sources[0] && <View style={s.driverSource}><SourceLine citation={address.sources[0]} stale={isStaleFact(address)} /></View>}
-
-        <SectionHeader style={s.section} title={t('place.facts.title')} />
-        <View style={s.card}>
-          {listed.map((fact, index) => <FactRow fact={fact} first={index === 0} key={fact.field_code} locale={locale} />)}
+          {addressText ? <Text style={s.driverAddress}>{addressText}</Text> : null}
+          {address && addressText && isStaleFact(address) ? <StaleBadge onDark /> : null}
         </View>
 
         {!!place.description && <>
           <SectionHeader style={s.section} title={t('place.description.title')} />
           <Text style={s.body}>{place.description}</Text>
-          {place.description_origin === 'AI_SUMMARY'
-            ? <Pressable
-                accessibilityHint={t('place.description.aiSummaryHint')}
-                accessibilityRole={place.attributions.length ? 'link' : 'text'}
-                disabled={!place.attributions.length}
-                onPress={scrollToSources}
-                style={({ pressed }) => [s.summaryLabel, pressed && { opacity: 0.6 }]}
-              >
-                <Icon color={colors.tealText} name="doc" size={14} />
-                <Text style={s.summaryText}>{t('place.description.aiSummary')}</Text>
-              </Pressable>
-            : <Text style={s.note}>{t('place.description.note')}</Text>}
+          {place.description_origin === 'AI_SUMMARY' ? summaryCaption(t('place.description.aiSummaryHint')) : null}
         </>}
 
         {photos.length > 0 && <>
@@ -230,27 +242,61 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
           </ScrollView>
         </>}
 
-        {place.attributions.length > 0 && <>
+        {hasSources && <View onLayout={event => { attributionsY.current = event.nativeEvent.layout.y; }}>
           <SectionHeader style={s.section} title={t('place.attributions.title')} />
-          <View onLayout={event => { attributionsY.current = event.nativeEvent.layout.y; }} style={s.credits}>
-            {place.attributions.map(item => <Text key={`${item.publisher}-${item.attribution_text}`} style={s.attribution}>
-              {item.publisher} — {item.attribution_text}{item.license_code ? ` (${item.license_code})` : ''}
-            </Text>)}
+          <View style={s.credits}>
+            {sources.map((source, index) => <SourceLine citation={source} key={`${source.source_revision_id}-${index}`} />)}
+            {place.attributions.map(item => <Attribution item={item} key={`${item.publisher}-${item.attribution_text}`} />)}
           </View>
-        </>}
+        </View>}
       </View>
     </ScrollView>
 
-    <View style={[s.actionBar, elevation.lg, { paddingBottom: insets.bottom + spacing.sm }]}>
+    <View style={[s.actionBar, elevation.floating, { paddingBottom: insets.bottom + spacing.sm }]}>
       <View style={s.barInner}>
         {mapsFailed && <Text accessibilityRole="alert" style={s.error}>{t('place.directionsFailed')}</Text>}
         <View style={s.actions}>
-          <PrimaryButton accessibilityHint={t('place.directionsHint')} icon="navigation" label={t('place.directions')} onPress={() => void openDirections()} style={s.actionPrimary} />
-          <SecondaryButton icon="lantern" label={t('place.askGuide')} onPress={() => router.push({ params: { placeId: place.id }, pathname: '/guide' })} style={s.actionSecondary} />
+          <SecondaryButton icon="chat-text" label={t('place.askGuide')} onPress={() => router.push({ params: { placeId: place.id }, pathname: '/guide' })} style={s.action} />
+          <PrimaryButton accessibilityHint={t('place.directionsHint')} icon="navigation" label={t('place.directions')} onPress={() => void openDirections()} style={s.action} />
         </View>
       </View>
     </View>
   </View>;
+}
+
+type FactTile = { code: string; icon: FactIconName; label: string; value: string; aiExtracted?: boolean; stale?: boolean };
+
+/** Every distinct source cited by the place's facts, newest first per source revision. */
+function uniqueSources(facts: PlaceFact[]): Citation[] {
+  const seen = new Set<string>();
+  const out: Citation[] = [];
+  for (const fact of facts) {
+    for (const source of fact.sources) {
+      const key = source.source_revision_id ?? `${source.publisher}|${source.locator ?? ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(source);
+    }
+  }
+  return out;
+}
+
+/** Licence credit; the publisher's homepage opens in the browser when it has one. */
+function Attribution({ item }: { item: PlaceDetail['attributions'][number] }) {
+  const { t } = useTranslation();
+  const text = `${item.publisher} — ${item.attribution_text}${item.license_code ? ` (${item.license_code})` : ''}`;
+  const url = item.homepage_url && /^https?:\/\//i.test(item.homepage_url) ? item.homepage_url : null;
+  if (!url) return <Text style={s.attribution}>{text}</Text>;
+  return <Pressable
+    accessibilityHint={t('place.source.openLinkHint')}
+    accessibilityLabel={text}
+    accessibilityRole="link"
+    onPress={() => { Linking.openURL(url).catch(() => undefined); }}
+    style={({ pressed }) => [s.attributionLink, pressed && { opacity: 0.6 }]}
+  >
+    <Text style={[s.attribution, s.linkText]}>{text}</Text>
+    <Icon color={colors.primary} name="share" size={14} />
+  </Pressable>;
 }
 
 /** One extra photo with its credit; a photo that fails to load shows the category tile and drops the credit. */
@@ -264,93 +310,52 @@ function MediaItem({ media, name, categoryCode }: { media: Media; name: string; 
   </View>;
 }
 
-/** *Tóm tắt từ nguồn / Summarised from sources* on a fact the pipeline extracted from its cited source (DEC-028). */
-function AiExtractedLabel() {
-  const { t } = useTranslation();
-  return <View accessibilityHint={t('place.facts.aiExtractedHint')} accessible style={s.factOrigin}>
-    <Icon color={colors.tealText} name="doc" size={14} />
-    <Text style={s.factOriginText}>{t('place.facts.aiExtracted')}</Text>
-  </View>;
-}
-
-function FactRow({ fact, first, locale }: { fact: PlaceFact; first: boolean; locale: AppLocale }) {
-  const { t } = useTranslation();
-  const label = t(`place.facts.${fact.field_code}`, { defaultValue: t('place.facts.other') });
-  const labels: FactLabels = { child: price => t('place.facts.childPrice', { price }), free: t('place.facts.free') };
-  const known = fact.knowledge_state === 'KNOWN' ? formatFactValue(fact.value, locale, labels) : null;
-  const notApplicable = fact.knowledge_state === 'NOT_APPLICABLE';
-  const stale = fact.knowledge_state === 'KNOWN' && isStaleFact(fact);
-  return <View style={[s.factRow, !first && s.divider]}>
-    <View style={s.factIcon}><FactIcon name={factIcon(fact.field_code)} /></View>
-    <View style={s.factCopy}>
-      <Text style={s.factLabel}>{label}</Text>
-      {known
-        ? <Text selectable style={s.factValue}>{known}</Text>
-        : notApplicable
-          ? <Text style={[s.factValue, s.muted]}>{t('place.notApplicable')}</Text>
-          : <UnknownBadge />}
-      {fact.knowledge_state === 'KNOWN' && fact.origin === 'AI_EXTRACTED' && <AiExtractedLabel />}
-      {fact.knowledge_state === 'KNOWN' && (fact.sources.length
-        ? fact.sources.map((source, index) => <SourceLine citation={source} key={`${source.source_revision_id}-${index}`} stale={stale || undefined} />)
-        : <Text style={s.note}>{t('place.source.none')}</Text>)}
-    </View>
-  </View>;
-}
+const tone = { bg: colors.primarySoft, fg: colors.primary };
 
 const s = StyleSheet.create({
-  actionBar: { backgroundColor: colors.white, borderTopLeftRadius: radii.card, borderTopRightRadius: radii.card, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
-  actionPrimary: { paddingHorizontal: spacing.sm },
-  actionSecondary: { paddingHorizontal: spacing.sm },
-  /** Stacked so "Hỏi về nơi này" / "Ask about this place" never truncates beside Directions. */
-  actions: { gap: spacing.xs },
-  attribution: { ...typography.caption, marginBottom: 4 },
+  action: { flex: 1, paddingHorizontal: spacing.sm },
+  actionBar: { backgroundColor: colors.white, bottom: 0, left: 0, paddingHorizontal: spacing.md, paddingTop: spacing.sm, position: 'absolute', right: 0 },
+  actions: { flexDirection: 'row', gap: spacing.xs },
+  aiCaption: { alignItems: 'center', alignSelf: 'flex-start', flexDirection: 'row', gap: 6, minHeight: 44 },
+  aiCaptionText: { ...typography.caption, color: colors.textSecondary },
+  attribution: { ...typography.caption, color: colors.textSecondary },
+  attributionLink: { alignItems: 'center', flexDirection: 'row', gap: 6, minHeight: 44 },
   barInner: { alignSelf: 'center', maxWidth: 480, width: '100%' },
   body: { ...typography.body, color: colors.ink, fontSize: 17, lineHeight: 26 },
   caption: { ...typography.caption, fontSize: 12, marginTop: 6 },
-  card: { backgroundColor: colors.white, borderColor: surfaceBorder, borderRadius: radii.card, borderWidth: 1 },
-  credits: { backgroundColor: colors.surfaceTint, borderRadius: radii.card, padding: spacing.md },
-  divider: { borderTopColor: colors.hairline, borderTopWidth: 1 },
-  driver: { backgroundColor: colors.deepOcean, borderRadius: radii.card, gap: 6, marginTop: spacing.lg, padding: 22 },
-  driverAddress: { color: colors.white, fontFamily: fonts.medium, fontSize: 22, lineHeight: 30 },
-  driverCap: { color: colors.white, flexShrink: 1, fontFamily: fonts.bold, fontSize: 18, lineHeight: 24 },
-  driverHead: { alignItems: 'center', flexDirection: 'row', gap: 10, marginBottom: 6 },
-  driverIcon: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 18, height: 36, justifyContent: 'center', width: 36 },
-  driverName: { color: colors.white, fontFamily: fonts.bold, fontSize: 30, letterSpacing: -0.5, lineHeight: 36 },
-  driverSource: { paddingHorizontal: 4 },
-  driverUnknown: { color: colors.hairline },
+  credits: { backgroundColor: colors.surface, borderRadius: radii.card, gap: 2, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  driver: { backgroundColor: colors.primary, borderRadius: radii.card, gap: 4, marginTop: spacing.xl, padding: spacing.lg },
+  driverAddress: { color: colors.white, fontFamily: fonts.medium, fontSize: 20, lineHeight: 28 },
+  driverCap: { color: 'rgba(255,255,255,0.92)', flexShrink: 1, fontFamily: fonts.semibold, fontSize: 15, lineHeight: 20 },
+  driverHead: { alignItems: 'center', flexDirection: 'row', gap: 10, marginBottom: 4 },
+  driverIcon: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
+  driverName: { color: colors.white, fontFamily: fonts.bold, fontSize: 28, letterSpacing: -0.4, lineHeight: 34 },
   error: { color: colors.danger, fontFamily: fonts.medium, fontSize: 14, marginBottom: 8, textAlign: 'center' },
-  factCopy: { flex: 1, gap: 2 },
-  factIcon: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.iconTile, height: 40, justifyContent: 'center', width: 40 },
-  factLabel: { color: colors.textMuted, fontFamily: fonts.bold, fontSize: 13, letterSpacing: 0.2, lineHeight: 18 },
-  factRow: { alignItems: 'flex-start', flexDirection: 'row', gap: 14, paddingHorizontal: spacing.md, paddingVertical: spacing.md },
-  factValue: { color: colors.ink, fontFamily: fonts.bold, fontSize: 17, lineHeight: 24 },
   fill: { flex: 1 },
+  firstSection: { marginBottom: spacing.sm, marginTop: spacing.lg },
   floatingBack: { left: spacing.md, position: 'absolute' },
   inner: { alignSelf: 'center', maxWidth: 480, paddingHorizontal: spacing.lg, width: '100%' },
-  mediaImage: { borderRadius: radii.inset, height: 140, overflow: 'hidden', width: 200 },
+  linkText: { color: colors.primary, flexShrink: 1 },
+  mediaImage: { borderRadius: radii.photo, height: 140, overflow: 'hidden', width: 200 },
   mediaItem: { width: 200 },
   mediaRow: { gap: spacing.sm, paddingHorizontal: spacing.lg },
   mediaScroll: { marginHorizontal: -spacing.lg },
-  muted: { color: colors.textMuted },
-  note: { ...typography.caption, marginTop: spacing.xs },
-  nameNote: { color: 'rgba(255,255,255,0.82)', fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, marginTop: 2 },
-  otherName: { color: 'rgba(255,255,255,0.9)', fontFamily: fonts.medium, fontSize: 17, marginTop: 2 },
+  missing: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
+  nameNote: { color: 'rgba(255,255,255,0.86)', fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, marginTop: 2 },
+  otherName: { color: 'rgba(255,255,255,0.92)', fontFamily: fonts.medium, fontSize: 17, lineHeight: 22, marginTop: 2 },
   plain: { backgroundColor: colors.canvas },
   plainHeader: { paddingHorizontal: spacing.md },
-  quick: { backgroundColor: colors.white, borderColor: surfaceBorder, borderRadius: radii.card, borderWidth: 1, flex: 1, gap: 4, minHeight: 104, minWidth: 0, padding: spacing.sm },
-  quickIcon: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: 12, height: 36, justifyContent: 'center', width: 36 },
-  quickLabel: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 16 },
-  quickRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.md },
-  summaryLabel: { alignItems: 'center', alignSelf: 'flex-start', flexDirection: 'row', gap: 6, minHeight: 44 },
-  factOrigin: { alignItems: 'center', alignSelf: 'flex-start', flexDirection: 'row', gap: 6, marginTop: 2 },
-  factOriginText: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 12, lineHeight: 16 },
-  summaryText: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 13, lineHeight: 18 },
-  sourcesLine: { alignItems: 'center', flexDirection: 'row', gap: 6, minHeight: 44, marginTop: spacing.xs },
-  sourcesText: { color: colors.tealText, flex: 1, fontFamily: fonts.bold, fontSize: 13, lineHeight: 18 },
-  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.xs },
-  quickValue: { color: colors.ink, fontFamily: fonts.bold, fontSize: 15, lineHeight: 20 },
   screen: { backgroundColor: colors.canvas, flex: 1 },
   scroll: { paddingBottom: spacing.xxl },
-  section: { marginBottom: spacing.sm, marginTop: spacing.xxl },
+  section: { marginBottom: spacing.sm, marginTop: spacing.xl },
   skeletonBody: { gap: spacing.md, padding: spacing.lg },
+  skeletonTile: { flexBasis: '47%', flexGrow: 1 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.xs },
+  tile: { backgroundColor: colors.surface, borderRadius: radii.card, flexBasis: '47%', flexGrow: 1, gap: 2, minHeight: 104, padding: spacing.sm },
+  tileWide: { flexBasis: '100%' },
+  tileHead: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  tileIcon: { alignItems: 'center', borderRadius: radii.iconTile, height: 36, justifyContent: 'center', width: 36 },
+  tileLabel: { ...typography.micro, color: colors.textSecondary },
+  tileValue: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 15, lineHeight: 20 },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
 });

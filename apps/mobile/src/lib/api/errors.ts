@@ -57,14 +57,21 @@ export function fallbackError(status: number, requestId: string | null): ErrorDe
   return { code, message: '', request_id: requestId, retryable: status >= 500 || status === 429 };
 }
 
+/** True for a 401 / `authentication_required` response: the Clerk session is missing or expired. */
+export function isAuthError(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 401 || error.code === 'authentication_required');
+}
+
 /**
  * Why a screen could not load, for the retry banner's second line: `offline` = the request never reached the server
- * (fetch rejects with `TypeError`); `busy` = quota or a dependency is down (429, 502–504, `*_unavailable`), worth a
- * retry later; `server` = any other error response.
+ * (fetch rejects with `TypeError`); `auth` = 401 `authentication_required` (session expired; offer "Sign in again",
+ * `common.signInAgain`); `busy` = quota or a dependency is down (429, 502–504, `*_unavailable`), worth a retry later;
+ * `server` = any other error response.
  */
-export type LoadErrorKind = 'offline' | 'busy' | 'server';
+export type LoadErrorKind = 'offline' | 'auth' | 'busy' | 'server';
 
 export function loadErrorKind(error: unknown): LoadErrorKind {
+  if (isAuthError(error)) return 'auth';
   if (error instanceof ApiError) {
     const busy = error.status === 429 || error.status === 502 || error.status === 503 || error.status === 504
       || error.code === 'quota_exceeded' || error.code.endsWith('_unavailable');
@@ -72,3 +79,6 @@ export function loadErrorKind(error: unknown): LoadErrorKind {
   }
   return error instanceof TypeError ? 'offline' : 'server';
 }
+
+/** Route that resolves an `auth` load error: the sign-in screen (the session is gone, so sign in again). */
+export const SIGN_IN_AGAIN_ROUTE = '/login' as const;

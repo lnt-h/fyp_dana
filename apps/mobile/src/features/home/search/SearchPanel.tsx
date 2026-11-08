@@ -3,16 +3,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Chip, Icon, Photo, Skeleton, categoryIcon } from '../../../components/ui';
+import { CategoryBadge, Chip, GhostButton, Icon, Photo, Skeleton, categoryIcon } from '../../../components/ui';
 import { listCategories, searchPlaces } from '../../../lib/api/source';
 import type { Category, City, Place } from '../../../lib/api/types';
-import { colors } from '../../../theme/colors';
+import { categoryColor, colors } from '../../../theme/colors';
+import { usePopulatedCategories } from '../usePlaces';
 import { radii } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
 
 const DEBOUNCE_MS = 300;
 const MAX_QUERY = 120;
 const MAX_RESULTS = 20;
+/** Topic sentinel for "Show all places" (every published place of the city). */
+const ALL = '*';
 
 type Status = 'idle' | 'loading' | 'done' | 'error';
 
@@ -77,7 +80,9 @@ export function SearchBody({ city, query, offline, recent, onPickRecent, onOpenP
   const { t, i18n } = useTranslation();
   const vi = i18n.resolvedLanguage === 'vi';
   const cityName = vi ? city.name_vi : city.name_en;
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [allCategories, setCategories] = useState<Category[]>([]);
+  // Only topics with published places (data-driven); empty categories never lead to a dead end.
+  const categories = usePopulatedCategories(city.id, allCategories) ?? [];
   const [topic, setTopic] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>('idle');
   const [items, setItems] = useState<Place[]>([]);
@@ -98,21 +103,33 @@ export function SearchBody({ city, query, offline, recent, onPickRecent, onOpenP
     let active = true;
     setStatus('loading'); // previous results stay visible while loading
     const timer = setTimeout(() => {
-      searchPlaces(city.id, q || undefined)
+      // A topic filters on the server (all pages), never over a partial first page.
+      searchPlaces(city.id, q || undefined, !q && topic && topic !== ALL ? topic : null)
         .then(found => {
           if (!active) return;
-          setItems((topic ? found.filter(place => place.category_code === topic) : found).slice(0, MAX_RESULTS));
+          setItems(q ? found.slice(0, MAX_RESULTS) : found);
           setStatus('done');
         })
         .catch(() => { if (active) setStatus('error'); });
     }, q ? DEBOUNCE_MS : 0);
     return () => { active = false; clearTimeout(timer); };
-  }, [attempt, city.id, offline, q, topic]);
+  }, [attempt, city.id, i18n.resolvedLanguage, offline, q, topic]);
 
   const categoryName = useMemo(() => {
-    const map = new Map(categories.map(c => [c.code, vi ? c.name_vi : c.name_en]));
-    return (code: string) => map.get(code) ?? '';
-  }, [categories, vi]);
+    const map = new Map(allCategories.map(c => [c.code, vi ? c.name_vi : c.name_en]));
+    return (code: string) => (code === ALL ? t('home.search.showAll') : map.get(code) ?? '');
+  }, [allCategories, t, vi]);
+  const topicChip = topic ? (
+    <View style={styles.topicRow}>
+      <Chip
+        accessibilityLabel={`${categoryName(topic)}, ${t('home.search.clearTopic')}`}
+        icon={topic === ALL ? 'map-pin' : categoryIcon(topic)}
+        label={categoryName(topic)}
+        onPress={() => setTopic(null)}
+        selected
+      />
+    </View>
+  ) : null;
 
   if (offline) {
     return (
@@ -147,7 +164,7 @@ export function SearchBody({ city, query, offline, recent, onPickRecent, onOpenP
                   key={category.code}
                   label={vi ? category.name_vi : category.name_en}
                   onPress={() => setTopic(category.code)}
-                  tone="tint"
+                  tone={categoryColor(category.code)}
                 />
               ))}
             </View>
@@ -174,14 +191,19 @@ export function SearchBody({ city, query, offline, recent, onPickRecent, onOpenP
 
   if (!loading && items.length === 0) {
     return (
-      <View style={styles.empty}>
-        <View style={styles.emptyGlyph}>
-          <Icon color={colors.tealText} name="search" size={26} />
+      <View>
+        {topicChip}
+        <View style={styles.empty}>
+          <View style={styles.emptyGlyph}>
+            <Icon color={colors.primary} name="search" size={26} />
+          </View>
+          <Text accessibilityLiveRegion="polite" style={styles.emptyTitle}>
+            {q ? t('home.search.emptyTitle', { city: cityName, q }) : t('home.search.emptyTopicTitle', { city: cityName })}
+          </Text>
+          <Text style={styles.emptyBody}>{t('home.search.emptyBody')}</Text>
+          {/* Never a dead end: a way back to every place of the city. */}
+          {topic !== ALL ? <GhostButton icon="map-pin" label={t('home.search.showAll')} onPress={() => setTopic(ALL)} /> : null}
         </View>
-        <Text accessibilityLiveRegion="polite" style={styles.emptyTitle}>
-          {q ? t('home.search.emptyTitle', { city: cityName, q }) : t('home.search.emptyTopicTitle', { city: cityName })}
-        </Text>
-        <Text style={styles.emptyBody}>{t('home.search.emptyBody')}</Text>
       </View>
     );
   }
@@ -191,11 +213,7 @@ export function SearchBody({ city, query, offline, recent, onPickRecent, onOpenP
       <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.status}>
         {loading ? t('home.search.searching') : t('home.search.resultCount', { city: cityName, count: items.length })}
       </Text>
-      {topic ? (
-        <View style={styles.topicRow}>
-          <Chip icon={categoryIcon(topic)} label={categoryName(topic)} onPress={() => setTopic(null)} selected />
-        </View>
-      ) : null}
+      {topicChip}
       {showSkeleton
         ? Array.from({ length: 3 }, (_, i) => (
           <View key={i} style={styles.row}>
@@ -224,10 +242,7 @@ function ResultRow({ place, categoryLabel, onPress }: { place: Place; categoryLa
       <View style={styles.rowBody}>
         <Text numberOfLines={1} style={styles.rowName}>{place.name}</Text>
         {secondary ? <Text numberOfLines={1} style={styles.rowSecondary}>{secondary}</Text> : null}
-        <View style={styles.rowMeta}>
-          <Icon color={colors.tealText} name={categoryIcon(place.category_code)} size={16} />
-          {categoryLabel ? <Text numberOfLines={1} style={styles.rowMetaText}>{categoryLabel}</Text> : null}
-        </View>
+        {categoryLabel ? <CategoryBadge code={place.category_code} label={categoryLabel} variant="chip" /> : null}
       </View>
       <Icon color={colors.ink} name="chevron-right" size={20} />
     </Pressable>
@@ -237,7 +252,7 @@ function ResultRow({ place, categoryLabel, onPress }: { place: Place; categoryLa
 const styles = StyleSheet.create({
   banner: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceTint,
+    backgroundColor: colors.surface,
     borderRadius: 16,
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -247,22 +262,20 @@ const styles = StyleSheet.create({
   },
   bannerText: { color: colors.ink, flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, minWidth: 180 },
   cancel: { justifyContent: 'center', minHeight: 44, paddingLeft: 4 },
-  cancelText: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 16, lineHeight: 22 },
-  caption: { color: colors.textMuted, fontFamily: fonts.bold, fontSize: 13, letterSpacing: 0.4, lineHeight: 18, textTransform: 'uppercase' },
+  cancelText: { color: colors.primary, fontFamily: fonts.bold, fontSize: 16, lineHeight: 22 },
+  caption: { color: colors.textSecondary, fontFamily: fonts.semibold, fontSize: 15, lineHeight: 20 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   clear: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
   clearDot: { alignItems: 'center', backgroundColor: colors.textMuted, borderRadius: 10, height: 20, justifyContent: 'center', width: 20 },
   clearGlyph: { color: colors.white, fontFamily: fonts.bold, fontSize: 15, lineHeight: 18 },
-  empty: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.card, gap: 10, marginTop: 8, padding: 20 },
+  empty: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.card, gap: 10, marginTop: 8, padding: 20 },
   emptyBody: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   emptyGlyph: { alignItems: 'center', backgroundColor: colors.white, borderRadius: 24, height: 48, justifyContent: 'center', width: 48 },
   emptyTitle: { color: colors.ink, fontFamily: fonts.bold, fontSize: 17, lineHeight: 24, textAlign: 'center' },
   field: {
     alignItems: 'center',
-    backgroundColor: colors.white,
-    borderColor: colors.hairline,
-    borderRadius: radii.field,
-    borderWidth: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.pill,
     flex: 1,
     flexDirection: 'row',
     height: 52,
@@ -272,17 +285,15 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', backgroundColor: colors.white, flexDirection: 'row', gap: 8, paddingBottom: 12, paddingTop: 4 },
   idle: { gap: 22, paddingTop: 8 },
   input: { color: colors.ink, flex: 1, fontFamily: fonts.medium, fontSize: 16, height: '100%', marginLeft: 10, paddingVertical: 0 },
-  link: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 15, lineHeight: 22, textDecorationLine: 'underline' },
+  link: { color: colors.primary, fontFamily: fonts.bold, fontSize: 15, lineHeight: 22, textDecorationLine: 'underline' },
   pressed: { opacity: 0.8 },
   recentRow: { alignItems: 'center', flexDirection: 'row', gap: 10, minHeight: 44 },
   recentText: { color: colors.ink, flex: 1, fontFamily: fonts.regular, fontSize: 16, lineHeight: 22 },
   row: { alignItems: 'center', flexDirection: 'row', gap: 12, minHeight: 72, paddingVertical: 8 },
   rowBody: { flex: 1, gap: 4 },
-  rowMeta: { alignItems: 'center', flexDirection: 'row', gap: 6 },
-  rowMetaText: { color: colors.textMuted, flexShrink: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
   rowName: { color: colors.ink, fontFamily: fonts.bold, fontSize: 16, lineHeight: 22 },
   rowSecondary: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
   status: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, marginBottom: 4 },
-  thumb: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: 14, height: 56, justifyContent: 'center', overflow: 'hidden', width: 56 },
+  thumb: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.photo, height: 56, justifyContent: 'center', overflow: 'hidden', width: 56 },
   topicRow: { alignItems: 'flex-start', marginBottom: 4 },
 });

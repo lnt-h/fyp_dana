@@ -5,7 +5,7 @@ import { Marker } from 'react-native-maps';
 import { Photo } from '../../../components/ui';
 import type { Place } from '../../../lib/api/types';
 import { resolveImage } from '../../../lib/images/imagekit';
-import { colors } from '../../../theme/colors';
+import { categoryColor, colors } from '../../../theme/colors';
 import { fonts } from '../../../theme/typography';
 
 const SIZE = 48;
@@ -17,7 +17,10 @@ type Props = {
   onPress: (placeId: string) => void;
 };
 
-/** Round photo marker with a white border and pointer; the selected marker grows and shows its name (SCR-008). */
+/**
+ * Round photo marker ringed in its category colour (icon tile when there is no photo), with a pointer in the same colour;
+ * the selected marker grows and shows its name (SCR-008).
+ */
 export const PlaceMarker = memo(function PlaceMarker({ place, selected, onPress }: Props) {
   const image = resolveImage(place.thumbnail, { height: SELECTED_SIZE, width: SELECTED_SIZE });
   const [loaded, setLoaded] = useState(!image);
@@ -32,6 +35,7 @@ export const PlaceMarker = memo(function PlaceMarker({ place, selected, onPress 
   }, [loaded, selected]);
 
   const size = selected ? SELECTED_SIZE : SIZE;
+  const tint = categoryColor(place.category_code).fg;
 
   return (
     <Marker
@@ -49,7 +53,7 @@ export const PlaceMarker = memo(function PlaceMarker({ place, selected, onPress 
             <Text numberOfLines={1} style={styles.labelText}>{place.name}</Text>
           </View>
         ) : null}
-        <View style={[styles.bubble, { borderRadius: size / 2, height: size, width: size }, selected && styles.bubbleSelected]}>
+        <View style={[styles.bubble, { borderColor: tint, borderRadius: size / 2, height: size, width: size }]}>
           {/* No photo, or a photo that fails: the category tile (deep tone, icon only) so pins stay legible on the map. */}
           <Photo
             categoryCode={place.category_code}
@@ -64,7 +68,7 @@ export const PlaceMarker = memo(function PlaceMarker({ place, selected, onPress 
             width={SELECTED_SIZE}
           />
         </View>
-        <View style={[styles.pointer, selected && styles.pointerSelected]} />
+        <View style={[styles.pointer, { borderTopColor: tint }]} />
       </View>
     </Marker>
   );
@@ -73,16 +77,14 @@ export const PlaceMarker = memo(function PlaceMarker({ place, selected, onPress 
 const styles = StyleSheet.create({
   bubble: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceTint,
-    borderColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 3,
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  bubbleSelected: { borderColor: colors.deepOcean },
   label: {
-    backgroundColor: colors.deepOcean,
-    borderRadius: 6,
+    backgroundColor: colors.ink,
+    borderRadius: 8,
     marginBottom: 4,
     maxWidth: 160,
     paddingHorizontal: 8,
@@ -94,13 +96,11 @@ const styles = StyleSheet.create({
     borderLeftWidth: 6,
     borderRightColor: 'transparent',
     borderRightWidth: 6,
-    borderTopColor: colors.white,
     borderTopWidth: 8,
     height: 0,
     marginTop: -1,
     width: 0,
   },
-  pointerSelected: { borderTopColor: colors.deepOcean },
   wrap: {
     alignItems: 'center',
     paddingHorizontal: 4,

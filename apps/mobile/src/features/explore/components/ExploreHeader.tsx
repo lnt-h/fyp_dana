@@ -4,13 +4,12 @@ import Svg, { Path, Rect } from 'react-native-svg';
 
 import { Chip, Icon, categoryIcon } from '../../../components/ui';
 import type { Category } from '../../../lib/api/types';
-import { colors } from '../../../theme/colors';
+import { categoryColor, colors } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
 import { MAX_QUERY } from '../useExploreData';
 
 export type ResultView = 'grid' | 'list';
-const border = colors.hairline;
 
 /** Large title, city pill (Đà Nẵng only since 2026-11-08: a label, not a picker) and the subtitle. */
 export function ExploreTitle({ cityName }: { cityName: string | null }) {
@@ -24,7 +23,7 @@ export function ExploreTitle({ cityName }: { cityName: string | null }) {
           accessibilityRole="text"
           style={styles.cityPill}
         >
-          <Icon color={colors.tealText} name="map-pin" size={18} />
+          <Icon color={colors.primary} name="map-pin" size={18} />
           <Text numberOfLines={1} style={styles.cityText}>{cityName ?? '…'}</Text>
         </View>
       </View>
@@ -128,7 +127,7 @@ function ViewToggle({ value, onChange }: { value: ResultView; onChange: (view: R
   );
 }
 
-/** Category chips (API-009) with an "All" chip; single choice. */
+/** Category chips (API-009, only categories with places) in their category colours, plus "All"; single choice. */
 export function CategoryRow({ categories, value, onChange, gutter }: {
   categories: Category[];
   value: string | null;
@@ -154,6 +153,7 @@ export function CategoryRow({ categories, value, onChange, gutter }: {
           label={vi ? category.name_vi : category.name_en}
           onPress={() => onChange(value === category.code ? null : category.code)}
           selected={value === category.code}
+          tone={categoryColor(category.code)}
         />
       ))}
     </ScrollView>
@@ -161,11 +161,10 @@ export function CategoryRow({ categories, value, onChange, gutter }: {
 }
 
 const styles = StyleSheet.create({
-  chevronDown: { transform: [{ rotate: '90deg' }] },
   chips: { gap: spacing.xs, paddingVertical: 2 },
   cityPill: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceTint,
+    backgroundColor: colors.primarySoft,
     borderRadius: radii.pill,
     flexDirection: 'row',
     flexShrink: 1,
@@ -180,24 +179,22 @@ const styles = StyleSheet.create({
   fakeInput: { color: colors.textMuted, flex: 1, fontFamily: fonts.medium, fontSize: 16, marginLeft: 10 },
   field: {
     alignItems: 'center',
-    backgroundColor: colors.white,
-    borderColor: border,
-    borderRadius: radii.field,
-    borderWidth: 1.5,
+    backgroundColor: colors.surface,
+    borderRadius: radii.pill,
     flex: 1,
     flexDirection: 'row',
     minHeight: 52,
     paddingLeft: 14,
   },
-  fieldOff: { backgroundColor: colors.surfaceTint },
+  fieldOff: { opacity: 0.6 },
   input: { color: colors.ink, flex: 1, fontFamily: fonts.medium, fontSize: 16, marginLeft: 10, minHeight: 48, paddingVertical: 0 },
   pressed: { opacity: 0.8 },
   searchRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
-  subtitle: { ...typography.body, color: colors.textMuted, fontSize: 15, marginTop: 2 },
+  subtitle: { ...typography.body, color: colors.textSecondary, marginTop: 2 },
   title: { ...typography.display, color: colors.ink, flexShrink: 0 },
   titleBlock: { gap: 2 },
   titleRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'space-between' },
-  toggle: { backgroundColor: colors.surfaceTint, borderRadius: radii.inset, flexDirection: 'row', gap: 2, padding: 4 },
+  toggle: { backgroundColor: colors.surface, borderRadius: radii.inset, flexDirection: 'row', gap: 2, padding: 4 },
   toggleItem: { alignItems: 'center', borderRadius: 12, height: MIN_TOUCH, justifyContent: 'center', width: MIN_TOUCH },
   toggleOn: { backgroundColor: colors.white },
 });

@@ -30,9 +30,9 @@ export function SavedTripsGuest({ onSignIn, gutter }: { onSignIn: () => void; gu
       onPress={onSignIn}
       style={({ pressed }) => [styles.guest, { marginHorizontal: gutter }, pressed && styles.pressed]}
     >
-      <View style={styles.guestIcon}><Icon color={colors.tealText} name="calendar" size={22} /></View>
+      <View style={styles.guestIcon}><Icon color={colors.primary} name="calendar" size={22} /></View>
       <Text style={styles.guestText}>{t('homeSheet.trips.guest')}</Text>
-      <Icon color={colors.tealText} name="chevron-right" size={20} />
+      <Icon color={colors.primary} name="chevron-right" size={20} />
     </Pressable>
   );
 }
@@ -118,7 +118,7 @@ export function SavedTrips({ trips, state, errorKind, cities, onRetry, gutter }:
 }
 
 const styles = StyleSheet.create({
-  guest: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.card, flexDirection: 'row', gap: spacing.sm, minHeight: 64, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  guest: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.card, flexDirection: 'row', gap: spacing.sm, minHeight: 64, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   guestIcon: { alignItems: 'center', backgroundColor: colors.white, borderRadius: radii.iconTile, height: MIN_TOUCH, justifyContent: 'center', width: MIN_TOUCH },
   guestText: { color: colors.ink, flex: 1, fontFamily: fonts.bold, fontSize: 15, lineHeight: 21 },
   notice: { marginBottom: spacing.sm },

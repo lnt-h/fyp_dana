@@ -10,13 +10,14 @@ import type { Category, CategoryCode, City, ClarificationRequired, IsoDate, Pace
 import { DEFAULT_CITY_CODE } from '../../../lib/api/types';
 import { Icon, PrimaryButton, SecondaryButton, Skeleton, categoryIcon, normalizeCategoryCode, travelModeIcon } from '../../../components/ui';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
-import { colors } from '../../../theme/colors';
+import { categoryColor, colors } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
 import { errorCopy, toErrorDetail } from '../progress/errorCopy';
 import { setPlanRequest } from '../progress/planRequestStore';
 import {
-  acknowledgeAiNotice, isAiNoticeAcknowledged, readDraft, takePendingView, writeDraft, type InputMode, type PlannerDraft, type PlannerView,
+  acknowledgeAiNotice, isAiNoticeAcknowledged, readDraft, rememberTrip, reusableTrip, takePendingView, tripShape, writeDraft, type InputMode,
+  type PlannerDraft, type PlannerView,
 } from './draftStore';
 import { MUST_SEE_MAX, MustSeePicker } from './MustSeePicker';
 import {
@@ -158,7 +159,10 @@ export function PlannerInputScreen() {
     setBusy(true);
     try {
       const title = draft.title?.trim() ? draft.title.trim().slice(0, TITLE_MAX) : null;
-      const trip = await createTrip({ city_id: city.id, day_count: draft.dayCount, start_date: draft.startDate, title });
+      // Same city, start date and day count as the last submit: plan on that DRAFT trip again (no new trip per submit).
+      const shape = tripShape(city.id, draft.startDate, draft.dayCount);
+      const trip = reusableTrip(shape) ?? await createTrip({ city_id: city.id, day_count: draft.dayCount, start_date: draft.startDate, title });
+      rememberTrip(trip, shape);
       const body: PlanPreviewCreate = {
         expected_trip_revision: trip.revision,
         locale: currentLocale(),
@@ -392,7 +396,7 @@ export function PlannerInputScreen() {
       <SectionLabel>{t('planner.interests.label')}</SectionLabel>
       {categories ? <ChipRow>{categories.map(category => {
         const checked = draft.interests.includes(category.code);
-        return <Chip key={category.code} kind="checkbox" icon={categoryIcon(category.code)} label={vi ? category.name_vi : category.name_en} selected={checked}
+        return <Chip key={category.code} kind="checkbox" icon={categoryIcon(category.code)} label={vi ? category.name_vi : category.name_en} selected={checked} tone={categoryColor(category.code)}
           onPress={() => update({ interests: checked ? draft.interests.filter(code => code !== category.code) : [...draft.interests, category.code] })} />;
       })}</ChipRow> : <View accessible accessibilityLabel={t('planner.interests.loading')} style={styles.chipSkeletons}>
         {[96, 120, 88, 110].map((width, index) => <Skeleton key={index} width={width} height={46} radius={radii.chip} />)}
@@ -475,8 +479,8 @@ export function PlannerInputScreen() {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.sm },
   hours: { marginTop: spacing.sm },
-  range: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm, padding: spacing.sm, borderRadius: radii.field, backgroundColor: colors.surfaceTint },
-  rangeText: { flex: 1, fontFamily: fonts.bold, fontSize: 15, lineHeight: 20, color: colors.deepOcean },
+  range: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm, padding: spacing.sm, borderRadius: radii.field, backgroundColor: colors.primarySoft },
+  rangeText: { flex: 1, fontFamily: fonts.semibold, fontSize: 15, lineHeight: 20, color: colors.ink },
   nameInput: { minHeight: 52, borderWidth: 1, borderColor: tone.border, borderRadius: radii.field, backgroundColor: colors.white, paddingHorizontal: spacing.md, fontFamily: fonts.bold, fontSize: 16, color: colors.ink },
   reviewList: { marginTop: spacing.lg },
   destinationSkeleton: { marginBottom: spacing.md },

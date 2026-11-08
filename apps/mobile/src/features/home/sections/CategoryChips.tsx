@@ -4,9 +4,13 @@ import { ScrollView } from 'react-native-gesture-handler';
 
 import { Chip, Skeleton, categoryIcon } from '../../../components/ui';
 import type { Category } from '../../../lib/api/types';
+import { categoryColor } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
 
-/** Horizontal category filter: "Tất cả" + API categories. Shared with the map markers through `home.tsx`. */
+/**
+ * Horizontal category filter: "Tất cả" + the categories that have published places, each in its category colour.
+ * Shared with the map markers through `home.tsx`.
+ */
 export function CategoryChips({ categories, loading, selected, onChange, gutter }: {
   categories: Category[];
   loading: boolean;
@@ -42,6 +46,7 @@ export function CategoryChips({ categories, loading, selected, onChange, gutter 
           onPress={() => onChange(selected === category.code ? null : category.code)}
           selected={selected === category.code}
           style={styles.chip}
+          tone={categoryColor(category.code)}
         />
       ))}
     </ScrollView>

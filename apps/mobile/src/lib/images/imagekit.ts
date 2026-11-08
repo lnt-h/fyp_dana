@@ -42,6 +42,12 @@ export function ikUrl(path: string, t: IkTransform = {}): string | null {
   return `${endpoint}/${cleanPath}?tr=${parts.join(',')}`;
 }
 
+/**
+ * Sent with every remote (non-ImageKit) photo request. Wikimedia's servers answer 403 to anonymous client user agents
+ * such as Android's okhttp default; their policy asks for an identifying agent with a contact URL.
+ */
+export const REMOTE_IMAGE_HEADERS: Record<string, string> = { 'User-Agent': 'Gonarra/1.0 (https://github.com/lnt-h/fyp_dana)' };
+
 export type ImageSize = {
   /** Layout width in dp. */
   width: number;
@@ -60,7 +66,7 @@ export type ResolvedImage = {
  * 1. A `bundled:` URL (city covers in cityImages.ts) → the bundled file.
  * 2. ImageKit endpoint set and `url` is a relative path (S3 origin key) → density-aware ImageKit URL + 40-px blurred
  *    placeholder.
- * 3. An absolute `https` URL (catalog media, e.g. Wikimedia Commons `upload.wikimedia.org` files with author and
+ * 3. An absolute `https` URL (catalog media; sent with `REMOTE_IMAGE_HEADERS`, e.g. Wikimedia Commons `upload.wikimedia.org` files with author and
  *    licence in `attribution_text`) → used as-is. The ImageKit endpoint is not configured as a web-proxy origin, so
  *    remote URLs are not routed through it.
  * 4. Anything else (http, relative path without ImageKit, unknown scheme) → null.
@@ -70,7 +76,7 @@ export function resolveImage(thumbnail: Pick<Media, 'url'> | null | undefined, s
   if (!url) return null;
   const bundled = BUNDLED_IMAGES[url];
   if (bundled !== undefined) return { placeholder: null, source: bundled };
-  if (/^https:\/\//i.test(url)) return { placeholder: null, source: { uri: url } };
+  if (/^https:\/\//i.test(url)) return { placeholder: null, source: { headers: REMOTE_IMAGE_HEADERS, uri: url } };
   const w = PixelRatio.getPixelSizeForLayoutSize(size.width);
   const h = size.height ? PixelRatio.getPixelSizeForLayoutSize(size.height) : undefined;
   const remote = ikUrl(url, { h, w });

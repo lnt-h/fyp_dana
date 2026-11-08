@@ -1,6 +1,6 @@
 {
   "title": "Khám phá",
-  "subtitle": "Địa điểm đã đối chiếu nguồn ở {{city}}",
+  "subtitle": "Những nơi nên đến ở {{city}}",
   "city": {
     "label": "Thành phố: {{city}}",
     "loading": "Đang tải thông tin thành phố…"
@@ -23,12 +23,13 @@
   },
   "featured": {
     "title": "Nổi bật ở {{city}}",
-    "subtitle": "Những điểm đáng ghé để bắt đầu"
+    "subtitle": "Vài gợi ý để bắt đầu"
   },
   "all": {
     "title": "Tất cả địa điểm",
-    "count_one": "{{count}} địa điểm đã đối chiếu nguồn",
-    "count_other": "{{count}} địa điểm đã đối chiếu nguồn"
+    "count_one": "{{count}} địa điểm",
+    "count_other": "{{count}} địa điểm",
+    "countMore": "Hơn {{count}} địa điểm"
   },
   "results": {
     "searching": "Đang tìm…",
@@ -40,11 +41,11 @@
   "states": {
     "loading": "Đang tải địa điểm",
     "emptyQueryTitle": "Không tìm thấy “{{q}}” ở {{city}}",
-    "emptyQueryBody": "Gonarra chỉ hiển thị địa điểm đã đối chiếu nguồn ở Đà Nẵng và khu vực Hội An. Thử tên tiếng Việt hoặc tên tiếng Anh.",
+    "emptyQueryBody": "Gonarra có địa điểm ở Đà Nẵng và khu vực Hội An. Thử tên tiếng Việt hoặc tên tiếng Anh.",
     "emptyCategoryTitle": "Chưa có địa điểm {{category}} ở {{city}}",
     "emptyCategoryBody": "Thử danh mục khác, hoặc xem mọi địa điểm trong thành phố.",
     "comingTitle": "Đang cập nhật địa điểm ở {{city}}…",
-    "comingBody": "Gonarra vẫn đang đối chiếu nguồn cho các địa điểm ở {{city}}. Bạn quay lại sau nhé.",
+    "comingBody": "Các địa điểm ở {{city}} đang được bổ sung. Bạn quay lại sau nhé.",
     "showAll": "Xem tất cả địa điểm",
     "clearSearch": "Xoá tìm kiếm",
     "changeCity": "Đổi thành phố",

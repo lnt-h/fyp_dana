@@ -13,7 +13,6 @@ import { useAccount } from './AccountContext';
 
 /** AA error red (6.1:1 on white); same value as the auth palette. */
 export const errorColor = colors.danger;
-const hairline = colors.hairline;
 const screenBg = colors.canvas;
 
 /** Account glyph names → the shared Icon family (kept so call sites stay unchanged). */
@@ -53,7 +52,7 @@ export function AccountShell({ title, lead, children, fallback = '/profile' }: {
     <View style={[a.header, { paddingTop: insets.top + spacing.xs }]}>
       <CircleButton icon="back" tone="tint" size={44} accessibilityLabel={t('common.goBack')} onPress={() => router.canGoBack() ? router.back() : router.replace(fallback)} />
     </View>
-    <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={[a.content, { paddingBottom: insets.bottom + spacing.xxxl }]}>
+    <ScrollView alwaysBounceVertical={false} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} contentContainerStyle={[a.content, { paddingBottom: insets.bottom + spacing.xxxl }]}>
       <View style={a.inner}>
         <Text accessibilityRole="header" style={a.largeTitle}>{title}</Text>
         {lead ? <Text style={a.lead}>{lead}</Text> : null}
@@ -96,12 +95,11 @@ type RowProps = {
 /** 56 pt list row: icon, title, optional subtitle and value, chevron. */
 export function AccountRow({ icon, title, subtitle, value, onPress, trailing, danger, expanded, checked, busy, accessibilityLabel, accessibilityHint }: RowProps) {
   const radio = checked !== undefined;
-  const tint = danger ? errorColor : colors.deepOcean;
-  const end = trailing ?? (busy ? <ActivityIndicator color={colors.tealText} />
-    : radio ? (checked ? <AccountIcon name="check" color={colors.tealText} /> : <View style={a.radioSpacer} />)
+  const end = trailing ?? (busy ? <ActivityIndicator color={colors.primary} />
+    : radio ? (checked ? <AccountIcon name="check" color={colors.primary} /> : <View style={a.radioSpacer} />)
     : onPress ? <AccountIcon name={expanded === undefined ? 'chevron' : 'chevronDown'} color={colors.textMuted} size={18} /> : null);
   const content = <>
-    <AccountIcon name={icon} color={tint} />
+    <View style={[a.iconTile, danger && a.iconTileDanger]}><AccountIcon name={icon} color={danger ? errorColor : colors.primary} size={18} /></View>
     <View style={a.rowCopy}>
       <Text style={[a.rowTitle, danger && { color: errorColor }]}>{title}</Text>
       {subtitle ? <Text numberOfLines={2} style={a.rowSubtitle}>{subtitle}</Text> : null}
@@ -184,32 +182,34 @@ export const a = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
   inner: { width: '100%', maxWidth: 520, alignSelf: 'center' },
   largeTitle: { ...typography.display, color: colors.ink, marginBottom: spacing.lg },
-  lead: { ...typography.body, color: colors.textMuted, marginTop: -spacing.sm, marginBottom: spacing.lg },
-  section: { fontFamily: fonts.bold, color: colors.textMuted, fontSize: 15, marginTop: spacing.xs, marginBottom: spacing.xs, marginLeft: spacing.xxs },
-  card: { borderRadius: radii.card, backgroundColor: colors.white, borderWidth: StyleSheet.hairlineWidth, borderColor: hairline, overflow: 'hidden', marginBottom: spacing.lg },
+  lead: { ...typography.body, color: colors.textSecondary, marginTop: -spacing.sm, marginBottom: spacing.lg },
+  section: { ...typography.eyebrow, fontSize: 14, marginTop: spacing.xs, marginBottom: spacing.xs, marginLeft: spacing.xxs },
+  card: { borderRadius: radii.card, backgroundColor: colors.surface, overflow: 'hidden', marginBottom: spacing.lg },
   padded: { padding: spacing.lg },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.hairline, marginLeft: 58 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, minHeight: 56 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.hairline, marginLeft: 64 },
+  iconTile: { width: 32, height: 32, borderRadius: 9, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  iconTileDanger: { backgroundColor: colors.dangerBg },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, minHeight: 56 },
   pressed: { opacity: 0.7 },
   rowCopy: { flex: 1 },
-  rowTitle: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 22, color: colors.ink },
-  rowSubtitle: { ...typography.caption, marginTop: 2 },
-  rowValue: { ...typography.caption, fontSize: 15, maxWidth: 130 },
+  rowTitle: { fontFamily: fonts.medium, fontSize: 16, lineHeight: 22, color: colors.ink },
+  rowSubtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+  rowValue: { ...typography.caption, color: colors.textSecondary, fontSize: 15, maxWidth: 130 },
   radioSpacer: { width: 22 },
-  expandBody: { ...typography.caption, fontSize: 14, lineHeight: 21, paddingLeft: 58, paddingRight: spacing.lg, paddingBottom: spacing.md },
+  expandBody: { ...typography.caption, color: colors.textSecondary, fontSize: 14, lineHeight: 21, paddingLeft: 64, paddingRight: spacing.lg, paddingBottom: spacing.md },
   body: { ...typography.body, color: colors.textMuted, fontSize: 15, lineHeight: 22 },
   note: { ...typography.caption, textAlign: 'center', marginVertical: spacing.sm },
   error: { ...typography.caption, color: errorColor, marginTop: spacing.xs },
   danger: { flexDirection: 'row', gap: spacing.xs, alignItems: 'center', justifyContent: 'center', minHeight: 56, borderRadius: radii.button, backgroundColor: errorColor, paddingHorizontal: spacing.xl },
-  dangerDisabled: { backgroundColor: '#C9B4B4' },
+  dangerDisabled: { backgroundColor: colors.disabledButton },
   dangerText: { fontFamily: fonts.bold, fontSize: 17, color: colors.white },
   confirm: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, paddingTop: spacing.xxs },
   confirmBody: { ...typography.caption, fontSize: 14, lineHeight: 21, color: colors.ink },
   confirmActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  ghost: { flex: 1, minHeight: MIN_TOUCH + 4, borderRadius: radii.button, borderWidth: 1.5, borderColor: colors.hairline, alignItems: 'center', justifyContent: 'center' },
+  ghost: { flex: 1, minHeight: MIN_TOUCH + 4, borderRadius: radii.button, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
-  confirmButton: { flex: 1, minHeight: MIN_TOUCH + 4, borderRadius: radii.button, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' },
+  confirmButton: { flex: 1, minHeight: MIN_TOUCH + 4, borderRadius: radii.button, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center' },
   confirmText: { fontFamily: fonts.bold, fontSize: 15, color: colors.white },
   textButton: { minHeight: MIN_TOUCH + 4, alignItems: 'center', justifyContent: 'center', marginTop: spacing.xs },
-  textButtonLabel: { fontFamily: fonts.bold, fontSize: 16, color: colors.tealText },
+  textButtonLabel: { fontFamily: fonts.bold, fontSize: 16, color: colors.primary },
 });

@@ -14,6 +14,11 @@
   "loadError": {
     "offline": "Không kết nối được với Gonarra. Hãy kiểm tra mạng rồi thử lại.",
     "busy": "Dịch vụ đang bận hoặc tạm ngưng. Bạn thử lại sau vài phút nhé.",
-    "server": "Máy chủ Gonarra đang gặp sự cố. Bạn thử lại nhé."
-  }
+    "server": "Máy chủ Gonarra đang gặp sự cố. Bạn thử lại nhé.",
+    "auth": "Phiên đăng nhập đã hết. Hãy đăng nhập lại để tiếp tục."
+  },
+  "aiMark": "Do AI viết",
+  "seeAll": "Xem tất cả",
+  "dismiss": "Đóng",
+  "signInAgain": "Đăng nhập lại"
 }

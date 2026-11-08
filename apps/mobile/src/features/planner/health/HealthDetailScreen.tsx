@@ -1,36 +1,42 @@
 /**
- * SCR-026 Plan Health detail (`/plan/[previewId]/health`): the server's reasons grouped Must fix (BLOCKING) / Worth
- * checking (WARNING), then by day and stop, with fix shortcuts that open SCR-027 prefilled on the proposal. The client
- * lists what the server returned; it never derives health, hours or closing times.
+ * SCR-026 Plan Health detail (`/plan/[previewId]/health`): the server's status as the same pill as the proposal, then
+ * the real problems first (BLOCKING, then WARNING) as compact rows with fix shortcuts that open SCR-027 on the proposal,
+ * then ONE quiet note for stops whose hours are not listed (DEC-030). Titles are always localized from the conflict
+ * type; the server's English `message` is never shown. The client never derives health, hours or closing times.
  */
-import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Chip, CircleButton, Icon, PrimaryButton, Skeleton } from '../../../components/ui';
+import { CircleButton, Icon, PrimaryButton, Skeleton, type IconName } from '../../../components/ui';
 import type { PlanHealth, Uuid } from '../../../lib/api/types';
 import { colors } from '../../../theme/colors';
-import { radii, spacing } from '../../../theme/spacing';
+import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
-import { palette } from '../../auth/components/AuthUI';
 import { useIsOffline } from '../../home/useNetwork';
 import { requestStopIntent, usePendingEdit, type StopIntent } from '../edit/draftStore';
-import { InlineBanner, PillButton, editTokens } from '../edit/EditUI';
+import { InlineBanner } from '../edit/EditUI';
 import { currentLocale } from '../../../i18n';
 import { formatDate } from '../../place/format';
-import { formatTime } from '../timeline/format';
-import { HealthGlyph, type PlannerIconName } from '../timeline/icons';
 import { useProposal, type ProposalData } from '../timeline/useProposal';
-import { HealthNotices } from './HealthNotices';
-import { collectIssues, collectNotices, countIssues, type HealthIssue } from './reasons';
+import { HealthPill } from './HealthPill';
+import { collectIssues, unknownHoursStopCount, type HealthIssue } from './reasons';
 
 export function HealthDetailScreen({ previewId }: { previewId: Uuid }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { state, reload } = useProposal({ previewId });
+  const { state, reload, refresh } = useProposal({ previewId });
   const goBack = () => (router.canGoBack() ? router.back() : router.replace({ params: { previewId }, pathname: '/plan/[previewId]/proposal' }));
+
+  // An edit that was still recalculating when this screen opened: show its revision once it lands (no stale health).
+  const pending = usePendingEdit(previewId);
+  const hadPending = useRef(!!pending);
+  useEffect(() => {
+    if (pending) { hadPending.current = true; return; }
+    if (hadPending.current) { hadPending.current = false; void refresh(); }
+  }, [pending, refresh]);
 
   return <View style={[x.screen, { paddingTop: insets.top }]}>
     <StatusBar style="dark" />
@@ -41,15 +47,13 @@ export function HealthDetailScreen({ previewId }: { previewId: Uuid }) {
     </View>
     {state.status === 'loading'
       ? <View accessibilityLabel={t('proposal.healthDetail.updating')} style={x.pad}>
-        <Skeleton height={132} radius={radii.card} />
+        <Skeleton height={32} radius={radii.pill} width={140} />
         <View style={x.gap} />
-        <Skeleton height={20} width={120} />
-        <View style={x.gap} />
-        <Skeleton height={150} radius={radii.card} />
+        {[0, 1, 2].map(key => <View key={key} style={x.skeletonRow}><Skeleton height={40} radius={radii.iconTile} width={40} /><View style={x.flex}><Skeleton height={16} width="70%" /><View style={x.gapSm} /><Skeleton height={14} width="45%" /></View></View>)}
       </View>
       : state.status === 'error' || !state.data.health
         ? <View style={[x.pad, x.center]}>
-          <View style={x.errorTile}><Icon color={palette.error} name="warning" size={28} /></View>
+          <View style={x.errorTile}><Icon color={colors.danger} name="warning" size={28} /></View>
           <Text accessibilityRole="alert" style={x.errorTitle}>{t('proposal.healthDetail.error')}</Text>
           <Text style={x.errorBody}>{t('proposal.healthDetail.errorBody')}</Text>
           <PrimaryButton label={t('proposal.error.retry')} onPress={reload} style={x.retry} />
@@ -63,18 +67,13 @@ function HealthDetail({ data, health, previewId, insetsBottom }: { data: Proposa
   const offline = useIsOffline();
   const pending = usePendingEdit(previewId);
   const updating = pending?.status === 'applying';
-  const [dayFilter, setDayFilter] = useState<number | null>(null);
   const issues = useMemo(() => collectIssues(data.days, data.healthReasons), [data.days, data.healthReasons]);
-  const visible = dayFilter == null ? issues : issues.filter(issue => issue.dayIndex === dayFilter || issue.dayIndex == null);
-  const notices = useMemo(() => collectNotices(data.days, data.healthReasons), [data.days, data.healthReasons]);
-  const visibleNotices = dayFilter == null ? notices : notices.filter(notice => !notice.dayIndexes.length || notice.dayIndexes.includes(dayFilter));
-  const { blocking, warnings } = countIssues(visible);
+  const unknownHours = useMemo(() => unknownHoursStopCount(data.days, data.healthReasons), [data.days, data.healthReasons]);
   const shortcutsDisabled = offline || data.readOnly || (!!pending && pending.status !== 'expired');
-
-  const status = health === 'GOOD' ? t('proposal.health.summaryGood') : health === 'WARNING' ? t('proposal.health.summaryWarning') : t('proposal.health.summaryBlocked');
-  const counts = [t('proposal.healthDetail.countBlocking', { count: blocking }), t('proposal.healthDetail.countWarnings', { count: warnings })].join(', ');
-  const countLine = dayFilter ? `${counts} · ${t('proposal.day.title', { day: dayFilter })}` : counts;
-  const dayEnds = [...new Set(data.days.map(day => day.day_window_end).filter((end): end is string => !!end))].join(' / ');
+  const blocking = issues.filter(issue => issue.severity === 'BLOCKING');
+  const warnings = issues.filter(issue => issue.severity !== 'BLOCKING');
+  const summary = health === 'BLOCKED' ? t('proposal.healthDetail.summaryBlocked')
+    : issues.length ? t('proposal.healthDetail.summaryWarning') : t('proposal.healthDetail.summaryGood');
 
   function openIntent(intent: StopIntent) {
     requestStopIntent(previewId, intent);
@@ -82,136 +81,113 @@ function HealthDetail({ data, health, previewId, insetsBottom }: { data: Proposa
     else router.replace({ params: { previewId }, pathname: '/plan/[previewId]/proposal' });
   }
 
-  function section(title: string, list: HealthIssue[], severity: 'BLOCKING' | 'WARNING') {
+  function section(title: string, list: HealthIssue[]) {
     if (!list.length) return null;
-    const byDay = new Map<number | null, HealthIssue[]>();
-    list.forEach(issue => byDay.set(issue.dayIndex ?? null, [...(byDay.get(issue.dayIndex ?? null) ?? []), issue]));
     return <View style={x.section}>
-      <View style={x.sectionHead}>
-        <HealthGlyph health={severity === 'BLOCKING' ? 'BLOCKED' : 'WARNING'} size={18} />
-        <Text accessibilityRole="header" style={x.sectionTitle}>{title}</Text>
+      <Text accessibilityRole="header" style={x.sectionTitle}>{title}</Text>
+      <View style={x.rows}>
+        {list.map(issue => <IssueRow key={issue.key} data={data} disabled={shortcutsDisabled} issue={issue} onIntent={openIntent} />)}
       </View>
-      {[...byDay.entries()].map(([dayIndex, dayIssues]) => <View key={dayIndex ?? 'trip'} style={x.dayGroup}>
-        {data.days.length > 1 && dayFilter == null
-          ? <Text accessibilityRole="header" style={x.dayLabel}>{dayIndex ? t('proposal.day.title', { day: dayIndex }) : t('proposal.healthDetail.allDays')}</Text>
-          : null}
-        {dayIssues.map(issue => <IssueCard key={issue.key} data={data} disabled={shortcutsDisabled} issue={issue} onIntent={openIntent} />)}
-      </View>)}
     </View>;
   }
 
   return <ScrollView contentContainerStyle={[x.pad, { paddingBottom: insetsBottom + spacing.xxl }]} showsVerticalScrollIndicator={false}>
     <View style={[x.summary, updating && x.dim]}>
-      <View style={[x.edge, { backgroundColor: edgeColor[health] }]} />
-      <View style={x.summaryInner}>
-        <View style={[x.tile, { backgroundColor: tileColor[health] }]}><HealthGlyph health={health} size={30} /></View>
-        <Text style={[x.status, health === 'BLOCKED' && { color: palette.error }]}>{status}</Text>
-        {health !== 'GOOD' || issues.length ? <Text style={x.counts}>{countLine}</Text> : null}
-      </View>
+      <HealthPill health={health} problems={issues.length} updating={updating} />
+      <Text style={x.summaryText}>{summary}</Text>
     </View>
 
-    {updating ? <InlineBanner style={x.banner} title={t('proposal.healthDetail.updating')} tone="progress" /> : null}
     {offline ? <InlineBanner style={x.banner} title={t('proposal.healthDetail.offline')} tone="warning" /> : null}
 
-    {data.days.length > 1 && issues.length ? <View accessibilityLabel={t('proposal.healthDetail.filterA11y')} accessibilityRole="tablist" style={x.filters}>
-      <Chip label={t('proposal.healthDetail.allDays')} onPress={() => setDayFilter(null)} selected={dayFilter === null} />
-      {data.days.map(day => <Chip key={day.day_index} label={t('proposal.day.title', { day: day.day_index })} onPress={() => setDayFilter(day.day_index)} selected={dayFilter === day.day_index} />)}
-    </View> : null}
-
     <View style={updating ? x.dim : undefined}>
-      {section(t('proposal.health.mustFix'), visible.filter(issue => issue.severity === 'BLOCKING'), 'BLOCKING')}
-      {section(t('proposal.health.worthChecking'), visible.filter(issue => issue.severity !== 'BLOCKING'), 'WARNING')}
-      <HealthNotices dayCount={dayFilter == null ? data.days.length : 1} notices={visibleNotices} style={x.notices} />
-      {!visible.length ? <View style={x.good}>
-        <Icon color={colors.tealText} name="check" size={22} />
-        <Text style={x.goodText}>{dayFilter ? t('proposal.healthDetail.noIssues') : dayEnds ? t('proposal.healthDetail.goodBody', { end: dayEnds }) : t('proposal.health.goodNote')}</Text>
+      {section(t('proposal.health.mustFix'), blocking)}
+      {section(t('proposal.health.worthChecking'), warnings)}
+      {!issues.length ? <View style={x.good}>
+        <View style={[x.tile, { backgroundColor: colors.successBg }]}><Icon color={colors.success} name="check" size={20} strokeWidth={2.2} /></View>
+        <Text style={x.goodText}>{t('proposal.healthDetail.noProblems')}</Text>
+      </View> : null}
+      {unknownHours > 0 ? <View accessible style={x.quiet}>
+        <Icon color={colors.textMuted} name="clock" size={16} />
+        <Text style={x.quietText}>{t('proposal.healthDetail.hoursNotListed', { count: unknownHours })}</Text>
       </View> : null}
     </View>
     <Text style={x.note}>{t('proposal.health.recheckNote')}</Text>
   </ScrollView>;
 }
 
-type Fix = { label: string; icon: PlannerIconName; run: () => void };
+type Fix = { label: string; run: () => void; needsEdit: boolean };
 
-function IssueCard({ issue, data, disabled, onIntent }: { issue: HealthIssue; data: ProposalData; disabled: boolean; onIntent: (intent: StopIntent) => void }) {
+function IssueRow({ issue, data, disabled, onIntent }: { issue: HealthIssue; data: ProposalData; disabled: boolean; onIntent: (intent: StopIntent) => void }) {
   const { t } = useTranslation();
   const isBlocking = issue.severity === 'BLOCKING';
   const title = t(`proposal.conflict.${issue.type}`);
-  const message = issue.message && issue.message !== title ? issue.message : null;
-  const arrival = formatTime(issue.arrival);
-  const departure = formatTime(issue.departure);
+  const name = issue.toStopName ?? issue.stopName ?? '';
   const where = issue.dayIndex && issue.stopNumber
     ? t('proposal.health.detailStop', { day: issue.dayIndex, name: issue.stopName, number: issue.stopNumber })
     : issue.dayIndex ? t('proposal.health.detailDay', { day: issue.dayIndex }) : null;
   const legTo = issue.source === 'leg' && issue.toStopNumber ? t('proposal.healthDetail.legTo', { name: issue.toStopName, number: issue.toStopNumber }) : null;
+  const onDate = issue.date ? t('proposal.health.onDate', { date: formatDate(issue.date, currentLocale()) }) : null;
+  // Stops already named in the row (the stop, or both ends of a leg) are not repeated under "Affects".
+  const others = issue.affectedStops?.filter(stop => stop.id !== issue.stopId && stop.id !== issue.toStopId) ?? [];
+  const affects = others.length
+    ? t('proposal.health.affects', { stops: others.map(stop => t('proposal.health.affectedStop', { day: stop.dayIndex, name: stop.name, number: stop.number })).join('; ') })
+    : null;
+  const detail = [where, legTo, onDate].filter(Boolean).join(' · ');
   const day = data.days.find(item => item.day_index === issue.dayIndex);
   const lastStop = day?.stops[day.stops.length - 1];
-  const onDate = issue.date ? t('proposal.health.onDate', { date: formatDate(issue.date, currentLocale()) }) : null;
-  const affects = issue.affectedStops?.length
-    ? t('proposal.health.affects', { stops: issue.affectedStops.map(stop => t('proposal.health.affectedStop', { day: stop.dayIndex, name: stop.name, number: stop.number })).join('; ') })
-    : null;
 
   const fixes: Fix[] = [];
+  const edit = (label: string, intent: StopIntent) => fixes.push({ label, needsEdit: true, run: () => onIntent(intent) });
   switch (issue.type) {
     case 'CLOSED_AT_PLANNED_TIME':
-      if (issue.stopId) { const stopId = issue.stopId; fixes.push({ icon: 'toStart', label: t('proposal.healthDetail.fixMove'), run: () => onIntent({ focus: 'move', kind: 'edit', moveToStart: true, stopId }) }); }
+      if (issue.stopId) edit(t('proposal.healthDetail.fixMove'), { focus: 'move', kind: 'edit', moveToStart: true, stopId: issue.stopId });
       break;
     case 'LEG_UNAVAILABLE':
       if (issue.toStopId) {
-        const stopId = issue.toStopId;
-        fixes.push({ icon: 'drive', label: t('proposal.healthDetail.fixMode'), run: () => onIntent({ focus: 'mode', kind: 'edit', stopId }) });
-        fixes.push({ icon: 'swap', label: t('proposal.healthDetail.fixReplace'), run: () => onIntent({ focus: 'replace', kind: 'edit', stopId }) });
+        edit(t('proposal.healthDetail.fixMode'), { focus: 'mode', kind: 'edit', stopId: issue.toStopId });
+        edit(t('proposal.healthDetail.fixReplace'), { focus: 'replace', kind: 'edit', stopId: issue.toStopId });
       }
       break;
     case 'DAY_WINDOW_EXCEEDED': {
       const stopId = issue.stopId ?? lastStop?.id;
-      if (stopId) fixes.push({ icon: 'minus', label: t('proposal.healthDetail.fixShorten'), run: () => onIntent({ focus: 'duration', kind: 'edit', stopId }) });
+      if (stopId) edit(t('proposal.healthDetail.fixShorten'), { focus: 'duration', kind: 'edit', stopId });
       break;
     }
     case 'LEG_MODE_RESTRICTED':
-      if (issue.toStopId) { const stopId = issue.toStopId; fixes.push({ icon: 'drive', label: t('proposal.healthDetail.fixMode'), run: () => onIntent({ focus: 'mode', kind: 'edit', stopId }) }); }
+      if (issue.toStopId) edit(t('proposal.healthDetail.fixMode'), { focus: 'mode', kind: 'edit', stopId: issue.toStopId });
       break;
     case 'CLOSED_ON_DATE':
     case 'LUNAR_EVENT_CONFLICT':
     case 'WEB_PLACE_UNVERIFIED':
     case 'WEB_PLACE_UNRESOLVED':
-      if (issue.stopId) { const stopId = issue.stopId; fixes.push({ icon: 'swap', label: t('proposal.healthDetail.fixReplace'), run: () => onIntent({ focus: 'replace', kind: 'edit', stopId }) }); }
+      if (issue.stopId) edit(t('proposal.healthDetail.fixReplace'), { focus: 'replace', kind: 'edit', stopId: issue.stopId });
       break;
-    case 'OPENING_HOURS_UNKNOWN':
     case 'FACT_STALE':
     case 'TICKET_VALIDITY':
     case 'SEASONAL_WARNING':
-      if (issue.placeId) { const placeId = issue.placeId; fixes.push({ icon: 'card', label: t('proposal.healthDetail.fixPlaceCard'), run: () => router.push({ params: { placeId }, pathname: '/place/[placeId]' }) }); }
+      if (issue.placeId) { const placeId = issue.placeId; fixes.push({ label: t('proposal.healthDetail.fixPlaceCard'), needsEdit: false, run: () => router.push({ params: { placeId }, pathname: '/place/[placeId]' }) }); }
       break;
     default:
       break;
   }
   const goTo = issue.dayIndex != null && issue.stopId ? { dayIndex: issue.dayIndex, stopId: issue.stopId } : null;
-  const name = issue.toStopName ?? issue.stopName ?? '';
+  const icon: IconName = isBlocking ? 'blocked' : 'warning';
+  const severity = t(isBlocking ? 'proposal.health.severityBlocking' : 'proposal.health.severityWarning');
 
-  return <View accessibilityLabel={[t(isBlocking ? 'proposal.health.severityBlocking' : 'proposal.health.severityWarning'), title, where, onDate, affects].filter(Boolean).join(', ')} style={[x.issue, isBlocking && x.issueBlocking]}>
-    <View style={[x.badge, isBlocking ? x.badgeBlocking : x.badgeWarning]}>
-      <HealthGlyph health={isBlocking ? 'BLOCKED' : 'WARNING'} size={14} />
-      <Text style={[x.badgeText, isBlocking ? { color: palette.error } : { color: editTokens.warnText }]}>{t(isBlocking ? 'proposal.health.severityBlocking' : 'proposal.health.severityWarning')}</Text>
+  return <View style={x.row}>
+    <View accessible accessibilityLabel={[severity, title, detail, affects].filter(Boolean).join(', ')} style={x.rowMain}>
+      <View style={[x.tile, { backgroundColor: isBlocking ? colors.dangerBg : colors.warningBg }]}>
+        <Icon color={isBlocking ? colors.danger : colors.warning} name={icon} size={20} strokeWidth={2} />
+      </View>
+      <View style={x.flex}>
+        <Text style={x.rowTitle}>{title}</Text>
+        {detail ? <Text style={x.rowDetail}>{detail}</Text> : null}
+        {affects ? <Text style={x.rowDetail}>{affects}</Text> : null}
+      </View>
     </View>
-    <Text style={x.issueTitle}>{title}</Text>
-    {where ? <Text style={x.issueWhere}>{where}</Text> : null}
-    {onDate ? <Text style={x.issueWhere}>{onDate}</Text> : null}
-    {affects ? <Text style={x.issueBody}>{affects}</Text> : null}
-    {legTo ? <Text style={x.issueBody}>{legTo}</Text> : null}
-    {arrival && departure && issue.source === 'stop' ? <Text style={x.issueBody}>{t('proposal.healthDetail.arriveLeave', { arrival, departure })}</Text> : null}
-    {message ? <Text style={x.issueBody}>{message}</Text> : null}
     {fixes.length || goTo ? <View style={x.actions}>
-      {fixes.map((fix, index) => <PillButton
-        key={fix.label}
-        accessibilityLabel={t('proposal.healthDetail.fixA11y', { action: fix.label, name })}
-        disabled={disabled && fix.icon !== 'card'}
-        icon={fix.icon}
-        label={fix.label}
-        onPress={fix.run}
-        tone={index === 0 ? 'primary' : 'default'}
-      />)}
-      {goTo ? <PillButton
+      {fixes.map(fix => <TextAction key={fix.label} accessibilityLabel={t('proposal.healthDetail.fixA11y', { action: fix.label, name })} disabled={disabled && fix.needsEdit} label={fix.label} onPress={fix.run} />)}
+      {goTo ? <TextAction
         accessibilityLabel={t('proposal.health.goToStopA11y', { name: issue.stopName, number: issue.stopNumber })}
         label={t('proposal.health.goToStop')}
         onPress={() => onIntent({ dayIndex: goTo.dayIndex, kind: 'goto', stopId: goTo.stopId })}
@@ -220,47 +196,56 @@ function IssueCard({ issue, data, disabled, onIntent }: { issue: HealthIssue; da
   </View>;
 }
 
-const edgeColor: Record<PlanHealth, string> = { BLOCKED: palette.error, GOOD: colors.audioTeal, WARNING: colors.sun };
-const tileColor: Record<PlanHealth, string> = { BLOCKED: colors.dangerBg, GOOD: colors.surfaceTint, WARNING: colors.warnBg };
+function TextAction({ label, onPress, disabled, accessibilityLabel }: { label: string; onPress: () => void; disabled?: boolean; accessibilityLabel?: string }) {
+  return <Pressable
+    accessibilityLabel={accessibilityLabel ?? label}
+    accessibilityRole="button"
+    accessibilityState={{ disabled: !!disabled }}
+    disabled={disabled}
+    hitSlop={4}
+    onPress={onPress}
+    style={({ pressed }) => [x.action, disabled && x.dim, pressed && x.pressed]}
+  >
+    <Text style={x.actionText}>{label}</Text>
+  </Pressable>;
+}
+
+const TILE = 40;
 
 const x = StyleSheet.create({
-  notices: { marginTop: spacing.lg },
   screen: { flex: 1, backgroundColor: colors.canvas },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   headerTitle: { ...typography.headline, flex: 1, textAlign: 'center' },
   headerSpacer: { width: 44 },
   pad: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, width: '100%', maxWidth: 560, alignSelf: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  gap: { height: spacing.md },
-  errorTile: { width: 64, height: 64, borderRadius: 32, backgroundColor: editTokens.errorBg, alignItems: 'center', justifyContent: 'center' },
+  flex: { flex: 1, minWidth: 0 },
+  gap: { height: spacing.lg },
+  gapSm: { height: spacing.xs },
+  skeletonRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center', marginBottom: spacing.md },
+  errorTile: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.dangerBg, alignItems: 'center', justifyContent: 'center' },
   errorTitle: { ...typography.headline, textAlign: 'center', marginTop: spacing.md },
   errorBody: { ...typography.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xxs },
   retry: { alignSelf: 'stretch', marginTop: spacing.xl },
-  summary: { flexDirection: 'row', borderRadius: radii.card, borderWidth: 1, borderColor: editTokens.cardBorder, overflow: 'hidden', backgroundColor: colors.white },
-  edge: { width: 6 },
-  summaryInner: { flex: 1, alignItems: 'center', padding: spacing.lg },
-  tile: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
-  status: { ...typography.headline, textAlign: 'center', marginTop: spacing.sm },
-  counts: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginTop: 2 },
+  summary: { gap: spacing.xs },
+  summaryText: { ...typography.body, color: colors.textSecondary },
   dim: { opacity: 0.5 },
-  banner: { marginTop: spacing.sm },
-  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.md },
+  pressed: { opacity: 0.6 },
+  banner: { marginTop: spacing.md },
   section: { marginTop: spacing.xl },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.xs },
-  sectionTitle: { fontFamily: fonts.bold, fontSize: 18, lineHeight: 23, letterSpacing: -0.3, color: colors.ink },
-  dayGroup: { gap: spacing.xs, marginTop: spacing.xs },
-  dayLabel: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', color: colors.textMuted, marginTop: spacing.xs },
-  issue: { borderRadius: radii.card, borderWidth: 1, borderColor: editTokens.cardBorder, borderLeftWidth: 5, borderLeftColor: colors.sun, backgroundColor: colors.white, padding: spacing.md },
-  issueBlocking: { borderLeftColor: palette.error },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.chip },
-  badgeBlocking: { backgroundColor: editTokens.errorBg },
-  badgeWarning: { backgroundColor: editTokens.warnBg },
-  badgeText: { fontFamily: fonts.bold, fontSize: 12 },
-  issueTitle: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.ink, marginTop: spacing.xs },
-  issueWhere: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: colors.deepOcean, marginTop: 2 },
-  issueBody: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted, marginTop: 2 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
-  good: { flexDirection: 'row', gap: spacing.xs, alignItems: 'flex-start', marginTop: spacing.lg, padding: spacing.md, borderRadius: radii.card, backgroundColor: colors.surfaceTint },
-  goodText: { flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, color: colors.ink },
-  note: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.textMuted, marginTop: spacing.lg },
+  sectionTitle: { ...typography.headline, marginBottom: spacing.xs },
+  rows: { borderRadius: radii.card, backgroundColor: colors.surface, paddingHorizontal: spacing.md },
+  row: { paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.hairline },
+  rowMain: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  tile: { width: TILE, height: TILE, borderRadius: radii.iconTile, alignItems: 'center', justifyContent: 'center' },
+  rowTitle: { ...typography.bodyStrong },
+  rowDetail: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textSecondary, marginTop: 1 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.md, paddingLeft: TILE + spacing.sm },
+  action: { minHeight: MIN_TOUCH, justifyContent: 'center' },
+  actionText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.primary },
+  good: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xl, padding: spacing.md, borderRadius: radii.card, backgroundColor: colors.surface },
+  goodText: { ...typography.body, flex: 1 },
+  quiet: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs, marginTop: spacing.lg },
+  quietText: { flex: 1, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted },
+  note: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.textMuted, marginTop: spacing.md },
 });

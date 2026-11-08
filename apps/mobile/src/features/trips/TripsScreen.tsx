@@ -14,6 +14,7 @@ import { SignInGate } from '../auth/SignInGate';
 import { useTabBarClearance } from '../home/components/HomeTabBar';
 import { ApiError, getTrip, listCities, listTrips, loadErrorKind, type LoadErrorKind } from '../../lib/api/source';
 import { deleteTrip } from '../../lib/api/sourceTrips';
+import { SIGN_IN_AGAIN_ROUTE } from '../../lib/api/errors';
 import type { City, CityCode, Trip } from '../../lib/api/types';
 import { CITY_IMAGES } from '../../lib/images/cityImages';
 import { resolveImage } from '../../lib/images/imagekit';
@@ -24,7 +25,7 @@ import { TripCard, TripCardSkeleton } from './TripCard';
 import { formatTripDates, isPastTrip, isTripToday, todayInVietnam } from './tripDates';
 
 const MAX_WIDTH = 480;
-const GUTTER = spacing.xl;
+const GUTTER = spacing.lg;
 /** Error text on white (6.1:1). */
 const errorText = colors.danger;
 
@@ -58,7 +59,7 @@ function PhotoPanel({ code, title, body, action, onAction, icon }: { code: CityC
         {photo ? <Image contentFit="cover" placeholder={photo.placeholder} source={photo.source} style={StyleSheet.absoluteFill} transition={200} /> : null}
         <LinearGradient colors={['rgba(7,21,30,0)', 'rgba(7,21,30,0.45)']} style={StyleSheet.absoluteFill} />
         <View style={styles.panelIcon}>
-          <Icon color={colors.tealText} name={icon} size={26} />
+          <Icon color={colors.primary} name={icon} size={26} />
         </View>
       </View>
       <View style={styles.panelBodyWrap}>
@@ -213,14 +214,14 @@ export function TripsScreen() {
             <Text style={styles.bannerText}>{t('trips.error.load')}</Text>
             <Text style={styles.bannerDetail}>{t(`common.loadError.${errorKind}`)}</Text>
           </View>
-          <Pressable accessibilityRole="button" hitSlop={4} onPress={() => void load('initial')} style={({ pressed }) => [styles.retry, pressed && { opacity: 0.7 }]}>
-            <Text style={styles.link}>{t('trips.error.retry')}</Text>
+          <Pressable accessibilityRole="button" hitSlop={4} onPress={() => (errorKind === 'auth' ? router.push(SIGN_IN_AGAIN_ROUTE) : void load('initial'))} style={({ pressed }) => [styles.retry, pressed && { opacity: 0.7 }]}>
+            <Text style={styles.link}>{errorKind === 'auth' ? t('common.signInAgain') : t('trips.error.retry')}</Text>
           </Pressable>
         </View>
       )}
       {!!notice && (
         <View accessibilityLiveRegion="polite" style={styles.notice}>
-          <Icon color={colors.tealText} name="info" size={18} />
+          <Icon color={colors.primary} name="info" size={18} />
           <Text style={styles.noticeText}>{notice}</Text>
         </View>
       )}
@@ -240,13 +241,13 @@ export function TripsScreen() {
       <SectionList
         ListEmptyComponent={state === 'ready' ? (
           <View style={[styles.inner, styles.stateGap]}>
-            <PhotoPanel action={t('trips.empty.action')} body={t('trips.empty.body')} code="da-nang" icon="map-pin" onAction={newTrip} title={t('trips.empty.title')} />
+            <PhotoPanel action={t('trips.empty.action')} body={t('trips.empty.body')} code="da-nang" icon="suitcase" onAction={newTrip} title={t('trips.empty.title')} />
           </View>
         ) : undefined}
         ListHeaderComponent={header}
         contentContainerStyle={contentStyle}
         keyExtractor={trip => trip.id}
-        refreshControl={<RefreshControl colors={[colors.audioTeal]} onRefresh={() => void load('refresh')} refreshing={refreshing} tintColor={colors.audioTeal} />}
+        refreshControl={<RefreshControl colors={[colors.primary]} onRefresh={() => void load('refresh')} refreshing={refreshing} tintColor={colors.primary} />}
         renderItem={({ item }) => {
           const city = cityOf(item.city_id);
           return (
@@ -284,31 +285,31 @@ export function TripsScreen() {
 }
 
 const styles = StyleSheet.create({
-  banner: { alignItems: 'center', backgroundColor: colors.white, borderColor: '#F1D3D3', borderRadius: radii.inset, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, paddingLeft: spacing.md },
+  banner: { alignItems: 'center', backgroundColor: colors.dangerBg, borderRadius: radii.inset, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, paddingLeft: spacing.md },
   bannerCopy: { flex: 1, gap: 2, paddingVertical: spacing.sm },
-  bannerDetail: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13, lineHeight: 18 },
-  bannerText: { color: errorText, fontFamily: fonts.regular, fontSize: 15, lineHeight: 21 },
+  bannerDetail: { color: colors.ink, fontFamily: fonts.regular, fontSize: 13, lineHeight: 18 },
+  bannerText: { color: errorText, fontFamily: fonts.semibold, fontSize: 15, lineHeight: 21 },
   content: { flexGrow: 1, paddingHorizontal: GUTTER },
   inner: { alignSelf: 'center', maxWidth: MAX_WIDTH, width: '100%' },
-  link: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 15 },
-  newTrip: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: radii.pill, flexDirection: 'row', flexShrink: 0, gap: 6, height: MIN_TOUCH, paddingHorizontal: spacing.md },
+  link: { color: colors.primary, fontFamily: fonts.bold, fontSize: 15 },
+  newTrip: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: radii.pill, flexDirection: 'row', flexShrink: 0, gap: 6, height: MIN_TOUCH, paddingHorizontal: spacing.md },
   newTripPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   newTripText: { color: colors.white, fontFamily: fonts.bold, fontSize: 15 },
-  notice: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.inset, flexDirection: 'row', gap: spacing.xs, marginTop: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  notice: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.inset, flexDirection: 'row', gap: spacing.xs, marginTop: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   noticeText: { color: colors.ink, flex: 1, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
-  panel: { backgroundColor: colors.white, borderColor: colors.hairline, borderRadius: radii.card, borderWidth: 1 },
+  panel: { backgroundColor: colors.surface, borderRadius: radii.card, overflow: 'hidden' },
   panelAction: { alignSelf: 'stretch', marginTop: spacing.lg },
-  panelBody: { ...typography.body, color: colors.textMuted, marginTop: spacing.xs, textAlign: 'center' },
+  panelBody: { ...typography.body, color: colors.textSecondary, marginTop: spacing.xs, textAlign: 'center' },
   panelBodyWrap: { alignItems: 'center', paddingBottom: spacing.xl, paddingHorizontal: spacing.xl, paddingTop: 36 },
-  panelIcon: { alignItems: 'center', backgroundColor: colors.white, borderColor: colors.surfaceTint, borderRadius: 28, borderWidth: 3, bottom: -28, height: 56, justifyContent: 'center', left: '50%', marginLeft: -28, position: 'absolute', width: 56 },
-  panelPhoto: { backgroundColor: colors.surfaceTint, borderTopLeftRadius: radii.card, borderTopRightRadius: radii.card, height: 168 },
+  panelIcon: { alignItems: 'center', backgroundColor: colors.white, borderColor: colors.surface, borderRadius: 28, borderWidth: 3, bottom: -28, height: 56, justifyContent: 'center', left: '50%', marginLeft: -28, position: 'absolute', width: 56 },
+  panelPhoto: { backgroundColor: colors.primarySoft, height: 168 },
   panelTitle: { ...typography.headline, fontSize: 22, lineHeight: 28, textAlign: 'center' },
   retry: { alignItems: 'center', justifyContent: 'center', minHeight: MIN_TOUCH, paddingHorizontal: spacing.md },
   screen: { backgroundColor: colors.canvas, flex: 1 },
   section: { marginBottom: spacing.sm, marginTop: spacing.xl },
   stateGap: { marginTop: spacing.xl },
-  subtitle: { ...typography.body, color: colors.textMuted, marginTop: spacing.xxs },
-  title: { ...typography.display, fontSize: 36, lineHeight: 42 },
+  subtitle: { ...typography.body, color: colors.textSecondary, marginTop: spacing.xxs },
+  title: { ...typography.display },
   titleFlex: { flexShrink: 1 },
   titleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
 });

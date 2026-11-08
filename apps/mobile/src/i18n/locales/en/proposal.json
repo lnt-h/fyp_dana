@@ -12,7 +12,8 @@
   },
   "status": {
     "unsaved": "Unsaved",
-    "saved": "Saved"
+    "saved": "Saved",
+    "expired": "Expired"
   },
   "cover": {
     "photo": "Photo of {{name}}",
@@ -37,10 +38,6 @@
     "GOOD": "Good",
     "WARNING": "Warning",
     "BLOCKED": "Blocked",
-    "badgeGood": "Good",
-    "badgeWarning_one": "Warning · {{count}} warning",
-    "badgeWarning_other": "Warning · {{count}} warnings",
-    "badgeBlocked": "Blocked · {{blocking}} blocking, {{warnings}} warnings",
     "summaryGood": "Good — ready to save",
     "summaryWarning": "Warning — can be saved",
     "summaryBlocked": "Blocked — cannot be saved yet",
@@ -57,16 +54,21 @@
     "onDate": "On {{date}}",
     "affects": "Affects: {{stops}}",
     "affectedStop": "Day {{day}} #{{number}} {{name}}",
-    "notices": "Good to know",
-    "severityInfo": "Notice",
-    "noticeDays_one": "Day {{days}}",
-    "noticeDays_other": "Days {{days}}"
+    "pill": {
+      "good": "Looks good",
+      "check_one": "{{count}} to check",
+      "check_other": "{{count}} to check",
+      "blocked": "Needs changes",
+      "updating": "Checking…",
+      "hint": "Opens Plan Health details",
+      "a11y": "Plan Health: {{status}}"
+    }
   },
   "conflict": {
     "CLOSED_AT_PLANNED_TIME": "Closed at planned time",
     "LEG_UNAVAILABLE": "Route unavailable — no estimate",
     "DAY_WINDOW_EXCEEDED": "Day window exceeded",
-    "OPENING_HOURS_UNKNOWN": "Opening hours: unknown",
+    "OPENING_HOURS_UNKNOWN": "Hours not listed",
     "FACT_STALE": "Hours may be out of date",
     "MUST_SEE_NOT_INCLUDED": "A must-see place could not be included",
     "CLOSED_ON_DATE": "Closed on this date",
@@ -97,7 +99,8 @@
     "emptyBody": "Add a source-checked {{city}} place or regenerate this day.",
     "chip": "{{weekday}} {{date}}",
     "chipA11y_one": "Day {{day}}, {{date}}, {{count}} stop",
-    "chipA11y_other": "Day {{day}}, {{date}}, {{count}} stops"
+    "chipA11y_other": "Day {{day}}, {{date}}, {{count}} stops",
+    "chipLabel": "Day {{day}} · {{when}}"
   },
   "stop": {
     "minutes": "{{count}} min",
@@ -108,10 +111,10 @@
     "selected": "Selected",
     "details": "Place card",
     "detailsA11y": "Open the place card for {{name}}",
-    "why": "Why this?",
-    "whyHide": "Show less",
-    "aiLabel": "AI suggestion",
-    "a11yNoTime": "{{number}}, {{name}}, {{unknown}}, {{status}}"
+    "whyHide": "Shows less",
+    "a11yNoTime": "{{number}}, {{name}}, {{unknown}}, {{status}}",
+    "web": "From the web",
+    "whyMore": "Shows the whole note"
   },
   "leg": {
     "WALK": "Walk",
@@ -125,7 +128,7 @@
     "approx": "≈ {{value}}",
     "estimatedA11y": "{{mode}}, about {{distance}}, about {{duration}}, estimated",
     "unavailableShort": "Route unavailable",
-    "estimateNotice": "Distances and travel times are estimated from straight lines, not measured on real roads."
+    "legend": "≈ estimated travel times"
   },
   "map": {
     "title": "Map",
@@ -147,12 +150,8 @@
     "action": "Save trip",
     "saved": "Saved",
     "a11yHint": "Saves this proposal as your trip",
-    "healthA11y": "Show Plan Health",
-    "blocked": "This plan is blocked. Fix the issues under Plan Health before saving.",
-    "emptyDay": "Day {{day}} has no stops. Every day needs at least one stop to save.",
-    "success": "Trip saved. This is sample data: real saving arrives when the API is connected.",
+    "success": "Trip saved",
     "dismiss": "Dismiss",
-    "check": "Check",
     "blockedShort": "Plan blocked: fix the issues before saving.",
     "emptyDayShort": "Day {{day}} has no stops, so it can’t be saved yet."
   },
@@ -190,9 +189,10 @@
     "expiredBody": "Your saved trip has not changed. Create the plan again to keep editing.",
     "createAgain": "Create again",
     "errorTitle": "Change not applied",
-    "updated": "Draft updated · revision {{revision}}",
+    "updated": "Plan updated",
     "busy": "Wait for the current change to finish.",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "rejectedBody": "This change can’t be applied to the plan. Discard it to keep editing."
   },
   "errors": {
     "network": "No connection. Try again.",
@@ -210,7 +210,17 @@
     "internal_error": "Something went wrong. Try again.",
     "authentication_required": "Your session ended. Sign in again to continue.",
     "unsupported_request": "This change isn't supported yet.",
-    "trip_not_saved": "Save this trip first, then try again."
+    "trip_not_saved": "Save this trip first, then try again.",
+    "day_overflow": "That would run this day past midnight. Shorten or remove a stop instead.",
+    "publication_incomplete": "A place in this plan is no longer available. Replace it, then try again.",
+    "duplicate_place": "This place is already in the trip.",
+    "unknown_stop": "That stop is no longer in this draft.",
+    "unknown_leg": "That leg is no longer in this draft.",
+    "not_published": "This place is not available right now.",
+    "idempotency_key_reused": "This change conflicts with an earlier one. Discard it and try again.",
+    "snapshot_invalid": "This draft can’t take that change.",
+    "plan_blocked": "Fix the plan’s issues first.",
+    "stop_locked": "This stop is locked."
   },
   "sheet": {
     "subtitle": "Day {{day}} · stop {{number}} · {{time}}",
@@ -279,31 +289,29 @@
     "done": "Done",
     "close": "Close",
     "dayFull": "Day {{day}} already has 20 stops.",
-    "loading": "Loading places"
+    "loading": "Loading places",
+    "pendingBody": "Your last change wasn’t applied. Try it again or discard it before choosing another place."
   },
   "healthDetail": {
     "title": "Plan Health",
     "openDetail": "See details",
-    "countBlocking_one": "{{count}} blocking issue",
-    "countBlocking_other": "{{count}} blocking issues",
-    "countWarnings_one": "{{count}} warning",
-    "countWarnings_other": "{{count}} warnings",
-    "allDays": "All days",
-    "filterA11y": "Show issues for",
     "updating": "Updating…",
     "error": "Could not check the plan",
     "errorBody": "Saving stays disabled until the plan can be checked.",
     "offline": "You are offline. Showing the last result; fix shortcuts are paused.",
-    "goodBody": "Every stop is open at its planned time, every leg has a route, and each day ends before {{end}}.",
-    "arriveLeave": "Arrive {{arrival}} · leave {{departure}}",
     "legTo": "Leg to #{{number}} {{name}}",
-    "noIssues": "Nothing to fix on this day.",
     "fixMove": "Move to start of day",
     "fixMode": "Change travel mode",
     "fixReplace": "Replace",
     "fixShorten": "Shorten or remove",
     "fixPlaceCard": "See place card",
-    "fixA11y": "{{action}}: {{name}}"
+    "fixA11y": "{{action}}: {{name}}",
+    "summaryGood": "Every stop fits its day and every leg has a route.",
+    "summaryWarning": "The plan can be saved. These are worth a look first.",
+    "summaryBlocked": "Fix these before saving.",
+    "noProblems": "Nothing to fix. Every stop fits its day.",
+    "hoursNotListed_one": "Hours not listed for {{count}} stop — check before you go.",
+    "hoursNotListed_other": "Hours not listed for {{count}} stops — check before you go."
   },
   "regen": {
     "title": "Regenerate day {{day}}?",
@@ -331,27 +339,24 @@
     "stageDone": "Done",
     "stageActive": "In progress",
     "failed": "Your draft and locks are unchanged.",
-    "done": "Day {{day}} regenerated · revision {{revision}}",
+    "done": "Day {{day}} regenerated",
     "retry": "Try again",
     "close": "Close"
   },
   "book": "Book stays and activities",
   "eyebrow": "{{city}} · {{dates}}",
-  "healthCard": {
-    "WARNING": "Needs attention",
-    "BLOCKED": "Blocked",
-    "more_one": "And {{count}} more issue",
-    "more_other": "And {{count}} more issues",
-    "review": "Review issues",
-    "reviewStopHint": "Scrolls to the first stop with an issue",
-    "reviewDetailHint": "Opens Plan Health details",
-    "good": "Plan looks good",
-    "goodA11y": "Plan Health: good"
-  },
   "ready": {
     "toast": "Your proposal is ready — not saved yet"
   },
   "assumptions": {
-    "title": "What this plan assumes"
+    "title_one": "Assumptions",
+    "title_other": "Assumptions ({{count}})"
+  },
+  "ai": {
+    "line": "Gonarra AI wrote these notes from the place descriptions."
+  },
+  "closed": {
+    "title": "This draft expired",
+    "body": "Your saved trips are unchanged. Create the plan again to edit or save it."
   }
 }

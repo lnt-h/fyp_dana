@@ -58,7 +58,7 @@ export function EditStopSheet(props: Props) {
   const { t } = useTranslation();
   return <Sheet
     accessibilityLabel={found ? found.stop.name : t('proposal.edit.more')}
-    dismissible={props.pending?.status !== 'applying'}
+    dismissible
     onClose={props.onClose}
     visible={!!target && !!found}
   >
@@ -117,6 +117,7 @@ function EditStopBody({ target, day, index, stop, days, places, allowedModes, pe
     if (outcome.ok) { onClose(); return; }
     setError(outcome.status === 'conflict' ? t('proposal.edit.conflictTitle') : editErrorCopy(t, outcome.code));
   }
+  // An applying edit keeps going if the sheet is closed: the proposal shows "Recalculating" and the result.
 
   const arrival = formatTime(stop.planned_arrival);
   const departure = formatTime(stop.planned_departure);
@@ -136,7 +137,7 @@ function EditStopBody({ target, day, index, stop, days, places, allowedModes, pe
       {stop.name !== stop.name_vi ? <Text numberOfLines={1} style={e.secondary}>{stop.name_vi}</Text> : null}
       <Text style={e.subtitle}>{subtitle}</Text>
     </View>
-    <CircleButton accessibilityLabel={t('proposal.sheet.close')} disabled={applying} icon="back" onPress={onClose} size={44} style={e.close} tone="tint" />
+    <CircleButton accessibilityLabel={t('proposal.sheet.close')} icon="back" onPress={onClose} size={44} style={e.close} tone="tint" />
   </View>;
 
   if (confirmRemove) {
@@ -172,15 +173,17 @@ function EditStopBody({ target, day, index, stop, days, places, allowedModes, pe
   </View>;
 
   return <View style={e.root}>
-    <ScrollView contentContainerStyle={e.pad} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <ScrollView bounces={false} contentContainerStyle={e.pad} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       {header}
 
       {blockedByPending && pending ? <InlineBanner
-        actions={<>
-          <PillButton icon="refresh" label={pending.status === 'conflict' ? t('proposal.edit.reloadReapply') : t('proposal.edit.retry')} onPress={onRetry} tone="primary" />
-          <PillButton label={t('proposal.edit.discard')} onPress={onDiscardPending} />
-        </>}
-        body={t('proposal.edit.kept')}
+        actions={pending.status === 'rejected'
+          ? <PillButton label={t('proposal.edit.discard')} onPress={onDiscardPending} tone="primary" />
+          : <>
+            <PillButton icon="refresh" label={pending.status === 'conflict' ? t('proposal.edit.reloadReapply') : t('proposal.edit.retry')} onPress={onRetry} tone="primary" />
+            <PillButton label={t('proposal.edit.discard')} onPress={onDiscardPending} />
+          </>}
+        body={pending.status === 'rejected' ? t('proposal.edit.rejectedBody') : t('proposal.edit.kept')}
         style={e.banner}
         title={pending.status === 'conflict' ? t('proposal.edit.conflictTitle') : editErrorCopy(t, pending.errorCode)}
         tone="error"
@@ -290,11 +293,11 @@ const e = StyleSheet.create({
   headerCopy: { flex: 1, minWidth: 0 },
   title: { ...typography.headline },
   secondary: { fontFamily: fonts.medium, fontSize: 14, color: colors.textMuted, marginTop: 1 },
-  subtitle: { fontFamily: fonts.bold, fontSize: 13, lineHeight: 18, color: colors.tealText, marginTop: 4 },
+  subtitle: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.textSecondary, marginTop: 4 },
   close: { alignSelf: 'flex-start', transform: [{ rotate: '-90deg' }] },
   banner: { marginBottom: spacing.sm },
-  section: { borderRadius: radii.card, borderWidth: 1, borderColor: editTokens.cardBorder, padding: spacing.md, marginBottom: spacing.sm },
-  focused: { borderColor: colors.audioTeal, backgroundColor: colors.canvas },
+  section: { borderRadius: radii.card, borderWidth: 1.5, borderColor: colors.surface, backgroundColor: colors.surface, padding: spacing.md, marginBottom: spacing.sm },
+  focused: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   stepButton: { width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, borderColor: editTokens.border, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
   stepValue: { alignItems: 'center', minWidth: 120 },
@@ -304,7 +307,7 @@ const e = StyleSheet.create({
   hintTop: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.textMuted, marginBottom: spacing.xs },
   segment: { flexDirection: 'row', padding: 4, gap: 4, borderRadius: radii.button, backgroundColor: colors.surfaceTint },
   segmentItem: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', minHeight: MIN_TOUCH, borderRadius: 18 },
-  segmentSelected: { backgroundColor: colors.deepOcean },
+  segmentSelected: { backgroundColor: colors.primary },
   segmentText: { fontFamily: fonts.bold, fontSize: 15, color: colors.deepOcean },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   positionNow: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted },

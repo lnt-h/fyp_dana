@@ -1,34 +1,46 @@
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { colors } from '../../theme/colors';
+import { colors, type CategoryTone } from '../../theme/colors';
 import { radii } from '../../theme/spacing';
 import { fonts } from '../../theme/typography';
 import { Icon, type IconName } from './Icon';
 
-const border = colors.hairline;
-
 export type ChipProps = {
   label: string;
+  /** Optional leading icon. */
   icon?: IconName;
-  /** Selected chips fill with deepOcean (white text). */
+  /** Selected chips fill with primarySoft and use primary text (4.59:1). */
   selected?: boolean;
   /** Pressable when set (toggle semantics if `selected` is defined). */
   onPress?: () => void;
   disabled?: boolean;
-  /** `default` = outline on white; `tint` = surfaceTint fill, ink label. */
-  tone?: 'default' | 'tint';
+  /**
+   * `default` = white with a hairline outline; `tint` = surface fill; a `CategoryTone` (from `categoryColor(code)`)
+   * = category soft fill with the icon in the category colour. Labels stay ink (category colours are icon-only).
+   */
+  tone?: 'default' | 'tint' | CategoryTone;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 };
 
+/** Pill chip, 40 tall: filters, choices and category labels. */
 export function Chip({ label, icon, selected, onPress, disabled, tone = 'default', accessibilityLabel, style }: ChipProps) {
-  const fg = selected ? colors.white : colors.ink;
+  const category = typeof tone === 'object' ? tone : null;
+  const fg = selected ? colors.primary : colors.ink;
+  const iconColor = selected ? colors.primary : category ? category.fg : colors.textSecondary;
   const body = (
     <>
-      {icon ? <Icon color={fg} name={icon} size={16} /> : null}
-      <Text numberOfLines={1} style={[styles.text, { color: fg }]}>{label}</Text>
+      {icon ? <Icon color={iconColor} name={icon} size={16} strokeWidth={2} /> : null}
+      <Text maxFontSizeMultiplier={1.4} numberOfLines={1} style={[styles.text, { color: fg }]}>{label}</Text>
     </>
   );
-  const look = [styles.chip, tone === 'tint' && styles.tint, selected && styles.selected, disabled && styles.disabled, style];
+  const look = [
+    styles.chip,
+    tone === 'tint' && styles.tint,
+    category && { backgroundColor: category.bg, borderColor: category.bg },
+    selected && styles.selected,
+    disabled && styles.disabled,
+    style,
+  ];
   if (!onPress) {
     return <View accessible accessibilityLabel={accessibilityLabel ?? label} style={look}>{body}</View>;
   }
@@ -52,8 +64,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     backgroundColor: colors.white,
-    borderColor: border,
-    borderRadius: radii.chip,
+    borderColor: colors.hairline,
+    borderRadius: radii.pill,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 6,
@@ -62,7 +74,7 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.45 },
   pressed: { opacity: 0.8 },
-  selected: { backgroundColor: colors.deepOcean, borderColor: colors.deepOcean },
-  text: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 19 },
-  tint: { backgroundColor: colors.surfaceTint, borderColor: colors.surfaceTint },
+  selected: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoft },
+  text: { fontFamily: fonts.semibold, fontSize: 14, lineHeight: 19 },
+  tint: { backgroundColor: colors.surface, borderColor: colors.surface },
 });

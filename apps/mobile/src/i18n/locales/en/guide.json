@@ -1,7 +1,6 @@
 {
-  "eyebrow": "Answers backed by checked sources",
   "title": "Local guide",
-  "subtitle": "Sourced answers about the city and its places",
+  "subtitle": "Ask about Đà Nẵng and its places",
   "picker": {
     "title": "Ask about Đà Nẵng or one place",
     "body": "Ask about the whole city, or pick one place. Every answer lists its sources. If they are not enough, Gonarra says so.",
@@ -13,15 +12,20 @@
     "a11yPlace": "Opens the Guide for {{name}}",
     "minutes": "{{count}} min",
     "wholeCity": "All of {{city}}",
-    "wholeCityBody": "Culture, history, etiquette and areas like Hội An"
+    "wholeCityBody": "Culture, history, etiquette and areas like Hội An",
+    "searchLabel": "Search places",
+    "searchPlaceholder": "Search places, e.g. Hội An",
+    "loadMore": "Show more places",
+    "noResults": "No places match “{{q}}”",
+    "clearSearch": "Clear search"
   },
   "context": {
     "a11y": "Place: {{name}}",
     "hint": "Choose another place",
-    "change": "Change place",
+    "change": "Change",
     "cityA11y": "City: {{name}}",
     "cityHint": "Choose one place to ask about",
-    "cityScope": "Whole city · Ask about one place"
+    "pickPlace": "Pick a place"
   },
   "clear": "Delete conversation",
   "clearConfirmTitle": "Delete this conversation?",
@@ -36,7 +40,7 @@
   },
   "empty": {
     "title": "What would you like to know about {{place}}?",
-    "body": "Every answer lists checked sources. If they are not enough, Gonarra says so."
+    "body": "I answer from Gonarra's checked sources and show them with every answer."
   },
   "you": "You",
   "assistant": "Guide",
@@ -48,9 +52,6 @@
     "ANSWERING": "Writing the answer…"
   },
   "addingSources": "Adding sources…",
-  "sources": "Sources ({{count}})",
-  "aiLabel": "AI-generated from Gonarra's checked sources",
-  "aiLabelWeb": "AI-generated from web pages that are not source-checked",
   "insufficient": {
     "title": "Not enough evidence to answer",
     "body": "Gonarra's checked sources do not cover this, so I won't guess. Please ask on site or check an official channel."
@@ -67,7 +68,7 @@
     "send": "Send",
     "busy": "Wait for the current answer",
     "counter": "{{count}}/{{max}}",
-    "disclaimer": "AI can make mistakes. Check the sources before you go."
+    "disclaimer": "AI answers cite their sources"
   },
   "suggest": {
     "hours": {
@@ -97,11 +98,28 @@
     "cityHoiAn": {
       "label": "Hội An?",
       "question": "What is special about the Hội An area?"
+    },
+    "cityBeaches": {
+      "label": "Beaches?",
+      "question": "Which beaches are good in Đà Nẵng?"
     }
   },
   "errors": {
     "offline": "No connection, so the question wasn't sent. It's still in the box; send it again when you're back online.",
     "busy": "The AI service is busy right now. Your question is kept; try again in a moment.",
     "quota": "You've reached the question limit for now. Your question is kept; try again later."
-  }
+  },
+  "webAnswer": "From the web",
+  "webAnswerA11y": "From the web: these pages are not source-checked",
+  "placeCardHint": "Opens the place",
+  "sources_one": "{{count}} source",
+  "sources_other": "{{count}} sources",
+  "guest": {
+    "title": "Sign in to ask the Guide",
+    "body": "The Guide answers questions about Đà Nẵng and Hội An with checked sources. Your questions stay with your account.",
+    "action": "Sign in"
+  },
+  "moreSources_one": "Show {{count}} more source",
+  "moreSources_other": "Show {{count}} more sources",
+  "moreSourcesShort": "+{{count}}"
 }

@@ -10,6 +10,12 @@ const FALLBACK_CENTERS: Record<CityCode, GeoPoint & { delta: number }> = {
   'da-nang': { delta: 0.12, latitude: 16.0544, longitude: 108.2022 },
 };
 
+/** The city's fallback centre (UI constant; Đà Nẵng when the code is unknown). */
+export function cityCenter(code: CityCode | undefined): GeoPoint {
+  const { latitude, longitude } = FALLBACK_CENTERS[code ?? 'da-nang'] ?? FALLBACK_CENTERS['da-nang'];
+  return { latitude, longitude };
+}
+
 /**
  * Vertical position (fraction of screen height from the top) where the focus point should appear: midway between the
  * header over the map and the half-open sheet, so markers are not hidden under either.

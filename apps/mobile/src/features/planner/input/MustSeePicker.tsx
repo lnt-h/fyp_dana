@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
@@ -45,8 +45,9 @@ export function MustSeePicker({ visible, cityId, cityName, selected, onChange, o
   };
 
   return <Modal transparent visible={visible} animationType={reduceMotion ? 'none' : 'slide'} onRequestClose={onClose}>
-    <View style={p.backdrop}>
-      <Pressable accessibilityElementsHidden importantForAccessibility="no" onPress={onClose} style={StyleSheet.absoluteFill} />
+    {/* The sheet rises with the keyboard so the results stay visible; a backdrop tap only hides the keyboard first. */}
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={p.backdrop}>
+      <Pressable accessibilityElementsHidden importantForAccessibility="no" onPress={() => (Keyboard.isVisible() ? Keyboard.dismiss() : onClose())} style={StyleSheet.absoluteFill} />
       <View accessibilityViewIsModal style={[p.sheet, styles.sheet, { paddingBottom: insets.bottom + 12 }]}>
         <View style={p.sheetHeader}>
           <Text accessibilityRole="header" style={p.sheetTitle}>{t('planner.mustSee.title', { city: cityName })}</Text>
@@ -61,7 +62,7 @@ export function MustSeePicker({ visible, cityId, cityName, selected, onChange, o
         </View>
         {results === null
           ? <View style={styles.status}><ActivityIndicator color={colors.audioTeal} /><Text style={p.hint}>{t('planner.mustSee.loading')}</Text></View>
-          : <FlatList data={results} keyExtractor={item => item.id} keyboardShouldPersistTaps="handled" style={styles.list}
+          : <FlatList data={results} keyExtractor={item => item.id} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" style={styles.list}
             ListEmptyComponent={<Text accessibilityLiveRegion="polite" style={[p.hint, styles.status]}>{failed ? t('planner.errors.codes.network') : t('planner.mustSee.empty')}</Text>}
             renderItem={({ item }) => {
               const checked = selected.some(chosen => chosen.id === item.id);
@@ -79,7 +80,7 @@ export function MustSeePicker({ visible, cityId, cityName, selected, onChange, o
               </Pressable>;
             }} />}
       </View>
-    </View>
+    </KeyboardAvoidingView>
   </Modal>;
 }
 
@@ -90,7 +91,7 @@ const styles = StyleSheet.create({
   status: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 20 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 60, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.hairline },
   box: { width: 26, height: 26, borderRadius: 8, borderWidth: 1.5, borderColor: palette.border, alignItems: 'center', justifyContent: 'center' },
-  boxChecked: { backgroundColor: colors.tealText, borderColor: colors.tealText },
+  boxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
   name: { fontFamily: 'HankenGrotesk_700Bold', fontSize: 16, color: colors.deepOcean },
   secondary: { fontFamily: 'HankenGrotesk_500Medium', fontSize: 14, color: colors.textMuted, marginTop: 2 },
   added: { fontFamily: 'HankenGrotesk_700Bold', fontSize: 13, color: colors.tealText },

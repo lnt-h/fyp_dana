@@ -25,7 +25,7 @@ export function CityButton({ cityName, onPress }: Props) {
       onPress={onPress}
       style={({ pressed }) => [styles.pill, elevation.sm, pressed && styles.pressed]}
     >
-      <Icon color={colors.tealText} name="map-pin" size={18} />
+      <Icon color={colors.primary} name="map-pin" size={18} />
       <Text numberOfLines={1} style={styles.text}>{t('home.city.button', { city: name, country: t('common.country') })}</Text>
       <View style={styles.chevron}>
         <Icon color={colors.ink} name="chevron-right" size={16} strokeWidth={2.2} />

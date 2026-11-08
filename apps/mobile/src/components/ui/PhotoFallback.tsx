@@ -1,28 +1,34 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { categoryColor, colors } from '../../theme/colors';
 import { fonts } from '../../theme/typography';
-import { Icon, categoryIcon, type IconName } from './Icon';
+import { Icon, categoryIcon, normalizeCategoryCode, type IconName } from './Icon';
 
-/** Gradient stops and glyph colour for one category family; `deep` carries white text, `light` carries `ink`. */
+/** Gradient stops and glyph colour for one category; `deep` carries white glyphs, `light` carries the category colour. */
 type Swatch = { deep: readonly [string, string]; light: readonly [string, string]; ink: string };
 
-/**
- * One swatch per category icon family (`categoryIcon`), so a tile's colour says what kind of place it is. Deep stops
- * keep white glyphs ≥ 4.5:1 at the darker end; card text always sits on the card's own scrim on top of this.
- */
-const SWATCHES: Record<string, Swatch> = {
-  beach: { deep: ['#005A6E', '#1B8FA5'], ink: '#00687D', light: ['#E2F2F5', '#C8E6ED'] },
-  food: { deep: ['#86291F', '#B95436'], ink: '#9A3328', light: ['#FAE7E1', '#F2CFC4'] },
-  heritage: { deep: ['#6E3410', '#A9501E'], ink: '#8A4513', light: ['#F7E8DB', '#EED6C2'] },
-  lantern: { deep: ['#20264F', '#463A78'], ink: '#3A3570', light: ['#E8E7F3', '#D6D3EA'] },
-  market: { deep: ['#634000', '#9C6A0E'], ink: '#7A4E00', light: ['#FBF0D9', '#F2DEB4'] },
-  nature: { deep: ['#11524A', '#277F67'], ink: '#1B6F5F', light: ['#E2F1EB', '#CBE5DA'] },
-  sparkle: { deep: ['#552A62', '#8A4A82'], ink: '#6E3A78', light: ['#F2E5F0', '#E6CFE3'] },
-};
-const DEFAULT_SWATCH: Swatch = { deep: ['#0B3045', '#1D566F'], ink: '#5F5A52', light: ['#F4EEE3', '#EAE0CF'] };
+/** Blend two #RRGGBB colours (t = 0 → a, 1 → b). */
+function mix(a: string, b: string, t: number): string {
+  const ch = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  return `#${[0, 1, 2].map(i => Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * t).toString(16).padStart(2, '0')).join('')}`;
+}
 
+const swatches = new Map<string, Swatch>();
+
+/**
+ * Category colours (theme `categoryColor`, unknown → primary teal). `light` = the category's soft colour deepening
+ * slightly toward its strong colour, glyph in the strong colour. `deep` = the strong colour shaded toward ink, for
+ * photo cards and heroes that overlay white text on their own scrim.
+ */
 function swatchFor(categoryCode: string | null | undefined): Swatch {
-  return SWATCHES[categoryIcon(categoryCode)] ?? DEFAULT_SWATCH;
+  const { fg, bg } = categoryColor(normalizeCategoryCode(categoryCode));
+  const key = fg + bg;
+  let swatch = swatches.get(key);
+  if (!swatch) {
+    swatch = { deep: [mix(fg, colors.ink, 0.35), mix(fg, colors.white, 0.08)], ink: fg, light: [mix(bg, colors.white, 0.4), mix(bg, fg, 0.18)] };
+    swatches.set(key, swatch);
+  }
+  return swatch;
 }
 
 /** First letter or digit of a name (NFC, so "Đà" → "Đ"), upper-cased; null when there is none. */
@@ -41,8 +47,8 @@ export type PhotoFallbackProps = {
   icon?: IconName;
   iconSize?: number;
   /**
-   * `light` (default) = pale category wash with a coloured glyph, for thumbnails without text on top.
-   * `dark` = deep category gradient, for photo cards that overlay white text.
+   * `light` (default) = soft category gradient with the glyph in the category colour (thumbnails, place hero).
+   * `dark` = strong category gradient with a white glyph, for photo cards that overlay white text.
    */
   tone?: 'light' | 'dark';
   /**
@@ -79,7 +85,7 @@ export function PhotoFallback({ categoryCode, name, icon, iconSize = 28, tone = 
   } else if (!bare) {
     content = <>
       {initial ? <Text allowFontScaling={false} style={[styles.watermark, { color: dark ? 'rgba(255,255,255,0.12)' : swatch.ink, opacity: dark ? 1 : 0.1 }]}>{initial}</Text> : null}
-      <View style={[styles.iconRing, { backgroundColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.55)', height: iconSize * 2, width: iconSize * 2, borderRadius: iconSize }]}>
+      <View style={[styles.iconRing, { backgroundColor: dark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.7)', height: iconSize * 2, width: iconSize * 2, borderRadius: iconSize }]}>
         <Icon color={glyph} name={glyphName} size={iconSize} />
       </View>
     </>;

@@ -9,7 +9,11 @@ import { useSyncExternalStore } from 'react';
 import type { PreviewEditOperation } from '../../../lib/api/sourcePlanning';
 import type { Uuid } from '../../../lib/api/types';
 
-export type PendingStatus = 'applying' | 'failed' | 'conflict' | 'expired';
+/**
+ * `failed`: worth retrying with the same key (network, 5xx, retryable). `rejected`: the server refused these ops for
+ * good (non-retryable 4xx such as `day_overflow`); only Discard makes sense.
+ */
+export type PendingStatus = 'applying' | 'failed' | 'rejected' | 'conflict' | 'expired';
 
 export type PendingEdit = {
   previewId: Uuid;

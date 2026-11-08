@@ -17,7 +17,10 @@
     "openPlace": "Open place card for {{name}}",
     "cluster": "{{count}} places, tap to zoom in",
     "locationDenied": "Location permission is off. The map still works as usual.",
-    "locationFailed": "Could not get your location right now. Please try again later."
+    "locationFailed": "Could not get your location right now. Please try again later.",
+    "loadError": "Couldn't load places",
+    "retry": "Retry",
+    "retryHint": "Loads the places on the map again"
   },
   "search": {
     "pillLabel": "Search places in {{city}}",
@@ -32,9 +35,11 @@
     "resultCount": "Results in {{city}}: {{count}}",
     "emptyTitle": "No match for “{{q}}” in {{city}}",
     "emptyTopicTitle": "No places in this topic in {{city}} yet",
-    "emptyBody": "Gonarra only shows source-checked places in Đà Nẵng and the Hội An area. Try the Vietnamese or English name.",
+    "emptyBody": "Gonarra covers Đà Nẵng and the Hội An area. Try the Vietnamese or English name.",
     "changeCity": "Change city",
     "error": "Search is unavailable right now.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "showAll": "Show all places",
+    "clearTopic": "Clear topic"
   }
 }

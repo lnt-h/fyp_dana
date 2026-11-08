@@ -78,11 +78,11 @@ export function PhotoCard({
             icon={fallbackIcon}
             image={image}
             name={fallbackName}
+            iconSize={40}
             onError={onPhotoError}
-            tone="dark"
             width={width ?? 360}
           />
-          <LinearGradient colors={['rgba(7,21,30,0)', 'rgba(7,21,30,0.72)']} locations={[0.4, 1]} style={StyleSheet.absoluteFill} />
+          <LinearGradient colors={['rgba(22,33,43,0)', 'rgba(22,33,43,0.72)']} locations={[0.4, 1]} style={StyleSheet.absoluteFill} />
           {badge ? <GlassBadge icon={badgeIcon} label={badge} style={styles.badge} /> : null}
           <View style={styles.overlay}>
             <Text numberOfLines={2} style={styles.title}>{title}</Text>
@@ -104,7 +104,7 @@ export function PhotoCard({
 const styles = StyleSheet.create({
   attribution: { color: 'rgba(255,255,255,0.82)', fontFamily: fonts.medium, fontSize: 11, marginTop: 4 },
   badge: { position: 'absolute', right: spacing.sm, top: spacing.sm },
-  clip: { backgroundColor: colors.white, borderColor: colors.hairline, borderRadius: radii.photoCard, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  clip: { backgroundColor: colors.white, borderRadius: radii.photoCard, overflow: 'hidden' },
   footer: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', minHeight: 56, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   overlay: { bottom: 0, left: 0, padding: spacing.md, position: 'absolute', right: 0 },
   pressed: { opacity: 0.94, transform: [{ scale: 0.99 }] },

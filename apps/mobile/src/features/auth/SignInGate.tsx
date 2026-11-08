@@ -120,7 +120,7 @@ export function SignInGate({ feature, onClose, onSignedIn }: Props) {
     opacity: enter,
     transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [48, 0] }) }],
   };
-  const spinner = <ActivityIndicator color={colors.deepOcean} />;
+  const spinner = <ActivityIndicator color={colors.primary} />;
 
   return (
     <Modal animationType={reduceMotion ? 'none' : 'fade'} onRequestClose={onClose} statusBarTranslucent transparent visible={visible}>
@@ -197,7 +197,7 @@ function GateArt({ icon }: { icon: IconName }) {
 
 const styles = StyleSheet.create({
   art: { alignSelf: 'center', height: 96, marginBottom: 14, width: 96 },
-  artDisc: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: 48, height: 96, justifyContent: 'center', width: 96 },
+  artDisc: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 48, height: 96, justifyContent: 'center', width: 96 },
   artInner: {
     alignItems: 'center',
     backgroundColor: colors.white,
@@ -238,5 +238,5 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   sun: { backgroundColor: colors.sun, borderColor: colors.white, borderRadius: 9, borderWidth: 3, height: 18, position: 'absolute', right: 8, top: 6, width: 18 },
-  title: { color: colors.deepOcean, fontFamily: fonts.bold, fontSize: 26, letterSpacing: -0.8, lineHeight: 31, textAlign: 'center' },
+  title: { color: colors.ink, fontFamily: fonts.bold, fontSize: 26, letterSpacing: -0.8, lineHeight: 31, textAlign: 'center' },
 });

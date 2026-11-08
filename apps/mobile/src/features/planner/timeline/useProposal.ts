@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { currentLocale } from '../../../i18n';
-import { ApiError, getPlace, getTrip, listCities } from '../../../lib/api/source';
+import { ApiError, getPlace, getTrip, listCategories, listCities } from '../../../lib/api/source';
 import { cachedPlace, getPreviewHead } from '../../../lib/api/sourcePlanning';
 import type { CityCode, Conflict, IsoDate, Media, PlanHealth, PlanPreview, TravelMode, TripDetail, Uuid } from '../../../lib/api/types';
 import { numberDays, type NumberedDay } from './model';
@@ -30,6 +30,17 @@ export type ProposalData = {
   allowedModes: TravelMode[];
   /** Server-localized assumption lines of the preview (e.g. the demo-estimate disclosure); empty for a saved trip. */
   assumptions: string[];
+  /**
+   * Trip revision the preview was built on (`PlanPreview.base_trip_revision`) → Save's `expected_trip_revision`; for a
+   * saved itinerary the trip's own `revision`. A new trip starts at revision 0.
+   */
+  baseTripRevision: number | null;
+  /** Preview lifecycle (`ACTIVE` editable; `SAVED` accepted; `EXPIRED`/`DISCARDED` closed); null for a saved itinerary. */
+  previewStatus: PlanPreview['status'] | null;
+  /** Localized category names by code (display only, from API-009). */
+  categoryNames: Record<string, string>;
+  /** The trip's own name, when the traveller gave one. */
+  title: string | null;
 };
 
 export type StopPlace = { thumbnail: Media | null; categoryCode: string | null };
@@ -40,6 +51,19 @@ export type ProposalState =
   | { status: 'ready'; data: ProposalData };
 
 type Params = { previewId: Uuid; tripId?: Uuid; mode?: 'saved' | 'draft' };
+
+let categoryCache: { locale: string; names: Record<string, string> } | null = null;
+
+/** Category names in the app locale (API-009), cached per locale; empty on failure (rows then show no label). */
+async function categoryNamesOf(): Promise<Record<string, string>> {
+  const locale = currentLocale();
+  if (categoryCache?.locale === locale) return categoryCache.names;
+  const items = await listCategories().catch(() => null);
+  if (!items) return {};
+  const names = Object.fromEntries(items.map(item => [item.code, locale === 'vi' ? item.name_vi : item.name_en]));
+  categoryCache = { locale, names };
+  return names;
+}
 
 async function cityOf(cityId: Uuid | undefined): Promise<{ cityName: string | null; cityCode: CityCode | null }> {
   const none = { cityCode: null, cityName: null };
@@ -72,11 +96,11 @@ function coverOf(days: NumberedDay[], places: Record<Uuid, StopPlace>): Media | 
 
 async function fromTrip(trip: TripDetail): Promise<ProposalData> {
   const days = numberDays(trip.days);
-  const [city, places] = await Promise.all([cityOf(trip.city_id), placesOf(days)]);
+  const [city, places, categoryNames] = await Promise.all([cityOf(trip.city_id), placesOf(days), categoryNamesOf()]);
   return {
-    ...city, allowedModes: modesOf(trip), assumptions: [], cityId: trip.city_id, cover: coverOf(days, places), days, health: null, healthReasons: [],
-    origin: null, places, previewId: null, previewRevision: null, readOnly: trip.status === 'SAVED', saved: trip.status === 'SAVED',
-    startDate: trip.start_date, tripId: trip.id,
+    ...city, allowedModes: modesOf(trip), assumptions: [], baseTripRevision: trip.revision, categoryNames, cityId: trip.city_id, cover: coverOf(days, places), days,
+    health: null, healthReasons: [], origin: null, places, previewId: null, previewRevision: null, previewStatus: null, readOnly: true,
+    saved: trip.status === 'SAVED', startDate: trip.start_date, title: trip.title?.trim() || null, tripId: trip.id,
   };
 }
 
@@ -106,6 +130,7 @@ export async function withPreview(data: ProposalData, preview: PlanPreview): Pro
     ...data,
     allowedModes: modes?.length ? modes : data.allowedModes,
     assumptions: preview.assumptions ?? [],
+    baseTripRevision: preview.base_trip_revision,
     days,
     health: preview.plan_health,
     healthReasons: preview.health_reasons ?? [],
@@ -113,6 +138,7 @@ export async function withPreview(data: ProposalData, preview: PlanPreview): Pro
     places: { ...data.places, ...places },
     previewId: preview.id,
     previewRevision: preview.preview_revision,
+    previewStatus: preview.status,
     readOnly: preview.status !== 'ACTIVE',
     saved: preview.status === 'SAVED',
   };
@@ -131,11 +157,13 @@ async function load({ previewId, tripId, mode }: Params): Promise<ProposalData> 
     throw error;
   }
   const days = numberDays(preview.days);
-  const [trip, places] = await Promise.all([getTrip(preview.trip_id).catch(() => null), placesOf(days)]);
+  const [trip, places, categoryNames] = await Promise.all([getTrip(preview.trip_id).catch(() => null), placesOf(days), categoryNamesOf()]);
   return {
     ...(await cityOf(trip?.city_id)),
     allowedModes: modesOf(trip, preview),
     assumptions: preview.assumptions ?? [],
+    baseTripRevision: preview.base_trip_revision,
+    categoryNames,
     cityId: trip?.city_id ?? null,
     cover: coverOf(days, places),
     days,
@@ -145,9 +173,11 @@ async function load({ previewId, tripId, mode }: Params): Promise<ProposalData> 
     origin: preview.origin,
     previewId: preview.id,
     previewRevision: preview.preview_revision,
+    previewStatus: preview.status,
     readOnly: preview.status !== 'ACTIVE',
     saved: preview.status === 'SAVED',
     startDate: trip?.start_date ?? null,
+    title: trip?.title?.trim() || null,
     tripId: preview.trip_id,
   };
 }
@@ -181,5 +211,29 @@ export function useProposal(params: Params) {
     setState({ data, status: 'ready' });
   }, []);
 
-  return { applyPreview, reload, state };
+  /** Re-reads the head revision without a skeleton (e.g. after another screen's edit landed); errors keep what is shown. */
+  const refresh = useCallback(async () => {
+    const current = latest.current;
+    if (current.status !== 'ready' || !current.data.previewId) return;
+    try {
+      await applyPreview(await getPreviewHead(current.data.previewId));
+    } catch {
+      // Keep the revision on screen; the next refresh or reload tries again.
+    }
+  }, [applyPreview]);
+
+  /**
+   * After an explicit Save (API-022): the preview is closed server-side (SAVED), so the screen turns read-only right away
+   * and shows the saved trip's revision; nothing on screen is edited any more (ADR-009).
+   */
+  const markSaved = useCallback((trip: TripDetail) => {
+    const current = latest.current;
+    if (current.status !== 'ready') return;
+    setState({
+      data: { ...current.data, baseTripRevision: trip.revision, previewStatus: 'SAVED', readOnly: true, saved: true, tripId: trip.id },
+      status: 'ready',
+    });
+  }, []);
+
+  return { applyPreview, markSaved, refresh, reload, state };
 }

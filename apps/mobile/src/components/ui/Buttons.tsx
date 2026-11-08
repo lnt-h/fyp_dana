@@ -37,7 +37,7 @@ function Content({ label, icon, iconPosition = 'start', iconSize = 20, loading, 
   );
 }
 
-/** Solid ink CTA, 52 tall, radius 14. No gradient, no shadow. */
+/** Solid primary (teal) CTA, white label (5.18:1), 52 tall, radius 14. One per screen. No gradient, no shadow. */
 export function PrimaryButton({ disabled, loading, onPress, style, accessibilityLabel, accessibilityHint, ...content }: PrimaryButtonProps) {
   const inactive = disabled || loading;
   return (
@@ -48,14 +48,14 @@ export function PrimaryButton({ disabled, loading, onPress, style, accessibility
       accessibilityState={{ busy: !!loading, disabled: !!disabled }}
       disabled={inactive}
       onPress={onPress}
-      style={({ pressed }) => [styles.primary, disabled && styles.disabledFill, pressed && styles.pressed, style]}
+      style={({ pressed }) => [styles.primary, disabled && styles.disabledFill, pressed && styles.pressedPrimary, style]}
     >
       <Content {...content} color={colors.white} loading={loading} />
     </Pressable>
   );
 }
 
-/** Outline button on white, same geometry as PrimaryButton. */
+/** Surface-filled button (ink label), same geometry as PrimaryButton. No border. */
 export function SecondaryButton({ disabled, loading, onPress, style, accessibilityLabel, accessibilityHint, ...content }: BaseButtonProps) {
   return (
     <Pressable
@@ -72,23 +72,33 @@ export function SecondaryButton({ disabled, loading, onPress, style, accessibili
   );
 }
 
+/** Text-only action in primary teal (links such as "Ask about this place"), 52 tall for the touch target. */
+export function GhostButton({ disabled, loading, onPress, style, accessibilityLabel, accessibilityHint, ...content }: BaseButtonProps) {
+  return (
+    <Pressable
+      accessibilityHint={accessibilityHint}
+      accessibilityLabel={accessibilityLabel ?? content.label}
+      accessibilityRole="button"
+      accessibilityState={{ busy: !!loading, disabled: !!disabled }}
+      disabled={disabled || loading}
+      onPress={onPress}
+      style={({ pressed }) => [styles.ghost, disabled && styles.disabled, pressed && styles.pressed, style]}
+    >
+      <Content {...content} color={colors.primary} loading={loading} />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   content: { alignItems: 'center', flexDirection: 'row', gap: 8, justifyContent: 'center' },
   disabled: { opacity: 0.45 },
   disabledFill: { backgroundColor: colors.disabledButton },
   hidden: { opacity: 0 },
-  label: { fontFamily: fonts.semibold, fontSize: 16, letterSpacing: 0.1 },
-  pressed: { opacity: 0.88 },
-  pressedSecondary: { backgroundColor: colors.surfaceTint },
-  primary: { alignItems: 'center', backgroundColor: colors.ink, borderRadius: radii.button, height: BUTTON_HEIGHT, justifyContent: 'center', paddingHorizontal: 24 },
-  secondary: {
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderColor: colors.hairline,
-    borderRadius: radii.button,
-    borderWidth: 1.5,
-    height: BUTTON_HEIGHT,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
+  label: { fontFamily: fonts.semibold, fontSize: 16 },
+  ghost: { alignItems: 'center', borderRadius: radii.button, height: BUTTON_HEIGHT, justifyContent: 'center', paddingHorizontal: 16 },
+  pressed: { opacity: 0.7 },
+  pressedPrimary: { backgroundColor: colors.primaryPressed },
+  pressedSecondary: { backgroundColor: colors.hairline },
+  primary: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: radii.button, height: BUTTON_HEIGHT, justifyContent: 'center', paddingHorizontal: 24 },
+  secondary: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.button, height: BUTTON_HEIGHT, justifyContent: 'center', paddingHorizontal: 24 },
 });

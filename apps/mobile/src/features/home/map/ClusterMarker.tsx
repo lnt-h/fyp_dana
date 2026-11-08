@@ -8,7 +8,8 @@ import { fonts } from '../../../theme/typography';
 import type { LatLng } from './cluster';
 
 /** Terracotta badge; white text on it is 4.85:1 (WCAG AA for 15 pt bold). */
-const TERRACOTTA = (colors as Record<string, string>).terracotta ?? '#B8541F';
+/** Cluster badge in the brand teal (white count 5.18:1). */
+const TERRACOTTA = colors.primary;
 const SIZE = 48;
 
 type Props = {

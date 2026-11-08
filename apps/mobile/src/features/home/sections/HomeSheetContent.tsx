@@ -1,18 +1,19 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
-import { listCategories, listTrips, loadErrorKind, searchPlaces, type LoadErrorKind } from '../../../lib/api/source';
-import type { Category, Place, Trip } from '../../../lib/api/types';
+import { listCategories, listTrips, loadErrorKind, type LoadErrorKind } from '../../../lib/api/source';
+import type { Category, Trip } from '../../../lib/api/types';
 import { spacing } from '../../../theme/spacing';
 import { useAccount } from '../../account/AccountContext';
 import { SignInGate, type GateFeature } from '../../auth/SignInGate';
 import { isTripToday } from '../../trips/tripDates';
 import { useSelectedCity } from '../cityStore';
 import { useIsOffline } from '../useNetwork';
+import { usePlaceList, usePopulatedCategories } from '../usePlaces';
 import { CategoryChips } from './CategoryChips';
-import { ExplorePlaces, type PlacesLoad } from './ExplorePlaces';
+import { ExplorePlaces } from './ExplorePlaces';
 import { Greeting } from './Greeting';
 import { PlanBanner } from './PlanBanner';
 import { HomePlaceRails } from './PlaceRail';
@@ -72,38 +73,23 @@ export function HomeSheetContent({ categoryFilter, onCategoryChange, onOpenPlace
     setTripsState('loading');
   }, [isSignedIn]);
 
-  // Categories (once).
+  // Categories (once per connection change); only those with published places are offered (data-driven).
   const [categories, setCategories] = useState<Category[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesFailed, setCategoriesFailed] = useState(false);
   useEffect(() => {
     let active = true;
+    setCategoriesFailed(false);
     listCategories()
       .then(list => { if (active) setCategories(list); })
-      .catch(() => undefined)
-      .finally(() => { if (active) setCategoriesLoading(false); });
+      .catch(() => { if (active) setCategoriesFailed(true); });
     return () => { active = false; };
   }, [offline]);
-
-  // Published places of the selected city; re-fetched when the city changes or the connection returns.
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [placesState, setPlacesState] = useState<PlacesLoad>('loading');
-  const [placesAttempt, setPlacesAttempt] = useState(0);
-  const [placesError, setPlacesError] = useState<LoadErrorKind | null>(null);
   const cityId = city?.id ?? null;
-  useEffect(() => {
-    if (!cityId || offline) return;
-    let active = true;
-    setPlacesState('loading');
-    searchPlaces(cityId)
-      .then(items => { if (active) { setPlaces(items); setPlacesState('ready'); } })
-      .catch((error: unknown) => { if (active) { setPlacesError(loadErrorKind(error)); setPlacesState('error'); } });
-    return () => { active = false; };
-  }, [cityId, offline, placesAttempt]);
+  const populated = usePopulatedCategories(cityId, categories);
 
-  const visiblePlaces = useMemo(
-    () => (categoryFilter ? places.filter(place => place.category_code === categoryFilter) : places),
-    [categoryFilter, places],
-  );
+  // Published places of the selected city, or of the selected category (server-side filter, all pages). The list is
+  // keyed by city, category and UI language, so names follow a language switch.
+  const { result: placesLoad, retry: retryPlaces } = usePlaceList(cityId, { categoryCode: categoryFilter, enabled: !offline });
 
   const todayTrip = isSignedIn && tripsState === 'ready' ? trips.find(trip => isTripToday(trip)) ?? null : null;
   const todayCity = todayTrip ? cities.find(item => item.id === todayTrip.city_id) ?? null : null;
@@ -133,11 +119,11 @@ export function HomeSheetContent({ categoryFilter, onCategoryChange, onOpenPlace
       ) : null}
 
       {!offline ? (
-        <CategoryChips categories={categories} gutter={GUTTER} loading={categoriesLoading} onChange={onCategoryChange} selected={categoryFilter} />
+        <CategoryChips categories={populated ?? []} gutter={GUTTER} loading={populated === null && !categoriesFailed} onChange={onCategoryChange} selected={categoryFilter} />
       ) : null}
 
       {!offline && city ? (
-        <HomePlaceRails categories={categories} cityCode={city.code} cityId={cityId} gutter={GUTTER} isVi={isVi} onOpenPlace={onOpenPlace} />
+        <HomePlaceRails categories={categories} cityCode={city.code} cityId={cityId} gutter={GUTTER} isVi={isVi} onOpenPlace={onOpenPlace} populated={populated} />
       ) : null}
 
       {isLoaded && !isSignedIn ? (
@@ -149,13 +135,15 @@ export function HomeSheetContent({ categoryFilter, onCategoryChange, onOpenPlace
       {!offline && city ? (
         <ExplorePlaces
           cityName={cityName}
-          errorKind={placesError}
+          categories={categories}
+          errorKind={placesLoad.state === 'error' ? placesLoad.kind : null}
           filtered={categoryFilter !== null}
           gutter={GUTTER}
+          isVi={isVi}
           onOpenPlace={onOpenPlace}
-          onRetry={() => setPlacesAttempt(n => n + 1)}
-          places={visiblePlaces}
-          state={placesState}
+          onRetry={retryPlaces}
+          places={placesLoad.state === 'ready' ? placesLoad.items : []}
+          state={placesLoad.state}
         />
       ) : null}
 

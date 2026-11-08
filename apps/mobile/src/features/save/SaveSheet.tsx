@@ -16,6 +16,8 @@ import { fonts, typography } from '../../theme/typography';
 import { HandoffPanel } from '../handoff/HandoffPanel';
 import { HandoffIcon } from '../handoff/kindIcons';
 import { useIsOffline } from '../home/useNetwork';
+import { isProblem } from '../planner/health/reasons';
+import { useHealthLook } from '../planner/health/HealthPill';
 import { addIsoDays, cityName, formatShortDate } from './format';
 import { SheetFrame } from './SheetFrame';
 import { SuccessCheck } from './SuccessCheck';
@@ -44,7 +46,7 @@ export function saveSummaryFromPreview(preview: PlanPreview, trip: Pick<Trip, 's
     dayCount: trip.day_count,
     startDate: trip.start_date,
     stopCount: preview.days.reduce((sum, day) => sum + day.stops.length, 0),
-    warningCount: (preview.health_reasons ?? []).filter(reason => reason.severity === 'WARNING').length,
+    warningCount: (preview.health_reasons ?? []).filter(isProblem).filter(reason => reason.severity === 'WARNING').length,
     webUnverifiedStops: webUnverifiedStopNames(preview.days),
   };
 }
@@ -207,7 +209,8 @@ export function SaveSheet(props: SaveSheetProps) {
 
   /* ------------------------------------------------------------ Refused (blocked) */
   if (blocked) {
-    const reason = blocked.reasons.map(item => item.message).filter(Boolean).join(' · ') || t('save.blocked.fallbackReason');
+    // Always the localized title of each conflict type (never the server's English `message`).
+    const reason = [...new Set(blocked.reasons.filter(item => item.severity === 'BLOCKING' || blocked.reasons.every(other => other.severity !== 'BLOCKING')).map(item => t(`proposal.conflict.${item.type}`)))].join(' · ') || t('save.blocked.fallbackReason');
     return (
       <SheetFrame
         accessibilityLabel={t('save.blocked.title')}
@@ -372,10 +375,10 @@ export function SaveSheet(props: SaveSheetProps) {
 
 /* ---------------------------------------------------------------- Pieces */
 
-const HEALTH: Record<PlanHealth, { icon: IconName; color: string; bg: string }> = {
-  BLOCKED: { bg: colors.dangerBg, color: errorText, icon: 'blocked' },
-  GOOD: { bg: colors.okBg, color: colors.ok, icon: 'check' },
-  WARNING: { bg: colors.warnBg, color: warnText, icon: 'warning' },
+const TONE: Record<string, { icon: IconName; color: string; bg: string }> = {
+  danger: { bg: colors.dangerBg, color: errorText, icon: 'blocked' },
+  success: { bg: colors.successBg, color: colors.success, icon: 'check' },
+  warning: { bg: colors.warningBg, color: warnText, icon: 'warning' },
 };
 
 function SummaryCard({ summary, planHealth }: { summary: SaveSummary; planHealth: PlanHealth }) {
@@ -387,8 +390,10 @@ function SummaryCard({ summary, planHealth }: { summary: SaveSummary; planHealth
   const dates = summary.dayCount === 1 ? start : `${start} – ${end}`;
   const days = t('save.confirm.days', { count: summary.dayCount });
   const stops = t('save.confirm.stops', { count: summary.stopCount });
-  const health = HEALTH[planHealth];
-  const healthText = planHealth === 'WARNING' && summary.warningCount > 0 ? t('save.confirm.warnings', { count: summary.warningCount }) : t(`save.confirm.health.${planHealth}`);
+  // Same words as the proposal's health pill ("Looks good" / "N to check" / "Needs changes").
+  const look = useHealthLook()(planHealth, summary.warningCount);
+  const health = TONE[look.tone] ?? TONE.success;
+  const healthText = look.label;
 
   return (
     <View accessible accessibilityLabel={t('save.confirm.summaryLabel', { city: summary.cityName, dates, days, health: healthText, stops })} style={styles.card}>

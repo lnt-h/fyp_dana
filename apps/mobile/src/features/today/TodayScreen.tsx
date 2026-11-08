@@ -15,7 +15,7 @@ import { MIN_TOUCH, radii, spacing } from '../../theme/spacing';
 import { fonts, typography } from '../../theme/typography';
 import { ErrorBanner } from '../home/sections/SheetBanners';
 import { openTripDetail, vietnamMinutesNow } from '../home/sections/homeSheetUtils';
-import { dayHasEstimate, EstimateNotice } from '../planner/timeline/TimeRail';
+import { dayHasEstimate, EstimateLegend } from '../planner/timeline/TimeRail';
 import { StopTrustBadge } from '../place/components/SourceLine';
 import { addIsoDays, cityName, formatLongDate, formatShortDate } from '../save/format';
 import { focusStop, legAfter, openDirections, pickDay, timeStops, type TimedStop } from './todayModel';
@@ -165,7 +165,7 @@ export function TodayScreen({ tripId }: { tripId: Uuid }) {
           {stops.length ? (
             <View>
               <Text accessibilityRole="header" style={styles.sectionTitle}>{t('save.today.dayTitle')}</Text>
-              {day && dayHasEstimate(day) ? <EstimateNotice style={styles.estimate} /> : null}
+              {day && dayHasEstimate(day) ? <EstimateLegend style={styles.estimate} /> : null}
               <View role="list">
                 {stops.map((item, index) => (
                   <TimelineRow

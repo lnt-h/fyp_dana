@@ -16,7 +16,8 @@
     "signOut": "Sign out",
     "resetGuest": "Reset guest session",
     "deleteAccount": "Delete account",
-    "versionCaption": "Gonarra version {{version}}"
+    "versionCaption": "Gonarra version {{version}}",
+    "demoName": "Demo traveller"
   },
   "common": {
     "language": "Language",
@@ -84,7 +85,22 @@
     "confirmHelper": "Type the confirmation word to continue.",
     "submit": "Delete account",
     "keep": "Keep my account",
-    "notConnected": "Not connected to the server yet — this will work once the API is connected. Your account and data have not been deleted."
+    "failed": "Could not start the deletion. Nothing was deleted. Try again.",
+    "failedOffline": "No connection, so nothing was deleted. Try again when you're back online.",
+    "demoTitle": "Not available in the demo",
+    "demoBody": "This demo uses one shared account, so it can't be deleted. Your real account can be deleted from Settings.",
+    "backHome": "Back to Home",
+    "runningTitle": "Deleting your account",
+    "runningBody": "Your request is confirmed. Your trips, preferences and Guide questions are deleted within 24 hours. You can sign out now.",
+    "retryingBody": "Deletion hit a problem and will be retried automatically. Nothing more is needed from you.",
+    "doneTitle": "Account deleted",
+    "doneBody": "Your data has been deleted. Signing you out…",
+    "stepRequested": "Request confirmed",
+    "stepDeleting": "Deleting trips, preferences and questions",
+    "stepDone": "Account removed",
+    "stepComplete": "done",
+    "signOutNow": "Sign out now",
+    "signOutDone": "Sign out"
   },
   "editProfile": {
     "title": "Edit profile",
@@ -115,6 +131,7 @@
       "Couple": "Couple",
       "Family": "Family",
       "Friends": "Friends"
-    }
+    },
+    "saveFailed": "Could not save your preferences. Check your connection and try again."
   }
 }

@@ -14,7 +14,7 @@ import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import type { City } from '../../../lib/api/types';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
 import { resolveImage } from '../../../lib/images/imagekit';
-import { colors } from '../../../theme/colors';
+import { colors, type CategoryTone } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
 import { VN_TIME_ZONE } from './vnTime';
@@ -47,7 +47,8 @@ export function PlannerShell({ title, children, footer, onBack, centered = false
       <View style={p.headerSpacer} />
     </View>
     {subheader ? <View style={p.subheader}><View style={p.inner}>{subheader}</View></View> : null}
-    <ScrollView key={scrollKey} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
+    {/* No top over-scroll: dragging down while typing must not pull the form away and reveal blank space. */}
+    <ScrollView key={scrollKey} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" bounces={false} overScrollMode="never"
       contentContainerStyle={[p.content, centered && p.contentCentered, { paddingBottom: footer ? spacing.xl : insets.bottom + spacing.xxl }]}>
       <View style={p.inner}>{children}</View>
     </ScrollView>
@@ -118,16 +119,22 @@ export function Segmented<T extends string | number>({ label, options, value, on
   </View>;
 }
 
-/** Selectable chip with an optional leading icon; selected = deepOcean fill + trailing check (not colour alone). */
-export function Chip({ label, selected, onPress, kind, icon, disabled = false, grow = false }: {
+/**
+ * Selectable chip with an optional leading icon. Plain chips: selected = primary fill + white text + trailing check.
+ * Category chips (`tone` from `categoryColor`): the icon always carries the category colour; selected = category soft
+ * fill with a category-coloured ring and a check, so the state never depends on colour alone.
+ */
+export function Chip({ label, selected, onPress, kind, icon, disabled = false, grow = false, tone: category }: {
   label: string; selected: boolean; onPress: () => void; kind: 'radio' | 'checkbox'; icon?: IconName; disabled?: boolean; grow?: boolean;
+  tone?: CategoryTone;
 }) {
-  const fg = selected ? colors.white : colors.ink;
+  const fg = selected && !category ? colors.white : colors.ink;
+  const iconColor = category ? category.fg : selected ? colors.white : colors.primary;
   return <Pressable accessibilityRole={kind} accessibilityLabel={label} accessibilityState={{ checked: selected, disabled }} disabled={disabled} onPress={onPress}
-    style={({ pressed }) => [p.chip, grow && p.flex, selected && p.chipSelected, (pressed || disabled) && { opacity: 0.6 }]}>
-    {icon && <Icon name={icon} size={18} color={selected ? colors.white : colors.tealText} />}
-    <Text numberOfLines={1} style={[p.chipText, { color: fg }]}>{label}</Text>
-    {selected && <Icon name="check" size={16} strokeWidth={2.4} color={colors.white} />}
+    style={({ pressed }) => [p.chip, grow && p.flex, selected && (category ? [p.chipCategory, { backgroundColor: category.bg, borderColor: category.fg }] : p.chipSelected), (pressed || disabled) && { opacity: 0.6 }]}>
+    {icon && <Icon name={icon} size={18} color={iconColor} strokeWidth={2} />}
+    <Text maxFontSizeMultiplier={1.4} numberOfLines={1} style={[p.chipText, { color: fg }]}>{label}</Text>
+    {selected && <Icon name="check" size={16} strokeWidth={2.4} color={category ? colors.ink : colors.white} />}
   </Pressable>;
 }
 
@@ -241,7 +248,7 @@ export const p = StyleSheet.create({
   bubble: { flex: 1, backgroundColor: colors.white, borderRadius: radii.card, borderTopLeftRadius: 8, borderWidth: 1, borderColor: tone.hairline, paddingHorizontal: 18, paddingVertical: 16 },
   introLabel: { ...typography.eyebrow, marginBottom: 6 },
   introBody: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 23, color: colors.ink },
-  userBubble: { alignSelf: 'flex-end', maxWidth: '85%', backgroundColor: colors.deepOcean, borderRadius: radii.card, borderBottomRightRadius: 8, paddingHorizontal: 18, paddingVertical: 13, marginBottom: spacing.md },
+  userBubble: { alignSelf: 'flex-end', maxWidth: '85%', backgroundColor: colors.primary, borderRadius: radii.card, borderBottomRightRadius: 8, paddingHorizontal: 18, paddingVertical: 13, marginBottom: spacing.md },
   userBubbleText: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, color: colors.white },
 
   sectionBlock: { marginTop: 28, marginBottom: spacing.sm },
@@ -251,8 +258,9 @@ export const p = StyleSheet.create({
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16, minHeight: 46, borderRadius: radii.chip, borderWidth: 1, borderColor: tone.border, backgroundColor: colors.white },
-  chipSelected: { backgroundColor: colors.deepOcean, borderColor: colors.deepOcean },
-  chipText: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink, textAlign: 'center' },
+  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipCategory: { borderWidth: 2, paddingHorizontal: 15 },
+  chipText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink, textAlign: 'center' },
   chipTextSelected: { color: colors.white },
   chipTick: { color: colors.white, fontSize: 15, fontWeight: '700' },
 
@@ -272,14 +280,14 @@ export const p = StyleSheet.create({
   tileName: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 20, color: colors.white, letterSpacing: -0.2 },
 
   banner: { flexDirection: 'row', gap: spacing.sm, borderRadius: radii.card, backgroundColor: colors.surfaceTint, padding: spacing.md, marginBottom: 14 },
-  bannerWarning: { backgroundColor: colors.white, borderWidth: 1.5, borderColor: colors.sun },
-  bannerError: { backgroundColor: colors.white, borderWidth: 1.5, borderColor: tone.error },
+  bannerWarning: { backgroundColor: colors.warningBg },
+  bannerError: { backgroundColor: colors.dangerBg },
   bannerIcon: { width: 36, height: 36, borderRadius: radii.iconTile, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   bannerTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink, marginBottom: 3 },
-  bannerBody: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.deepOcean },
+  bannerBody: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.ink },
 
   fieldBlock: { marginBottom: 4 },
-  label: { fontFamily: fonts.bold, fontSize: 14, color: colors.deepOcean, marginBottom: spacing.xs },
+  label: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink, marginBottom: spacing.xs },
   field: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 58, borderWidth: 1, borderColor: tone.border, borderRadius: radii.field, backgroundColor: colors.white, paddingLeft: 8, paddingRight: 14 },
   fieldIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.surfaceTint, alignItems: 'center', justifyContent: 'center' },
   fieldText: { flex: 1, fontFamily: fonts.bold, fontSize: 16, color: colors.ink },

@@ -4,7 +4,6 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, t
 import { colors } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
-import { palette } from '../../auth/components/AuthUI';
 import { HealthGlyph, PlannerIcon, type PlannerIconName } from '../timeline/icons';
 
 export const editTokens = {
@@ -31,7 +30,7 @@ export function PillButton({ label, icon, onPress, tone = 'default', disabled, s
   accessibilityHint?: string;
   style?: StyleProp<ViewStyle>;
 }) {
-  const fg = selected || tone === 'primary' ? colors.white : tone === 'danger' ? palette.error : colors.deepOcean;
+  const fg = selected || tone === 'primary' ? colors.white : tone === 'danger' ? colors.danger : colors.ink;
   return <Pressable
     accessibilityHint={accessibilityHint}
     accessibilityLabel={accessibilityLabel ?? label}
@@ -85,7 +84,7 @@ export function InlineBanner({ tone, title, body, actions, style }: {
             : <HealthGlyph health={isError ? 'BLOCKED' : 'WARNING'} size={18} />}
       </View>
       <View style={u.bannerCopy}>
-        <Text style={[u.bannerTitle, isError && { color: palette.error }]}>{title}</Text>
+        <Text style={[u.bannerTitle, isError && { color: colors.danger }]}>{title}</Text>
         {body ? <Text style={u.bannerBody}>{body}</Text> : null}
       </View>
     </View>
@@ -108,22 +107,22 @@ export function LinkButton({ label, onPress, disabled, accessibilityLabel, tone 
 }
 
 export const u = StyleSheet.create({
-  pill: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: MIN_TOUCH, paddingHorizontal: 14, borderRadius: radii.button, borderWidth: 1.5, borderColor: editTokens.border, backgroundColor: colors.white },
-  pillPrimary: { backgroundColor: colors.deepOcean, borderColor: colors.deepOcean },
-  pillDanger: { borderColor: '#EBC5C5' },
-  pillSelected: { backgroundColor: colors.deepOcean, borderColor: colors.deepOcean },
-  pillText: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 19, flexShrink: 1 },
+  pill: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: MIN_TOUCH, paddingHorizontal: 14, borderRadius: radii.button, borderWidth: 1, borderColor: editTokens.border, backgroundColor: colors.white },
+  pillPrimary: { backgroundColor: colors.primary, borderColor: colors.primary },
+  pillDanger: { borderColor: colors.dangerBg, backgroundColor: colors.dangerBg },
+  pillSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  pillText: { fontFamily: fonts.semibold, fontSize: 14, lineHeight: 19, flexShrink: 1 },
   disabled: { opacity: 0.45 },
   pressed: { opacity: 0.8 },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
-  label: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', color: colors.textMuted },
-  banner: { borderRadius: 18, padding: spacing.sm, backgroundColor: colors.surfaceTint },
+  label: { fontFamily: fonts.semibold, fontSize: 13, lineHeight: 18, color: colors.textSecondary },
+  banner: { borderRadius: radii.card, padding: spacing.sm, backgroundColor: colors.surface },
   bannerError: { backgroundColor: editTokens.errorBg },
   bannerWarning: { backgroundColor: editTokens.warnBg },
   bannerRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   bannerIcon: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   bannerCopy: { flex: 1, minWidth: 0 },
-  bannerTitle: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: colors.deepOcean },
+  bannerTitle: { fontFamily: fonts.semibold, fontSize: 14, lineHeight: 20, color: colors.ink },
   bannerBody: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.ink, marginTop: 2 },
   bannerActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs, paddingLeft: 32 },
   link: { minHeight: MIN_TOUCH, justifyContent: 'center', paddingHorizontal: spacing.xs },

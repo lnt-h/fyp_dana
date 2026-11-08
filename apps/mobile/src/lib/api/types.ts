@@ -105,12 +105,18 @@ export type FactFieldCode =
  * shapes are PROVISIONAL (used by the UI) until the API defines them. Confirm before relying on them.
  */
 export type HoursValue = { intervals: { open: LocalTime; close: LocalTime }[] };
+/**
+ * OPENING_HOURS as the pipeline stores it (OSM / owner sheet / AI extraction, DEC-028): ISO weekday (`"1"` = Monday …
+ * `"7"` = Sunday) → `[open, close]` pairs (`"24:00"` allowed as a close); a weekday that is missing is closed. `text` is
+ * the raw source string (e.g. OSM `Mo-Su 07:30-11:30,13:30-17:30`), never shown as-is.
+ */
+export type WeeklyHoursValue = { weekly: Partial<Record<'1' | '2' | '3' | '4' | '5' | '6' | '7', [LocalTime, LocalTime][]>>; text?: string | null };
 export type MoneyValue = Money;
 export type TextValue = { text: string };
 export type LocationValue = GeoPoint;
 /** ADMISSION_PRICE from the pipeline (1.0.4, DEC-028): free entry, or VND adult/child prices (`amount` = adult). */
 export type PriceValue = { free: boolean; currency?: string; adult?: number; child?: number; amount?: string };
-export type FactValue = HoursValue | MoneyValue | TextValue | LocationValue | PriceValue;
+export type FactValue = WeeklyHoursValue | HoursValue | MoneyValue | TextValue | LocationValue | PriceValue;
 
 /**
  * One operational fact. UNKNOWN is never collapsed into an empty value (FR-006); `value` only when KNOWN. Narrows the

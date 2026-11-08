@@ -10,7 +10,7 @@ import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue } from 'react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Wordmark } from '../../components/brand/BrandMarks';
-import { CircleButton, Icon } from '../../components/ui';
+import { CircleButton, Icon, Toast } from '../../components/ui';
 import { useAccount } from '../../features/account/AccountContext';
 import { AccountIcon } from '../../features/account/AccountUI';
 import { SignInGate, type GateFeature } from '../../features/auth/SignInGate';
@@ -20,14 +20,14 @@ import { useSelectedCity } from '../../features/home/cityStore';
 import { useTabBarHeight } from '../../features/home/components/HomeTabBar';
 import { HomeMap } from '../../features/home/map/HomeMap';
 import { PlacePreviewCard } from '../../features/home/map/PlacePreviewCard';
-import { cityRegion, framedRegion } from '../../features/home/map/region';
+import { cityCenter, cityRegion, framedRegion } from '../../features/home/map/region';
 import { useLocateMe } from '../../features/home/map/useLocateMe';
 import { SearchBody, SearchHeader } from '../../features/home/search/SearchPanel';
 import { SearchPill } from '../../features/home/search/SearchPill';
 import { HomeSheetContent } from '../../features/home/sections/HomeSheetContent';
 import { useIsOffline } from '../../features/home/useNetwork';
+import { usePlaceList } from '../../features/home/usePlaces';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-import { searchPlaces } from '../../lib/api/source';
 import type { Place } from '../../lib/api/types';
 import { colors } from '../../theme/colors';
 import { elevation } from '../../theme/elevation';
@@ -41,11 +41,13 @@ const SNAP_POINTS = ['26%', '52%', '92%'];
 const HALF_FRACTION = 0.52;
 const HALF = 1;
 const FULL = 2;
-const MAX_MARKERS = 20;
+/** Markers drawn on the Home map: the places nearest the city centre (clustered when they overlap). */
+const MAX_MARKERS = 30;
+/** Radius of the unfiltered marker set around the city centre, in degrees (~8 km). */
+const CORE_RADIUS_DEG = 0.072;
 const MAX_RECENT = 5;
 const GUTTER = 20;
-
-type CityPlaces = { cityId: string; items: Place[] };
+const elevationFloating = elevation.floating;
 
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
@@ -68,8 +70,8 @@ export default function HomeScreen() {
   const [mapBottom, setMapBottom] = useState(() => Math.round(height * HALF_FRACTION));
 
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [cityPlaces, setCityPlaces] = useState<CityPlaces | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const [citySheetOpen, setCitySheetOpen] = useState(false);
   const [gate, setGate] = useState<GateFeature | null>(null);
   const [searching, setSearching] = useState(false);
@@ -79,40 +81,42 @@ export default function HomeScreen() {
   const [toast, setToast] = useState<string | null>(null);
   const { granted, locate } = useLocateMe();
 
-  // Markers: published places of the selected city (API-010, no q).
-  useEffect(() => {
-    if (!city) return;
-    let active = true;
-    setSelectedId(null);
-    searchPlaces(city.id)
-      .then(items => { if (active) setCityPlaces({ cityId: city.id, items }); })
-      .catch(() => { if (active) setCityPlaces({ cityId: city.id, items: [] }); });
-    return () => { active = false; };
-  }, [city]);
+  // Markers: published places of the selected city, or of the selected category (API-010, filtered on the server).
+  // The shared list is keyed by city, category and UI language, so names follow a language switch.
+  const { result: markerLoad, retry: retryMarkers } = usePlaceList(city?.id, { categoryCode: categoryFilter, enabled: !offline });
+  useEffect(() => { setSelectedId(null); }, [city?.id, categoryFilter]);
 
-  const places = useMemo(() => (cityPlaces && cityPlaces.cityId === city?.id ? cityPlaces.items : []), [city?.id, cityPlaces]);
-  const markers = useMemo(
-    () => (categoryFilter ? places.filter(place => place.category_code === categoryFilter) : places).slice(0, MAX_MARKERS),
-    [categoryFilter, places],
-  );
+  const markers = useMemo(() => {
+    if (markerLoad.state !== 'ready' || !city) return [] as Place[];
+    // The places nearest the city centre, so the camera frames the dense core instead of far-flung outliers.
+    const centre = cityCenter(city.code);
+    const distance = (place: Place) => (place.location.latitude - centre.latitude) ** 2 + (place.location.longitude - centre.longitude) ** 2;
+    const nearest = [...markerLoad.items].sort((a, b) => distance(a) - distance(b)).slice(0, MAX_MARKERS);
+    // Unfiltered: keep the city core (within ~8 km) so the camera does not zoom out to far-flung places such as
+    // Mỹ Sơn; a category shows all its places (they are what the user asked for).
+    if (categoryFilter) return nearest;
+    const core = nearest.filter(place => distance(place) <= CORE_RADIUS_DEG ** 2);
+    return core.length >= 6 ? core : nearest;
+  }, [categoryFilter, city, markerLoad]);
   const selectedPlace = markers.find(place => place.id === selectedId) ?? null;
 
-  // Re-centre once the city's places are known (fallback centre when it has none yet).
-  const loadedFor = cityPlaces?.cityId === city?.id ? city?.id : undefined;
+  // Fit the camera to the markers actually drawn whenever that set changes (city, category, first load).
+  const markerKey = markers.map(place => place.id).join(',');
   useEffect(() => {
-    if (!city || !loadedFor) return;
-    const points = places.map(place => place.location);
+    if (!city || !mapReady || markerLoad.state !== 'ready') return;
+    const points = markers.map(place => place.location);
     if (points.length > 1) {
-      // Centre on the median place (the dense core, e.g. Hội An old town) at street zoom so markers do not pile up;
-      // outlying places stay one pan away.
-      const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
-      const core = { latitude: median(points.map(p => p.latitude)), longitude: median(points.map(p => p.longitude)) };
-      mapRef.current?.animateToRegion(framedRegion(core, 0.018, aspect), reduced ? 0 : 600);
+      mapRef.current?.fitToCoordinates(points, {
+        animated: !reduced,
+        // Added to mapPadding (which already clears the sheet): keep markers below the floating header.
+        edgePadding: { bottom: 24, left: 40, right: 40, top: insets.top + 170 },
+      });
     } else {
-      mapRef.current?.animateToRegion(cityRegion(city.code, points, aspect), reduced ? 0 : 600);
+      const target = points[0];
+      mapRef.current?.animateToRegion(target ? framedRegion(target, 0.02, aspect) : cityRegion(city.code, [], aspect), reduced ? 0 : 600);
     }
-    // Runs once per loaded city, not on resize or motion-setting changes.
-  }, [loadedFor]);
+    // Runs when the drawn set changes, not on resize or motion-setting changes.
+  }, [markerKey, markerLoad.state, mapReady]);
 
   useEffect(() => {
     if (!toast) return;
@@ -164,6 +168,7 @@ export default function HomeScreen() {
   // Floating map controls ride just above the sheet's top edge.
   const floatStyle = useAnimatedStyle(() => ({ transform: [{ translateY: sheetTop.value }] }));
   const showFloating = !searching && sheetIndex < FULL;
+  const markersFailed = !offline && markerLoad.state === 'error';
   const credit = selectedPlace?.thumbnail?.attribution_text;
   const initial = profile.name.trim()[0]?.toUpperCase();
 
@@ -176,6 +181,7 @@ export default function HomeScreen() {
         bottomPadding={mapBottom}
         initialRegion={initialRegion}
         mapRef={mapRef}
+        onMapReady={() => setMapReady(true)}
         onSelect={setSelectedId}
         places={markers}
         selectedId={selectedId}
@@ -183,7 +189,7 @@ export default function HomeScreen() {
       />
 
       <LinearGradient
-        colors={['rgba(251,247,240,0.96)', 'rgba(251,247,240,0.7)', 'rgba(251,247,240,0)']}
+        colors={['rgba(255,255,255,0.96)', 'rgba(255,255,255,0.7)', 'rgba(255,255,255,0)']}
         pointerEvents="none"
         style={[styles.scrim, { height: insets.top + 200 }]}
       />
@@ -203,6 +209,18 @@ export default function HomeScreen() {
             <Text style={styles.offlineText}>{t('home.search.offlineHint')}</Text>
           </View>
         ) : null}
+        {markersFailed ? (
+          <Pressable
+            accessibilityHint={t('home.map.retryHint')}
+            accessibilityRole="button"
+            onPress={retryMarkers}
+            style={({ pressed }) => [styles.retryChip, pressed && styles.pressed]}
+          >
+            <Icon color={colors.danger} name="warning" size={16} />
+            <Text style={styles.retryText}>{t('home.map.loadError')}</Text>
+            <Text style={styles.retryLink}>{t('home.map.retry')}</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {showFloating ? (
@@ -221,10 +239,15 @@ export default function HomeScreen() {
 
       <BottomSheet
         animatedPosition={sheetTop}
+        android_keyboardInputMode="adjustResize"
         animateOnMount={!reduced}
         backgroundStyle={styles.sheetBackground}
         bottomInset={0}
         enableDynamicSizing={false}
+        // While the search field is open the sheet stays at full height: dragging scrolls results and dismisses the
+        // keyboard instead of pulling the sheet (and the layout) down. Cancel closes search.
+        enableContentPanningGesture={!searching}
+        enableHandlePanningGesture={!searching}
         handleIndicatorStyle={styles.handle}
         index={HALF}
         keyboardBehavior="extend"
@@ -238,7 +261,10 @@ export default function HomeScreen() {
       >
         <BottomSheetScrollView
           contentContainerStyle={{ paddingBottom: tabBarHeight + spacing.xl }}
+          bounces={!searching}
+          keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
+          overScrollMode="never"
           showsVerticalScrollIndicator={false}
           stickyHeaderIndices={searching ? [0] : undefined}
         >
@@ -270,11 +296,7 @@ export default function HomeScreen() {
         </BottomSheetScrollView>
       </BottomSheet>
 
-      {toast ? (
-        <View accessibilityLiveRegion="polite" pointerEvents="none" style={[styles.toast, elevation.md, { top: insets.top + 8 }]}>
-          <Text style={styles.toastText}>{toast}</Text>
-        </View>
-      ) : null}
+      {toast ? <Toast style={[styles.toast, { top: insets.top + 8 }]} text={toast} tone="info" /> : null}
 
       <CitySheet onClose={() => setCitySheetOpen(false)} visible={citySheetOpen} />
       <SignInGate feature={gate} onClose={() => setGate(null)} />
@@ -285,7 +307,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
-    backgroundColor: colors.sun,
+    backgroundColor: colors.primary,
     borderColor: colors.white,
     borderRadius: 26,
     borderWidth: 2,
@@ -294,7 +316,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     width: 52,
   },
-  avatarText: { color: colors.ink, fontFamily: fonts.bold, fontSize: 20 },
+  avatarText: { color: colors.white, fontFamily: fonts.bold, fontSize: 20 },
   controls: { alignItems: 'flex-end', flexDirection: 'row', gap: 12, justifyContent: 'space-between' },
   credit: {
     backgroundColor: 'rgba(255,255,255,0.88)',
@@ -308,7 +330,7 @@ const styles = StyleSheet.create({
   floating: { height: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   floatingInner: { bottom: 12, gap: 12, left: GUTTER, position: 'absolute', right: GUTTER - 4 },
   gutter: { backgroundColor: colors.canvas, paddingHorizontal: GUTTER },
-  handle: { backgroundColor: '#C9C9C9', height: 4, width: 68 },
+  handle: { backgroundColor: colors.hairline, height: 5, width: 44 },
   header: { gap: 10, left: 0, paddingHorizontal: GUTTER - 4, position: 'absolute', right: 0, top: 0 },
   offlineHint: {
     alignItems: 'center',
@@ -321,6 +343,20 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   offlineText: { color: colors.ink, flexShrink: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
+  pressed: { opacity: 0.8 },
+  retryChip: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.white,
+    borderRadius: radii.pill,
+    flexDirection: 'row',
+    gap: 6,
+    minHeight: 40,
+    paddingHorizontal: 14,
+    ...elevationFloating,
+  },
+  retryLink: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 14, lineHeight: 19 },
+  retryText: { color: colors.ink, fontFamily: fonts.medium, fontSize: 14, lineHeight: 19 },
   scrim: { left: 0, position: 'absolute', right: 0, top: 0 },
   screen: { backgroundColor: colors.canvas, flex: 1 },
   sheet: {
@@ -330,16 +366,6 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
   },
   sheetBackground: { backgroundColor: colors.canvas, borderTopLeftRadius: radii.sheet, borderTopRightRadius: radii.sheet },
-  toast: {
-    alignSelf: 'center',
-    backgroundColor: colors.deepOcean,
-    borderRadius: 16,
-    left: GUTTER,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    position: 'absolute',
-    right: GUTTER,
-  },
-  toastText: { color: colors.white, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  toast: { alignSelf: 'center', left: GUTTER, position: 'absolute', right: GUTTER },
   topRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingLeft: 4 },
 });

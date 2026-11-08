@@ -186,8 +186,10 @@
       "internal_error": "Có lỗi xảy ra. Thử lại.",
       "authentication_required": "Phiên đăng nhập đã hết. Hãy đăng nhập lại để tiếp tục.",
       "revision_conflict": "Bản nháp vừa được thay đổi ở nơi khác. Hãy mở lại để tiếp tục.",
-      "trip_not_saved": "Hãy lưu chuyến đi trước rồi thử lại."
-    }
+      "trip_not_saved": "Hãy lưu chuyến đi trước rồi thử lại.",
+      "idempotency_in_progress": "Lịch trình vẫn đang được tạo. Thử lại sau giây lát."
+    },
+    "dropped": "Mất kết nối khi đang lập lịch trình. Hãy thử lại: Gonarra tiếp tục đúng lịch trình đó, không tạo thêm bản mới."
   },
   "wizard": {
     "title": "Tạo lịch trình",
