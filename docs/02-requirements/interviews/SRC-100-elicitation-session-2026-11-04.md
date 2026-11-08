@@ -226,6 +226,8 @@ Candidate differentiator (to confirm): Vietnam-local, verified bilingual data wi
 **Not elicited, recorded as assumptions for review:** ASM-006 availability expectation limited to the evaluation window; ASM-007 Vietnamese personal-data law applies to participant and account data.
 
 ## Session close (2026-11-04)
+Superseded in part by [SRC-105](SRC-105-re-baseline-session-2026-11-06.md) (2026-11-06): A-003 five-city scope, A-021 "Agno/AgentOS dropped", DEC-003 "never cut five cities" and DEC-010 Tier 2 "roadmap" are replaced by DEC-013..DEC-021.
+
 Coverage gate (§7.8): topics 1–11 closed or carried as OQ/ASM with owners. Blocking items carried into the BRD: OQ-002 (exact deadline), OQ-003 (assessment basis), OQ-004 (ethics). Facilitator closes the session on the owner's instruction to continue; next step is BRD authoring with `analysis/BRD_Prompt_IEEE_standard.md`.
 
 ## Post-session corrections (2026-11-04, from BRD-AUDIT-01)

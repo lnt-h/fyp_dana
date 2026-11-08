@@ -1,65 +1,56 @@
 # Gonarra documentation
 
-Standards-aligned SDLC documentation for Gonarra, a bilingual (Vietnamese/English) AI travel planner and grounded
-local assistant for five Vietnamese cities. Each document is drafted from a versioned prompt template of the
-[SDLC Prompt Checklist](https://github.com/minhtrantrong/SDLC-Prompt-Checklist) kit, audited independently against
-its checklist and approved by the FYP mentor.
-
-- **Owner:** Lê Ngọc Tấn Hiền (student author)
-- **Approver:** FYP mentor (trantrongminh)
-- **Status:** every document is a draft awaiting mentor sign-off
+Gonarra (working name) is a bilingual Vietnamese/English AI travel planner and grounded local assistant. The FYP
+release covers **Đà Nẵng only**, including the Hội An area; other cities are roadmap. A traveller gets a 1–3 day
+proposal from published places, checks it on a timeline, map and Plan Health (including calendar rules), edits it
+and saves it explicitly, and asks a city-level Guide that answers only from cited sources. Web-found places are
+labelled `WEB_UNVERIFIED`. Owner: Lê Ngọc Tấn Hiền; approver: FYP mentor ([Pending]).
 
 ## Start here
 
-1. [Business requirements (BRD)](02-requirements/BRD.md): why, objectives, scope and business requirements.
-2. [Product requirements (PRD)](03-analysis/PRD.md) and [user stories](03-analysis/user-stories.md): what to build.
-3. [Software architecture (SAD)](04-design/architecture/SAD.md) and the [architecture decision records](04-design/adr/): how it is built and why.
+1. [Decision log](decisions.md): decisions, open questions, assumptions and risks.
+2. [BRD](02-requirements/BRD.md) and [PRD](03-analysis/PRD.md): why and what.
+3. [SAD](04-design/architecture/SAD.md) and the [ADRs](04-design/adr/): how, and why that way.
+4. [Development plan](05-development/Software_Development_Plan.md) and [test plan](07-verification/TEST_PLAN.md): when and how it is checked.
 
-## Folder structure
+## Structure
 
 ```text
 docs/
-├── README.md                     this index
-├── 00-governance/                document control for the whole set
-│   ├── document-register.md      every artifact, its template, checklist and status
-│   ├── template-adaptation-log.md
-│   └── ai-agent-guidelines.md    fixed decisions and rules for AI-assisted drafting
-├── 01-intake/                    intent, sources, glossary, stakeholders
-├── 02-requirements/              BRD, BRD audit, elicitation session record (interviews/)
-├── 03-analysis/                  PRD, user stories, traceability matrix, PRD audit
-└── 04-design/
-    ├── README.md                 design index
-    ├── design-audit.md           cross-artifact design audit
-    ├── use-cases.md
-    ├── architecture/             SAD (4+1 views), IEEE 1016 blueprint
-    ├── adr/                      ADR-001 … ADR-012
-    ├── api/                      OpenAPI 3.1 spec and API contract
-    ├── data/                     data model and PostgreSQL DDL
-    ├── diagrams/                 UML sources (.drawio) and Mermaid previews
-    └── ui-ux/                    design specification, HTML wireframes, reference screenshots
+├── README.md                    this index
+├── decisions.md                 DEC, OQ, ASM, RSK
+├── 02-requirements/             BRD.md, interviews/ (SRC-100, SRC-105)
+├── 03-analysis/                 PRD.md, user-stories.md
+├── 04-design/
+│   ├── architecture/SAD.md
+│   ├── adr/                     ADR-001 … ADR-014
+│   ├── api/                     openapi.yaml, api-contract.md
+│   ├── data/                    schema.sql, data-model.md
+│   ├── diagrams/                UML sources (.drawio) and previews
+│   └── ui-ux/                   README, screen-specs, ui-research-2026-11-08, wireframes/, reference/
+├── 05-development/              Software_Development_Plan.md
+└── 07-verification/             TEST_PLAN.md, RESEARCH_PROTOCOL.md
 ```
 
-Phases 05-development (development plan, WBS, task cards) and 07-verification (test plan, test cases, RTM,
-research protocol) are scheduled next. The documents they replace (`TESTING.md`, `RESEARCH.md`,
-`DEVELOPMENT.md`) are retired. Their content is captured in the BRD and PRD and remains in git history at commit
-`4c03e7f`.
+## Documents
 
-## Document register
+| Document | Content |
+|---|---|
+| [decisions.md](decisions.md) | Single log of decisions, open questions, live assumptions and risks |
+| [BRD](02-requirements/BRD.md) | Business objectives, metrics, scope, business rules |
+| [Elicitation records](02-requirements/interviews/) | SRC-100 (2026-11-04) and SRC-105 re-baseline session (2026-11-06) |
+| [PRD](03-analysis/PRD.md) | Functional and non-functional requirements, acceptance case HA-02 |
+| [User stories](03-analysis/user-stories.md) | Stories with acceptance criteria |
+| [SAD](04-design/architecture/SAD.md) | Architecture views, modules, AI roles, deployment |
+| [ADRs](04-design/adr/) | ADR-001 … ADR-014, binding once accepted |
+| [OpenAPI](04-design/api/openapi.yaml) · [API contract](04-design/api/api-contract.md) | HTTP `/v1` contract (REST + SSE) and its rules |
+| [schema.sql](04-design/data/schema.sql) · [data model](04-design/data/data-model.md) | PostgreSQL DDL and data rules |
+| [Diagrams](04-design/diagrams/README.md) | UML 4+1 views in draw.io |
+| [UI/UX](04-design/ui-ux/README.md) | Design spec, [screen specs](04-design/ui-ux/screen-specs.md), [UI research](04-design/ui-ux/ui-research-2026-11-08.md), [wireframes](04-design/ui-ux/wireframes/index.html), [reference screens](04-design/ui-ux/reference/README.md) |
+| [Development plan](05-development/Software_Development_Plan.md) | Milestones M0–M7, cut order, team, CI, configuration management |
+| [Test plan](07-verification/TEST_PLAN.md) | Checks, metrics, golden sets, verification tasks, entry/exit criteria |
+| [Research protocol](07-verification/RESEARCH_PROTOCOL.md) | Comparative user study, consent forms (EN/VI), session script |
 
-| Phase | Document | Audit result |
-|---|---|---|
-| 1 Intake | [Intent](01-intake/intent.md) · [sources](01-intake/sources.md) · [glossary](01-intake/glossary.md) · [stakeholders](01-intake/stakeholders.md) | Self-check |
-| 2 Requirements | [BRD](02-requirements/BRD.md) · [elicitation record](02-requirements/interviews/SRC-100-elicitation-session-2026-11-04.md) | [Ready with conditions](02-requirements/brd-audit.md) |
-| 3 Analysis | [PRD](03-analysis/PRD.md) · [user stories](03-analysis/user-stories.md) · [traceability](03-analysis/traceability.md) | [Ready with conditions](03-analysis/prd-audit.md) |
-| 4 Design | [Design index](04-design/README.md) | [Pass with conditions](04-design/design-audit.md) |
-
-The full register, including the prompt template and checklist behind each artifact, is in
-[00-governance/document-register.md](00-governance/document-register.md).
-
-## Conventions
-
-- **Traceability:** IDs are permanent and traced end to end: `BO` → `BR` → `FR`/`NFR` → `US` → `UC`/`CMP`/`API`, and later `TASK`/`TC`.
-- **Open items:** open questions (`OQ-xxx`) and assumptions (`ASM-xxx`) always carry an owner and a due date.
-- **File names:** kebab-case, except standard acronyms (`BRD`, `PRD`, `SAD`, `ADR-NNN-<topic>`) and `README.md`.
-- **Diagrams:** `.drawio` files are the source of truth; Mermaid previews sit next to them.
-- **Changing a contract:** update its owner document, its traceability and its audit in the same change.
+The previous full SDLC set (intake, audits, traceability, use cases, blueprint, WBS, task cards, test cases, RTM)
+is kept at git tag `docs-sdlc-full`. This structure is recorded as DEC-029 in [decisions.md](decisions.md). IDs are
+never renumbered; changed items are revised, withdrawn or superseded.

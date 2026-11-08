@@ -2,42 +2,43 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed (pending mentor approval at the design gate) |
-| Date | 2026-11-04 |
+| Status | Proposed (mentor approval at M0). Re-affirmed 2026-11-06 (DEC-021) |
+| Date | 2026-11-04 (1.0: 2026-11-06) |
+| Version | 1.0 |
 | Owner / decider | Lê Ngọc Tấn Hiền |
 | Approver | trantrongminh, FYP mentor ([Pending]) |
-| Parent | GONARRA-SAD 0.1 §4.0; prompt `design/SAD_prompt.md` v2.0 |
-| Decision source | CON-005, agent brief stack |
+| Decision source | CON-005, DEC-018 (SRC-105: caches and quota ledger in PostgreSQL) |
 
 ## Context
 
-The system needs relational private data with transactions (Save, BR-011), spatial queries (nearby 300 m, ASM-009;
-city membership, BR-006), and vector retrieval for the Guide (BR-015). The catalog is about 250 published places
-(ASM-030). Migration `20261102_0001` already enables `pgcrypto`, `postgis` and `vector` (SRC-009). Budget
-forbids extra managed services (CON-001); AGENTS.md forbids Redis/queues (SRC-003).
-
-## Drivers
-
-CON-001, CON-005, DC-001, BR-006, BR-011, BR-015, BR-017, ASM-030.
-
-## Options considered
-
-| Option | Pros | Cons | Verdict |
-|---|---|---|---|
-| A. One PostgreSQL 16 with PostGIS + pgvector (RDS) | One backup, one transaction scope; spatial + vector filters joined with publication state; already migrated | Vector index tuning limited on a micro instance | **Chosen** |
-| B. PostgreSQL + dedicated vector DB (e.g., managed vector service) | Specialised ANN | Extra cost and sync between stores; tiny corpus does not need it | Rejected |
-| C. PostgreSQL + OpenSearch | Full-text and vectors | Cost far beyond credits | Rejected |
-| D. Add Redis for cache/quotas | Fast counters | Forbidden without plan change; single instance does not need it | Rejected |
+The system needs transactional private data (Save), spatial queries (300 m nearby, city and area membership) and
+vector plus trigram retrieval for the city-level Guide. The catalog is about 100 published places. Budget forbids
+extra managed services; Redis and queues are out. Free-tier provider limits require caches and a quota ledger.
 
 ## Decision
 
-All persistent state lives in RDS PostgreSQL 16 with PostGIS and pgvector. Quotas, idempotency records and
-previews are tables. Embeddings of reviewed knowledge chunks are stored next to their place and source revision,
-filtered by place, locale and publication before similarity ranking. Schema details belong to the data design.
+- All persistent state lives in one PostgreSQL 16 database with `postgis`, `vector`, `pg_trgm` and `pgcrypto`.
+- Quotas (`ai_quota_ledger`, `provider_usage_daily`), idempotency records, previews and all provider caches
+  (`routes_matrix_cache`, `research_cache`, `places_lookup_cache`, `query_embedding_cache`) are tables with TTL
+  columns swept by the CLI `jobs` command; no in-memory or external cache.
+- Chunk embeddings are `vector(768)` (`gemini-embedding-001`, `output_dimensionality=768`, L2-normalised; OQ-126)
+  with an HNSW index; lexical and entity legs use trigram indexes on names, aliases and chunk text.
+
+## Options
+
+| Option | Verdict | Why |
+|---|---|---|
+| A. One PostgreSQL with PostGIS + pgvector + pg_trgm | **Chosen** | One backup and transaction scope; spatial, lexical and vector filters joined with publication state |
+| B. PostgreSQL + dedicated vector database | Rejected | Extra cost and sync for a tiny corpus |
+| C. PostgreSQL + OpenSearch | Rejected | Cost far beyond credits |
+| D. Redis for caches and quotas | Rejected | Forbidden without a plan change; one instance does not need it |
 
 ## Consequences
 
-- Positive: one consistency boundary; simple backup/restore; spatial and vector filters in one query.
-- Negative: vector search competes with OLTP on a 1 GiB instance (RSK-035) — acceptable at this corpus size.
-- Follow-up: data design (`databaseDesign_SQL_prompt.md`, VectorDB prompt) fixes index types and dimensions after
-  the embedding model is pinned (OQ-032).
+- Positive: one consistency boundary; simple restore; quota reservation is a single `UPDATE … RETURNING`.
+- Negative: vector and trigram search compete with OLTP on a 1 GiB instance; acceptable at this corpus size.
+  Vietnamese recall without `unaccent`/tsvector is an assumption (ASM-019) measured on the Guide golden set.
+
+## Drivers
+
+CON-001, CON-005, DC-001, BR-006, BR-011, BR-015, ASM-019, ASM-030.

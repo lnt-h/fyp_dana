@@ -1,22 +1,35 @@
 # Gonarra UI/UX Design Specification
 
+> **DEC-022 (2026-11-06):** curator review is removed. The curator admin (`apps/admin`), its screens SCR-101..SCR-105 and the
+> wireframes `a01-candidate-queue.html`, `a02-place-review.html`, `a03-import-runs.html` are **withdrawn** (kept as history,
+> IDs not reused). `VERIFIED` means "passed Gonarra's automated source checks"; traveler copy reads "Source-checked · <date>" /
+> "Đã đối chiếu nguồn · <date>" and never claims human review (copy strings in this document updated accordingly). The
+> binding sources are [decisions](../../decisions.md) (DEC-022), the [BRD](../../02-requirements/BRD.md) and the [PRD](../../03-analysis/PRD.md).
+>
+> **DEC-023 / DEC-027 (2026-11-08):** UI research for the iPhone demo lives in
+> [`ui-research-2026-11-08.md`](./ui-research-2026-11-08.md) (this folder). It is the input to the SCR-021..SCR-034 refresh: itinerary left rail with "≈" on every estimated
+> leg (`Leg.estimated`, INFO `LEG_ESTIMATED`), stepped create-trip wizard, cover header with date chips, area rails
+> with credited Wikimedia Commons photos. Rejected patterns: ratings and review counts, social features, check-in,
+> expenses, multi-city, and a dark theme for the demo. The demo targets iPhone with Apple Maps first; the Android map
+> (Google Maps SDK) is deferred (OQ-135). AI-summarised descriptions carry the label "Tóm tắt từ nguồn" /
+> "Summarised from sources" (DEC-025).
+
 ## Document control
 
 | Field | Value |
 |---|---|
 | Document ID | GONARRA-UIUX |
-| Product | Gonarra (traveler app `apps/mobile`, curator admin `apps/admin`) |
+| Product | Gonarra (traveler app `apps/mobile`; the curator admin `apps/admin` is withdrawn, DEC-022) |
 | Output mode | HTML pages (low-fidelity wireframes, HTML+CSS only, no scripts); Figma: n/a |
 | Version / status | 0.2 / Draft |
 | History | 0.1 2026-11-04 first issue; 0.2 2026-11-04 DA-GONARRA-01 fixes F-02, F-08, F-10: deletion states follow the job enum; SCR-002/SCR-012 trace as supporting screens; OQ-060..069 closed (A-027); m13 support ID labelled as a non-credential display ID |
 | Owner | Lê Ngọc Tấn Hiền, student author, product owner, curator and engineer |
 | Approver | trantrongminh, FYP mentor (full name and title pending OQ-001) — **[Pending]** |
 | Date | 2026-11-04 |
-| Prompt | `design/UI-UX-Design_prompt.md` v2.0 (kit commit 6996dae), adapted copy `docs/00-governance/prompt-templates/design/UI-UX-Design_prompt.md` (2.0-gonarra.1) |
 | Standards | IEEE 1016-2009 (UX/UI view); WCAG 2.1 AA |
 | Locales / viewports | vi-VN, en-US · traveler 360/390/430 px portrait · admin 1280/1440 px |
 
-**Deviation from the prompt (recorded in `docs/00-governance/template-adaptation-log.md`):** the prompt (§3 step 6, §5) asks for the
+**Deviation from the generating prompt:** the prompt (§3 step 6, §5) asks for the
 screen traceability to be added to `docs/03-analysis/user-stories.md`. That file is owned by the analysis agent and is
 read-only for this run, so the screen → story trace table is kept in §12 of this document. The analysis owner may copy
 it into `user-stories.md` at the next revision. The kit's §7 ends after "3.1 Figma File Structure"; with
@@ -28,6 +41,7 @@ it into `user-stories.md` at the next revision. The kit's §7 ends after "3.1 Fi
 |---|---|
 | `README.md` | This specification |
 | [`screen-specs.md`](./screen-specs.md) | GONARRA-UI-SCREENS: detailed per-screen specifications (layout, data fields with API source, actions, states with VI/EN copy, validation, accessibility, flags) for every SCR below |
+| [`ui-research-2026-11-08.md`](./ui-research-2026-11-08.md) | UI research for the iPhone demo (DEC-027): input to the SCR-021..SCR-034 refresh |
 | `wireframes/index.html` | Viewer that frames the 16 wireframe pages (no design content) |
 | `m01-home-city.html` | SCR-008 (to-be), SCR-020, SCR-021, SCR-040 |
 | `m02-planner-input.html` | SCR-022, SCR-023 |
@@ -57,7 +71,7 @@ verified data; place names are real places used for realism; people are the BRD 
 
 | ID | Input | Used for |
 |---|---|---|
-| IN-1 | `docs/04-design/architecture/blueprint.md` §2.1–2.5, §3.4–3.8 | Personas, UX scenarios, constraints, state machines, interfaces |
+| IN-1 | Architecture blueprint 0.2 §2.1–2.5, §3.4–3.8 (removed 2026-11-09; full text at git tag `docs-sdlc-full`; current architecture in [SAD](../architecture/SAD.md)) | Personas, UX scenarios, constraints, state machines, interfaces |
 | IN-2 | `docs/03-analysis/user-stories.md` (US-001..US-037 with AC) | Screen scope and acceptance criteria |
 | IN-3 | `docs/04-design/architecture/SAD.md` | Constraints (SSE, roles, feature flags), concerns C-001..C-012 |
 | IN-4 | `apps/mobile/src/theme/colors.ts`, `features/auth/components/AuthUI.tsx`, `features/account/AccountUI.tsx`, `features/home/components/HomeTabBar.tsx`, `app/*.tsx`, `hooks/useReducedMotion.ts`, `assets/brand/*.svg`, `assets/images/places/*` | As-built design system (§5) |
@@ -512,7 +526,7 @@ published with name and time; failure path: refusal naming each missing item; 40
 | Good / Warning / Blocked | Ổn / Cần chú ý / Bị chặn | Good / Warning / Blocked |
 | unknown | chưa rõ | unknown |
 | May be out of date | Có thể đã cũ | May be out of date |
-| verified {date} | xác minh {date} | verified {date} |
+| source-checked {date} | đối chiếu nguồn {date} | source-checked {date} |
 | Not enough evidence to answer | Chưa đủ nguồn để trả lời | Not enough evidence to answer |
 | Closed at planned time | Đóng cửa vào giờ dự kiến | Closed at planned time |
 | Route unavailable | Không có tuyến đường | Route unavailable |
