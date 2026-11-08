@@ -12,7 +12,7 @@ import { Icon, PrimaryButton, SectionHeader, type IconName } from '../../compone
 import { useAccount } from '../account/AccountContext';
 import { SignInGate } from '../auth/SignInGate';
 import { useTabBarClearance } from '../home/components/HomeTabBar';
-import { ApiError, getTrip, listCities, listTrips } from '../../lib/api/source';
+import { ApiError, getTrip, listCities, listTrips, loadErrorKind, type LoadErrorKind } from '../../lib/api/source';
 import { deleteTrip } from '../../lib/api/sourceTrips';
 import type { City, CityCode, Trip } from '../../lib/api/types';
 import { CITY_IMAGES } from '../../lib/images/cityImages';
@@ -81,6 +81,7 @@ export function TripsScreen() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [state, setState] = useState<Load>('idle');
+  const [errorKind, setErrorKind] = useState<LoadErrorKind>('server');
   const [refreshing, setRefreshing] = useState(false);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
@@ -96,9 +97,9 @@ export function TripsScreen() {
       setCities(cityList);
       setState('ready');
       loaded.current = true;
-    } catch {
+    } catch (error) {
       // A silent refresh keeps the list already shown; otherwise show the error banner (S-1).
-      if (mode !== 'silent' || !loaded.current) setState('error');
+      if (mode !== 'silent' || !loaded.current) { setErrorKind(loadErrorKind(error)); setState('error'); }
     } finally {
       setRefreshing(false);
     }
@@ -208,7 +209,10 @@ export function TripsScreen() {
       {state === 'error' && (
         <View accessibilityRole="alert" style={styles.banner}>
           <Icon color={errorText} name="warning" size={20} />
-          <Text style={styles.bannerText}>{t('trips.error.load')}</Text>
+          <View style={styles.bannerCopy}>
+            <Text style={styles.bannerText}>{t('trips.error.load')}</Text>
+            <Text style={styles.bannerDetail}>{t(`common.loadError.${errorKind}`)}</Text>
+          </View>
           <Pressable accessibilityRole="button" hitSlop={4} onPress={() => void load('initial')} style={({ pressed }) => [styles.retry, pressed && { opacity: 0.7 }]}>
             <Text style={styles.link}>{t('trips.error.retry')}</Text>
           </Pressable>
@@ -281,7 +285,9 @@ export function TripsScreen() {
 
 const styles = StyleSheet.create({
   banner: { alignItems: 'center', backgroundColor: colors.white, borderColor: '#F1D3D3', borderRadius: radii.inset, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, paddingLeft: spacing.md },
-  bannerText: { color: errorText, flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 21, paddingVertical: spacing.sm },
+  bannerCopy: { flex: 1, gap: 2, paddingVertical: spacing.sm },
+  bannerDetail: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13, lineHeight: 18 },
+  bannerText: { color: errorText, fontFamily: fonts.regular, fontSize: 15, lineHeight: 21 },
   content: { flexGrow: 1, paddingHorizontal: GUTTER },
   inner: { alignSelf: 'center', maxWidth: MAX_WIDTH, width: '100%' },
   link: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 15 },

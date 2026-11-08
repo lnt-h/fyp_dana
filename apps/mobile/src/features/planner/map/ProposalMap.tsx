@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polyline, type LatLng } from 'react-native-maps';
-import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
-import { CircleButton, Icon, categoryIcon } from '../../../components/ui';
+import { CircleButton, Icon, Photo } from '../../../components/ui';
 import type { Uuid } from '../../../lib/api/types';
-import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
@@ -68,7 +66,6 @@ export function ProposalMap({ day, places, selectedStopId, onSelect, onOpenPlace
   const atStart = selectedIndex <= 0;
   const atEnd = selectedIndex < 0 || selectedIndex >= day.stops.length - 1;
   const selectedPlace = selected?.place_id ? places[selected.place_id] : undefined;
-  const selectedImage = selected ? resolveImage(selectedPlace?.thumbnail, { height: 48, width: 48 }) : null;
   const selectedTime = selected ? [formatTime(selected.planned_arrival), formatTime(selected.planned_departure)] : [];
 
   return <View>
@@ -149,9 +146,7 @@ export function ProposalMap({ day, places, selectedStopId, onSelect, onOpenPlace
         style={({ pressed }) => [m.current, pressed && { opacity: 0.75 }]}
       >
         <View style={m.currentThumb}>
-          {selectedImage
-            ? <Image contentFit="cover" placeholder={selectedImage.placeholder} source={selectedImage.source} style={StyleSheet.absoluteFill} transition={150} />
-            : <Icon color={colors.tealText} name={categoryIcon(selectedPlace?.categoryCode)} size={22} />}
+          <Photo categoryCode={selectedPlace?.categoryCode} height={44} iconSize={22} image={selectedPlace?.thumbnail} name={selected.name} transition={150} variant="thumb" width={44} />
         </View>
         <View style={m.currentCopy}>
           <Text numberOfLines={1} style={m.currentName}>{t('proposal.map.position', { name: selected.name, number: selected.number })}</Text>

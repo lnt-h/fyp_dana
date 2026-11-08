@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import type { TFunction } from 'i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -7,21 +6,25 @@ import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CircleButton, GlassBadge, Icon, PhotoHero, PrimaryButton, SecondaryButton, Skeleton, travelModeIcon, PhotoFallback } from '../../components/ui';
+import { CircleButton, GlassBadge, Icon, Photo, PhotoHero, PrimaryButton, SecondaryButton, Skeleton, travelModeIcon, usePhotoFailed } from '../../components/ui';
 import { ApiError, getPlace, getTrip, listCities } from '../../lib/api/source';
 import type { City, Leg, Media, Stop, TripDetail, Uuid } from '../../lib/api/types';
 import { CITY_IMAGES } from '../../lib/images/cityImages';
-import { resolveImage } from '../../lib/images/imagekit';
 import { colors } from '../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../theme/spacing';
 import { fonts, typography } from '../../theme/typography';
 import { ErrorBanner } from '../home/sections/SheetBanners';
 import { openTripDetail, vietnamMinutesNow } from '../home/sections/homeSheetUtils';
+import { dayHasEstimate, EstimateNotice } from '../planner/timeline/TimeRail';
 import { StopTrustBadge } from '../place/components/SourceLine';
 import { addIsoDays, cityName, formatLongDate, formatShortDate } from '../save/format';
 import { focusStop, legAfter, openDirections, pickDay, timeStops, type TimedStop } from './todayModel';
 
 const FOCUS_PHOTO = 190;
+
+/** A stop's place photo and category (for the fallback tile), fetched per place. */
+type StopPhoto = { media: Media | null; category: string | null };
+const NO_PHOTO: StopPhoto = { category: null, media: null };
 
 type Load = { state: 'loading' } | { state: 'error'; notFound: boolean } | { state: 'ready'; trip: TripDetail; city: City | null };
 
@@ -36,7 +39,7 @@ export function TodayScreen({ tripId }: { tripId: Uuid }) {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [nowMinutes, setNowMinutes] = useState(() => vietnamMinutesNow());
-  const [thumbs, setThumbs] = useState<Record<Uuid, Media | null>>({});
+  const [thumbs, setThumbs] = useState<Record<Uuid, StopPhoto>>({});
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
@@ -64,7 +67,7 @@ export function TodayScreen({ tripId }: { tripId: Uuid }) {
   useEffect(() => {
     if (!placeIds) return;
     let active = true;
-    Promise.all(placeIds.split(',').map(id => getPlace(id).then(place => [id, place.thumbnail ?? null] as const).catch(() => [id, null] as const)))
+    Promise.all(placeIds.split(',').map(id => getPlace(id).then(place => [id, { category: place.category_code, media: place.thumbnail ?? null }] as const).catch(() => [id, NO_PHOTO] as const)))
       .then(entries => { if (active) setThumbs(Object.fromEntries(entries)); });
     return () => { active = false; };
   }, [placeIds]);
@@ -153,7 +156,7 @@ export function TodayScreen({ tripId }: { tripId: Uuid }) {
               nowMinutes={nowMinutes}
               onDirections={() => void directions(focus.stop)}
               onOpen={() => openPlace(focus.stop)}
-              thumb={focus.stop.place_id ? thumbs[focus.stop.place_id] ?? null : null}
+              thumb={focus.stop.place_id ? thumbs[focus.stop.place_id] ?? NO_PHOTO : NO_PHOTO}
             />
           ) : null}
 
@@ -162,6 +165,7 @@ export function TodayScreen({ tripId }: { tripId: Uuid }) {
           {stops.length ? (
             <View>
               <Text accessibilityRole="header" style={styles.sectionTitle}>{t('save.today.dayTitle')}</Text>
+              {day && dayHasEstimate(day) ? <EstimateNotice style={styles.estimate} /> : null}
               <View role="list">
                 {stops.map((item, index) => (
                   <TimelineRow
@@ -173,7 +177,7 @@ export function TodayScreen({ tripId }: { tripId: Uuid }) {
                     leg={index < stops.length - 1 ? legAfter(day, item.stop) : undefined}
                     onDirections={() => void directions(item.stop)}
                     onOpen={() => openPlace(item.stop)}
-                    thumb={item.stop.place_id ? thumbs[item.stop.place_id] ?? null : null}
+                    thumb={item.stop.place_id ? thumbs[item.stop.place_id] ?? NO_PHOTO : NO_PHOTO}
                   />
                 ))}
               </View>
@@ -204,22 +208,18 @@ function useCountdown(item: TimedStop, mode: ReturnType<typeof pickDay>['mode'],
   return t('save.today.startsIn', { duration, time: item.arrival.label });
 }
 
-function FocusCard({ item, mode, nowMinutes, thumb, onDirections, onOpen }: { item: TimedStop; mode: ReturnType<typeof pickDay>['mode']; nowMinutes: number; thumb: Media | null; onDirections: () => void; onOpen: () => void }) {
+function FocusCard({ item, mode, nowMinutes, thumb, onDirections, onOpen }: { item: TimedStop; mode: ReturnType<typeof pickDay>['mode']; nowMinutes: number; thumb: StopPhoto; onDirections: () => void; onOpen: () => void }) {
   const { t } = useTranslation();
   const countdown = useCountdown(item, mode, nowMinutes);
-  const photo = resolveImage(thumb, { height: FOCUS_PHOTO, width: 400 });
   const badge = item.status === 'current' ? t('save.today.now') : mode === 'today' ? t('save.today.next') : t('save.today.first');
   const { stop } = item;
   const showOther = stop.name !== stop.name_vi;
+  const [photoFailed, onPhotoError] = usePhotoFailed(thumb.media);
   return (
     <View style={styles.focus}>
       <View style={styles.focusClip}>
         <Pressable accessibilityHint={t('save.today.openPlace')} accessibilityLabel={`${badge}, ${stop.name}, ${countdown}`} accessibilityRole="button" onPress={onOpen} style={styles.focusPhoto}>
-          {photo ? (
-            <Image contentFit="cover" placeholder={photo.placeholder} placeholderContentFit="cover" source={photo.source} style={StyleSheet.absoluteFill} transition={200} />
-          ) : (
-            <PhotoFallback tone="dark" icon="map-pin" />
-          )}
+          <Photo categoryCode={thumb.category} height={FOCUS_PHOTO} image={thumb.media} name={stop.name} onError={onPhotoError} tone="dark" width={400} />
           <LinearGradient colors={['rgba(7,21,30,0)', 'rgba(7,21,30,0.78)']} locations={[0.25, 1]} style={StyleSheet.absoluteFill} />
           <View style={[styles.focusBadge, item.status === 'current' && styles.focusBadgeNow]}>
             <Text style={[styles.focusBadgeText, item.status === 'current' && styles.focusBadgeTextNow]}>{badge}</Text>
@@ -228,6 +228,7 @@ function FocusCard({ item, mode, nowMinutes, thumb, onDirections, onOpen }: { it
             <Text numberOfLines={2} style={styles.focusName}>{stop.name}</Text>
             {showOther ? <Text numberOfLines={1} style={styles.focusOther}>{stop.name_vi}</Text> : null}
             <StopTrustBadge compact onDark stop={stop} />
+            {thumb.media?.attribution_text && !photoFailed ? <Text numberOfLines={1} style={styles.focusCredit}>{thumb.media.attribution_text}</Text> : null}
           </View>
         </Pressable>
         <View style={styles.focusBody}>
@@ -261,12 +262,11 @@ function legText(t: TFunction, leg: Leg): string {
 }
 
 function TimelineRow({ item, thumb, focused, focusLabel, last, leg, onOpen, onDirections }: {
-  item: TimedStop; thumb: Media | null; focused: boolean; focusLabel: string; last: boolean; leg?: Leg; onOpen: () => void; onDirections: () => void;
+  item: TimedStop; thumb: StopPhoto; focused: boolean; focusLabel: string; last: boolean; leg?: Leg; onOpen: () => void; onDirections: () => void;
 }) {
   const { t } = useTranslation();
   const { stop, status } = item;
   const done = status === 'done';
-  const photo = resolveImage(thumb, { height: 56, width: 56 });
   const time = item.arrival?.label ?? '';
   const label = done ? t('save.today.doneLabel', { name: stop.name }) : `${focused ? `${focusLabel}, ` : ''}${t('save.today.stopLabel', { name: stop.name, time })}`;
   return (
@@ -287,7 +287,7 @@ function TimelineRow({ item, thumb, focused, focusLabel, last, leg, onOpen, onDi
           style={({ pressed }) => [styles.rowCard, focused && styles.rowCardFocus, done && styles.rowCardDone, pressed && styles.rowPressed]}
         >
           <View style={styles.rowThumb}>
-            {photo ? <Image contentFit="cover" source={photo.source} style={StyleSheet.absoluteFill} transition={150} /> : null}
+            <Photo categoryCode={thumb.category} height={56} iconSize={22} image={thumb.media} name={stop.name} transition={150} variant="thumb" width={56} />
           </View>
           <View style={styles.flex}>
             {focused ? <Text style={styles.rowBadge}>{focusLabel}</Text> : null}
@@ -331,6 +331,7 @@ function StateCard({ icon, title, body }: { icon: 'lantern' | 'map-pin'; title: 
 }
 
 const styles = StyleSheet.create({
+  estimate: { marginBottom: spacing.sm },
   action: { flex: 1, height: 52, paddingHorizontal: spacing.sm },
   actions: { flexDirection: 'row', gap: spacing.sm },
   body: { gap: spacing.lg, paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
@@ -350,6 +351,7 @@ const styles = StyleSheet.create({
   focusBody: { gap: spacing.md, padding: spacing.md },
   focusClip: { borderColor: colors.hairline, borderRadius: radii.photoCard, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   focusName: { color: colors.white, fontFamily: fonts.bold, fontSize: 24, letterSpacing: -0.3, lineHeight: 30 },
+  focusCredit: { color: 'rgba(255,255,255,0.82)', fontFamily: fonts.medium, fontSize: 11, marginTop: 4 },
   focusOther: { color: 'rgba(255,255,255,0.9)', fontFamily: fonts.medium, fontSize: 15, marginTop: 2 },
   focusOverlay: { bottom: 0, left: 0, padding: spacing.md, position: 'absolute', right: 0 },
   focusPhoto: { backgroundColor: colors.deepOcean, height: FOCUS_PHOTO },

@@ -4,13 +4,11 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
-import { CircleButton, Icon, PrimaryButton, categoryIcon, PhotoFallback } from '../../../components/ui';
+import { CircleButton, Icon, Photo, PrimaryButton } from '../../../components/ui';
 import type { PreviewEditOperation } from '../../../lib/api/sourcePlanning';
 import { MAX_EDITS_PER_REQUEST } from '../../../lib/api/sourcePlanning';
 import type { Leg, TravelMode } from '../../../lib/api/types';
-import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
@@ -126,15 +124,12 @@ function EditStopBody({ target, day, index, stop, days, places, allowedModes, pe
     ? t('proposal.sheet.subtitle', { day: day.day_index, number: index + 1, time: `${arrival} – ${departure}` })
     : t('proposal.sheet.subtitleNoTime', { day: day.day_index, number: index + 1 });
   const place = stop.place_id ? places[stop.place_id] : undefined;
-  const image = resolveImage(place?.thumbnail, { height: 72, width: 72 });
   const otherDays = days.filter(item => item.day_index !== day.day_index);
   const disabled = offline || applying || blockedByPending;
 
   const header = <View style={e.header}>
     <View style={e.photo}>
-      {image
-        ? <Image accessibilityLabel={t('proposal.sheet.photo', { name: stop.name })} contentFit="cover" placeholder={image.placeholder} source={image.source} style={StyleSheet.absoluteFill} />
-        : <PhotoFallback icon={categoryIcon(place?.categoryCode)} iconSize={28} />}
+      <Photo accessibilityLabel={place?.thumbnail ? t('proposal.sheet.photo', { name: stop.name }) : undefined} categoryCode={place?.categoryCode} height={72} iconSize={28} image={place?.thumbnail} name={stop.name} variant="thumb" width={72} />
     </View>
     <View style={e.headerCopy}>
       <Text accessibilityRole="header" numberOfLines={2} style={e.title}>{stop.name}</Text>

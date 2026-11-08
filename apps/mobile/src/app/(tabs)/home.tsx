@@ -34,7 +34,9 @@ import { elevation } from '../../theme/elevation';
 import { radii, spacing } from '../../theme/spacing';
 import { fonts } from '../../theme/typography';
 
-const SNAP_POINTS = ['22%', '52%', '92%'];
+/** COLLAPSED is measured from the screen bottom (the sheet runs under the floating tab bar), so it is 26% rather than 22%
+ *  to keep the handle and the greeting visible above the pill. */
+const SNAP_POINTS = ['26%', '52%', '92%'];
 /** Fraction of the screen the sheet covers at HALF (initial map padding before the first snap reports its position). */
 const HALF_FRACTION = 0.52;
 const HALF = 1;
@@ -63,7 +65,7 @@ export default function HomeScreen() {
   const [sheetIndex, setSheetIndex] = useState(HALF);
   const [initialRegion] = useState(() => cityRegion(city?.code, [], aspect));
   // Map padding follows the sheet's resting height (not FULL, where the map is hidden) so Legal stays above the sheet.
-  const [mapBottom, setMapBottom] = useState(() => Math.round((height - tabBarHeight) * HALF_FRACTION) + tabBarHeight);
+  const [mapBottom, setMapBottom] = useState(() => Math.round(height * HALF_FRACTION));
 
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [cityPlaces, setCityPlaces] = useState<CityPlaces | null>(null);
@@ -221,7 +223,7 @@ export default function HomeScreen() {
         animatedPosition={sheetTop}
         animateOnMount={!reduced}
         backgroundStyle={styles.sheetBackground}
-        bottomInset={tabBarHeight}
+        bottomInset={0}
         enableDynamicSizing={false}
         handleIndicatorStyle={styles.handle}
         index={HALF}
@@ -235,7 +237,7 @@ export default function HomeScreen() {
         style={styles.sheet}
       >
         <BottomSheetScrollView
-          contentContainerStyle={{ paddingBottom: spacing.xl }}
+          contentContainerStyle={{ paddingBottom: tabBarHeight + spacing.xl }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           stickyHeaderIndices={searching ? [0] : undefined}

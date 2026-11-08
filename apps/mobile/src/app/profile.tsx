@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Chip, PrimaryButton, SecondaryButton } from '../components/ui';
 import { useAccount } from '../features/account/AccountContext';
 import { AccountIcon, AccountRow, AccountShell, GroupCard, SectionLabel, SessionConfirm, a, errorColor } from '../features/account/AccountUI';
+import { demoNoAuth } from '../lib/demoAuth';
 import { colors } from '../theme/colors';
 import { elevation } from '../theme/elevation';
 import { MIN_TOUCH, radii, spacing } from '../theme/spacing';
@@ -60,9 +61,10 @@ export default function ProfileScreen() {
       <AccountRow icon="settings" title={t('account.profile.settings')} subtitle={t('account.profile.settingsSubtitle')} onPress={() => router.push('/settings')} />
     </GroupCard>
 
-    {confirming ? <View style={a.card}><SessionConfirm onCancel={() => setConfirming(false)} /></View>
+    {/* Demo mode (demoAuth.ts): no sign-out or account deletion for the shared demo user. */}
+    {demoNoAuth ? null : confirming ? <View style={a.card}><SessionConfirm onCancel={() => setConfirming(false)} /></View>
       : <SecondaryButton label={t(isSignedIn ? 'account.profile.signOut' : 'account.profile.resetGuest')} onPress={() => setConfirming(true)} style={styles.signOut} />}
-    {isSignedIn && <Pressable accessibilityRole="button" accessibilityLabel={t('account.profile.deleteAccount')} onPress={() => router.push('/delete-account')}
+    {isSignedIn && !demoNoAuth && <Pressable accessibilityRole="button" accessibilityLabel={t('account.profile.deleteAccount')} onPress={() => router.push('/delete-account')}
       style={({ pressed }) => [styles.delete, pressed && a.pressed]}>
       <AccountIcon name="trash" color={errorColor} size={20} />
       <Text style={styles.deleteText}>{t('account.profile.deleteAccount')}</Text>

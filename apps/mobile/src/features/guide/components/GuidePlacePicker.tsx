@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Icon, SecondaryButton, SectionHeader, Skeleton, categoryIcon, PhotoFallback } from '../../../components/ui';
+import { Icon, Photo, SecondaryButton, SectionHeader, Skeleton, categoryIcon } from '../../../components/ui';
 import { currentLocale } from '../../../i18n';
 import { listCategories, listCities, searchPlaces } from '../../../lib/api/source';
 import { DEFAULT_CITY_CODE, type Category, type City, type Place } from '../../../lib/api/types';
-import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
@@ -96,7 +94,6 @@ export function GuidePlacePicker({ onPick, onPickCity }: { onPick: (placeId: str
 function PlaceRow({ place, category, onPress }: { place: Place; category?: Category; onPress: () => void }) {
   const { t } = useTranslation();
   const locale = currentLocale();
-  const resolved = resolveImage(place.thumbnail, { height: THUMB, width: THUMB });
   const categoryName = category ? (locale === 'vi' ? category.name_vi : category.name_en) : null;
   const meta = [categoryName, place.visit_minutes_suggested ? t('guide.picker.minutes', { count: place.visit_minutes_suggested }) : null].filter(Boolean).join(' · ');
   return <Pressable
@@ -107,9 +104,7 @@ function PlaceRow({ place, category, onPress }: { place: Place; category?: Categ
     style={({ pressed }) => [p.row, pressed && p.pressed]}
   >
     <View style={p.thumb}>
-      {resolved
-        ? <Image contentFit="cover" placeholder={resolved.placeholder} source={resolved.source} style={StyleSheet.absoluteFill} transition={200} />
-        : <PhotoFallback icon={categoryIcon(place.category_code)} iconSize={28} />}
+      <Photo categoryCode={place.category_code} height={THUMB} iconSize={26} image={place.thumbnail} name={place.name} variant="thumb" width={THUMB} />
     </View>
     <View style={p.copy}>
       <Text numberOfLines={1} style={p.name}>{place.name}</Text>

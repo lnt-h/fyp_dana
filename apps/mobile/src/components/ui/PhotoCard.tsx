@@ -1,20 +1,22 @@
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { Media } from '../../lib/api/types';
-import { resolveImage } from '../../lib/images/imagekit';
 import { colors } from '../../theme/colors';
 import { radii, spacing } from '../../theme/spacing';
 import { fonts, typography } from '../../theme/typography';
 import { GlassBadge } from './GlassBadge';
 import { Icon, type IconName } from './Icon';
-import { PhotoFallback } from './PhotoFallback';
+import { Photo, usePhotoFailed } from './Photo';
 
 export type PhotoCardProps = {
   image: Pick<Media, 'url'> | null | undefined;
-  /** Icon on the flat fallback when there is no photo (e.g. the place's `categoryIcon`); default map pin. */
+  /** Icon on the fallback tile when there is no photo; default = the category icon, or the map pin. */
   fallbackIcon?: IconName;
+  /** Category of the place shown: colours the fallback tile. */
+  fallbackCategory?: string | null;
+  /** Place name whose initial is drawn on the fallback tile (places only; omit for cities and trips). */
+  fallbackName?: string | null;
   title: string;
   subtitle?: string;
   /** Icon before the subtitle (default map-pin). */
@@ -38,7 +40,9 @@ export type PhotoCardProps = {
 
 export function PhotoCard({
   image,
-  fallbackIcon = 'map-pin',
+  fallbackIcon,
+  fallbackCategory,
+  fallbackName,
   title,
   subtitle,
   subtitleIcon = 'map-pin',
@@ -53,7 +57,8 @@ export function PhotoCard({
   accessibilityHint,
   style,
 }: PhotoCardProps) {
-  const resolved = resolveImage(image, { height: imageHeight, width: width ?? 360 });
+  const [photoFailed, onPhotoError] = usePhotoFailed(image);
+  const showCredit = !!image?.url && !photoFailed && !!attribution;
   const label = accessibilityLabel ?? [title, subtitle, badge].filter(Boolean).join(', ');
 
   return (
@@ -67,11 +72,16 @@ export function PhotoCard({
     >
       <View style={styles.clip}>
         <View style={{ height: imageHeight }}>
-          {resolved ? (
-            <Image contentFit="cover" placeholder={resolved.placeholder} placeholderContentFit="cover" source={resolved.source} style={StyleSheet.absoluteFill} transition={200} />
-          ) : (
-            <PhotoFallback tone="dark" icon={fallbackIcon} />
-          )}
+          <Photo
+            categoryCode={fallbackCategory}
+            height={imageHeight}
+            icon={fallbackIcon}
+            image={image}
+            name={fallbackName}
+            onError={onPhotoError}
+            tone="dark"
+            width={width ?? 360}
+          />
           <LinearGradient colors={['rgba(7,21,30,0)', 'rgba(7,21,30,0.72)']} locations={[0.4, 1]} style={StyleSheet.absoluteFill} />
           {badge ? <GlassBadge icon={badgeIcon} label={badge} style={styles.badge} /> : null}
           <View style={styles.overlay}>
@@ -82,7 +92,7 @@ export function PhotoCard({
                 <Text numberOfLines={1} style={styles.subtitle}>{subtitle}</Text>
               </View>
             ) : null}
-            {resolved && attribution ? <Text numberOfLines={1} style={styles.attribution}>{attribution}</Text> : null}
+            {showCredit ? <Text numberOfLines={1} style={styles.attribution}>{attribution}</Text> : null}
           </View>
         </View>
         {footer ? <View style={styles.footer}>{footer}</View> : null}

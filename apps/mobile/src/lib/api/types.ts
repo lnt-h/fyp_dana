@@ -108,7 +108,9 @@ export type HoursValue = { intervals: { open: LocalTime; close: LocalTime }[] };
 export type MoneyValue = Money;
 export type TextValue = { text: string };
 export type LocationValue = GeoPoint;
-export type FactValue = HoursValue | MoneyValue | TextValue | LocationValue;
+/** ADMISSION_PRICE from the pipeline (1.0.4, DEC-028): free entry, or VND adult/child prices (`amount` = adult). */
+export type PriceValue = { free: boolean; currency?: string; adult?: number; child?: number; amount?: string };
+export type FactValue = HoursValue | MoneyValue | TextValue | LocationValue | PriceValue;
 
 /**
  * One operational fact. UNKNOWN is never collapsed into an empty value (FR-006); `value` only when KNOWN. Narrows the

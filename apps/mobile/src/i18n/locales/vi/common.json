@@ -10,5 +10,10 @@
     "title": "Ứng dụng chưa được cấu hình",
     "body": "Bản dựng này chưa có địa chỉ máy chủ Gonarra nên không thể tải địa điểm, chuyến đi hay Hỏi đáp. Ứng dụng không có dữ liệu mẫu ngoại tuyến.",
     "fix": "Dành cho nhà phát triển: đặt EXPO_PUBLIC_API_URL (ví dụ http://192.168.1.20:8000, không kèm /v1) trong apps/mobile/.env rồi khởi động lại máy chủ Expo."
+  },
+  "loadError": {
+    "offline": "Không kết nối được với Gonarra. Hãy kiểm tra mạng rồi thử lại.",
+    "busy": "Dịch vụ đang bận hoặc tạm ngưng. Bạn thử lại sau vài phút nhé.",
+    "server": "Máy chủ Gonarra đang gặp sự cố. Bạn thử lại nhé."
   }
 }

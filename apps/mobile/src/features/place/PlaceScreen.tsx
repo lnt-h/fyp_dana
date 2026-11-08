@@ -1,17 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useTranslation } from 'react-i18next';
 import { Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CircleButton, GlassBadge, Icon, type IconName, categoryIcon, PrimaryButton, SecondaryButton, SectionHeader, Skeleton } from '../../components/ui';
+import { CircleButton, GlassBadge, Icon, type IconName, categoryIcon, Photo, PrimaryButton, SecondaryButton, SectionHeader, Skeleton, usePhotoFailed } from '../../components/ui';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { currentLocale, type AppLocale } from '../../i18n';
-import { getPlace, listCategories } from '../../lib/api/source';
-import type { Category, GeoPoint, PlaceDetail, PlaceFact } from '../../lib/api/types';
-import { resolveImage } from '../../lib/images/imagekit';
+import { getPlace, listCategories, loadErrorKind, type LoadErrorKind } from '../../lib/api/source';
+import type { Category, GeoPoint, Media, PlaceDetail, PlaceFact } from '../../lib/api/types';
 import { colors } from '../../theme/colors';
 import { elevation } from '../../theme/elevation';
 import { radii, spacing } from '../../theme/spacing';
@@ -20,9 +18,9 @@ import { FactIcon, factIcon, type FactIconName } from './components/FactIcon';
 import { HeroGallery } from './components/HeroGallery';
 import { ScreenMessage, isNotFound } from './components/PlaceUI';
 import { SourceLine, StaleBadge, UnknownBadge } from './components/SourceLine';
-import { factPoint, formatFactValue, isStaleFact } from './format';
+import { factPoint, formatFactValue, isStaleFact, type FactLabels } from './format';
 
-type Load = { state: 'loading' } | { state: 'ready'; place: PlaceDetail } | { state: 'notFound' } | { state: 'error' };
+type Load = { state: 'loading' } | { state: 'ready'; place: PlaceDetail } | { state: 'notFound' } | { state: 'error'; kind: LoadErrorKind };
 
 /** Facts always listed (UNKNOWN shown as *chưa rõ*); ADDRESS_VI lives in the driver panel. */
 const coreFacts = ['OPENING_HOURS', 'ADMISSION_PRICE', 'ENTRANCE_LOCATION'] as const;
@@ -61,7 +59,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
     setLoad({ state: 'loading' });
     getPlace(placeId)
       .then(place => { if (alive) setLoad({ place, state: 'ready' }); })
-      .catch((error: unknown) => { if (alive) setLoad({ state: isNotFound(error) ? 'notFound' : 'error' }); });
+      .catch((error: unknown) => { if (alive) setLoad(isNotFound(error) ? { state: 'notFound' } : { kind: loadErrorKind(error), state: 'error' }); });
     listCategories().then(items => { if (alive) setCategories(items); }).catch(() => undefined);
     return () => { alive = false; };
   }, [placeId, attempt, language]);
@@ -93,7 +91,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
       {load.state === 'notFound' && <ScreenMessage title={t('place.notFoundTitle')} body={t('place.notFoundBody')}>
         <PrimaryButton label={t('common.goBack')} onPress={goBack} />
       </ScreenMessage>}
-      {load.state === 'error' && <ScreenMessage title={t('place.errorTitle')}>
+      {load.state === 'error' && <ScreenMessage body={t(`common.loadError.${load.kind}`)} title={t('place.errorTitle')}>
         <PrimaryButton label={t('place.retry')} onPress={() => setAttempt(n => n + 1)} />
       </ScreenMessage>}
     </View>;
@@ -105,8 +103,9 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
   const categoryName = category ? (locale === 'vi' ? category.name_vi : category.name_en) : undefined;
   const otherName = locale === 'vi' ? place.name_en : place.name_vi;
   const facts = new Map(place.facts.map(fact => [fact.field_code, fact]));
+  const labels: FactLabels = { child: price => t('place.facts.childPrice', { price }), free: t('place.facts.free') };
   const address = facts.get('ADDRESS_VI') ?? unknownFact('ADDRESS_VI');
-  const addressText = address.knowledge_state === 'KNOWN' ? formatFactValue(address.value, locale) : null;
+  const addressText = address.knowledge_state === 'KNOWN' ? formatFactValue(address.value, locale, labels) : null;
   const entrancePoint = place.entrance_location ?? factPoint(facts.get('ENTRANCE_LOCATION'));
   const target = entrancePoint ?? place.location;
   const listed: PlaceFact[] = [
@@ -115,7 +114,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
   ];
   const quickValue = (code: string) => {
     const fact = facts.get(code);
-    return fact?.knowledge_state === 'KNOWN' ? formatFactValue(fact.value, locale) : null;
+    return fact?.knowledge_state === 'KNOWN' ? formatFactValue(fact.value, locale, labels) : null;
   };
   const quick: { key: string; icon: FactIconName; label: string; value: string | null }[] = [
     { icon: 'clock', key: 'hours', label: t('place.quick.hours'), value: quickValue('OPENING_HOURS') },
@@ -155,7 +154,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
     <StatusBar style="light" />
     <ScrollView ref={scrollRef} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
       <HeroGallery
-        fallbackIcon={categoryIcon(place.category_code)}
+        categoryCode={place.category_code}
         height={HERO_HEIGHT}
         media={place.media}
         name={place.name}
@@ -165,6 +164,8 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
         topRight={<CircleButton accessibilityLabel={t('place.share')} icon="share" onPress={share} />}
       >
         {otherName !== place.name && <Text numberOfLines={1} style={s.otherName}>{otherName}</Text>}
+        {/* EN only: the English name is the Vietnamese proper name because no source gives an English one (never translated). */}
+        {locale === 'en' && place.name_is_source_fallback ? <Text numberOfLines={2} style={s.nameNote}>{t('place.nameSourceFallback')}</Text> : null}
         {tags.length ? <View style={s.tags}>
           {tags.map(tag => <GlassBadge icon={tag.key === 'category' ? categoryIcon(place.category_code) : tag.icon} key={tag.key} label={tag.label} />)}
         </View> : null}
@@ -225,15 +226,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
         {photos.length > 0 && <>
           <SectionHeader style={s.section} title={t('place.media.title')} />
           <ScrollView contentContainerStyle={s.mediaRow} horizontal showsHorizontalScrollIndicator={false} style={s.mediaScroll}>
-            {photos.map(media => {
-              const resolved = resolveImage(media, { height: 140, width: 200 });
-              return <View key={media.media_asset_id} style={s.mediaItem}>
-                {resolved
-                  ? <Image accessibilityLabel={media.alt_text ?? place.name} contentFit="cover" placeholder={resolved.placeholder} source={resolved.source} style={s.mediaImage} transition={200} />
-                  : <View style={[s.mediaImage, s.mediaEmpty]} />}
-                <Text numberOfLines={2} style={s.caption}>{media.attribution_text}</Text>
-              </View>;
-            })}
+            {photos.map(media => <MediaItem key={media.media_asset_id} categoryCode={place.category_code} media={media} name={place.name} />)}
           </ScrollView>
         </>}
 
@@ -260,10 +253,31 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
   </View>;
 }
 
+/** One extra photo with its credit; a photo that fails to load shows the category tile and drops the credit. */
+function MediaItem({ media, name, categoryCode }: { media: Media; name: string; categoryCode: string }) {
+  const [failed, onError] = usePhotoFailed(media);
+  return <View style={s.mediaItem}>
+    <View style={s.mediaImage}>
+      <Photo accessibilityLabel={media.alt_text ?? name} categoryCode={categoryCode} height={140} image={media} name={name} onError={onError} width={200} />
+    </View>
+    {failed ? null : <Text numberOfLines={2} style={s.caption}>{media.attribution_text}</Text>}
+  </View>;
+}
+
+/** *Tóm tắt từ nguồn / Summarised from sources* on a fact the pipeline extracted from its cited source (DEC-028). */
+function AiExtractedLabel() {
+  const { t } = useTranslation();
+  return <View accessibilityHint={t('place.facts.aiExtractedHint')} accessible style={s.factOrigin}>
+    <Icon color={colors.tealText} name="doc" size={14} />
+    <Text style={s.factOriginText}>{t('place.facts.aiExtracted')}</Text>
+  </View>;
+}
+
 function FactRow({ fact, first, locale }: { fact: PlaceFact; first: boolean; locale: AppLocale }) {
   const { t } = useTranslation();
   const label = t(`place.facts.${fact.field_code}`, { defaultValue: t('place.facts.other') });
-  const known = fact.knowledge_state === 'KNOWN' ? formatFactValue(fact.value, locale) : null;
+  const labels: FactLabels = { child: price => t('place.facts.childPrice', { price }), free: t('place.facts.free') };
+  const known = fact.knowledge_state === 'KNOWN' ? formatFactValue(fact.value, locale, labels) : null;
   const notApplicable = fact.knowledge_state === 'NOT_APPLICABLE';
   const stale = fact.knowledge_state === 'KNOWN' && isStaleFact(fact);
   return <View style={[s.factRow, !first && s.divider]}>
@@ -275,6 +289,7 @@ function FactRow({ fact, first, locale }: { fact: PlaceFact; first: boolean; loc
         : notApplicable
           ? <Text style={[s.factValue, s.muted]}>{t('place.notApplicable')}</Text>
           : <UnknownBadge />}
+      {fact.knowledge_state === 'KNOWN' && fact.origin === 'AI_EXTRACTED' && <AiExtractedLabel />}
       {fact.knowledge_state === 'KNOWN' && (fact.sources.length
         ? fact.sources.map((source, index) => <SourceLine citation={source} key={`${source.source_revision_id}-${index}`} stale={stale || undefined} />)
         : <Text style={s.note}>{t('place.source.none')}</Text>)}
@@ -312,13 +327,13 @@ const s = StyleSheet.create({
   fill: { flex: 1 },
   floatingBack: { left: spacing.md, position: 'absolute' },
   inner: { alignSelf: 'center', maxWidth: 480, paddingHorizontal: spacing.lg, width: '100%' },
-  mediaEmpty: { backgroundColor: colors.surfaceTint },
-  mediaImage: { borderRadius: radii.inset, height: 140, width: 200 },
+  mediaImage: { borderRadius: radii.inset, height: 140, overflow: 'hidden', width: 200 },
   mediaItem: { width: 200 },
   mediaRow: { gap: spacing.sm, paddingHorizontal: spacing.lg },
   mediaScroll: { marginHorizontal: -spacing.lg },
   muted: { color: colors.textMuted },
   note: { ...typography.caption, marginTop: spacing.xs },
+  nameNote: { color: 'rgba(255,255,255,0.82)', fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, marginTop: 2 },
   otherName: { color: 'rgba(255,255,255,0.9)', fontFamily: fonts.medium, fontSize: 17, marginTop: 2 },
   plain: { backgroundColor: colors.canvas },
   plainHeader: { paddingHorizontal: spacing.md },
@@ -327,6 +342,8 @@ const s = StyleSheet.create({
   quickLabel: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 16 },
   quickRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.md },
   summaryLabel: { alignItems: 'center', alignSelf: 'flex-start', flexDirection: 'row', gap: 6, minHeight: 44 },
+  factOrigin: { alignItems: 'center', alignSelf: 'flex-start', flexDirection: 'row', gap: 6, marginTop: 2 },
+  factOriginText: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 12, lineHeight: 16 },
   summaryText: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 13, lineHeight: 18 },
   sourcesLine: { alignItems: 'center', flexDirection: 'row', gap: 6, minHeight: 44, marginTop: spacing.xs },
   sourcesText: { color: colors.tealText, flex: 1, fontFamily: fonts.bold, fontSize: 13, lineHeight: 18 },

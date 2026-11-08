@@ -1,20 +1,18 @@
 import { type ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Chip, Icon, PrimaryButton, Skeleton, categoryIcon } from '../../components/ui';
+import { Chip, Icon, Photo, PrimaryButton, Skeleton } from '../../components/ui';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { currentLocale } from '../../i18n';
-import { createGuideSession, getPlace, getPreferences, listCities, listGuideMessages, streamGuide } from '../../lib/api/source';
-import type { CityCode, GuideMessage, GuideSession, GuideSessionCreate, GuideStreamEvent, Locale, PlaceDetail } from '../../lib/api/types';
-import { resolveImage } from '../../lib/images/imagekit';
+import { ApiError, createGuideSession, getPlace, getPreferences, listCities, listGuideMessages, loadErrorKind, streamGuide, type LoadErrorKind } from '../../lib/api/source';
+import type { CityCode, ErrorDetail, GuideMessage, GuideSession, GuideSessionCreate, GuideStreamEvent, Locale, PlaceDetail } from '../../lib/api/types';
 import { colors } from '../../theme/colors';
 import { radii } from '../../theme/spacing';
 import { fonts } from '../../theme/typography';
 import { ScreenMessage, isNotFound } from '../place/components/PlaceUI';
-import { AssistantBubble, ErrorLine, StreamingBubble, TravelerBubble } from './components/GuideBubbles';
+import { AssistantBubble, ErrorLine, InsufficientBubble, StreamingBubble, TravelerBubble, type GuideErrorKind } from './components/GuideBubbles';
 import { GuideAvatar, GuideHeader } from './components/GuideHeader';
 
 export const MAX_QUESTION = 4000;
@@ -24,9 +22,29 @@ type Stage = Extract<GuideStreamEvent, { type: 'progress' }>['stage'];
 type Item =
   | { kind: 'message'; message: GuideMessage }
   | { kind: 'pending'; id: string; text: string; stage?: Stage }
-  | { kind: 'error'; id: string };
+  | { kind: 'error'; id: string; reason: GuideErrorKind }
+  /** The server refused to answer without evidence (`insufficient_evidence` stream error): shown like the answer status. */
+  | { kind: 'insufficient'; id: string };
 
-type Load = { state: 'loading' } | { state: 'ready' } | { state: 'notFound' } | { state: 'error' };
+/**
+ * `notFound` = the place of a PLACE session is gone (API-011 404). `unavailable` = the Guide endpoints answered 404/501
+ * (not deployed on this server). `error` = anything else, with the reason for the body line.
+ */
+type Load = { state: 'loading' } | { state: 'ready' } | { state: 'notFound' } | { state: 'unavailable' } | { state: 'error'; kind: LoadErrorKind };
+
+/** Guide endpoints missing on this server (older API build): 404 on session create, or 501. */
+const isGuideMissing = (error: unknown) => error instanceof ApiError && (error.status === 404 || error.status === 501);
+
+/** Reason line for a failed question: a stream `error` event or a thrown request error. */
+function guideErrorKind(error: ErrorDetail | unknown): GuideErrorKind {
+  const code = error instanceof ApiError ? error.code : (error as Partial<ErrorDetail> | null)?.code;
+  if (code === 'quota_exceeded') return 'quota';
+  if (code === 'network' || (!code && error instanceof TypeError)) return 'offline';
+  if (error instanceof ApiError || typeof code === 'string') {
+    return code && (code.endsWith('_unavailable') || code === 'feature_disabled') ? 'busy' : 'generic';
+  }
+  return 'generic';
+}
 
 /** What a Guide session is about: the whole city (Guide tab) or one place (place card / picker). */
 export type GuideScope = { kind: 'CITY'; cityCode: CityCode } | { kind: 'PLACE'; placeId: string };
@@ -72,13 +90,27 @@ export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: Guide
     const locale = currentLocale();
     setLoad({ state: 'loading' });
     (async () => {
-      const detail = scope.kind === 'PLACE' ? await getPlace(scope.placeId) : null;
-      const created = await createGuideSession(sessionBody(scope, locale));
-      const history = withHistory.current ? await listGuideMessages(created.id) : [];
-      return { created, detail, history };
+      // Each step fails differently: a gone place is "not found", a missing Guide endpoint is "unavailable".
+      let detail: PlaceDetail | null = null;
+      if (scope.kind === 'PLACE') {
+        try { detail = await getPlace(scope.placeId); } catch (error) {
+          const failure: Load = isNotFound(error) ? { state: 'notFound' } : { kind: loadErrorKind(error), state: 'error' };
+          return { failure, ok: false as const };
+        }
+      }
+      try {
+        const created = await createGuideSession(sessionBody(scope, locale));
+        const history = withHistory.current ? await listGuideMessages(created.id) : [];
+        return { created, detail, history, ok: true as const };
+      } catch (error) {
+        const failure: Load = isGuideMissing(error) ? { state: 'unavailable' } : { kind: loadErrorKind(error), state: 'error' };
+        return { failure, ok: false as const };
+      }
     })()
-      .then(({ created, detail, history }) => {
+      .then(result => {
         if (!alive) return;
+        if (!result.ok) { setLoad(result.failure); return; }
+        const { created, detail, history } = result;
         setPlace(detail);
         listCities()
           .then(cities => {
@@ -89,8 +121,7 @@ export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: Guide
         setSession(created);
         setItems(history.map(message => ({ kind: 'message', message })));
         setLoad({ state: 'ready' });
-      })
-      .catch((error: unknown) => { if (alive) setLoad({ state: isNotFound(error) ? 'notFound' : 'error' }); });
+      });
     if (!noticeDismissed) getPreferences().then(prefs => { if (alive) setShowNotice(!prefs.ai_notice_acknowledged_at); }).catch(() => undefined);
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,10 +141,12 @@ export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: Guide
     abortRef.current = controller;
     const update = (fn: (item: Extract<Item, { kind: 'pending' }>) => Item) =>
       setItems(current => current.map(item => (item.kind === 'pending' && item.id === pendingId ? fn(item) : item)));
-    const fail = () => {
-      setItems(current => current.map(item => (item.kind === 'pending' && item.id === pendingId ? { id: localId('error'), kind: 'error' } : item)));
+    const fail = (reason: GuideErrorKind) => {
+      setItems(current => current.map(item => (item.kind === 'pending' && item.id === pendingId ? { id: localId('error'), kind: 'error', reason } : item)));
       setInput(previous => previous || content); // the question is kept in the composer
     };
+    // Not a failure: the Guide declined to answer without evidence (ADR-010), so the question is not put back.
+    const insufficient = () => update(() => ({ id: localId('insufficient'), kind: 'insufficient' }));
     let finished = false;
     try {
       await streamGuide(session.id, { content, input_mode: 'TEXT' }, event => {
@@ -121,17 +154,24 @@ export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: Guide
         if (event.type === 'progress') update(item => ({ ...item, stage: event.stage }));
         else if (event.type === 'text') update(item => ({ ...item, text: item.text + event.delta }));
         else if (event.type === 'result') { finished = true; update(() => ({ kind: 'message', message: event.message })); }
-        else { finished = true; fail(); }
+        else {
+          finished = true;
+          if (event.error.code === 'insufficient_evidence') insufficient();
+          else fail(guideErrorKind(event.error));
+        }
       }, controller.signal);
       if (!finished && !controller.signal.aborted) {
         // Stream dropped without a terminal event: re-fetch the stored result, never POST again.
         const stored = await listGuideMessages(session.id);
         const last = stored[stored.length - 1];
         if (last?.role === 'ASSISTANT') update(() => ({ kind: 'message', message: last }));
-        else fail();
+        else fail('generic');
       }
-    } catch {
-      if (!controller.signal.aborted) fail();
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        if (error instanceof ApiError && error.code === 'insufficient_evidence') insufficient();
+        else fail(guideErrorKind(error));
+      }
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
       if (!controller.signal.aborted) setBusy(false);
@@ -164,7 +204,6 @@ export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: Guide
   const ready = load.state === 'ready' && !!session;
   const remaining = input.length >= COUNTER_FROM;
   const canSend = ready && !busy && input.trim().length > 0 && input.length <= MAX_QUESTION;
-  const thumb = resolveImage(place?.thumbnail, { height: 44, width: 44 });
   const changePlace = () => { abortRef.current?.abort(); onChangePlace(); };
 
   return <View style={c.fill}>
@@ -177,9 +216,9 @@ export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: Guide
       style={({ pressed }) => [c.context, pressed && { opacity: 0.8 }]}
     >
       <View style={c.contextThumb}>
-        {thumb
-          ? <Image contentFit="cover" placeholder={thumb.placeholder} source={thumb.source} style={StyleSheet.absoluteFill} />
-          : <Icon color={colors.tealText} name={isCity ? 'map-pin' : categoryIcon(place?.category_code)} size={22} />}
+        {isCity
+          ? <Icon color={colors.tealText} name="map-pin" size={22} />
+          : <Photo categoryCode={place?.category_code} height={44} iconSize={20} image={place?.thumbnail} name={place?.name} variant="thumb" width={44} />}
       </View>
       <View style={c.contextCopy}>
         <Text numberOfLines={1} style={c.contextName}>{placeName || '…'}</Text>
@@ -196,7 +235,10 @@ export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: Guide
     {load.state === 'notFound' && <ScreenMessage title={t('guide.session.notFound')}>
       <PrimaryButton label={t('guide.picker.choose')} onPress={onChangePlace} />
     </ScreenMessage>}
-    {load.state === 'error' && <ScreenMessage title={t('guide.session.error')}>
+    {load.state === 'unavailable' && <ScreenMessage body={t('guide.session.unavailableBody')} title={t('guide.session.unavailable')}>
+      <PrimaryButton label={t('guide.picker.retry')} onPress={() => setAttempt(n => n + 1)} />
+    </ScreenMessage>}
+    {load.state === 'error' && <ScreenMessage body={t(`common.loadError.${load.kind}`)} title={t('guide.session.error')}>
       <PrimaryButton label={t('guide.picker.retry')} onPress={() => setAttempt(n => n + 1)} />
     </ScreenMessage>}
 
@@ -216,7 +258,8 @@ export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: Guide
       </View>}
       <View accessibilityLiveRegion="polite">
         {items.map(item => {
-          if (item.kind === 'error') return <ErrorLine key={item.id} />;
+          if (item.kind === 'error') return <ErrorLine key={item.id} reason={item.reason} />;
+          if (item.kind === 'insufficient') return <InsufficientBubble key={item.id} />;
           if (item.kind === 'pending') return <StreamingBubble key={item.id} stage={item.stage} text={item.text} />;
           return item.message.role === 'TRAVELER'
             ? <TravelerBubble content={item.message.content} key={item.message.id} />

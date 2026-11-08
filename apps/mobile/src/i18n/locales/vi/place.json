@@ -2,7 +2,7 @@
   "loading": "Đang tải thẻ địa điểm…",
   "notFoundTitle": "Địa điểm này không còn khả dụng",
   "notFoundBody": "Địa điểm có thể đã bị gỡ khỏi danh sách địa điểm đã đối chiếu nguồn của Gonarra.",
-  "errorTitle": "Có lỗi xảy ra. Thử lại.",
+  "errorTitle": "Chưa tải được địa điểm này",
   "retry": "Thử lại",
   "noPhoto": "Chưa có ảnh của {{name}}",
   "photoBy": "Ảnh: {{text}}",
@@ -21,7 +21,11 @@
     "PAYMENT_METHODS": "Thanh toán",
     "DRESS_CODE": "Trang phục",
     "ACCESS_RULES": "Quy định ra vào",
-    "other": "Thông tin khác"
+    "other": "Thông tin khác",
+    "aiExtracted": "Tóm tắt từ nguồn",
+    "aiExtractedHint": "Thông tin này được Gonarra trích từ nguồn bên dưới; hãy kiểm tra nguồn trước khi đi",
+    "free": "Miễn phí",
+    "childPrice": "trẻ em {{price}}"
   },
   "unknown": "chưa rõ",
   "notApplicable": "không áp dụng",
@@ -84,5 +88,6 @@
   "sources": {
     "line": "Nguồn: {{publishers}}",
     "hint": "Chuyển tới phần nguồn và ghi công"
-  }
+  },
+  "nameSourceFallback": "Tên tiếng Việt; nguồn chưa có tên tiếng Anh"
 }

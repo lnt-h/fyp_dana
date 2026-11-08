@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { listCategories, searchPlaces } from '../../lib/api/source';
+import { listCategories, loadErrorKind, searchPlaces, type LoadErrorKind } from '../../lib/api/source';
 import type { Category, Place, Uuid } from '../../lib/api/types';
 
 export const SEARCH_DEBOUNCE_MS = 300;
@@ -24,6 +24,8 @@ export function useExploreData(cityId: Uuid | undefined, query: string, searchEn
   const [categories, setCategories] = useState<Category[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
   const [placesState, setPlacesState] = useState<LoadState>('loading');
+  const [placesError, setPlacesError] = useState<LoadErrorKind | null>(null);
+  const [searchError, setSearchError] = useState<LoadErrorKind | null>(null);
   const [results, setResults] = useState<Place[]>([]);
   const [searchState, setSearchState] = useState<SearchState>('idle');
   const [attempt, setAttempt] = useState(0);
@@ -54,7 +56,7 @@ export function useExploreData(cityId: Uuid | undefined, query: string, searchEn
         setPlaces(found);
         setPlacesState('ready');
       })
-      .catch(() => { if (active) setPlacesState('error'); })
+      .catch((error: unknown) => { if (active) { setPlacesError(loadErrorKind(error)); setPlacesState('error'); } })
       .finally(() => { if (active) setRefreshing(false); });
     return () => { active = false; };
   }, [attempt, cityId, locale]);
@@ -70,7 +72,7 @@ export function useExploreData(cityId: Uuid | undefined, query: string, searchEn
           setResults(found.slice(0, MAX_RESULTS));
           setSearchState('done');
         })
-        .catch(() => { if (active) setSearchState('error'); });
+        .catch((error: unknown) => { if (active) { setSearchError(loadErrorKind(error)); setSearchState('error'); } });
     }, SEARCH_DEBOUNCE_MS);
     return () => { active = false; clearTimeout(timer); };
   }, [cityId, locale, q, searchAttempt, searchEnabled]);
@@ -91,5 +93,5 @@ export function useExploreData(cityId: Uuid | undefined, query: string, searchEn
     return (code: string) => names.get(code) ?? '';
   }, [categories, locale]);
 
-  return { categories, categoryName, places, placesState, refresh, refreshing, results, retryPlaces, retrySearch, searchState };
+  return { categories, categoryName, places, placesError, placesState, refresh, refreshing, results, retryPlaces, retrySearch, searchError, searchState };
 }

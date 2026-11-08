@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useAccount } from '../features/account/AccountContext';
 import { AccountRow, AccountShell, ExpandableRow, GroupCard, SectionLabel, SessionConfirm } from '../features/account/AccountUI';
+import { demoNoAuth } from '../lib/demoAuth';
 import { colors } from '../theme/colors';
 
 /** SCR-010 Settings: the full list (Profile SCR-009 is the hub with shortcuts). */
@@ -37,13 +38,16 @@ export default function SettingsScreen() {
       <ExpandableRow icon="shield" title={t('account.settings.data')} subtitle={t('account.settings.dataSubtitle')} body={t('account.settings.dataBody')} />
       <ExpandableRow icon="doc" title={t('account.common.legal')} badge={t('account.common.legalDraft')} body={t('account.common.legalBody')} />
       <ExpandableRow icon="info" title={t('account.common.about')} subtitle={t('account.common.version', { version })} body={t('account.common.aboutBody')} />
-      {isSignedIn && <AccountRow danger icon="trash" title={t('account.profile.deleteAccount')} subtitle={t('account.common.deleteAccountSubtitle')} onPress={() => router.push('/delete-account')} />}
+      {isSignedIn && !demoNoAuth && <AccountRow danger icon="trash" title={t('account.profile.deleteAccount')} subtitle={t('account.common.deleteAccountSubtitle')} onPress={() => router.push('/delete-account')} />}
     </GroupCard>
 
-    <SectionLabel>{t('account.settings.sectionSession')}</SectionLabel>
-    <GroupCard>
-      <AccountRow icon="exit" title={t(isSignedIn ? 'account.profile.signOut' : 'account.profile.resetGuest')} subtitle={t('account.settings.sessionSubtitle')} onPress={() => setConfirming(true)} />
-      {confirming && <SessionConfirm onCancel={() => setConfirming(false)} />}
-    </GroupCard>
+    {/* Demo mode (demoAuth.ts): one shared demo user, so there is no session to end. */}
+    {!demoNoAuth && <>
+      <SectionLabel>{t('account.settings.sectionSession')}</SectionLabel>
+      <GroupCard>
+        <AccountRow icon="exit" title={t(isSignedIn ? 'account.profile.signOut' : 'account.profile.resetGuest')} subtitle={t('account.settings.sessionSubtitle')} onPress={() => setConfirming(true)} />
+        {confirming && <SessionConfirm onCancel={() => setConfirming(false)} />}
+      </GroupCard>
+    </>}
   </AccountShell>;
 }

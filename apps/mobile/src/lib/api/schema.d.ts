@@ -800,6 +800,16 @@ export interface components {
             /** @description Most recent citation (convenience for the source line); null when there is none. */
             source?: components["schemas"]["Citation"] | null;
             sources: components["schemas"]["Citation"][];
+            /**
+             * @description 1.0.4 (DEC-028). SOURCE = from an open-data or official source record; OWNER = owner sheet; AI_EXTRACTED = extracted by Gonarra's grounded writer from the cited source (label it "Summarised from sources" and show the source link). Absent means SOURCE.
+             * @enum {string}
+             */
+            origin?: "SOURCE" | "OWNER" | "AI_EXTRACTED";
+            /**
+             * @description 1.0.4. AI_EXTRACTED only. STRONG = the extraction quote matches the cited text; WEAK = it matches only partly. Null for other origins.
+             * @enum {string|null}
+             */
+            grounding?: "STRONG" | "WEAK" | null;
         };
         /** @description Curator-reviewed calendar rule (ADR-011 0.3); AI never writes these. params shape depends on rule_kind. */
         ClosureRule: {

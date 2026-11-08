@@ -30,7 +30,7 @@ import type {
   Uuid,
 } from './types';
 
-export { ApiError } from './errors';
+export { ApiError, loadErrorKind, type LoadErrorKind } from './errors';
 export { isApiConfigured } from './config';
 
 /** A fresh `Idempotency-Key` (UUID); reuse the same key when retrying the same request. */

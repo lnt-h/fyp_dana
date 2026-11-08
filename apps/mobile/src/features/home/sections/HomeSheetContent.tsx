@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
-import { listCategories, listTrips, searchPlaces } from '../../../lib/api/source';
+import { listCategories, listTrips, loadErrorKind, searchPlaces, type LoadErrorKind } from '../../../lib/api/source';
 import type { Category, Place, Trip } from '../../../lib/api/types';
 import { spacing } from '../../../theme/spacing';
 import { useAccount } from '../../account/AccountContext';
@@ -47,6 +47,7 @@ export function HomeSheetContent({ categoryFilter, onCategoryChange, onOpenPlace
   // Saved trips (signed-in only). Refreshed quietly when Home regains focus (e.g. after Save on SCR-029).
   const [trips, setTrips] = useState<Trip[]>([]);
   const [tripsState, setTripsState] = useState<TripsLoad>('loading');
+  const [tripsError, setTripsError] = useState<LoadErrorKind | null>(null);
   const tripsLoaded = useRef(false);
   const loadTrips = useCallback(async (silent: boolean) => {
     if (!silent) setTripsState('loading');
@@ -55,9 +56,9 @@ export function HomeSheetContent({ categoryFilter, onCategoryChange, onOpenPlace
       setTrips(items.filter(trip => trip.status === 'SAVED').sort((a, b) => b.updated_at.localeCompare(a.updated_at)));
       setTripsState('ready');
       tripsLoaded.current = true;
-    } catch {
+    } catch (error) {
       // A silent refresh keeps what is shown; otherwise show the error banner (S-1).
-      if (!silent || !tripsLoaded.current) setTripsState('error');
+      if (!silent || !tripsLoaded.current) { setTripsError(loadErrorKind(error)); setTripsState('error'); }
     }
   }, []);
   useFocusEffect(useCallback(() => {
@@ -87,6 +88,7 @@ export function HomeSheetContent({ categoryFilter, onCategoryChange, onOpenPlace
   const [places, setPlaces] = useState<Place[]>([]);
   const [placesState, setPlacesState] = useState<PlacesLoad>('loading');
   const [placesAttempt, setPlacesAttempt] = useState(0);
+  const [placesError, setPlacesError] = useState<LoadErrorKind | null>(null);
   const cityId = city?.id ?? null;
   useEffect(() => {
     if (!cityId || offline) return;
@@ -94,7 +96,7 @@ export function HomeSheetContent({ categoryFilter, onCategoryChange, onOpenPlace
     setPlacesState('loading');
     searchPlaces(cityId)
       .then(items => { if (active) { setPlaces(items); setPlacesState('ready'); } })
-      .catch(() => { if (active) setPlacesState('error'); });
+      .catch((error: unknown) => { if (active) { setPlacesError(loadErrorKind(error)); setPlacesState('error'); } });
     return () => { active = false; };
   }, [cityId, offline, placesAttempt]);
 
@@ -141,12 +143,13 @@ export function HomeSheetContent({ categoryFilter, onCategoryChange, onOpenPlace
       {isLoaded && !isSignedIn ? (
         <SavedTripsGuest gutter={GUTTER} onSignIn={() => setGate('trips')} />
       ) : isSignedIn ? (
-        <SavedTrips cities={cities} gutter={GUTTER} onRetry={() => void loadTrips(false)} state={tripsState} trips={trips} />
+        <SavedTrips cities={cities} errorKind={tripsError} gutter={GUTTER} onRetry={() => void loadTrips(false)} state={tripsState} trips={trips} />
       ) : null}
 
       {!offline && city ? (
         <ExplorePlaces
           cityName={cityName}
+          errorKind={placesError}
           filtered={categoryFilter !== null}
           gutter={GUTTER}
           onOpenPlace={onOpenPlace}

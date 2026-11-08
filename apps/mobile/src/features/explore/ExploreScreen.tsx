@@ -109,7 +109,7 @@ export function ExploreScreen() {
   } else if (searching) {
     const name = cityName ?? '';
     if (searchState === 'error') {
-      body = <ErrorBanner message={t('explore.states.searchError')} onRetry={data.retrySearch} retryLabel={t('explore.states.retry')} />;
+      body = <ErrorBanner detail={data.searchError ? t(`common.loadError.${data.searchError}`) : null} message={t('explore.states.searchError')} onRetry={data.retrySearch} retryLabel={t('explore.states.retry')} />;
     } else if (searchState !== 'done' && results.length === 0) {
       body = <Loading label={t('explore.results.searching')}><StatusLine text={t('explore.results.searching')} />{skeleton}</Loading>;
     } else if (searchState === 'done' && shown.length === 0) {
@@ -134,7 +134,7 @@ export function ExploreScreen() {
   } else if (placesState === 'error' && places.length === 0) {
     body = offline
       ? <NoticeBanner icon="info" message={t('explore.states.offlineEmpty')} />
-      : <ErrorBanner message={t('explore.states.error')} onRetry={data.retryPlaces} retryLabel={t('explore.states.retry')} />;
+      : <ErrorBanner detail={data.placesError ? t(`common.loadError.${data.placesError}`) : null} message={t('explore.states.error')} onRetry={data.retryPlaces} retryLabel={t('explore.states.retry')} />;
   } else if (places.length === 0) {
     body = (
       <EmptyState

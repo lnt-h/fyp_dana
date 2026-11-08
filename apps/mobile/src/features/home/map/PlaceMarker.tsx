@@ -1,9 +1,8 @@
-import { Image } from 'expo-image';
 import { memo, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Marker } from 'react-native-maps';
 
-import { Icon, categoryIcon } from '../../../components/ui';
+import { Photo } from '../../../components/ui';
 import type { Place } from '../../../lib/api/types';
 import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
@@ -51,18 +50,19 @@ export const PlaceMarker = memo(function PlaceMarker({ place, selected, onPress 
           </View>
         ) : null}
         <View style={[styles.bubble, { borderRadius: size / 2, height: size, width: size }, selected && styles.bubbleSelected]}>
-          {image ? (
-            <Image
-              contentFit="cover"
-              onError={() => setLoaded(true)}
-              onLoad={() => setLoaded(true)}
-              placeholder={image.placeholder}
-              source={image.source}
-              style={StyleSheet.absoluteFill}
-            />
-          ) : (
-            <Icon color={colors.tealText} name={categoryIcon(place.category_code)} size={22} />
-          )}
+          {/* No photo, or a photo that fails: the category tile (deep tone, icon only) so pins stay legible on the map. */}
+          <Photo
+            categoryCode={place.category_code}
+            height={SELECTED_SIZE}
+            iconSize={selected ? 24 : 20}
+            image={place.thumbnail}
+            onError={() => setLoaded(true)}
+            onLoad={() => setLoaded(true)}
+            tone="dark"
+            transition={0}
+            variant="thumb"
+            width={SELECTED_SIZE}
+          />
         </View>
         <View style={[styles.pointer, selected && styles.pointerSelected]} />
       </View>

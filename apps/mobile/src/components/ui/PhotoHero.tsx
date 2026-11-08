@@ -1,24 +1,26 @@
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import type { Media } from '../../lib/api/types';
-import { resolveImage } from '../../lib/images/imagekit';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { fonts, typography } from '../../theme/typography';
 import { Icon, type IconName } from './Icon';
-import { PhotoFallback } from './PhotoFallback';
+import { Photo, usePhotoFailed } from './Photo';
 
 const SCRIM = ['rgba(7,21,30,0)', 'rgba(7,21,30,0.25)', 'rgba(7,21,30,0.72)'] as const;
 const ARCH_HEIGHT = 36;
 
 export type PhotoHeroProps = {
   image: Pick<Media, 'url'> | null | undefined;
-  /** Icon on the flat fallback when there is no photo (e.g. the place's `categoryIcon`); default lantern. */
+  /** Icon on the fallback tile when there is no photo; default = the category icon, or lantern without a category. */
   fallbackIcon?: IconName;
+  /** Category of the place shown: colours the fallback tile. */
+  fallbackCategory?: string | null;
+  /** Place name whose initial is drawn on the fallback tile (places only; omit for cities and trips). */
+  fallbackName?: string | null;
   /** Total height including the status-bar inset (default 360). */
   height?: number;
   title?: string;
@@ -39,28 +41,28 @@ export type PhotoHeroProps = {
 };
 
 
-export function PhotoHero({ image, fallbackIcon = 'lantern', height = 360, title, kicker, attribution, arch = true, topLeft, topRight, children, accessibilityLabel, style }: PhotoHeroProps) {
+export function PhotoHero({ image, fallbackIcon, fallbackCategory, fallbackName, height = 360, title, kicker, attribution, arch = true, topLeft, topRight, children, accessibilityLabel, style }: PhotoHeroProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const resolved = resolveImage(image, { height, width });
+  const [photoFailed, onPhotoError] = usePhotoFailed(image);
+  const showCredit = !!image?.url && !photoFailed && !!attribution;
   const bottomPad = (arch ? ARCH_HEIGHT : 0) + spacing.md;
 
   return (
     <View style={[styles.root, { height }, style]}>
-      {resolved ? (
-        <Image
-          accessibilityLabel={accessibilityLabel}
-          accessible={!!accessibilityLabel}
-          contentFit="cover"
-          placeholder={resolved.placeholder}
-          placeholderContentFit="cover"
-          source={resolved.source}
-          style={StyleSheet.absoluteFill}
-          transition={250}
-        />
-      ) : (
-        <PhotoFallback icon={fallbackIcon} iconSize={40} tone="dark" />
-      )}
+      <Photo
+        accessibilityLabel={accessibilityLabel}
+        categoryCode={fallbackCategory}
+        height={height}
+        icon={fallbackIcon ?? (fallbackCategory ? undefined : 'lantern')}
+        iconSize={40}
+        image={image}
+        name={fallbackName}
+        onError={onPhotoError}
+        tone="dark"
+        transition={250}
+        width={width}
+      />
       <LinearGradient colors={SCRIM} locations={[0.35, 0.6, 1]} pointerEvents="none" style={StyleSheet.absoluteFill} />
       {/* Top fade so floating controls and the status bar stay legible on bright skies. */}
       <LinearGradient colors={['rgba(7,21,30,0.35)', 'rgba(7,21,30,0)']} pointerEvents="none" style={[styles.topFade, { height: insets.top + 80 }]} />
@@ -81,7 +83,7 @@ export function PhotoHero({ image, fallbackIcon = 'lantern', height = 360, title
         ) : null}
         {title ? <Text accessibilityRole="header" numberOfLines={3} style={styles.title}>{title}</Text> : null}
         {children}
-        {resolved && attribution ? <Text numberOfLines={1} style={styles.attribution}>{attribution}</Text> : null}
+        {showCredit ? <Text numberOfLines={1} style={styles.attribution}>{attribution}</Text> : null}
       </View>
 
       {arch ? (

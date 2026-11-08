@@ -1,12 +1,11 @@
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
-import { Icon, SectionHeader, Skeleton, categoryIcon, PhotoFallback } from '../../../components/ui';
+import { Icon, Photo, SectionHeader, Skeleton, categoryIcon, usePhotoFailed } from '../../../components/ui';
+import type { LoadErrorKind } from '../../../lib/api/source';
 import type { Place } from '../../../lib/api/types';
-import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
@@ -19,7 +18,7 @@ export type PlacesLoad = 'loading' | 'ready' | 'error';
 
 function PlaceTile({ place, onPress }: { place: Place; onPress: () => void }) {
   const { t } = useTranslation();
-  const photo = resolveImage(place.thumbnail, { height: CARD_HEIGHT, width: CARD_WIDTH });
+  const [photoFailed, onPhotoError] = usePhotoFailed(place.thumbnail);
   const minutes = place.visit_minutes_suggested ? t('homeSheet.explore.minutes', { count: place.visit_minutes_suggested }) : null;
   return (
     <Pressable
@@ -29,11 +28,7 @@ function PlaceTile({ place, onPress }: { place: Place; onPress: () => void }) {
       style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
     >
       <View style={styles.clip}>
-        {photo ? (
-          <Image contentFit="cover" placeholder={photo.placeholder} placeholderContentFit="cover" source={photo.source} style={StyleSheet.absoluteFill} transition={200} />
-        ) : (
-          <PhotoFallback tone="dark" icon={categoryIcon(place.category_code)} />
-        )}
+        <Photo categoryCode={place.category_code} height={CARD_HEIGHT} image={place.thumbnail} name={place.name} onError={onPhotoError} tone="dark" width={CARD_WIDTH} />
         <LinearGradient colors={['rgba(7,21,30,0)', 'rgba(7,21,30,0.78)']} locations={[0.35, 1]} style={StyleSheet.absoluteFill} />
         <View style={styles.overlay}>
           <Text numberOfLines={2} style={styles.name}>{place.name}</Text>
@@ -41,7 +36,7 @@ function PlaceTile({ place, onPress }: { place: Place; onPress: () => void }) {
             <Icon color={colors.white} name={categoryIcon(place.category_code)} size={15} />
             {minutes ? <Text numberOfLines={1} style={styles.metaText}>{minutes}</Text> : null}
           </View>
-          {photo && place.thumbnail?.attribution_text ? <Text numberOfLines={1} style={styles.credit}>{place.thumbnail.attribution_text}</Text> : null}
+          {!photoFailed && place.thumbnail?.attribution_text ? <Text numberOfLines={1} style={styles.credit}>{place.thumbnail.attribution_text}</Text> : null}
         </View>
       </View>
     </Pressable>
@@ -49,9 +44,11 @@ function PlaceTile({ place, onPress }: { place: Place; onPress: () => void }) {
 }
 
 /** "Khám phá {city}": published places of the selected city, filtered by the shared category chip. */
-export function ExplorePlaces({ places, state, cityName, filtered, onRetry, onOpenPlace, gutter }: {
+export function ExplorePlaces({ places, state, errorKind, cityName, filtered, onRetry, onOpenPlace, gutter }: {
   places: Place[];
   state: PlacesLoad;
+  /** Why the last load failed (second line of the retry banner). */
+  errorKind?: LoadErrorKind | null;
   cityName: string;
   /** A category chip is active (changes the empty copy). */
   filtered: boolean;
@@ -71,7 +68,7 @@ export function ExplorePlaces({ places, state, cityName, filtered, onRetry, onOp
       </View>
     );
   } else if (state === 'error') {
-    body = <View style={inset}><ErrorBanner message={t('homeSheet.explore.error')} onRetry={onRetry} retryLabel={t('homeSheet.explore.retry')} /></View>;
+    body = <View style={inset}><ErrorBanner detail={errorKind ? t(`common.loadError.${errorKind}`) : null} message={t('homeSheet.explore.error')} onRetry={onRetry} retryLabel={t('homeSheet.explore.retry')} /></View>;
   } else if (places.length === 0) {
     body = (
       <View style={[styles.empty, inset]}>

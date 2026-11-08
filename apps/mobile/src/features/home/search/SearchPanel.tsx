@@ -1,13 +1,11 @@
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import { Image } from 'expo-image';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Chip, Icon, SecondaryButton, Skeleton, categoryIcon } from '../../../components/ui';
+import { Chip, Icon, Photo, Skeleton, categoryIcon } from '../../../components/ui';
 import { listCategories, searchPlaces } from '../../../lib/api/source';
 import type { Category, City, Place } from '../../../lib/api/types';
-import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
 import { radii } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
@@ -216,17 +214,12 @@ export function SearchBody({ city, query, offline, recent, onPickRecent, onOpenP
 }
 
 function ResultRow({ place, categoryLabel, onPress }: { place: Place; categoryLabel: string; onPress: () => void }) {
-  const image = resolveImage(place.thumbnail, { height: 56, width: 56 });
   // `name` is in the UI language; `name_vi` is always present, so it is the other-language name only in English.
   const secondary = place.name_vi !== place.name ? place.name_vi : null;
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
       <View style={styles.thumb}>
-        {image ? (
-          <Image contentFit="cover" placeholder={image.placeholder} source={image.source} style={StyleSheet.absoluteFill} />
-        ) : (
-          <Icon color={colors.tealText} name={categoryIcon(place.category_code)} size={24} />
-        )}
+        <Photo categoryCode={place.category_code} height={56} iconSize={24} image={place.thumbnail} name={place.name} variant="thumb" width={56} />
       </View>
       <View style={styles.rowBody}>
         <Text numberOfLines={1} style={styles.rowName}>{place.name}</Text>

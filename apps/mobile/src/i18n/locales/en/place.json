@@ -2,7 +2,7 @@
   "loading": "Loading place card…",
   "notFoundTitle": "This place is no longer available",
   "notFoundBody": "It may have been removed from Gonarra's source-checked places.",
-  "errorTitle": "Something went wrong. Try again.",
+  "errorTitle": "Couldn't load this place",
   "retry": "Try again",
   "noPhoto": "No photo of {{name}} yet",
   "photoBy": "Photo: {{text}}",
@@ -21,7 +21,11 @@
     "PAYMENT_METHODS": "Payment",
     "DRESS_CODE": "Dress code",
     "ACCESS_RULES": "Access rules",
-    "other": "Other detail"
+    "other": "Other detail",
+    "aiExtracted": "Summarised from sources",
+    "aiExtractedHint": "Gonarra extracted this from the source below; check the source before you go",
+    "free": "Free",
+    "childPrice": "children {{price}}"
   },
   "unknown": "unknown",
   "notApplicable": "not applicable",
@@ -84,5 +88,6 @@
   "sources": {
     "line": "Sources: {{publishers}}",
     "hint": "Jumps to sources and credits"
-  }
+  },
+  "nameSourceFallback": "Vietnamese name; our sources give no English name"
 }

@@ -30,7 +30,9 @@
   "session": {
     "loading": "Opening the Guide…",
     "error": "Could not open the Guide. Try again.",
-    "notFound": "This place is no longer available"
+    "notFound": "This place is no longer available",
+    "unavailable": "The Guide isn't available yet",
+    "unavailableBody": "This server doesn't offer the Guide right now. Places, plans and trips still work."
   },
   "empty": {
     "title": "What would you like to know about {{place}}?",
@@ -96,5 +98,10 @@
       "label": "Hội An?",
       "question": "What is special about the Hội An area?"
     }
+  },
+  "errors": {
+    "offline": "No connection, so the question wasn't sent. It's still in the box; send it again when you're back online.",
+    "busy": "The AI service is busy right now. Your question is kept; try again in a moment.",
+    "quota": "You've reached the question limit for now. Your question is kept; try again later."
   }
 }

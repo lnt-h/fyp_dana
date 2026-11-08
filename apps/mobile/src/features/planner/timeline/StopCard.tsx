@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState, type ComponentRef, type Ref } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
-import { Icon, categoryIcon, PhotoFallback } from '../../../components/ui';
-import { resolveImage } from '../../../lib/images/imagekit';
+import { Icon, Photo, categoryIcon } from '../../../components/ui';
 import { colors } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
@@ -64,7 +62,6 @@ export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpe
   const unknownTime = t('proposal.stop.timeUnknown');
   // `name` is in the request locale; show the Vietnamese name as well when they differ (FR-076).
   const secondary = [stop.name !== stop.name_vi ? stop.name_vi : null, t('proposal.stop.minutes', { count: stop.visit_minutes })].filter(Boolean).join(' · ');
-  const image = resolveImage(place?.thumbnail, { height: THUMB, width: THUMB });
 
   return <View ref={rowRef} style={[r.root, framed && r.framed]}>
     <Animated.View pointerEvents="none" style={[r.highlight, blocked && r.highlightBlocked, { opacity: highlight }]} />
@@ -82,9 +79,7 @@ export function StopCard({ stop, place, selected, reducedMotion, onSelect, onOpe
     >
       <View style={r.thumbWrap}>
         <View style={r.thumb}>
-          {image
-            ? <Image contentFit="cover" placeholder={image.placeholder} source={image.source} style={StyleSheet.absoluteFill} transition={150} />
-            : <PhotoFallback icon={categoryIcon(place?.categoryCode)} iconSize={26} />}
+          <Photo categoryCode={place?.categoryCode} height={THUMB} iconSize={26} image={place?.thumbnail} name={stop.name} transition={150} variant="thumb" width={THUMB} />
         </View>
         <View style={[r.number, selected && r.numberSelected, blocked && r.numberBlocked]}>
           <Text style={r.numberText}>{stop.number}</Text>

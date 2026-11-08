@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
-import { Icon, PhotoFallback, SectionHeader, Skeleton, categoryIcon } from '../../../components/ui';
-import { searchPlaces } from '../../../lib/api/source';
+import { Icon, Photo, SectionHeader, Skeleton, categoryIcon, usePhotoFailed } from '../../../components/ui';
+import { loadErrorKind, searchPlaces, type LoadErrorKind } from '../../../lib/api/source';
 import type { Category, Place, Uuid } from '../../../lib/api/types';
-import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
@@ -24,7 +22,7 @@ const RAIL_MAX = 12;
 export const HOI_AN_AREA_CODES = ['hoi-an-old-town', 'hoi-an-beaches-islands', 'hoi-an-outskirts'] as const;
 const FOOD_CATEGORY_CODES = ['FOOD', 'CAFE'] as const;
 
-type Load = { state: 'loading' } | { state: 'error' } | { state: 'ready'; places: Place[] };
+type Load = { state: 'loading' } | { state: 'error'; kind: LoadErrorKind } | { state: 'ready'; places: Place[] };
 
 /** Alternates the lists (so cafés and food mix) and drops duplicates, up to `RAIL_MAX`. */
 function interleave(lists: Place[][]): Place[] {
@@ -48,7 +46,7 @@ function useRail(load: (() => Promise<Place[][]>) | null) {
     setResult({ state: 'loading' });
     load()
       .then(lists => { if (active) setResult({ places: interleave(lists), state: 'ready' }); })
-      .catch(() => { if (active) setResult({ state: 'error' }); });
+      .catch((error: unknown) => { if (active) setResult({ kind: loadErrorKind(error), state: 'error' }); });
     return () => { active = false; };
   }, [load, attempt]);
   return { result, retry: () => setAttempt(n => n + 1) };
@@ -56,7 +54,7 @@ function useRail(load: (() => Promise<Place[][]>) | null) {
 
 function RailCard({ place, categoryName, onPress }: { place: Place; categoryName: string | null; onPress: () => void }) {
   const { t } = useTranslation();
-  const photo = resolveImage(place.thumbnail, { height: PHOTO_HEIGHT, width: CARD_WIDTH });
+  const [photoFailed, onPhotoError] = usePhotoFailed(place.thumbnail);
   const minutes = place.visit_minutes_suggested;
   const meta = categoryName && minutes
     ? t('homeSheet.rails.meta', { category: categoryName, count: minutes })
@@ -68,10 +66,8 @@ function RailCard({ place, categoryName, onPress }: { place: Place; categoryName
     style={({ pressed }) => [r.card, pressed && { opacity: 0.88 }]}
   >
     <View style={r.photo}>
-      {photo
-        ? <Image contentFit="cover" placeholder={photo.placeholder} placeholderContentFit="cover" source={photo.source} style={StyleSheet.absoluteFill} transition={200} />
-        : <PhotoFallback icon={categoryIcon(place.category_code)} />}
-      {photo && place.thumbnail?.attribution_text
+      <Photo categoryCode={place.category_code} height={PHOTO_HEIGHT} image={place.thumbnail} name={place.name} onError={onPhotoError} width={CARD_WIDTH} />
+      {!photoFailed && place.thumbnail?.attribution_text
         ? <View style={r.creditWrap}><Text numberOfLines={1} style={r.credit}>{t('homeSheet.rails.credit', { credit: place.thumbnail.attribution_text })}</Text></View>
         : null}
     </View>
@@ -110,7 +106,7 @@ export function PlaceRail({ title, subtitle, load, categories, isVi, onOpenPlace
       {[0, 1].map(index => <Skeleton height={PHOTO_HEIGHT + 72} key={index} radius={radii.card} width={CARD_WIDTH} />)}
     </View>;
   } else if (result.state === 'error') {
-    body = <View style={inset}><ErrorBanner message={t('homeSheet.explore.error')} onRetry={retry} retryLabel={t('homeSheet.explore.retry')} /></View>;
+    body = <View style={inset}><ErrorBanner detail={t(`common.loadError.${result.kind}`)} message={t('homeSheet.explore.error')} onRetry={retry} retryLabel={t('homeSheet.explore.retry')} /></View>;
   } else if (!result.places.length) {
     body = <View style={[r.empty, inset]}>
       <Icon color={colors.tealText} name="map-pin" size={20} />

@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { PhotoHero, type IconName } from '../../../components/ui';
+import { Photo, PhotoHero } from '../../../components/ui';
 import type { Media } from '../../../lib/api/types';
-import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
 import { spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
@@ -20,7 +18,8 @@ type Props = {
   thumbnail: Media | null | undefined;
   media: Media[] | null | undefined;
   height: number;
-  fallbackIcon: IconName;
+  /** Category of the place: colours and labels the fallback tile when there is no photo (or it fails). */
+  categoryCode: string;
   topLeft: ReactNode;
   topRight: ReactNode;
   kicker?: string;
@@ -40,7 +39,7 @@ export function galleryPhotos(thumbnail: Media | null | undefined, media: Media[
  * tapping one swaps the hero. The credit line always names the photo currently shown, with its licence (Wikimedia
  * Commons terms). No photo: the category illustration, no thumbnails.
  */
-export function HeroGallery({ name, thumbnail, media, height, fallbackIcon, topLeft, topRight, kicker, title, children }: Props) {
+export function HeroGallery({ name, thumbnail, media, height, categoryCode, topLeft, topRight, kicker, title, children }: Props) {
   const { t } = useTranslation();
   const photos = useMemo(() => galleryPhotos(thumbnail, media), [thumbnail, media]);
   const [index, setIndex] = useState(0);
@@ -60,7 +59,8 @@ export function HeroGallery({ name, thumbnail, media, height, fallbackIcon, topL
       // With thumbnails the credit moves under the hero (the thumbs sit on its lower-right edge).
       arch={!gallery}
       attribution={gallery ? null : credit}
-      fallbackIcon={fallbackIcon}
+      fallbackCategory={categoryCode}
+      fallbackName={name}
       height={height}
       image={current}
       kicker={kicker}
@@ -73,7 +73,6 @@ export function HeroGallery({ name, thumbnail, media, height, fallbackIcon, topL
     </PhotoHero>
     {gallery ? <View style={g.row}>
       {thumbs.map((photo, position) => {
-        const resolved = resolveImage(photo, { height: THUMB, width: THUMB });
         const selected = position === index;
         return <Pressable
           key={photo.media_asset_id}
@@ -83,9 +82,7 @@ export function HeroGallery({ name, thumbnail, media, height, fallbackIcon, topL
           onPress={() => setIndex(position)}
           style={({ pressed }) => [g.thumb, selected && g.thumbSelected, pressed && { opacity: 0.8 }]}
         >
-          {resolved
-            ? <Image contentFit="cover" placeholder={resolved.placeholder} source={resolved.source} style={g.image} transition={150} />
-            : <View style={[g.image, { backgroundColor: colors.surfaceTint }]} />}
+          <Photo categoryCode={categoryCode} height={THUMB} iconSize={20} image={photo} name={name} transition={150} variant="thumb" width={THUMB} />
         </Pressable>;
       })}
     </View> : null}
@@ -102,5 +99,4 @@ const g = StyleSheet.create({
   row: { position: 'absolute', right: spacing.lg, bottom: -GALLERY_OVERHANG, flexDirection: 'row', gap: spacing.xs },
   thumb: { width: THUMB, height: THUMB, borderRadius: 12, borderWidth: 2, borderColor: colors.white, overflow: 'hidden', backgroundColor: colors.white },
   thumbSelected: { borderColor: colors.audioTeal, borderWidth: 3 },
-  image: { width: '100%', height: '100%' },
 });
