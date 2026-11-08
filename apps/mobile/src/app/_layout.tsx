@@ -14,7 +14,9 @@ import { useTranslation } from 'react-i18next';
 
 import { colors } from '../theme/colors';
 import { AccountProvider } from '../features/account/AccountContext';
+import { ConfigErrorScreen } from '../features/config/ConfigErrorScreen';
 import { ApiAuthBridge } from '../lib/api/ApiAuthBridge';
+import { isApiConfigured } from '../lib/api/config';
 import { SelectedCityProvider } from '../features/home/cityStore';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
@@ -64,6 +66,8 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) {
     return <View style={{ flex: 1, backgroundColor: colors.deepOcean, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.white} accessibilityLabel={t('common.loadingApp')} /></View>;
   }
+  // EXPO_PUBLIC_API_URL is required: there is no local data to fall back to (config.ts).
+  if (!isApiConfigured()) return <ConfigErrorScreen />;
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>

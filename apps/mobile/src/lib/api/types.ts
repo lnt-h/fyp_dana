@@ -102,7 +102,7 @@ export type FactFieldCode =
 
 /*
  * Fact `value` shapes per value_kind. The contract only says "object, shape depends on fact_fields.value_kind"; these
- * shapes are PROVISIONAL (used by fixtures and UI) until the API defines them. Confirm before relying on them.
+ * shapes are PROVISIONAL (used by the UI) until the API defines them. Confirm before relying on them.
  */
 export type HoursValue = { intervals: { open: LocalTime; close: LocalTime }[] };
 export type MoneyValue = Money;

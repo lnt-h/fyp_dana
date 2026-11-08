@@ -5,6 +5,7 @@
 - `brand/`: existing standalone brand vectors. Runtime brand components live in `src/components/brand/BrandMarks.tsx`.
 - `images/places/`: shared travel photography used by onboarding and Home; future screens should reuse these files rather than duplicate them.
 - `images/onboarding/`: imagery specific to onboarding compositions.
+- `images/cities/`: bundled city cover photos (Wikimedia Commons; source, author and licence per file in `images/cities/attribution.json`), used via `src/lib/images/cityImages.ts`. Place photos are not bundled: they come from the API as remote media with attribution.
 - `illustrations/registration/`: original abstract registration artwork.
 - `illustrations/backgrounds/`: original decorative background vectors.
 - Root PNG files: Expo app icons, adaptive icons, splash icon, and favicon. Their paths remain unchanged to preserve app configuration.

@@ -5,5 +5,10 @@
   "saving": "Saving…",
   "cancel": "Cancel",
   "goBack": "Go back",
-  "country": "Viet Nam"
+  "country": "Viet Nam",
+  "configError": {
+    "title": "App not configured",
+    "body": "This build has no Gonarra server address, so it cannot load places, trips or the Guide. There is no offline demo data.",
+    "fix": "For developers: set EXPO_PUBLIC_API_URL (for example http://192.168.1.20:8000, without /v1) in apps/mobile/.env, then restart the Expo server."
+  }
 }
