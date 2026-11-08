@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Linking, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CircleButton, Icon, PhotoHero, PrimaryButton, SecondaryButton, SectionHeader, Skeleton } from '../../components/ui';
+import { CircleButton, Icon, PhotoHero, categoryIcon, PrimaryButton, SecondaryButton, SectionHeader, Skeleton } from '../../components/ui';
 import { currentLocale, type AppLocale } from '../../i18n';
 import { getPlace, listCategories } from '../../lib/api/source';
 import type { Category, GeoPoint, PlaceDetail, PlaceFact } from '../../lib/api/types';
@@ -138,6 +138,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
       <PhotoHero
         accessibilityLabel={place.thumbnail?.alt_text ?? undefined}
         attribution={place.thumbnail?.attribution_text ? t('place.photoBy', { text: place.thumbnail.attribution_text }) : null}
+        fallbackIcon={categoryIcon(place.category_code)}
         height={HERO_HEIGHT}
         image={place.thumbnail}
         kicker={categoryName}

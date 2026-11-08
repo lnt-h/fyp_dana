@@ -318,15 +318,6 @@
     "retry": "Thử lại",
     "close": "Đóng"
   },
-  "dev": {
-    "label": "Dữ liệu mẫu · lần sửa tới",
-    "none": "Thành công",
-    "network": "Mất kết nối",
-    "route_unavailable": "Lỗi tuyến đường",
-    "revision_conflict": "Xung đột 409",
-    "ai_unavailable": "AI bận",
-    "preview_expired": "Hết hạn"
-  },
   "book": "Đặt chỗ ở và hoạt động",
   "eyebrow": "{{city}} · {{dates}}",
   "healthCard": {

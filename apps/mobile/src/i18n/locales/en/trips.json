@@ -30,7 +30,8 @@
     "body": "This cannot be undone.",
     "confirm": "Delete",
     "keep": "Keep",
-    "done": "Trip deleted"
+    "done": "Trip deleted",
+    "failed": "Could not delete this trip. Try again"
   },
   "empty": {
     "title": "No trips yet",

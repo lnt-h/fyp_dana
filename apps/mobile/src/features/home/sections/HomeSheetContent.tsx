@@ -16,7 +16,7 @@ import { ExplorePlaces, type PlacesLoad } from './ExplorePlaces';
 import { Greeting } from './Greeting';
 import { PlanBanner } from './PlanBanner';
 import { SavedTrips, SavedTripsGuest, type TripsLoad } from './SavedTrips';
-import { NoticeBanner } from './SheetBanners';
+import { ErrorBanner, NoticeBanner } from './SheetBanners';
 import { TodayCard } from './TodayCard';
 import { cityLabel } from './homeSheetUtils';
 
@@ -37,7 +37,7 @@ export type HomeSheetContentProps = {
 export function HomeSheetContent({ categoryFilter, onCategoryChange, onOpenPlace }: HomeSheetContentProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const isVi = i18n.resolvedLanguage === 'vi';
-  const { city, cities } = useSelectedCity();
+  const { city, cities, error: cityError, loading: cityLoading, reload: reloadCities } = useSelectedCity();
   const offline = useIsOffline();
   const { isLoaded, isSignedIn, profile } = useAccount();
   const [gate, setGate] = useState<GateFeature | null>(null);
@@ -149,6 +149,12 @@ export function HomeSheetContent({ categoryFilter, onCategoryChange, onOpenPlace
           places={visiblePlaces}
           state={placesState}
         />
+      ) : null}
+
+      {!offline && !city && cityError && !cityLoading ? (
+        <View style={styles.inset}>
+          <ErrorBanner message={t('homeSheet.explore.cityError')} onRetry={reloadCities} retryLabel={t('homeSheet.explore.retry')} />
+        </View>
       ) : null}
 
       <SignInGate feature={gate} onClose={() => setGate(null)} />

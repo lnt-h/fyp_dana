@@ -174,3 +174,72 @@ VISIT_MINUTES: dict[str, tuple[int, int, int]] = {
     "THEME_PARK": (180, 300, 480),
     "CRAFT_VILLAGE": (45, 90, 180),
 }
+
+
+# ---- OpenStreetMap tags (osm.py) ----------------------------------------------------------
+# (key, value) -> category; value "*" matches any value of that key. Deterministic, auditable.
+OSM_PRIMARY_TAGS: dict[tuple[str, str], str] = {
+    ("tourism", "museum"): "MUSEUM",
+    ("tourism", "gallery"): "MUSEUM",
+    ("tourism", "viewpoint"): "VIEWPOINT",
+    ("tourism", "theme_park"): "THEME_PARK",
+    ("tourism", "zoo"): "THEME_PARK",
+    ("tourism", "aquarium"): "THEME_PARK",
+    ("leisure", "water_park"): "THEME_PARK",
+    ("amenity", "place_of_worship"): "RELIGIOUS_SITE",
+    ("amenity", "restaurant"): "FOOD",
+    ("amenity", "cafe"): "CAFE",
+    ("amenity", "marketplace"): "MARKET",
+    ("shop", "marketplace"): "MARKET",
+    ("shop", "mall"): "MARKET",
+    ("leisure", "park"): "NATURE",
+    ("leisure", "beach_resort"): "BEACH",
+    ("natural", "beach"): "BEACH",
+    ("natural", "peak"): "NATURE",
+    ("natural", "cave_entrance"): "NATURE",
+    ("historic", "*"): "HERITAGE",
+}
+
+# ``tourism=attraction`` alone says nothing about the kind of place: it maps only through one of
+# these companion tags, otherwise the element is skipped (unmapped). Companion tags never qualify
+# an element that already has a primary tag (a vegetarian restaurant with ``religion=buddhist``
+# stays FOOD).
+OSM_ATTRACTION_QUALIFIERS: dict[tuple[str, str], str] = {
+    ("man_made", "bridge"): "VIEWPOINT",
+    ("bridge", "*"): "VIEWPOINT",
+    ("man_made", "tower"): "VIEWPOINT",
+    ("building", "temple"): "RELIGIOUS_SITE",
+    ("building", "pagoda"): "RELIGIOUS_SITE",
+    ("building", "church"): "RELIGIOUS_SITE",
+    ("building", "cathedral"): "RELIGIOUS_SITE",
+    ("building", "shrine"): "RELIGIOUS_SITE",
+    ("religion", "*"): "RELIGIOUS_SITE",
+    ("natural", "*"): "NATURE",
+    ("craft", "*"): "CRAFT_VILLAGE",
+}
+
+# Values of a "*" key that do not describe a visitable place.
+_OSM_IGNORED_VALUES = frozenset({"no", "boundary_stone", "milestone"})
+
+
+def _osm_categories(tags: dict[str, str], table: dict[tuple[str, str], str]) -> set[str]:
+    found: set[str] = set()
+    for key, raw in tags.items():
+        value = raw.strip().lower()
+        category = table.get((key, value))
+        if category is None and value not in _OSM_IGNORED_VALUES:
+            category = table.get((key, "*"))
+        if category is not None:
+            found.add(category)
+    return found
+
+
+def map_osm_tags(tags: dict[str, str]) -> str | None:
+    """OSM tags → Gonarra category (most specific wins, ``CATEGORY_PRIORITY``), else None."""
+    found = _osm_categories(tags, OSM_PRIMARY_TAGS)
+    if not found and tags.get("tourism", "").strip().lower() == "attraction":
+        found = _osm_categories(tags, OSM_ATTRACTION_QUALIFIERS)
+    for category in CATEGORY_PRIORITY:
+        if category in found:
+            return category
+    return None

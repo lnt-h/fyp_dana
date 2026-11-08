@@ -3,7 +3,8 @@
 For every candidate place of a city this module
 
 1. **composes** the content it would publish from the staged import records (owner sheet >
-   Wikidata/Wikipedia > promoted web candidate), deterministically;
+   Wikidata/Wikipedia > OpenStreetMap > promoted web candidate), deterministically; facts come
+   from the sheet, else from OpenStreetMap (OPENING_HOURS), each with its own source revision;
 2. runs the **gate** in code (``GATE_RULES``): both locales complete, location inside the city
    boundary, category and area set, every source licensed and attributed, every KNOWN fact
    backed by an attributed source revision (otherwise it is UNKNOWN, never invented), no media
@@ -26,7 +27,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, null, select, text, update
+from sqlalchemy import func, null, or_, select, text, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,6 +50,7 @@ from app.models.catalog import (
     PlaceLocalization,
     PlaceMedia,
     PublicationFact,
+    PublicationMedia,
     Source,
     SourceRevision,
     WebPlaceCandidate,
@@ -121,6 +123,7 @@ class Contributions:
     sheet: dict[str, Any] | None = None
     wikidata: dict[str, Any] | None = None
     wikipedia: dict[str, dict[str, Any]] = field(default_factory=dict)
+    osm: dict[str, Any] | None = None
     web: WebPlaceCandidate | None = None
 
 
@@ -143,6 +146,17 @@ def _clean(value: Any) -> str | None:
     return text_value or None
 
 
+def _sourced_fact(payload: dict[str, Any] | None, code: str) -> tuple[dict[str, Any], str] | None:
+    """A staged fact with its own source revision id (sheet and OSM records share the shape)."""
+    fact = ((payload or {}).get("facts") or {}).get(code)
+    revision = (
+        ((payload or {}).get(PROVENANCE_KEY) or {}).get("fact_source_revision_ids") or {}
+    ).get(code)
+    if fact and revision and fact.get("value"):
+        return fact, str(revision)
+    return None
+
+
 def compose(
     place: Place,
     contributions: Contributions,
@@ -152,9 +166,10 @@ def compose(
     fact_fields: Sequence[FactField],
 ) -> Desired:
     sheet, wikidata, web = contributions.sheet, contributions.wikidata, contributions.web
+    osm = contributions.osm
     point = parse_point(place.location)
     lng, lat = (point.longitude, point.latitude) if point else (0.0, 0.0)
-    for payload in (sheet, wikidata):
+    for payload in (sheet, wikidata, osm):
         location = (payload or {}).get("location")
         if location:
             lng, lat = float(location["lng"]), float(location["lat"])
@@ -164,7 +179,11 @@ def compose(
         if web_point is not None:
             lng, lat = web_point.longitude, web_point.latitude
 
-    category = (sheet or {}).get("category") or (wikidata or {}).get("category")
+    category = (
+        (sheet or {}).get("category")
+        or (wikidata or {}).get("category")
+        or (osm or {}).get("category")
+    )
     if category is None and web is not None and web.category_guess:
         category = web.category_guess.strip().upper()
     if category is None:
@@ -183,8 +202,9 @@ def compose(
 
     sheet_rev = _provenance_id(sheet)
     wikidata_rev = _provenance_id(wikidata)
+    osm_rev = _provenance_id(osm)
     web_rev = web.source_revision_id if web is not None else None
-    primary = sheet_rev or wikidata_rev or web_rev
+    primary = sheet_rev or wikidata_rev or osm_rev or web_rev
 
     localizations: dict[str, DesiredLocalization] = {}
     aliases: dict[str, list[str]] = {}
@@ -193,6 +213,7 @@ def compose(
         loc = DesiredLocalization(name=None, short_description=None, description=None)
         sheet_name = _clean(((sheet or {}).get("name") or {}).get(locale))
         wd_name = _clean(((wikidata or {}).get("name") or {}).get(locale))
+        osm_name = _clean(((osm or {}).get("name") or {}).get(locale))
         web_name = _clean(getattr(web, f"name_{locale}", None)) if web is not None else None
         if sheet_name:
             loc.name = sheet_name
@@ -200,6 +221,9 @@ def compose(
         elif wd_name:
             loc.name = wd_name
             _add(loc, wikidata_rev)
+        elif osm_name:
+            loc.name = osm_name
+            _add(loc, osm_rev)
         elif web_name:
             loc.name = web_name
             _add(loc, web_rev)
@@ -237,6 +261,7 @@ def compose(
             loc.name,
             wd_name,
             sheet_name,
+            osm_name,
             *(((wikidata or {}).get("aliases") or {}).get(locale) or []),
         ):
             cleaned = _clean(candidate)
@@ -245,14 +270,12 @@ def compose(
         aliases[locale] = names
 
     facts: list[DesiredFact] = []
-    sheet_facts = (sheet or {}).get("facts") or {}
-    fact_revs = ((sheet or {}).get(PROVENANCE_KEY) or {}).get("fact_source_revision_ids") or {}
     for fact_field in fact_fields:
         code = fact_field.code
-        sheet_fact = sheet_facts.get(code)
-        fact_rev = fact_revs.get(code)
-        if sheet_fact and fact_rev:
-            value = dict(sheet_fact["value"])
+        sourced = _sourced_fact(sheet, code) or _sourced_fact(osm, code)
+        if sourced is not None:
+            staged, fact_rev = sourced
+            value = dict(staged["value"])
             claim = f"{code}: {value.get('text') or value}"[:500]
             facts.append(DesiredFact(code, "KNOWN", value, ((uuid.UUID(fact_rev), claim),)))
         elif fact_field.required_for_publication:
@@ -398,6 +421,16 @@ async def gather(session: AsyncSession, place: Place) -> Contributions:
     contributions.sheet = sheet[0][1] if sheet else None
     wikidata = await _latest_payloads(session, place.id, "wikidata")
     contributions.wikidata = wikidata[0][1] if wikidata else None
+    osm = await _latest_payloads(session, place.id, "openstreetmap")
+    latest_osm: dict[str, dict[str, Any]] = {}
+    for upstream_id, payload in osm:
+        latest_osm.setdefault(upstream_id, payload)
+    if latest_osm:
+        # Several OSM elements may describe one place (node + building): prefer one with facts,
+        # then the lowest element id, so the choice is deterministic.
+        contributions.osm = sorted(
+            latest_osm.items(), key=lambda item: (not (item[1].get("facts") or {}), item[0])
+        )[0][1]
     for upstream_id, payload in await _latest_payloads(session, place.id, "wikipedia"):
         locale = upstream_id.split(":", 1)[0]
         if locale in LOCALES and locale not in contributions.wikipedia:
@@ -771,6 +804,33 @@ async def needs_publication(session: AsyncSession, place_id: uuid.UUID) -> bool:
         ).all()
     )
     if approved_facts != published_facts:
+        return True
+    cleared_media = set(
+        (
+            await session.execute(
+                select(PlaceMedia.media_asset_id, PlaceMedia.ordinal)
+                .join(MediaAsset, MediaAsset.id == PlaceMedia.media_asset_id)
+                .where(
+                    PlaceMedia.place_id == place_id,
+                    MediaAsset.rights_state == "CLEARED",
+                    or_(
+                        MediaAsset.rights_expires_on.is_(None),
+                        MediaAsset.rights_expires_on > func.current_date(),
+                    ),
+                )
+            )
+        ).all()
+    )
+    published_media = set(
+        (
+            await session.execute(
+                select(PublicationMedia.media_asset_id, PublicationMedia.ordinal).where(
+                    PublicationMedia.catalog_publication_id == current.id
+                )
+            )
+        ).all()
+    )
+    if {tuple(row) for row in cleared_media} != {tuple(row) for row in published_media}:
         return True
     corpus = await session.scalar(
         select(func.max(KnowledgeChunk.corpus_revision)).where(

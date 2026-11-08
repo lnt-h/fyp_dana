@@ -30,7 +30,8 @@
     "body": "Không thể hoàn tác.",
     "confirm": "Xoá",
     "keep": "Giữ lại",
-    "done": "Đã xoá chuyến đi"
+    "done": "Đã xoá chuyến đi",
+    "failed": "Không xoá được chuyến đi. Hãy thử lại"
   },
   "empty": {
     "title": "Chưa có chuyến đi nào",

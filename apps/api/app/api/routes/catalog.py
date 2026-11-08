@@ -108,9 +108,12 @@ def _city(city: CityRecord) -> City:
 
 def _media(media: MediaRecord, locale: str) -> Media:
     base = get_settings().media_base_url.rstrip("/")
+    # Hot-linked Wikimedia Commons files store their absolute https URL as the object key.
+    key = media.object_key
+    url = key if key.startswith("https://") else f"{base}/{key.lstrip('/')}"
     return Media(
         media_asset_id=media.media_asset_id,
-        url=f"{base}/{media.object_key.lstrip('/')}",
+        url=url,
         width_px=media.width_px,
         height_px=media.height_px,
         alt_text=media.alt_text_en if locale == "en" else media.alt_text_vi,

@@ -53,6 +53,7 @@
     "emptyBody": "Đang đối chiếu nguồn cho thêm địa điểm. Quay lại sau nhé!",
     "emptyFilter": "Chưa có địa điểm nào trong danh mục này.",
     "error": "Không tải được địa điểm.",
-    "retry": "Thử lại"
+    "retry": "Thử lại",
+    "cityError": "Không tải được danh sách thành phố."
   }
 }

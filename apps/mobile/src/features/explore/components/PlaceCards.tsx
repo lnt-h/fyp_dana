@@ -107,6 +107,7 @@ export function FeaturedCard({ place, categoryLabel, onPress }: CardProps) {
       attribution={place.thumbnail?.attribution_text}
       badge={minutes ?? undefined}
       badgeIcon="clock"
+      fallbackIcon={categoryIcon(place.category_code)}
       image={place.thumbnail}
       imageHeight={FEATURED_HEIGHT}
       onPress={onPress}

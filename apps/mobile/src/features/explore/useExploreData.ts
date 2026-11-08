@@ -13,7 +13,7 @@ export type SearchState = 'idle' | 'loading' | 'done' | 'error';
 
 /**
  * SCR-021 data: categories (API-009), the city's published places (API-010 without `q`) and debounced search results
- * (API-010 with `q`, accent-insensitive server-side; fixture folds diacritics). Category filtering is client-side
+ * (API-010 with `q`, accent-insensitive server-side). Category filtering is client-side
  * (the search call can send `category_code`; this screen still filters locally).
  */
 export function useExploreData(cityId: Uuid | undefined, query: string, searchEnabled: boolean) {
