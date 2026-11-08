@@ -4,9 +4,7 @@
  *
  * Params: `previewId`; optional `tripId` and `mode=saved|draft` (from My trips). `mode=saved` shows the saved itinerary
  * read-only. Editing (SCR-027/028/030) sends op lists to the server and renders the revision it returns; pending edits
- * live in the draft store until acknowledged (ADR-009). Fixture previews (no EXPO_PUBLIC_API_URL):
- *   /plan/00000000-0000-4000-8000-000000000501/proposal  WARNING
- *   /plan/00000000-0000-4000-8000-000000000502/proposal  BLOCKED (day-2 leg unavailable)
+ * live in the draft store until acknowledged (ADR-009).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -16,22 +14,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { CircleButton, Icon, PrimaryButton, SectionHeader, Skeleton } from '../../../components/ui';
 import { takeStopIntent } from '../../../features/planner/edit/draftStore';
-import { EditStatusBanner, FixtureFaultPicker } from '../../../features/planner/edit/EditStatusBanner';
+import { EditStatusBanner } from '../../../features/planner/edit/EditStatusBanner';
 import { EditStopSheet, type EditTarget } from '../../../features/planner/edit/EditStopSheet';
 import { PillButton } from '../../../features/planner/edit/EditUI';
-import { regenerationEnabled, showFixtureControls } from '../../../features/planner/edit/flags';
+import { regenerationEnabled } from '../../../features/planner/edit/flags';
 import { RegenerateDaySheet } from '../../../features/planner/edit/RegenerateDaySheet';
 import { usePreviewEditor } from '../../../features/planner/edit/usePreviewEditor';
 import { HealthActionCard, HealthSummary } from '../../../features/planner/health/HealthSummary';
 import { PlacePicker, type PickerMode } from '../../../features/planner/picker/PlacePicker';
 import { useIsOffline } from '../../../features/home/useNetwork';
-import { collectIssues } from '../../../features/planner/health/reasons';
+import { collectIssues, collectNotices } from '../../../features/planner/health/reasons';
 import { ProposalMap } from '../../../features/planner/map/ProposalMap';
 import { DayCard } from '../../../features/planner/timeline/DayCard';
-import { DayTabs } from '../../../features/planner/timeline/DayTabs';
+import { Assumptions } from '../../../features/planner/timeline/Assumptions';
+import { DateChips } from '../../../features/planner/timeline/DayTabs';
+import { DayTimeline } from '../../../features/planner/timeline/DayTimeline';
 import { HERO_RADIUS, ProposalHeader, proposalHeroHeight } from '../../../features/planner/timeline/ProposalHeader';
 import { SaveBar } from '../../../features/planner/timeline/SaveBar';
-import { dayDate, formatShortDate } from '../../../features/planner/timeline/format';
+import { dayDate, formatShortDate, weekdayOf } from '../../../features/planner/timeline/format';
+import { dayHasEstimate, EstimateNotice } from '../../../features/planner/timeline/TimeRail';
 import { PlannerIcon } from '../../../features/planner/timeline/icons';
 import { useProposal, type ProposalData } from '../../../features/planner/timeline/useProposal';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
@@ -49,7 +50,7 @@ import { fonts, typography } from '../../../theme/typography';
 type ViewElement = ComponentRef<typeof View>;
 
 export default function ProposalScreen() {
-  const params = useLocalSearchParams<{ previewId: string; tripId?: string; mode?: string }>();
+  const params = useLocalSearchParams<{ previewId: string; tripId?: string; mode?: string; ready?: string }>();
   const mode = params.mode === 'saved' || params.mode === 'draft' ? params.mode : undefined;
   const { state, reload, applyPreview } = useProposal({ mode, previewId: params.previewId, tripId: params.tripId });
   const { t } = useTranslation();
@@ -88,12 +89,12 @@ export default function ProposalScreen() {
     </View>;
   }
 
-  return <Proposal data={state.data} goBack={goBack} onPreview={applyPreview} previewId={params.previewId} />;
+  return <Proposal data={state.data} goBack={goBack} justReady={params.ready === '1'} onPreview={applyPreview} previewId={params.previewId} />;
 }
 
 type Toast = { text: string; tone: 'success' | 'info' };
 
-function Proposal({ data, goBack, onPreview, previewId: routePreviewId }: { data: ProposalData; goBack: () => void; onPreview: (preview: PlanPreview) => Promise<void>; previewId: Uuid }) {
+function Proposal({ data, goBack, onPreview, previewId: routePreviewId, justReady }: { data: ProposalData; goBack: () => void; onPreview: (preview: PlanPreview) => Promise<void>; previewId: Uuid; justReady: boolean }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
@@ -109,7 +110,8 @@ function Proposal({ data, goBack, onPreview, previewId: routePreviewId }: { data
   const [selection, setSelection] = useState<Record<number, Uuid>>(() =>
     Object.fromEntries(days.filter(day => day.stops[0]).map(day => [day.day_index, day.stops[0].id])));
   const [saved, setSaved] = useState(data.saved);
-  const [toast, setToast] = useState<Toast | null>(null);
+  // First arrival from `preview_ready`: say it is ready but not saved (Save stays explicit, ADR-009).
+  const [toast, setToast] = useState<Toast | null>(() => (justReady && !data.saved ? { text: t('proposal.ready.toast'), tone: 'info' } : null));
   const [saveOpen, setSaveOpen] = useState(false);
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -147,6 +149,7 @@ function Proposal({ data, goBack, onPreview, previewId: routePreviewId }: { data
 
   const day = days.find(item => item.day_index === activeDay) ?? days[0];
   const issues = useMemo(() => collectIssues(days, data.healthReasons), [days, data.healthReasons]);
+  const notices = useMemo(() => collectNotices(days, data.healthReasons), [days, data.healthReasons]);
   const stopCount = days.reduce((sum, item) => sum + item.stops.length, 0);
   const city = data.cityName ?? t('proposal.tripFallback');
   const firstStop = days.find(item => item.stops.length)?.stops[0];
@@ -160,12 +163,25 @@ function Proposal({ data, goBack, onPreview, previewId: routePreviewId }: { data
     return data.startDate ? formatShortDate(dayDate(data.startDate, dayIndex), currentLocale()) : '';
   }
 
+  function weekdayOfDay(dayIndex: number) {
+    return data.startDate ? weekdayOf(dayDate(data.startDate, dayIndex)) : null;
+  }
+
   function scrollToView(view: ViewElement | null | undefined, offset = 96) {
     const content = contentRef.current;
     if (!view || !content) return;
     view.measureLayout(content, (_x: number, y: number) => {
       scrollRef.current?.scrollTo({ animated: !reducedMotion, y: Math.max(0, y - offset) });
     }, () => undefined);
+  }
+
+  const openPlace = (placeId: Uuid) => router.push({ params: { placeId }, pathname: '/place/[placeId]' });
+  const registerRow = (stopId: Uuid, view: ViewElement | null) => { rowRefs.current[stopId] = view; };
+
+  /** `Day 2 · T7 17/01` above the flat preview timeline. */
+  function dayHeading(dayIndex: number) {
+    const date = dateOf(dayIndex);
+    return date ? t('proposal.day.tab', { date, day: dayIndex }) : t('proposal.day.title', { day: dayIndex });
   }
 
   function select(dayIndex: number, stopId: Uuid) {
@@ -310,9 +326,13 @@ function Proposal({ data, goBack, onPreview, previewId: routePreviewId }: { data
               updating={recalculating}
             />
           </View>}
+          {data.assumptions.length ? <View style={[st.pad, st.assumptions]}><Assumptions lines={data.assumptions} /></View> : null}
           {day && <View style={st.section}>
-            <SectionHeader style={st.pad} subtitle={days.length > 1 ? undefined : dateOf(day.day_index) ? t('proposal.day.tab', { date: dateOf(day.day_index), day: day.day_index }) : t('proposal.day.title', { day: day.day_index })} title={t('proposal.map.title')} />
-            {days.length > 1 && <View style={st.tabs}><DayTabs activeDay={activeDay} dateOf={dateOf} days={days} onChange={showDay} /></View>}
+            <SectionHeader style={st.pad} title={t('proposal.map.title')} />
+            <View style={st.tabs}>
+              <DateChips activeDay={activeDay} dateOf={dateOf} days={days} onChange={showDay} weekdayOf={weekdayOfDay} />
+            </View>
+            {dayHasEstimate(day) ? <View style={st.pad}><EstimateNotice style={st.estimate} /></View> : null}
             <View style={st.pad}>
               <ProposalMap
                 day={day}
@@ -345,40 +365,53 @@ function Proposal({ data, goBack, onPreview, previewId: routePreviewId }: { data
                 pending={pending}
                 regenerating={regenerating}
               />
-              {editing && showFixtureControls ? <FixtureFaultPicker /> : null}
             </View> : null}
-            <View style={st.days}>
+            {data.readOnly ? <View style={st.days}>
               {days.map(item => <DayCard
                 key={item.day_index}
                 active={item.day_index === activeDay}
                 cityName={city}
                 date={dateOf(item.day_index)}
                 day={item}
-                onOpenPlace={placeId => router.push({ params: { placeId }, pathname: '/place/[placeId]' })}
+                onOpenPlace={openPlace}
                 onSelectStop={stopId => { setActiveDay(item.day_index); select(item.day_index, stopId); }}
                 onToggle={() => toggleDay(item.day_index)}
                 open={openDay === item.day_index}
                 places={data.places}
                 reducedMotion={reducedMotion}
-                registerRow={(stopId, view) => { rowRefs.current[stopId] = view; }}
+                registerRow={registerRow}
                 selectedStopId={selection[item.day_index] ?? null}
+              />)}
+            </View> : day ? <View>
+              <Text accessibilityRole="header" style={st.dayHeading}>{dayHeading(day.day_index)}</Text>
+              <DayTimeline
+                cityName={city}
+                day={day}
+                onOpenPlace={openPlace}
+                onSelectStop={stopId => select(day.day_index, stopId)}
+                places={data.places}
+                reducedMotion={reducedMotion}
+                registerRow={registerRow}
+                selectedStopId={selection[day.day_index] ?? null}
                 edit={editable ? {
                   disabled: editDisabled,
                   editing,
-                  onAddStop: () => setPicker({ dayIndex: item.day_index, kind: 'add' }),
+                  onAddStop: () => setPicker({ dayIndex: day.day_index, kind: 'add' }),
                   onEditStop: stopId => openEdit({ stopId }),
-                  onMoveStop: (stopId, direction) => moveStop(item.day_index, stopId, direction),
-                  onRegenerate: regenerationEnabled ? () => setRegenDay(item.day_index) : undefined,
+                  onMoveStop: (stopId, direction) => moveStop(day.day_index, stopId, direction),
+                  onRegenerate: regenerationEnabled ? () => setRegenDay(day.day_index) : undefined,
                   showLock: regenerationEnabled,
                 } : undefined}
-              />)}
-            </View>
+              />
+            </View> : null}
           </View>
 
           {data.health && <View ref={healthRef} collapsable={false} style={[st.section, st.pad]}>
             <HealthSummary
               health={data.health}
               issues={issues}
+              dayCount={days.length}
+              notices={notices}
               onGoToStop={goToStop}
               onOpenDetail={data.previewId ? openHealth : undefined}
               updating={recalculating}
@@ -486,6 +519,9 @@ const st = StyleSheet.create({
   pad: { paddingHorizontal: spacing.lg },
   section: { marginTop: spacing.xxl },
   tabs: { marginBottom: spacing.sm },
+  assumptions: { marginTop: spacing.md },
+  estimate: { marginBottom: spacing.sm },
+  dayHeading: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.ink, marginBottom: spacing.xs },
   days: { gap: spacing.sm },
   banner: { position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: spacing.sm, borderRadius: radii.inset, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.audioTeal },
   bannerIcon: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.tealText, alignItems: 'center', justifyContent: 'center' },

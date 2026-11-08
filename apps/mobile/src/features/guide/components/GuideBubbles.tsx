@@ -40,17 +40,7 @@ function AssistantRow({ children }: { children: ReactNode }) {
 /** Final assistant message: cited answer with sources, or the insufficient-evidence bubble (no answer text). */
 export function AssistantBubble({ message, onOpenPlace }: { message: GuideMessage; onOpenPlace?: () => void }) {
   const { t } = useTranslation();
-  if (!isCitedAnswer(message)) {
-    return <AssistantRow>
-      <View accessibilityLabel={`${t('guide.assistant')}: ${t('guide.insufficient.title')}. ${t('guide.insufficient.body')}`} accessible style={[b.bubble, b.assistant, b.insufficient]}>
-        <View style={b.insufficientHead}>
-          <View style={b.sunIcon}><Icon color="#8A5A00" name="warning" size={16} /></View>
-          <Text style={b.insufficientTitle}>{t('guide.insufficient.title')}</Text>
-        </View>
-        <Text style={b.body}>{t('guide.insufficient.body')}</Text>
-      </View>
-    </AssistantRow>;
-  }
+  if (!isCitedAnswer(message)) return <InsufficientBubble />;
   return <AssistantRow>
     <View style={[b.bubble, b.assistant]}>
       {isWebAnswer(message) && <UnverifiedBadge compact />}
@@ -60,6 +50,20 @@ export function AssistantBubble({ message, onOpenPlace }: { message: GuideMessag
         <Icon color={washMuted} name="info" size={13} />
         <Text style={b.aiLabel}>{t(isWebAnswer(message) ? 'guide.aiLabelWeb' : 'guide.aiLabel')}</Text>
       </View>
+    </View>
+  </AssistantRow>;
+}
+
+/** "Not enough evidence" bubble: no answer text at all, never a guess (ADR-010, `insufficient_evidence`). */
+export function InsufficientBubble() {
+  const { t } = useTranslation();
+  return <AssistantRow>
+    <View accessibilityLabel={`${t('guide.assistant')}: ${t('guide.insufficient.title')}. ${t('guide.insufficient.body')}`} accessible style={[b.bubble, b.assistant, b.insufficient]}>
+      <View style={b.insufficientHead}>
+        <View style={b.sunIcon}><Icon color={colors.warn} name="info" size={16} /></View>
+        <Text style={b.insufficientTitle}>{t('guide.insufficient.title')}</Text>
+      </View>
+      <Text style={b.body}>{t('guide.insufficient.body')}</Text>
     </View>
   </AssistantRow>;
 }
@@ -122,11 +126,15 @@ export function StreamingBubble({ text, stage }: { text: string; stage?: Stage }
   </AssistantRow>;
 }
 
-export function ErrorLine() {
+/** Why a question failed: no connection, quota reached, AI service down, or anything else. */
+export type GuideErrorKind = 'offline' | 'quota' | 'busy' | 'generic';
+
+/** Failed question. The question itself is put back in the composer, so Send retries it. */
+export function ErrorLine({ reason = 'generic' }: { reason?: GuideErrorKind }) {
   const { t } = useTranslation();
   return <View accessibilityRole="alert" style={b.error}>
-    <Icon color="#AF3434" name="warning" size={16} />
-    <Text style={b.errorText}>{t('guide.error')}</Text>
+    <Icon color={colors.danger} name="warning" size={16} />
+    <Text style={b.errorText}>{reason === 'generic' ? t('guide.error') : t(`guide.errors.${reason}`)}</Text>
   </View>;
 }
 

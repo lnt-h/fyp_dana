@@ -9,7 +9,7 @@ from httpx import AsyncClient
 from trip_fakes import World, day, verified_stop, web_stop
 
 from app.config import Settings, get_settings
-from app.planning.workflows import get_planning_workflow
+from app.planning.workflows import NotImplementedWorkflow, get_planning_workflow
 
 
 def _two_revision_preview(world: World) -> tuple[Any, Any, dict[str, Any]]:
@@ -310,6 +310,8 @@ async def test_plan_preview_stream_ends_with_not_implemented(
     world: World, client: AsyncClient
 ) -> None:
     trip = world.store.make_trip(world.account_id, world.city.id)
+    # Route plumbing with the stub workflow (the orchestrator itself is tested in tests/planning).
+    world.app.dependency_overrides[get_planning_workflow] = NotImplementedWorkflow
     async with client.stream(
         "POST",
         f"/v1/trips/{trip.id}/plan-previews",

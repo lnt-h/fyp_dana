@@ -1,6 +1,6 @@
 # Kit adaptation log
 
-Kit: SDLC-Prompt-Checklist, commit `6996dae` (kept pristine; adapted copies live in `docs/00-governance/prompt-templates/`).
+Kit: SDLC-Prompt-Checklist, commit `6996dae` (kept pristine). The adapted copies lived in `docs/00-governance/prompt-templates/` and were removed on 2026-11-09 once the SDLC set was generated; they remain in git history at commit `f8645f3`. "Adapted copy" paths in document headers refer to that commit.
 Owner: Lê Ngọc Tấn Hiền · Review cadence: at each phase gate.
 
 | Document | Change made | Reason / source | Owner | Date | Version |

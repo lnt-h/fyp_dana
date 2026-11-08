@@ -40,7 +40,7 @@ def test_migration_chain_is_linear() -> None:
         module = load_migration(filename)
         assert module.down_revision == previous, filename
         previous = module.revision
-    assert previous == "20261107_0006"
+    assert previous == "20261108_0009"
 
 
 def test_check_enum_constants_match_migration_sql() -> None:

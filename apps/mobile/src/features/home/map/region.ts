@@ -8,9 +8,6 @@ import type { CityCode, GeoPoint } from '../../../lib/api/types';
  */
 const FALLBACK_CENTERS: Record<CityCode, GeoPoint & { delta: number }> = {
   'da-nang': { delta: 0.12, latitude: 16.0544, longitude: 108.2022 },
-  'ha-noi': { delta: 0.1, latitude: 21.0285, longitude: 105.8542 },
-  'ho-chi-minh-city': { delta: 0.12, latitude: 10.7769, longitude: 106.7009 },
-  hue: { delta: 0.1, latitude: 16.4637, longitude: 107.5909 },
 };
 
 /**

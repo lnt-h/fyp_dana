@@ -102,11 +102,18 @@ class GoogleRoutesProvider:
         mode: ProviderTravelMode,
     ) -> list[Element]:
         elements: list[Element] = []
+        denied = False
         for o0 in range(0, len(origins), MAX_ORIGINS_PER_REQUEST):
             block_o = origins[o0 : o0 + MAX_ORIGINS_PER_REQUEST]
             for d0 in range(0, len(destinations), MAX_DESTINATIONS_PER_REQUEST):
                 block_d = destinations[d0 : d0 + MAX_DESTINATIONS_PER_REQUEST]
-                for element in await self._compute_block(client, block_o, block_d, mode):
+                if denied:
+                    # 401/403 (key, API not enabled, billing): every further block would fail
+                    # the same way, so skip the requests and the repeated warning.
+                    block = _all_failed(len(block_o), len(block_d))
+                else:
+                    block, denied = await self._compute_block(client, block_o, block_d, mode)
+                for element in block:
                     elements.append(
                         Element(
                             origin_index=element.origin_index + o0,
@@ -125,7 +132,8 @@ class GoogleRoutesProvider:
         origins: Sequence[LatLng],
         destinations: Sequence[LatLng],
         mode: ProviderTravelMode,
-    ) -> list[Element]:
+    ) -> tuple[list[Element], bool]:
+        """Elements of one block and whether the key was refused (HTTP 401/403)."""
         headers = {
             "X-Goog-Api-Key": self._api_key.get_secret_value(),
             "X-Goog-FieldMask": FIELD_MASK,
@@ -150,11 +158,11 @@ class GoogleRoutesProvider:
                 type(exc).__name__,
                 status,
             )
-            return _all_failed(len(origins), len(destinations))
+            return _all_failed(len(origins), len(destinations)), status in (401, 403)
         if not isinstance(payload, list):
             logger.warning("routes matrix_failed mode=%s error=unexpected_payload", mode)
-            return _all_failed(len(origins), len(destinations))
-        return _parse_elements(payload, len(origins), len(destinations))
+            return _all_failed(len(origins), len(destinations)), False
+        return _parse_elements(payload, len(origins), len(destinations)), False
 
 
 def _all_failed(n_origins: int, n_destinations: int) -> list[Element]:

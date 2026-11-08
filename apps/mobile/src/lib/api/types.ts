@@ -27,10 +27,10 @@ export type KnowledgeState = Schemas['KnowledgeState'];
 export type Freshness = Schemas['Freshness'];
 
 /**
- * City `code` values (schema.sql `ck_cities_code_format`, kebab-case). The FYP release enables Đà Nẵng only; Hội An is
- * an area of Đà Nẵng (2025 merger), not a city. Hà Nội, TP.HCM and Huế are roadmap.
+ * City `code` (openapi 1.0.3 `City.code` enum). Gonarra covers Đà Nẵng only (owner 2026-11-08); Hội An is an area of
+ * Đà Nẵng (2025 merger), not a city.
  */
-export type CityCode = 'da-nang' | 'ha-noi' | 'ho-chi-minh-city' | 'hue';
+export type CityCode = Schemas['City']['code'];
 
 /** The city the app opens on and falls back to. */
 export const DEFAULT_CITY_CODE: CityCode = 'da-nang';
@@ -102,13 +102,15 @@ export type FactFieldCode =
 
 /*
  * Fact `value` shapes per value_kind. The contract only says "object, shape depends on fact_fields.value_kind"; these
- * shapes are PROVISIONAL (used by fixtures and UI) until the API defines them. Confirm before relying on them.
+ * shapes are PROVISIONAL (used by the UI) until the API defines them. Confirm before relying on them.
  */
 export type HoursValue = { intervals: { open: LocalTime; close: LocalTime }[] };
 export type MoneyValue = Money;
 export type TextValue = { text: string };
 export type LocationValue = GeoPoint;
-export type FactValue = HoursValue | MoneyValue | TextValue | LocationValue;
+/** ADMISSION_PRICE from the pipeline (1.0.4, DEC-028): free entry, or VND adult/child prices (`amount` = adult). */
+export type PriceValue = { free: boolean; currency?: string; adult?: number; child?: number; amount?: string };
+export type FactValue = HoursValue | MoneyValue | TextValue | LocationValue | PriceValue;
 
 /**
  * One operational fact. UNKNOWN is never collapsed into an empty value (FR-006); `value` only when KNOWN. Narrows the
@@ -130,14 +132,17 @@ export type PlaceCard = Omit<Schemas['PlaceCard'], 'address_vi' | 'entrance'> & 
   entrance: PlaceFact;
 };
 
-/** Plan Health conflict (13 types; calendar rules carry `rule_id`/`date`, web stops carry `stop_ids`). */
+/**
+ * Plan Health conflict (13 health types plus the INFO notice `LEG_ESTIMATED`, contract 1.0.2; calendar rules carry
+ * `rule_id`/`date`, web stops carry `stop_ids`). Severity INFO is a notice and never a warning.
+ */
 export type Conflict = Schemas['Conflict'];
 export type ConflictType = Conflict['type'];
 
 export const CONFLICT_TYPES: readonly ConflictType[] = [
   'CLOSED_AT_PLANNED_TIME', 'LEG_UNAVAILABLE', 'DAY_WINDOW_EXCEEDED', 'OPENING_HOURS_UNKNOWN', 'FACT_STALE', 'MUST_SEE_NOT_INCLUDED',
   'CLOSED_ON_DATE', 'LEG_MODE_RESTRICTED', 'LUNAR_EVENT_CONFLICT', 'TICKET_VALIDITY', 'SEASONAL_WARNING', 'WEB_PLACE_UNVERIFIED',
-  'WEB_PLACE_UNRESOLVED',
+  'WEB_PLACE_UNRESOLVED', 'LEG_ESTIMATED',
 ];
 
 /** Itinerary stop; `place_id`/`catalog_publication_id` are null for a `WEB_UNVERIFIED` stop. */
@@ -181,8 +186,8 @@ export type ErrorResponse = Schemas['ErrorResponse'];
 type PlanningStreamSchema = Schemas['PlanningStreamEvent'];
 
 /**
- * Planning stream stages in order (architecture §5). RESEARCHING and VERIFYING_WEB_PLACES run only when the catalog pool
- * is thin; WRITING writes rationales.
+ * Planning stream stages in order (architecture §5). RESEARCHING runs only when the catalog pool is thin; WRITING only
+ * when an AI key is configured (it writes rationales). VERIFYING_WEB_PLACES stays in the contract but is not emitted.
  */
 export type PlanningStage = NonNullable<PlanningStreamSchema['stage']>;
 
@@ -190,8 +195,8 @@ export const PLANNING_STAGES: readonly PlanningStage[] = [
   'VALIDATING_REQUEST', 'SELECTING_PLACES', 'RESEARCHING', 'VERIFYING_WEB_PLACES', 'ROUTING', 'SCHEDULING', 'CHECKING_HEALTH', 'WRITING',
 ];
 
-/** Stages that appear only when the research path runs; screens show them once reported. */
-export const OPTIONAL_PLANNING_STAGES: readonly PlanningStage[] = ['RESEARCHING', 'VERIFYING_WEB_PLACES'];
+/** Stages that appear only when the server reports them (research path, AI rationales); screens show them once seen. */
+export const OPTIONAL_PLANNING_STAGES: readonly PlanningStage[] = ['RESEARCHING', 'VERIFYING_WEB_PLACES', 'WRITING'];
 
 /** Agent role reporting a stage (`selector`, `researcher`, `grounded_writer`). */
 export type PlanningAgent = NonNullable<PlanningStreamSchema['agent']>;

@@ -35,7 +35,8 @@ export const todayVn = (): IsoDate => vnIsoDate(new Date());
 /** 0 = Sunday … 6 = Saturday for a calendar date. */
 export function weekdayOf(date: IsoDate): number {
   const [y, m, d] = date.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return Number.isNaN(day) ? 0 : day; // malformed date: Sunday, never NaN
 }
 
 /** `16/01/2027` (day/month/year, both locales). */

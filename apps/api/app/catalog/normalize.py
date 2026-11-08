@@ -17,3 +17,12 @@ def normalize_search_text(value: str) -> str:
     decomposed = unicodedata.normalize("NFD", value.translate(_LETTER_MAP))
     stripped = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
     return _WHITESPACE.sub(" ", stripped.lower()).strip()
+
+
+_NON_WORD = re.compile(r"[^\w\s]")
+
+
+def fold_words(value: str) -> str:
+    """:func:`normalize_search_text` with punctuation as spaces: ``"Bãi biển, Mỹ Khê"`` →
+    ``"bai bien my khe"``. The one accent-folding helper for word matching (names, keywords)."""
+    return _WHITESPACE.sub(" ", _NON_WORD.sub(" ", normalize_search_text(value))).strip()

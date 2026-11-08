@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
 import { Icon, PhotoCard, SectionHeader, Skeleton } from '../../../components/ui';
-import { getTrip } from '../../../lib/api/source';
+import { getTrip, type LoadErrorKind } from '../../../lib/api/source';
 import type { City, Trip } from '../../../lib/api/types';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
 import { colors } from '../../../theme/colors';
@@ -38,7 +38,7 @@ export function SavedTripsGuest({ onSignIn, gutter }: { onSignIn: () => void; gu
 }
 
 /** "Chuyến đi của bạn": up to 3 saved trips as compact photo cards; hidden when there are none (SCR-008 Empty). */
-export function SavedTrips({ trips, state, cities, onRetry, gutter }: { trips: Trip[]; state: TripsLoad; cities: City[]; onRetry: () => void; gutter: number }) {
+export function SavedTrips({ trips, state, errorKind, cities, onRetry, gutter }: { trips: Trip[]; state: TripsLoad; errorKind?: LoadErrorKind | null; cities: City[]; onRetry: () => void; gutter: number }) {
   const { t, i18n } = useTranslation();
   const isVi = i18n.resolvedLanguage === 'vi';
   const [openingId, setOpeningId] = useState<string | null>(null);
@@ -84,7 +84,7 @@ export function SavedTrips({ trips, state, cities, onRetry, gutter }: { trips: T
       <View>
         {header}
         <View style={{ marginHorizontal: gutter }}>
-          <ErrorBanner message={t('homeSheet.trips.error')} onRetry={onRetry} retryLabel={t('homeSheet.trips.retry')} />
+          <ErrorBanner detail={errorKind ? t(`common.loadError.${errorKind}`) : null} message={t('homeSheet.trips.error')} onRetry={onRetry} retryLabel={t('homeSheet.trips.retry')} />
         </View>
       </View>
     );

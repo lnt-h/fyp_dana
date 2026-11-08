@@ -12,7 +12,8 @@ import { Icon, PrimaryButton, SectionHeader, type IconName } from '../../compone
 import { useAccount } from '../account/AccountContext';
 import { SignInGate } from '../auth/SignInGate';
 import { useTabBarClearance } from '../home/components/HomeTabBar';
-import { ApiError, getTrip, listCities, listTrips } from '../../lib/api/source';
+import { ApiError, getTrip, listCities, listTrips, loadErrorKind, type LoadErrorKind } from '../../lib/api/source';
+import { deleteTrip } from '../../lib/api/sourceTrips';
 import type { City, CityCode, Trip } from '../../lib/api/types';
 import { CITY_IMAGES } from '../../lib/images/cityImages';
 import { resolveImage } from '../../lib/images/imagekit';
@@ -28,8 +29,8 @@ const GUTTER = spacing.xl;
 const errorText = colors.danger;
 
 /**
- * Trips deleted this session. Fixture-only: there is no `deleteTrip` (API-016) in the data source yet, so a deleted
- * row is hidden locally until the app restarts.
+ * Trips deleted (API-016) or found gone (404) this session; hidden from a list that may have been fetched before the
+ * delete reached the server.
  */
 const deletedTripIds = new Set<string>();
 
@@ -80,6 +81,7 @@ export function TripsScreen() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [state, setState] = useState<Load>('idle');
+  const [errorKind, setErrorKind] = useState<LoadErrorKind>('server');
   const [refreshing, setRefreshing] = useState(false);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
@@ -95,9 +97,9 @@ export function TripsScreen() {
       setCities(cityList);
       setState('ready');
       loaded.current = true;
-    } catch {
+    } catch (error) {
       // A silent refresh keeps the list already shown; otherwise show the error banner (S-1).
-      if (mode !== 'silent' || !loaded.current) setState('error');
+      if (mode !== 'silent' || !loaded.current) { setErrorKind(loadErrorKind(error)); setState('error'); }
     } finally {
       setRefreshing(false);
     }
@@ -150,10 +152,15 @@ export function TripsScreen() {
       { style: 'cancel', text: t('trips.delete.keep') },
       {
         onPress: () => {
-          // Fixture-only removal; API-016 `DELETE /v1/trips/{trip_id}` (204 or 404 = done) lands with the API client.
-          deletedTripIds.add(trip.id);
-          setTrips(current => current.filter(item => item.id !== trip.id));
-          setNotice(t('trips.delete.done'));
+          setNotice('');
+          // API-016 `DELETE /v1/trips/{trip_id}` (204 or 404 = done).
+          deleteTrip(trip.id)
+            .then(() => {
+              deletedTripIds.add(trip.id);
+              setTrips(current => current.filter(item => item.id !== trip.id));
+              setNotice(t('trips.delete.done'));
+            })
+            .catch(() => setNotice(t('trips.delete.failed')));
         },
         style: 'destructive',
         text: t('trips.delete.confirm'),
@@ -179,7 +186,7 @@ export function TripsScreen() {
             <Text accessibilityRole="header" style={styles.title}>{t('trips.title')}</Text>
             <Text style={styles.subtitle}>{t('trips.subtitleEmpty')}</Text>
             <View style={styles.stateGap}>
-              <PhotoPanel action={t('trips.guest.action')} body={t('trips.guest.body')} code="hue" icon="lantern" onAction={() => setGateOpen(true)} title={t('trips.guest.title')} />
+              <PhotoPanel action={t('trips.guest.action')} body={t('trips.guest.body')} code="da-nang" icon="lantern" onAction={() => setGateOpen(true)} title={t('trips.guest.title')} />
             </View>
           </View>
         </ScrollView>
@@ -202,7 +209,10 @@ export function TripsScreen() {
       {state === 'error' && (
         <View accessibilityRole="alert" style={styles.banner}>
           <Icon color={errorText} name="warning" size={20} />
-          <Text style={styles.bannerText}>{t('trips.error.load')}</Text>
+          <View style={styles.bannerCopy}>
+            <Text style={styles.bannerText}>{t('trips.error.load')}</Text>
+            <Text style={styles.bannerDetail}>{t(`common.loadError.${errorKind}`)}</Text>
+          </View>
           <Pressable accessibilityRole="button" hitSlop={4} onPress={() => void load('initial')} style={({ pressed }) => [styles.retry, pressed && { opacity: 0.7 }]}>
             <Text style={styles.link}>{t('trips.error.retry')}</Text>
           </Pressable>
@@ -275,7 +285,9 @@ export function TripsScreen() {
 
 const styles = StyleSheet.create({
   banner: { alignItems: 'center', backgroundColor: colors.white, borderColor: '#F1D3D3', borderRadius: radii.inset, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, paddingLeft: spacing.md },
-  bannerText: { color: errorText, flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 21, paddingVertical: spacing.sm },
+  bannerCopy: { flex: 1, gap: 2, paddingVertical: spacing.sm },
+  bannerDetail: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13, lineHeight: 18 },
+  bannerText: { color: errorText, fontFamily: fonts.regular, fontSize: 15, lineHeight: 21 },
   content: { flexGrow: 1, paddingHorizontal: GUTTER },
   inner: { alignSelf: 'center', maxWidth: MAX_WIDTH, width: '100%' },
   link: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 15 },

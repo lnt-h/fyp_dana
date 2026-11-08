@@ -56,3 +56,19 @@ export function fallbackError(status: number, requestId: string | null): ErrorDe
   const code = status === 401 ? 'authentication_required' : status === 404 ? 'resource_not_found' : status === 422 ? 'validation_error' : status === 429 ? 'quota_exceeded' : status >= 500 ? 'internal_error' : 'bad_request';
   return { code, message: '', request_id: requestId, retryable: status >= 500 || status === 429 };
 }
+
+/**
+ * Why a screen could not load, for the retry banner's second line: `offline` = the request never reached the server
+ * (fetch rejects with `TypeError`); `busy` = quota or a dependency is down (429, 502–504, `*_unavailable`), worth a
+ * retry later; `server` = any other error response.
+ */
+export type LoadErrorKind = 'offline' | 'busy' | 'server';
+
+export function loadErrorKind(error: unknown): LoadErrorKind {
+  if (error instanceof ApiError) {
+    const busy = error.status === 429 || error.status === 502 || error.status === 503 || error.status === 504
+      || error.code === 'quota_exceeded' || error.code.endsWith('_unavailable');
+    return busy ? 'busy' : 'server';
+  }
+  return error instanceof TypeError ? 'offline' : 'server';
+}

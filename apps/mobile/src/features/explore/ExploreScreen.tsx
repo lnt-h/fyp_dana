@@ -12,7 +12,6 @@ import { spacing } from '../../theme/spacing';
 import { fonts } from '../../theme/typography';
 import { useAccount } from '../account/AccountContext';
 import { SignInGate } from '../auth/SignInGate';
-import { CitySheet } from '../home/city/CitySheet';
 import { useSelectedCity } from '../home/cityStore';
 import { useTabBarClearance } from '../home/components/HomeTabBar';
 import { ErrorBanner, NoticeBanner } from '../home/sections/SheetBanners';
@@ -51,7 +50,6 @@ export function ExploreScreen() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
   const [view, setView] = useState<ResultView>('grid');
-  const [cityOpen, setCityOpen] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
 
   const vi = i18n.resolvedLanguage === 'vi';
@@ -102,7 +100,6 @@ export function ExploreScreen() {
   }
 
   const skeleton = view === 'grid' ? <GridSkeleton width={cardWidth} /> : <ListSkeleton />;
-  const changeCity = { label: t('explore.states.changeCity'), onPress: () => setCityOpen(true) };
 
   let body: ReactNode;
   if (!city) {
@@ -112,13 +109,13 @@ export function ExploreScreen() {
   } else if (searching) {
     const name = cityName ?? '';
     if (searchState === 'error') {
-      body = <ErrorBanner message={t('explore.states.searchError')} onRetry={data.retrySearch} retryLabel={t('explore.states.retry')} />;
+      body = <ErrorBanner detail={data.searchError ? t(`common.loadError.${data.searchError}`) : null} message={t('explore.states.searchError')} onRetry={data.retrySearch} retryLabel={t('explore.states.retry')} />;
     } else if (searchState !== 'done' && results.length === 0) {
       body = <Loading label={t('explore.results.searching')}><StatusLine text={t('explore.results.searching')} />{skeleton}</Loading>;
     } else if (searchState === 'done' && shown.length === 0) {
       body = (
         <EmptyState
-          actions={[{ label: t('explore.states.clearSearch'), onPress: () => setQuery('') }, changeCity]}
+          actions={[{ label: t('explore.states.clearSearch'), onPress: () => setQuery('') }]}
           body={t('explore.states.emptyQueryBody')}
           icon="search"
           title={t('explore.states.emptyQueryTitle', { city: name, q })}
@@ -137,11 +134,11 @@ export function ExploreScreen() {
   } else if (placesState === 'error' && places.length === 0) {
     body = offline
       ? <NoticeBanner icon="info" message={t('explore.states.offlineEmpty')} />
-      : <ErrorBanner message={t('explore.states.error')} onRetry={data.retryPlaces} retryLabel={t('explore.states.retry')} />;
+      : <ErrorBanner detail={data.placesError ? t(`common.loadError.${data.placesError}`) : null} message={t('explore.states.error')} onRetry={data.retryPlaces} retryLabel={t('explore.states.retry')} />;
   } else if (places.length === 0) {
     body = (
       <EmptyState
-        actions={[changeCity]}
+        actions={[]}
         body={t('explore.states.comingBody', { city: cityName })}
         icon="map-pin"
         title={t('explore.states.comingTitle', { city: cityName })}
@@ -202,7 +199,7 @@ export function ExploreScreen() {
         stickyHeaderIndices={[1]}
       >
         <View style={[styles.inner, styles.head]}>
-          <ExploreTitle cityName={cityName} onPickCity={() => setCityOpen(true)} />
+          <ExploreTitle cityName={cityName} />
         </View>
 
         <View style={styles.sticky}>
@@ -229,7 +226,6 @@ export function ExploreScreen() {
         </View>
       </ScrollView>
 
-      <CitySheet onClose={() => setCityOpen(false)} visible={cityOpen} />
       <SignInGate feature={gateOpen ? 'search' : null} onClose={() => setGateOpen(false)} />
     </View>
   );

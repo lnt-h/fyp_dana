@@ -17,7 +17,8 @@
   "cover": {
     "photo": "Photo of {{name}}",
     "cityPhoto": "Photo of {{city}}",
-    "credit": "Photo: {{credit}}"
+    "credit": "Photo: {{credit}}",
+    "meta": "{{city}} · {{dates}} · {{days}} · {{stops}}"
   },
   "stats": {
     "days": "Duration",
@@ -55,7 +56,11 @@
     "goToStopA11y": "Go to stop {{number}}, {{name}}",
     "onDate": "On {{date}}",
     "affects": "Affects: {{stops}}",
-    "affectedStop": "Day {{day}} #{{number}} {{name}}"
+    "affectedStop": "Day {{day}} #{{number}} {{name}}",
+    "notices": "Good to know",
+    "severityInfo": "Notice",
+    "noticeDays_one": "Day {{days}}",
+    "noticeDays_other": "Days {{days}}"
   },
   "conflict": {
     "CLOSED_AT_PLANNED_TIME": "Closed at planned time",
@@ -70,7 +75,8 @@
     "TICKET_VALIDITY": "Ticket may not be valid for this plan",
     "SEASONAL_WARNING": "Seasonal notice",
     "WEB_PLACE_UNVERIFIED": "Found on the web, not source-checked",
-    "WEB_PLACE_UNRESOLVED": "Web place could not be confirmed"
+    "WEB_PLACE_UNRESOLVED": "Web place could not be confirmed",
+    "LEG_ESTIMATED": "Travel times are estimates, not measured routes"
   },
   "itinerary": {
     "title": "Day-by-day itinerary",
@@ -88,7 +94,10 @@
     "warnings_other": "{{count}} warnings",
     "expandHint": "Expands or collapses this day's plan",
     "empty": "Day {{day}} has no stops yet",
-    "emptyBody": "Add a source-checked {{city}} place or regenerate this day."
+    "emptyBody": "Add a source-checked {{city}} place or regenerate this day.",
+    "chip": "{{weekday}} {{date}}",
+    "chipA11y_one": "Day {{day}}, {{date}}, {{count}} stop",
+    "chipA11y_other": "Day {{day}}, {{date}}, {{count}} stops"
   },
   "stop": {
     "minutes": "{{count}} min",
@@ -101,7 +110,8 @@
     "detailsA11y": "Open the place card for {{name}}",
     "why": "Why this?",
     "whyHide": "Show less",
-    "aiLabel": "AI suggestion"
+    "aiLabel": "AI suggestion",
+    "a11yNoTime": "{{number}}, {{name}}, {{unknown}}, {{status}}"
   },
   "leg": {
     "WALK": "Walk",
@@ -111,7 +121,11 @@
     "hoursMinutes": "{{hours}} h {{minutes}} min",
     "unavailable": "Route unavailable — no estimate",
     "a11y": "{{mode}}, {{distance}}, {{duration}}",
-    "unavailableA11y": "{{mode}}, route unavailable, no estimate"
+    "unavailableA11y": "{{mode}}, route unavailable, no estimate",
+    "approx": "≈ {{value}}",
+    "estimatedA11y": "{{mode}}, about {{distance}}, about {{duration}}, estimated",
+    "unavailableShort": "Route unavailable",
+    "estimateNotice": "Distances and travel times are estimated from straight lines, not measured on real roads."
   },
   "map": {
     "title": "Map",
@@ -126,7 +140,8 @@
     "attributionGoogle": "Map data © Google",
     "attributionApple": "Maps © Apple",
     "noStops": "This day has no stops yet",
-    "legendUnavailable": "A day with an unavailable leg is Blocked. Change the travel mode or replace the stop."
+    "legendUnavailable": "A day with an unavailable leg is Blocked. Change the travel mode or replace the stop.",
+    "legendStraight": "Lines join stops directly; they are not the actual route."
   },
   "save": {
     "action": "Save trip",
@@ -193,7 +208,9 @@
     "database_unavailable": "The service is briefly unavailable. Try again.",
     "resource_not_found": "This item was not found.",
     "internal_error": "Something went wrong. Try again.",
-    "authentication_required": "Your session ended. Sign in again to continue."
+    "authentication_required": "Your session ended. Sign in again to continue.",
+    "unsupported_request": "This change isn't supported yet.",
+    "trip_not_saved": "Save this trip first, then try again."
   },
   "sheet": {
     "subtitle": "Day {{day}} · stop {{number}} · {{time}}",
@@ -318,15 +335,6 @@
     "retry": "Try again",
     "close": "Close"
   },
-  "dev": {
-    "label": "Sample data · next change",
-    "none": "Succeeds",
-    "network": "No connection",
-    "route_unavailable": "Route error",
-    "revision_conflict": "409 conflict",
-    "ai_unavailable": "AI busy",
-    "preview_expired": "Expired"
-  },
   "book": "Book stays and activities",
   "eyebrow": "{{city}} · {{dates}}",
   "healthCard": {
@@ -339,5 +347,11 @@
     "reviewDetailHint": "Opens Plan Health details",
     "good": "Plan looks good",
     "goodA11y": "Plan Health: good"
+  },
+  "ready": {
+    "toast": "Your proposal is ready — not saved yet"
+  },
+  "assumptions": {
+    "title": "What this plan assumes"
   }
 }

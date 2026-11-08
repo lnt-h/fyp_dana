@@ -83,7 +83,8 @@ export function GenerationProgressScreen() {
         }
         case 'preview_ready':
           abort.abort();
-          router.replace({ params: { previewId: event.preview_id }, pathname: '/plan/[previewId]/proposal' });
+          // `ready=1`: the proposal shows the one-time "ready, not saved yet" toast (Save stays explicit).
+          router.replace({ params: { previewId: event.preview_id, ready: '1' }, pathname: '/plan/[previewId]/proposal' });
           break;
         case 'clarification_required':
           abort.abort();

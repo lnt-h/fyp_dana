@@ -1,5 +1,6 @@
 import { ActivityIndicator, Text, View } from 'react-native';
 import { useAuth } from '@clerk/expo';
+import { demoNoAuth } from '../lib/demoAuth';
 import { Redirect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
@@ -8,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 export default function SSOCallback() {
   const { t } = useTranslation();
   const { isLoaded, isSignedIn } = useAuth();
-  if (isLoaded && isSignedIn) return <Redirect href="/home" />;
+  if (demoNoAuth || (isLoaded && isSignedIn)) return <Redirect href="/home" />;
   return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 }}>
     <ActivityIndicator accessibilityLabel={t('auth.ssoCallback.loading')} />
     <Text>{t('auth.ssoCallback.message')}</Text>

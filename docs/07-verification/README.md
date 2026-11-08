@@ -3,7 +3,7 @@
 Phase 7 verification planning for Gonarra (IEEE 829-2008). Owner: Lê Ngọc Tấn Hiền. Approver: trantrongminh
 ([Pending]). All documents are version 0.1, Draft, dated 2026-11-04. Nothing has been executed yet.
 
-| File | Content | Kit prompt (adapted copy in `docs/00-governance/prompt-templates/verification/`) |
+| File | Content | Kit prompt (adapted copy removed 2026-11-09; in git history at `f8645f3`) |
 |---|---|---|
 | [`TEST_PLAN.md`](TEST_PLAN.md) | Master test plan TP-GONARRA-v0.1: scope, items, features (not) tested, approach per level, evaluation sets (ASM-011), failure injection (MET-006), security/privacy, WCAG 2.1 AA, bilingual checks, entry/exit/suspension criteria, environments, schedule M1–M6, risks, self-check | `TestPlan_IEEE 829-2008_prompt.md` v2.0 |
 | [`TEST_CASES.md`](TEST_CASES.md) | 265 test cases TC-001..TC-265 with traces, level, priority, preconditions, steps, data, expected result, evidence method, automation target and cuttable flag | `TestCase_RTM_IEEE_829_Prompt.md` v2.0 |

@@ -1,15 +1,15 @@
 import { useEffect } from 'react';
-import { useAuth } from '@clerk/expo';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAccount } from '../features/account/AccountContext';
 import { LoadingDots, SplashLogo } from '../components/brand/BrandMarks';
 import { colors } from '../theme/colors';
 
 export default function SplashScreen() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAccount();
   const insets = useSafeAreaInsets();
 
   useEffect(() => {

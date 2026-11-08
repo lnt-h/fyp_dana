@@ -5,17 +5,15 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Chip, CircleButton, Icon, Skeleton, categoryIcon, PhotoFallback } from '../../../components/ui';
+import { Chip, CircleButton, Icon, Photo, Skeleton, categoryIcon } from '../../../components/ui';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { currentLocale } from '../../../i18n';
 import { listCategories } from '../../../lib/api/source';
 import { searchCityPlaces } from '../../../lib/api/sourcePlanning';
 import type { Category, Place, Uuid } from '../../../lib/api/types';
-import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
@@ -212,12 +210,9 @@ function PlaceRow({ place, badge, chosen, busy, disabled, mustSee, onChoose }: {
   const other = place.name !== place.name_vi ? place.name_vi : null;
   const duration = place.visit_minutes_suggested ? t('proposal.picker.minutes', { count: place.visit_minutes_suggested }) : null;
   const secondary = [other, duration].filter(Boolean).join(' · ');
-  const image = resolveImage(place.thumbnail, { height: THUMB, width: THUMB });
   return <View accessibilityLabel={[place.name, other, duration, badge].filter(Boolean).join(', ')} style={[k.row, !!badge && k.rowMuted]}>
     <View style={k.thumb}>
-      {image
-        ? <Image contentFit="cover" placeholder={image.placeholder} source={image.source} style={StyleSheet.absoluteFill} transition={150} />
-        : <PhotoFallback icon={categoryIcon(place.category_code)} iconSize={26} />}
+      <Photo categoryCode={place.category_code} height={THUMB} iconSize={26} image={place.thumbnail} name={place.name} transition={150} variant="thumb" width={THUMB} />
     </View>
     <View style={k.rowCopy}>
       <Text numberOfLines={2} style={k.name}>{place.name}</Text>

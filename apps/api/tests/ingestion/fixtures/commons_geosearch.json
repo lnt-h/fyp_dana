@@ -1,0 +1,97 @@
+{
+    "batchcomplete": true,
+    "query": {
+        "geosearch": [
+            {
+                "pageid": 89105007,
+                "ns": 6,
+                "title": "File:Hội An, Chùa Cầu, 2020-01 CN-04.jpg",
+                "lat": 15.877096121838,
+                "lon": 108.32620109679,
+                "dist": 0.4,
+                "primary": true
+            },
+            {
+                "pageid": 151200069,
+                "ns": 6,
+                "title": "File:2024 Hội An - Japanese Covered Bridge (Chùa Cầu) after renovation - portal - img 02.jpg",
+                "lat": 15.877064,
+                "lon": 108.326172,
+                "dist": 5,
+                "primary": true
+            },
+            {
+                "pageid": 151200072,
+                "ns": 6,
+                "title": "File:2024 Hội An - Japanese Covered Bridge (Chùa Cầu) after renovation - portal - img 01.jpg",
+                "lat": 15.877056,
+                "lon": 108.326181,
+                "dist": 5.3,
+                "primary": true
+            },
+            {
+                "pageid": 140205073,
+                "ns": 6,
+                "title": "File:Chùa Cầu (Japanese Covered Bridge) (35506191615).jpg",
+                "lat": 15.877144,
+                "lon": 108.326172,
+                "dist": 5.7,
+                "primary": true
+            },
+            {
+                "pageid": 151200013,
+                "ns": 6,
+                "title": "File:2024 Hội An - Japanese Covered Bridge (Chùa Cầu) after renovation - interior - img 06.jpg",
+                "lat": 15.877053,
+                "lon": 108.326119,
+                "dist": 10.1,
+                "primary": true
+            },
+            {
+                "pageid": 140197823,
+                "ns": 6,
+                "title": "File:Japanese bridge Hoi An (20922671928).jpg",
+                "lat": 15.877069,
+                "lon": 108.326102,
+                "dist": 11,
+                "primary": true
+            },
+            {
+                "pageid": 152932659,
+                "ns": 6,
+                "title": "File:Raffi kojian-hoi an-155621875.jpg",
+                "lat": 15.877161,
+                "lon": 108.326116,
+                "dist": 11.3,
+                "primary": true
+            },
+            {
+                "pageid": 151200011,
+                "ns": 6,
+                "title": "File:2024 Hội An - Japanese Covered Bridge (Chùa Cầu) after renovation - interior - img 05.jpg",
+                "lat": 15.877039,
+                "lon": 108.326094,
+                "dist": 13.2,
+                "primary": true
+            },
+            {
+                "pageid": 140197378,
+                "ns": 6,
+                "title": "File:Japanese bridge (7569915760).jpg",
+                "lat": 15.87718,
+                "lon": 108.326096,
+                "dist": 14.2,
+                "primary": true
+            },
+            {
+                "pageid": 157094788,
+                "ns": 6,
+                "title": "File:2024-12-20 Hoi An Old Town at night 5.jpg",
+                "lat": 15.877103,
+                "lon": 108.32635,
+                "dist": 16,
+                "primary": true
+            }
+        ]
+    }
+}

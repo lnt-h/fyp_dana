@@ -301,6 +301,7 @@ CREATE TABLE place_localizations (
     short_description      text,
     description            text,
     translation_origin     text        NOT NULL,
+    name_is_source_fallback boolean    NOT NULL DEFAULT false,  -- migration 0007
     review_state           text        NOT NULL DEFAULT 'DRAFT',
     reviewed_at            timestamptz,
     created_at             timestamptz NOT NULL DEFAULT now(),
@@ -309,7 +310,7 @@ CREATE TABLE place_localizations (
     CONSTRAINT uq_place_localizations_place_id_locale_localization_revision UNIQUE (place_id, locale, localization_revision),
     CONSTRAINT ck_place_localizations_locale CHECK (locale IN ('vi', 'en')),
     CONSTRAINT ck_place_localizations_localization_revision CHECK (localization_revision > 0),
-    CONSTRAINT ck_place_localizations_translation_origin CHECK (translation_origin IN ('ORIGINAL', 'HUMAN_TRANSLATION', 'AI_DRAFT')),
+    CONSTRAINT ck_place_localizations_translation_origin CHECK (translation_origin IN ('ORIGINAL', 'HUMAN_TRANSLATION', 'AI_DRAFT', 'AI_SUMMARY')),
     CONSTRAINT ck_place_localizations_review_state CHECK (review_state IN ('DRAFT', 'APPROVED', 'REJECTED', 'SUPERSEDED')),
     CONSTRAINT ck_place_localizations_approved_complete CHECK (
         review_state NOT IN ('APPROVED', 'SUPERSEDED') OR (reviewed_at IS NOT NULL AND description IS NOT NULL))
@@ -318,6 +319,8 @@ CREATE TABLE place_localizations (
 CREATE UNIQUE INDEX uq_place_localizations_place_id_locale_approved
     ON place_localizations (place_id, locale) WHERE review_state = 'APPROVED';
 COMMENT ON TABLE place_localizations IS 'Reviewed VI/EN names and original descriptions (BR-004, FR-011). AI_DRAFT needs curator approval (FR-019).';
+COMMENT ON COLUMN place_localizations.translation_origin IS 'ORIGINAL | HUMAN_TRANSLATION | AI_DRAFT | AI_SUMMARY (migration 0007; the description was written by the grounded writer from cited source revisions; label it in the UI).';
+COMMENT ON COLUMN place_localizations.name_is_source_fallback IS 'true = this locale has no source name; the original Vietnamese proper name is reused unchanged (never translated).';
 
 CREATE TABLE place_aliases (
     id                uuid        NOT NULL DEFAULT gen_random_uuid(),
@@ -387,6 +390,8 @@ CREATE TABLE place_facts (
     review_state   text        NOT NULL DEFAULT 'DRAFT',
     conflict_state text        NOT NULL DEFAULT 'NONE',
     conflict_note  text,
+    origin         text        NOT NULL DEFAULT 'SOURCE',  -- migration 0009, DEC-028
+    grounding      text,                                   -- migration 0009, DEC-028
     created_at     timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT pk_place_facts PRIMARY KEY (id),
     CONSTRAINT fk_place_facts_place_id FOREIGN KEY (place_id) REFERENCES places (id) ON DELETE CASCADE,
@@ -403,13 +408,18 @@ CREATE TABLE place_facts (
     CONSTRAINT ck_place_facts_review_state CHECK (review_state IN ('DRAFT', 'APPROVED', 'REJECTED', 'SUPERSEDED')),
     CONSTRAINT ck_place_facts_approved_verified CHECK (review_state NOT IN ('APPROVED', 'SUPERSEDED') OR verified_at IS NOT NULL),
     CONSTRAINT ck_place_facts_conflict_state CHECK (conflict_state IN ('NONE', 'OPEN', 'RESOLVED')),
-    CONSTRAINT ck_place_facts_conflict_note CHECK (conflict_state = 'NONE' OR conflict_note IS NOT NULL)
+    CONSTRAINT ck_place_facts_conflict_note CHECK (conflict_state = 'NONE' OR conflict_note IS NOT NULL),
+    CONSTRAINT ck_place_facts_origin CHECK (origin IN ('SOURCE', 'OWNER', 'AI_EXTRACTED')),
+    CONSTRAINT ck_place_facts_grounding CHECK (grounding IN ('STRONG', 'WEAK')),
+    CONSTRAINT ck_place_facts_grounding_origin CHECK (grounding IS NULL OR origin = 'AI_EXTRACTED')
 );
 -- Q-C3: the single current approved fact per place and field.
 CREATE UNIQUE INDEX uq_place_facts_place_id_field_code_approved
     ON place_facts (place_id, field_code) WHERE review_state = 'APPROVED';
 CREATE INDEX ix_place_facts_field_code ON place_facts (field_code);
-COMMENT ON TABLE place_facts IS 'Versioned operational/structured facts with explicit KNOWN/UNKNOWN/NOT_APPLICABLE (BR-024, FR-006, FR-012). AI never writes here (BRU-002).';
+COMMENT ON TABLE place_facts IS 'Versioned operational/structured facts with explicit KNOWN/UNKNOWN/NOT_APPLICABLE (BR-024, FR-006, FR-012). AI never invents facts; AI_EXTRACTED rows are extracted from a cited evidence revision by the grounded writer and parsed by code (DEC-028, revises BRU-002).';
+COMMENT ON COLUMN place_facts.origin IS 'SOURCE | OWNER | AI_EXTRACTED (migration 0009, DEC-028): AI_EXTRACTED = extracted by the grounded writer from the cited evidence revision, never invented; label it in the UI.';
+COMMENT ON COLUMN place_facts.grounding IS 'STRONG | WEAK for AI_EXTRACTED facts: the model quote overlaps the cited evidence text by >= 0.5 of its tokens (STRONG) or not (WEAK); NULL otherwise.';
 
 -- Approved/superseded facts are frozen except for review_state (APPROVED -> SUPERSEDED).
 CREATE OR REPLACE FUNCTION fn_guard_place_fact_update() RETURNS trigger
@@ -1048,15 +1058,15 @@ CREATE TABLE guide_sessions (
     CONSTRAINT fk_guide_sessions_trip_id_account_id FOREIGN KEY (trip_id, account_id)
         REFERENCES trips (id, account_id) ON DELETE CASCADE,
     CONSTRAINT fk_guide_sessions_place_id FOREIGN KEY (place_id) REFERENCES places (id) ON DELETE RESTRICT,
-    CONSTRAINT ck_guide_sessions_locale CHECK (locale IN ('vi', 'en')),
-    CONSTRAINT ck_guide_sessions_context CHECK (trip_id IS NOT NULL OR place_id IS NOT NULL)
+    CONSTRAINT ck_guide_sessions_locale CHECK (locale IN ('vi', 'en'))
+    -- Migration 0008: no context CHECK; place_id NULL = city-level session (DEC-017, API-024).
 );
 -- Q-Q1: my recent Guide sessions.
 CREATE INDEX ix_guide_sessions_account_id_created_at ON guide_sessions (account_id, created_at DESC);
 CREATE INDEX ix_guide_sessions_trip_id_account_id ON guide_sessions (trip_id, account_id);
 CREATE INDEX ix_guide_sessions_place_id ON guide_sessions (place_id);
 CREATE INDEX ix_guide_sessions_expires_at ON guide_sessions (expires_at);                -- Q-Q3 retention sweep
-COMMENT ON TABLE guide_sessions IS 'Private Guide conversation scoped to a published place or an owned trip (FR-056, FR-069).';
+COMMENT ON TABLE guide_sessions IS 'Private Guide conversation: city-level (place_id NULL), or one published place; optionally linked to an owned trip (FR-056, FR-069, DEC-017).';
 
 CREATE TABLE guide_messages (
     id                uuid        NOT NULL DEFAULT gen_random_uuid(),
@@ -1076,7 +1086,7 @@ CREATE TABLE guide_messages (
         (role = 'TRAVELER' AND input_mode IN ('TEXT', 'VOICE_TRANSCRIPT', 'PHOTO'))
         OR (role = 'ASSISTANT' AND input_mode IS NULL)),
     CONSTRAINT ck_guide_messages_answer_status CHECK (
-        (role = 'ASSISTANT' AND answer_status IN ('ANSWERED', 'INSUFFICIENT_EVIDENCE', 'NOT_RECOGNISED'))
+        (role = 'ASSISTANT' AND answer_status IN ('ANSWERED', 'ANSWERED_WEB_UNVERIFIED', 'INSUFFICIENT_EVIDENCE', 'NOT_RECOGNISED'))
         OR (role = 'TRAVELER' AND answer_status IS NULL)),
     CONSTRAINT ck_guide_messages_content_length CHECK (length(content) BETWEEN 1 AND 4000)
 );
@@ -1112,11 +1122,11 @@ CREATE TABLE ai_invocations (
     CONSTRAINT pk_ai_invocations PRIMARY KEY (id),
     CONSTRAINT fk_ai_invocations_account_id FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE,
     CONSTRAINT ck_ai_invocations_purpose CHECK (purpose IN
-        ('PLAN_GENERATE', 'PLAN_REPAIR', 'DAY_REGENERATE', 'GUIDE_ANSWER', 'PHOTO_IDENTIFY', 'CORPUS_EMBED', 'QUERY_EMBED', 'TRANSLATION_DRAFT')),
+        ('PLAN_GENERATE', 'PLAN_REPAIR', 'DAY_REGENERATE', 'RESEARCH', 'GUIDE_ANSWER', 'PHOTO_IDENTIFY', 'CORPUS_EMBED', 'QUERY_EMBED', 'TRANSLATION_DRAFT', 'CONTENT_SUMMARY')),
     CONSTRAINT ck_ai_invocations_outcome CHECK (outcome IN
         ('OK', 'VALIDATION_FAILED', 'PROVIDER_ERROR', 'TIMEOUT', 'QUOTA_EXCEEDED', 'REFUSED_BY_CAP')),
     CONSTRAINT ck_ai_invocations_traveler_purpose CHECK (
-        account_id IS NOT NULL OR purpose IN ('CORPUS_EMBED', 'TRANSLATION_DRAFT')),
+        account_id IS NOT NULL OR purpose IN ('CORPUS_EMBED', 'TRANSLATION_DRAFT', 'CONTENT_SUMMARY')),
     CONSTRAINT ck_ai_invocations_numbers CHECK (
         latency_ms >= 0 AND (input_tokens IS NULL OR input_tokens >= 0) AND (output_tokens IS NULL OR output_tokens >= 0))
 );
@@ -1140,7 +1150,8 @@ CREATE TABLE idempotency_records (
     CONSTRAINT pk_idempotency_records PRIMARY KEY (account_id, operation, idempotency_key),
     CONSTRAINT fk_idempotency_records_account_id FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE,
     CONSTRAINT ck_idempotency_records_operation CHECK (operation IN
-        ('TRIP_SAVE', 'PREVIEW_CREATE', 'DAY_REGENERATE', 'ACCOUNT_DELETE')),
+        ('TRIP_SAVE', 'PREVIEW_CREATE', 'DAY_REGENERATE', 'ACCOUNT_DELETE', 'TRIP_CREATE', 'PREVIEW_EDIT', 'PUBLISH',
+         'GUIDE_ASK')),
     CONSTRAINT ck_idempotency_records_key_length CHECK (length(idempotency_key) BETWEEN 8 AND 128),
     CONSTRAINT ck_idempotency_records_request_sha256_format CHECK (request_sha256 ~ '^[0-9a-f]{64}$'),
     CONSTRAINT ck_idempotency_records_state CHECK (state IN ('IN_PROGRESS', 'COMPLETED')),
@@ -1297,13 +1308,10 @@ SELECT kc.id AS knowledge_chunk_id,
     ON cp.place_id = kc.place_id AND cp.state = 'PUBLISHED' AND cp.corpus_revision = kc.corpus_revision
  WHERE kc.review_state = 'APPROVED';
 
--- Reference seed (migration 0002 data step). Names from BRD §5.1; enabled after each city gate (MET-011).
+-- Reference seed. Gonarra covers Đà Nẵng only (owner 2026-11-08); Hội An is an area of Đà Nẵng
+-- (2025 merger), not a city. Other cities were removed (`app.cli seed` deletes unreferenced rows).
 INSERT INTO cities (code, name_vi, name_en) VALUES
-    ('ha-noi',            'Hà Nội',               'Ha Noi'),
-    ('ho-chi-minh-city',  'Thành phố Hồ Chí Minh', 'Ho Chi Minh City'),
-    ('da-nang',           'Đà Nẵng',              'Da Nang'),
-    ('hoi-an',            'Hội An',               'Hoi An'),
-    ('hue',               'Huế',                  'Hue');
+    ('da-nang',           'Đà Nẵng',              'Da Nang');
 
 -- Operational fact vocabulary; 180-day staleness from ASM-008.
 INSERT INTO fact_fields (code, is_operational, required_for_publication, value_kind, stale_after_days) VALUES

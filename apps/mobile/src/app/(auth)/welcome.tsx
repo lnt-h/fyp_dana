@@ -5,6 +5,7 @@ import { Wordmark } from '../../components/brand/BrandMarks';
 import { Action, AuthShell, SocialActions, TextLink, palette } from '../../features/auth/components/AuthUI';
 import { ProviderIcon } from '../../features/auth/components/AuthIcons';
 import { useAuth } from '@clerk/expo';
+import { demoNoAuth } from '../../lib/demoAuth';
 import { Redirect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
@@ -14,7 +15,7 @@ export default function WelcomeScreen() {
   const { height } = useWindowDimensions();
   const compact = height < 750;
   const heroHeight = Math.max(120, Math.min(180, height * 0.2));
-  if (isSignedIn) return <Redirect href="/home" />;
+  if (demoNoAuth || isSignedIn) return <Redirect href="/home" />;
   return (
     <AuthShell>
       <View style={styles.brand}>

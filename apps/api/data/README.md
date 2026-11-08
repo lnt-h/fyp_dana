@@ -13,6 +13,11 @@ uv run python -m app.cli policy activate wikidata  --terms-version "CC0 checked 
 uv run python -m app.cli policy activate wikipedia --terms-version "CC BY-SA 4.0 + ToU checked 2026-11-07"
 uv run python -m app.cli policy activate gonarra_sheet --terms-version "owner sheet v1"
 uv run python -m app.cli pipeline run [--sheet data/sheet/da-nang.csv] [--dry-run] [--no-embed] [-v]
+uv run python -m app.cli policy activate gonarra_ai_summary --terms-version "D3 grounded summaries"
+uv run python -m app.cli enrich descriptions [--limit 150] [--food-cafe-cap 40] [--retry-insufficient]
+uv run python -m app.cli publish auto
+uv run python -m app.cli publish summary               # published total, by area, Hội An area
+uv run python -m app.cli publish audit-sample [--fraction 0.1] [--seed 7] [--out audit.csv]
 ```
 
 `pipeline run` = `areas load` → `ingest wikidata` → `ingest wikipedia` → `ingest sheet <csv>`
@@ -36,8 +41,9 @@ A place is published only when all of these hold (codes appear in the CLI report
 | `OUTSIDE_CITY` | location inside `cities.boundary` |
 | `MISSING_CATEGORY` | category from the sheet or a mapped Wikidata class |
 | `MISSING_AREA` | sheet `area_code`, or the location falls inside an `areas/<city>.yaml` polygon |
-| `MISSING_NAME:<locale>` | a VI **and** an EN name (sheet, else Wikidata label); never machine-translated |
-| `MISSING_DESCRIPTION:<locale>` | a VI and an EN description (Wikipedia summary, else sheet description/short description, else Wikidata description) |
+| `MISSING_NAME:<locale>` | a VI **and** an EN name (sheet, else Wikidata label, else OSM `name:en`); never machine-translated. Proper-name fallback: see below |
+| `MISSING_DESCRIPTION:<locale>` | a VI and an EN description (Wikipedia summary, else sheet description, else grounded AI summary, else sheet short description, else Wikidata description) |
+| `AI_SUMMARY_UNCITED:<locale>` | an AI-summarised description has at least one recorded cited source revision |
 | `MISSING_LICENCE:<publisher>` | every source behind shown text, facts or chunks has a licence and attribution text |
 | `FACT_WITHOUT_SOURCE:<field>` | every KNOWN fact cites an attributed source revision |
 | `SQL_GATE:<violation>` | `fn_publication_gate_violations` (re-checked inside `fn_publish_place`) |
@@ -56,6 +62,40 @@ If a published place stops passing the gate, the pipeline withdraws it (reason
 Research web candidates are promoted to DRAFT places only when the Google Places check says
 `EXISTS_OPERATIONAL` and the location is inside the city boundary; they then face the same gate.
 
+### English name fallback (proper names)
+
+When no source gives an English name, the EN name is the original Vietnamese name, unchanged
+(`place_localizations.name_is_source_fallback = true`): always for FOOD, CAFE, MARKET,
+RELIGIOUS_SITE and CRAFT_VILLAGE, and for other categories only when the name does not start with
+a generic place word such as "Núi", "Bãi biển" or "Bảo tàng" (`app/curation/names.py`). Names are
+never machine-translated.
+
+### Grounded AI descriptions (`enrich descriptions`, D3)
+
+`app/research/enrich.py` writes a 2–3 sentence VI and EN description for draft places that lack a
+Wikipedia or sheet description in some locale. Sources, in order: the place's Wikipedia extracts,
+its official website from OSM, else a Tavily search ("<name> Hội An|Đà Nẵng") and up to two result
+pages (social, booking and review sites skipped). Each fetched page is recorded as a
+`source_revisions` row. The `grounded_writer` (Gemini 3.5 Flash-Lite → Groq gpt-oss-120b) must
+cite only supplied URLs; a draft with an unsupplied URL, a price, opening hours, a phone number, a
+rating, a URL/e-mail or a number that is not in the sources is rejected (one repair call).
+`insufficient_evidence` stores no description (only a REJECTED marker record so a re-run skips the
+place). A valid draft is staged as an import record of provider `gonarra_ai_summary` with its own
+source revision (publisher "Gonarra", licence `GONARRA-AI-SUMMARY`) and the cited revisions; the
+gate publishes it with `place_localizations.translation_origin = 'AI_SUMMARY'` so the app can label
+it. AI summaries are not Guide chunks.
+
+Priority (budget: Tavily ≈ 1 000 searches/month): (1) Wikidata places in an area; (2) OSM places
+with `wikidata`/`website`/`opening_hours` tags or a tourism category; (3) FOOD/CAFE/MARKET with a
+website or opening hours and an EN name or in the Hội An area. Hội An area first within a tier;
+FOOD + CAFE capped at 40 per run; at most `--limit` places. Already enriched places are skipped.
+The run stops when the writer chain is exhausted three times in a row and continues without search
+when Tavily's quota is spent. Raise `GONARRA_QUOTA_TAVILY_PER_DAY` (default 25) for a one-off batch.
+
+`publish audit-sample` writes a CSV of a random 10 % of current publications (names, descriptions
+with origin and sources, cited URLs, facts with evidence locators, image credit) with empty
+`owner_accurate_yes_no` / `owner_notes` columns for the owner's manual check.
+
 ## Sources and licences
 
 * **Wikidata** (CC0): labels, descriptions, aliases, coordinates, `P31` class → category
@@ -65,11 +105,17 @@ Research web candidates are promoted to DRAFT places only when the Google Places
   extract, retrieved time. Displaying this text requires attribution and keeps it under
   CC BY-SA (ShareAlike).
 * **Owner sheet**: every row and fact names its own source URL, publisher and licence.
+* **OpenStreetMap** (ODbL): names, coordinates, opening hours. FOOD/CAFE elements with none of
+  `name:en`, `website`, `opening_hours`, `cuisine` or `wikidata` are not imported (draft bloat
+  filter, `skipped_sparse` in the report): they could never pass the gate.
 
 ## `areas/<city>.yaml`
 
 Approximate travel-area polygons (`[lng, lat]`), first match wins. `areas load` writes them into
-`areas.boundary`. Edit and re-run the pipeline to re-assign places.
+`areas.boundary` and creates or renames areas that carry `name_vi`/`name_en`. `hoi_an_area: true`
+marks the "Hội An area" group of the release gate (`hoi-an-old-town`, `hoi-an-beaches-islands`,
+`hoi-an-outskirts`). Real tourist clusters only (e.g. `my-son`, `tam-ky`); there is no catch-all
+area. Edit and re-run the pipeline to re-assign places.
 
 ## `closure_rules/<city>.yaml`
 

@@ -29,10 +29,10 @@ from typing import Any, Literal
 
 from app.planning.calendar.rules import (
     ClosureRule,
+    RestrictedMode,
     RuleEffect,
     RuleKind,
     TicketValidityParams,
-    TravelMode,
     hhmm_to_minutes,
     occurs_on,
 )
@@ -182,7 +182,7 @@ class ModeRestriction:
     """Travel modes not allowed between two stops both covered by ``rule_id`` on this date."""
 
     rule_id: uuid.UUID
-    modes: frozenset[TravelMode]
+    modes: frozenset[RestrictedMode]
     interval: Interval | None = None
 
 

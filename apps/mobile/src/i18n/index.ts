@@ -81,6 +81,9 @@ export const resources = {
   vi: { translation: vi },
 } as const;
 
+/** Language used until the user picks one in Settings (SCR-039). */
+export const DEFAULT_LOCALE: AppLocale = 'en';
+
 /** Device default: Vietnamese when the first preferred locale is Vietnamese, otherwise English. */
 export function deviceLocale(): AppLocale {
   return getLocales()[0]?.languageCode === 'vi' ? 'vi' : 'en';
@@ -90,7 +93,8 @@ void i18n.use(initReactI18next).init({
   fallbackLng: 'en',
   initAsync: false,
   interpolation: { escapeValue: false },
-  lng: deviceLocale(),
+  // Owner rule 2026-11-08: the app opens in English; Vietnamese (or following the device) is chosen in Settings.
+  lng: DEFAULT_LOCALE,
   resources,
   returnNull: false,
   supportedLngs: ['vi', 'en'],
@@ -100,13 +104,13 @@ void i18n.use(initReactI18next).init({
 export type LanguageChoice = AppLocale | 'device';
 const LANGUAGE_KEY = 'app.language';
 
-/** Saved choice, or `device` when nothing (or something unknown) is stored or storage is unavailable (e.g. web). */
+/** Saved choice, or the English default when nothing (or something unknown) is stored or storage is unavailable. */
 export async function loadLanguageChoice(): Promise<LanguageChoice> {
   try {
     const saved = await SecureStore.getItemAsync(LANGUAGE_KEY);
-    return saved === 'vi' || saved === 'en' ? saved : 'device';
+    return saved === 'vi' || saved === 'en' || saved === 'device' ? saved : DEFAULT_LOCALE;
   } catch {
-    return 'device';
+    return DEFAULT_LOCALE;
   }
 }
 
@@ -114,16 +118,17 @@ export async function loadLanguageChoice(): Promise<LanguageChoice> {
 export async function setLanguageChoice(choice: LanguageChoice): Promise<void> {
   await i18n.changeLanguage(choice === 'device' ? deviceLocale() : choice);
   try {
-    if (choice === 'device') await SecureStore.deleteItemAsync(LANGUAGE_KEY);
-    else await SecureStore.setItemAsync(LANGUAGE_KEY, choice);
+    // `device` is stored explicitly: with nothing stored the app stays on the English default.
+    await SecureStore.setItemAsync(LANGUAGE_KEY, choice);
   } catch {
     // Storage unavailable: the choice holds for this session only.
   }
 }
 
-// Sync init above uses the device default; a saved choice is applied as soon as storage answers.
+// Sync init above uses the English default; a saved choice is applied as soon as storage answers.
 void loadLanguageChoice().then(choice => {
-  if (choice !== 'device' && i18n.language !== choice) void i18n.changeLanguage(choice);
+  const locale = choice === 'device' ? deviceLocale() : choice;
+  if (i18n.language !== locale) void i18n.changeLanguage(locale);
 });
 
 /** Locale for API calls (`Locale` parameter); follows the SCR-039 language setting. */

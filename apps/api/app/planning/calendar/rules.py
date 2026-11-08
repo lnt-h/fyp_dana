@@ -15,8 +15,10 @@ Every kind additionally accepts two optional, effect-level keys that Plan Health
 - ``"from"`` / ``"to"`` (``HH:MM``, together): the time-of-day window the effect covers. ``CLOSED``
   removes it from the opening hours, ``PARTIAL`` keeps only it, ``EVENT``/``NOTICE`` warn only for
   visits overlapping it, a mode restriction holds only for legs departing inside it.
-- ``"restricted_modes"`` (``["WALK" | "DRIVE"]``): travel modes not allowed between two stops that
-  are both covered by this rule on that date (e.g. a car-free Old Town; LEG_MODE_RESTRICTED).
+- ``"restricted_modes"`` (``["WALK" | "DRIVE" | "TWO_WHEELER"]``): travel modes not allowed between
+  two stops that are both covered by this rule on that date (e.g. a car-free Old Town;
+  LEG_MODE_RESTRICTED). ``TWO_WHEELER`` is accepted because the curator validator accepts it; the
+  planner only schedules WALK and DRIVE legs, so it never matches a leg today.
 
 The param models duplicate the curator validators in ``app/curation/closure_rules.py`` on
 purpose: planning must stay importable without the curation services (SQLAlchemy sessions,
@@ -32,7 +34,14 @@ from collections.abc import Mapping
 from datetime import date, datetime
 from typing import Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from app.planning.calendar.lunar import solar_to_lunar
 
@@ -42,6 +51,8 @@ AppliesTo = Literal["PLACE", "AREA", "CITY"]
 Severity = Literal["BLOCKING", "WARNING"]
 ReviewState = Literal["DRAFT", "APPROVED", "RETIRED"]
 TravelMode = Literal["WALK", "DRIVE"]
+# Modes a rule may restrict: the curator set (app/curation/closure_rules.py RESTRICTED_MODES).
+RestrictedMode = Literal["WALK", "DRIVE", "TWO_WHEELER"]
 
 _HHMM = r"^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$"
 _MMDD = r"^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
@@ -51,6 +62,7 @@ __all__ = [
     "ClosureRule",
     "DateParams",
     "LunarDateParams",
+    "RestrictedMode",
     "ReviewState",
     "RuleEffect",
     "RuleKind",
@@ -60,6 +72,7 @@ __all__ = [
     "TicketValidityParams",
     "TravelMode",
     "WeeklyParams",
+    "describe_rule_error",
     "hhmm_to_minutes",
     "occurs_on",
 ]
@@ -69,6 +82,21 @@ def hhmm_to_minutes(value: str) -> int:
     """``"HH:MM"`` (``"24:00"`` allowed) → minutes after local midnight."""
     hours, minutes = value.split(":")
     return int(hours) * 60 + int(minutes)
+
+
+def describe_rule_error(exc: ValueError) -> str:
+    """Why a rule did not parse, as ``loc: message`` pairs without the offending input values.
+
+    Safe to log: Pydantic messages name the expected shape, never the rule text or params values
+    (``include_input=False``; the ``params.`` prefix comes from :meth:`ClosureRule._parse_params`).
+    """
+    if isinstance(exc, ValidationError):
+        parts = []
+        for error in exc.errors(include_input=False, include_url=False, include_context=False):
+            loc = ".".join(str(item) for item in error["loc"]) or "rule"
+            parts.append(f"{loc}: {error['msg']}")
+        return "; ".join(parts)[:500]
+    return str(exc)[:500]
 
 
 def _month_day(value: str) -> tuple[int, int]:
@@ -83,7 +111,7 @@ class RuleParams(BaseModel):
 
     from_: str | None = Field(default=None, alias="from", pattern=_HHMM)
     to: str | None = Field(default=None, pattern=_HHMM)
-    restricted_modes: tuple[TravelMode, ...] = ()
+    restricted_modes: tuple[RestrictedMode, ...] = ()
 
     @model_validator(mode="after")
     def _time_window(self) -> Self:
@@ -210,7 +238,11 @@ class ClosureRule(BaseModel):
             kind = values.get("rule_kind")
             raw = values.get("params")
             if kind in _PARAMS_BY_KIND and not isinstance(raw, RuleParams):
-                values["params"] = _PARAMS_BY_KIND[kind].model_validate(raw or {})
+                try:
+                    values["params"] = _PARAMS_BY_KIND[kind].model_validate(raw or {})
+                except ValidationError as exc:
+                    # Re-raise without the input values so the reason is safe to log.
+                    raise ValueError(f"params.{describe_rule_error(exc)}") from None
             for key in ("effective_from", "effective_to"):
                 if isinstance(values.get(key), datetime):
                     values[key] = values[key].date()
@@ -254,7 +286,7 @@ class ClosureRule(BaseModel):
         return self.params.interval
 
     @property
-    def restricted_modes(self) -> tuple[TravelMode, ...]:
+    def restricted_modes(self) -> tuple[RestrictedMode, ...]:
         return self.params.restricted_modes
 
 

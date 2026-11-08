@@ -7,8 +7,14 @@ Usage from apps/api:
     uv run python -m app.cli routes warm [--limit 50]   # pre-fill routes_matrix_cache (M3-B)
 
 Content pipeline (DEC-022, app/ingestion/cli.py): `policy list|activate`, `areas load`,
-`ingest wikidata|wikipedia|sheet`, `web-candidates promote`, `publish auto [--dry-run]`,
+`ingest wikidata|wikipedia|osm|commons|sheet`, `web-candidates promote`, `publish auto [--dry-run]`,
 `closure-rules load` and `pipeline run` (all steps). See apps/api/data/README.md.
+
+Grounded descriptions (D3, app/research/enrich.py):
+    uv run python -m app.cli enrich descriptions [--limit 150] [--food-cafe-cap 40]
+AI-extracted facts (DEC-028, app/research/fact_extract.py):
+    uv run python -m app.cli enrich facts [--limit 120] [--max-searches 200] [--max-model-calls 250]
+Then `publish auto`, `publish summary` and `publish audit-sample`.
 """
 
 import asyncio
@@ -17,8 +23,9 @@ from datetime import timedelta
 from pathlib import Path
 
 import typer
-from sqlalchemy import func, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.curation.system import SYSTEM_ACCOUNT_CLERK_USER_ID
@@ -58,11 +65,10 @@ class CitySeed:
 
 
 CITIES: tuple[CitySeed, ...] = (
+    # Đà Nẵng only (owner 2026-11-08): the product has a single city. Hội An is an area of Đà Nẵng
+    # (2025 merger), not a city. The former disabled roadmap rows (ha-noi, ho-chi-minh-city, hue)
+    # are removed by the seed when nothing references them (remove_stale_cities).
     CitySeed("da-nang", "Đà Nẵng", "Da Nang", True, DA_NANG_BOUNDARY_EWKT),
-    # Roadmap cities (DEC-013): present but disabled. Hội An is an area of Đà Nẵng, not a city.
-    CitySeed("ha-noi", "Hà Nội", "Ha Noi", False, None),
-    CitySeed("ho-chi-minh-city", "Thành phố Hồ Chí Minh", "Ho Chi Minh City", False, None),
-    CitySeed("hue", "Huế", "Hue", False, None),
 )
 
 # Travel areas of Đà Nẵng (ADR-012 0.4, OQ-121): curator-defined, not wards. Boundaries stay NULL
@@ -78,6 +84,14 @@ AREAS: tuple[tuple[str, str, str], ...] = (
         "Biển và đảo Hội An (An Bàng, Cửa Đại, Cù Lao Chàm)",
         "Hoi An beaches and islands (An Bang, Cua Dai, Cham Islands)",
     ),
+    # 2026-11-08: real tourist clusters outside the first six polygons (data/areas/da-nang.yaml).
+    (
+        "hoi-an-outskirts",
+        "Ven Hội An (Thanh Chiêm, Gò Nổi, Nam Phước)",
+        "Hoi An outskirts (Thanh Chiem, Go Noi, Nam Phuoc)",
+    ),
+    ("my-son", "Thánh địa Mỹ Sơn", "My Son Sanctuary"),
+    ("tam-ky", "Tam Kỳ – Tam Thanh", "Tam Ky – Tam Thanh"),
 )
 
 CATEGORIES: tuple[tuple[str, str, str], ...] = (
@@ -164,6 +178,7 @@ PROVIDERS: tuple[ProviderSeed, ...] = (
             "description": (CANONICAL, None),
             "aliases": (CANONICAL, None),
             "sitelinks": (CANONICAL, None),
+            "image": (CANONICAL, None),  # P18 Commons file names (commons.py)
         },
     ),
     # DEC-022: Wikipedia lead summaries become place descriptions and OVERVIEW chunks, with
@@ -208,21 +223,66 @@ PROVIDERS: tuple[ProviderSeed, ...] = (
         "OpenStreetMap",
         "OPEN_DATASET",
         "https://www.openstreetmap.org/copyright",
-        "Candidate import and coordinates (ADR-012)",
+        "Candidate import, coordinates and opening hours (ADR-012, osm.py)",
         "© OpenStreetMap contributors (ODbL)",
-        _OPEN_PLACE_FIELDS,
+        {
+            **_OPEN_PLACE_FIELDS,
+            "opening_hours": (CANONICAL, None),
+            "facts": (CANONICAL, None),
+            "website": (CANONICAL, None),
+            "wikidata": (IDENTIFIER, None),
+            "image": (CANONICAL, None),
+            "wikimedia_commons": (CANONICAL, None),
+        },
     ),
     ProviderSeed(
         "wikimedia_commons",
         "Wikimedia Commons",
         "MEDIA_LIBRARY",
         "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
-        "Place photos with per-file licence",
-        None,
+        "Place photos with per-file licence (commons.py)",
+        "Wikimedia Commons contributors (per-file licence and author)",
         {
             "file_url": (CANONICAL, None),
             "creator": (CANONICAL, None),
             "license": (CANONICAL, None),
+            "title": (CANONICAL, None),
+            "description_url": (CANONICAL, None),
+            "attribution": (CANONICAL, None),
+            "width": (CANONICAL, None),
+            "height": (CANONICAL, None),
+            "mime": (CANONICAL, None),
+        },
+    ),
+    # D3 (2026-11-08): grounded AI descriptions (app/research/enrich.py). The description is
+    # Gonarra's own text written only from the cited source revisions; prompts and raw model
+    # responses are never stored.
+    ProviderSeed(
+        "gonarra_ai_summary",
+        "Gonarra grounded AI descriptions",
+        "AI_SERVICE",
+        "https://github.com/lnt-h/fyp_dana/blob/main/apps/api/data/README.md",
+        "Place descriptions summarised from cited sources (enrich descriptions, D3)",
+        "Short description written by Gonarra with AI assistance, only from the cited sources",
+        {
+            "description": (CANONICAL, None),
+            "cited_urls": (CANONICAL, None),
+            "model": (CANONICAL, None),
+        },
+    ),
+    # DEC-028 (2026-11-08): facts and short descriptions extracted by the grounded writer from
+    # cited evidence (app/research/fact_extract.py); prompts and raw responses are never stored.
+    ProviderSeed(
+        "gonarra_ai_facts",
+        "Gonarra AI-extracted facts",
+        "AI_SERVICE",
+        "https://github.com/lnt-h/fyp_dana/blob/main/apps/api/data/README.md",
+        "Facts and short descriptions extracted from cited sources (enrich facts, DEC-028)",
+        "Facts extracted by Gonarra with AI assistance, only from the cited sources",
+        {
+            "facts": (CANONICAL, None),
+            "short_description": (CANONICAL, None),
+            "model": (CANONICAL, None),
         },
     ),
     ProviderSeed(
@@ -315,6 +375,25 @@ PROVIDERS: tuple[ProviderSeed, ...] = (
 PROVIDER_POLICY_TERMS_VERSION = "UNRECORDED"
 
 
+async def remove_stale_cities(session: AsyncSession) -> list[str]:
+    """Delete city rows not in :data:`CITIES` that nothing references (idempotent).
+
+    Each delete runs in a savepoint; a city still referenced (areas, places, trips …) raises a
+    foreign-key error and is kept. Returns the codes that were deleted."""
+    keep = [city.code for city in CITIES]
+    stale = (await session.execute(select(City.id, City.code).where(City.code.not_in(keep)))).all()
+    removed: list[str] = []
+    for city_id, code in stale:
+        try:
+            async with session.begin_nested():
+                await session.execute(delete(City).where(City.id == city_id))
+        except IntegrityError:
+            typer.echo(f"city {code} is still referenced; kept", err=True)
+            continue
+        removed.append(code)
+    return removed
+
+
 async def seed_reference_data(session: AsyncSession) -> dict[str, int]:
     """Upsert cities, areas, categories, fact fields, providers, policies and field rules.
 
@@ -342,6 +421,7 @@ async def seed_reference_data(session: AsyncSession) -> dict[str, int]:
             )
         )
 
+    await remove_stale_cities(session)
     city_id = await session.scalar(select(City.id).where(City.code == "da-nang"))
     assert city_id is not None
     for sort_order, (code, name_vi, name_en) in enumerate(AREAS, start=1):
@@ -572,6 +652,144 @@ def routes_warm_command(
             f"requested={stats.requested_elements} quota_denied={stats.quota_denied_elements} "
             f"failed={stats.failed_elements} cached_writes={stats.cached_writes}"
         )
+
+
+enrich_app = typer.Typer(help="Grounded AI enrichment (D3).", no_args_is_help=True)
+app.add_typer(enrich_app, name="enrich")
+
+
+@enrich_app.command("descriptions")
+def enrich_descriptions_command(
+    limit: int = typer.Option(150, min=1, help="Places to process (Tavily ≈ 1 000/month)."),
+    food_cafe_cap: int = typer.Option(40, min=0, help="Maximum FOOD + CAFE places."),
+    retry_insufficient: bool = typer.Option(
+        False, "--retry-insufficient", help="Also retry places that had insufficient evidence."
+    ),
+    samples: int = typer.Option(5, min=0, help="Random enriched samples to print."),
+) -> None:
+    """Write grounded VI/EN descriptions for prioritised draft places (then run `publish auto`).
+
+    Sources: Wikipedia extracts, the OSM website, else a Tavily search. Every provider call goes
+    through the quota ledger; the run stops gracefully when quota is exhausted.
+    """
+    import random
+
+    from app.config import get_settings
+    from app.ingestion.common import PolicyNotActiveError
+    from app.research.enrich import EnrichReport, build_enricher
+
+    settings = get_settings()
+
+    async def run() -> EnrichReport:
+        enricher, close = build_enricher(settings, session_factory)
+        try:
+            async with session_factory() as session:
+                return await enricher.run(
+                    session,
+                    city_code=settings.default_city_code,
+                    limit=limit,
+                    food_cafe_cap=food_cafe_cap,
+                    retry_insufficient=retry_insufficient,
+                )
+        finally:
+            await close()
+            await engine.dispose()
+
+    try:
+        report = asyncio.run(run())
+    except PolicyNotActiveError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(
+        f"enrich: selected={report.selected} enriched={report.enriched} "
+        f"(hoi_an_area={report.hoi_an_enriched}) insufficient_evidence={report.insufficient} "
+        f"no_sources={report.no_sources} failed={report.failed}"
+    )
+    typer.echo(
+        f"  tavily searches={report.tavily_calls} cached={report.tavily_cached} "
+        f"pages_fetched={report.pages_fetched}"
+    )
+    typer.echo(
+        "  model calls: "
+        + (", ".join(f"{k}={v}" for k, v in sorted(report.model_calls.items())) or "none")
+    )
+    if report.issues:
+        typer.echo(
+            "  validation issues: " + ", ".join(f"{k}={v}" for k, v in report.issues.most_common())
+        )
+    if report.stopped:
+        typer.echo(f"  stopped: {report.stopped}")
+    for sample in random.sample(report.samples, min(samples, len(report.samples))):
+        typer.echo(f"\n  [{sample.slug}] {sample.name_vi}")
+        typer.echo(f"    VI: {sample.description_vi}")
+        typer.echo(f"    EN: {sample.description_en}")
+        typer.echo(f"    cited: {' | '.join(sample.cited_urls)}")
+
+
+@enrich_app.command("facts")
+def enrich_facts_command(
+    limit: int = typer.Option(120, min=1, help="Published places to process."),
+    max_searches: int = typer.Option(200, min=0, help="Tavily searches for this run."),
+    max_model_calls: int = typer.Option(250, min=1, help="Writer model calls for this run."),
+    retry: bool = typer.Option(False, "--retry", help="Also places already processed."),
+) -> None:
+    """Extract address, hours, price and short descriptions from cited sources (DEC-028).
+
+    Stages them for `publish auto`; facts are published as AI_EXTRACTED with the source link.
+    Audit afterwards with `publish audit-sample`.
+    """
+    from app.config import get_settings
+    from app.ingestion.common import PolicyNotActiveError
+    from app.research.fact_extract import FactsReport, build_fact_extractor
+
+    settings = get_settings()
+
+    async def run() -> FactsReport:
+        extractor, close = build_fact_extractor(settings, session_factory)
+        try:
+            async with session_factory() as session:
+                return await extractor.run(
+                    session,
+                    city_code=settings.default_city_code,
+                    limit=limit,
+                    max_searches=max_searches,
+                    max_model_calls=max_model_calls,
+                    retry=retry,
+                )
+        finally:
+            await close()
+            await engine.dispose()
+
+    try:
+        report = asyncio.run(run())
+    except PolicyNotActiveError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(
+        f"enrich facts: selected={report.selected} extracted={report.extracted_places} "
+        f"no_facts={report.no_facts} failed={report.failed}"
+    )
+    typer.echo(
+        f"  tavily searches={report.tavily_calls} cached={report.tavily_cached} "
+        f"pages_fetched={report.pages_fetched} wikidata_requests={report.wikimedia_requests} "
+        f"overpass_requests={report.overpass_requests}"
+    )
+    typer.echo(
+        "  model calls: "
+        + (", ".join(f"{k}={v}" for k, v in sorted(report.model_calls.items())) or "none")
+    )
+    typer.echo(
+        "  accepted fields: "
+        + (", ".join(f"{k}={v}" for k, v in sorted(report.by_field.items())) or "none")
+        + "  grounding: "
+        + (", ".join(f"{k}={v}" for k, v in sorted(report.by_grounding.items())) or "none")
+    )
+    if report.issues:
+        typer.echo(
+            "  dropped fields: " + ", ".join(f"{k}={v}" for k, v in report.issues.most_common())
+        )
+    if report.stopped:
+        typer.echo(f"  stopped: {report.stopped}")
 
 
 def _register_pipeline_commands() -> None:

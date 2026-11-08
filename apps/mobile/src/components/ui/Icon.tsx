@@ -20,6 +20,10 @@ const suitcaseBody = 'M4.5 8h15A1.5 1.5 0 0 1 21 9.5v9a1.5 1.5 0 0 1-1.5 1.5h-15
 const suitcaseHandle = 'M9 8V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V8';
 const shackleLocked = 'M7.5 11V8a4.5 4.5 0 0 1 9 0v3';
 const lockBody = 'M6.5 11h11a1 1 0 0 1 1 1v7.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V12a1 1 0 0 1 1-1zM12 14.5v2.5';
+const chatFront = 'M4.5 8h10A2 2 0 0 1 16.5 10v6A2 2 0 0 1 14.5 18h-3.5l-1.5 2.5L8 18H4.5A2 2 0 0 1 2.5 16v-6A2 2 0 0 1 4.5 8z';
+const chatBack = 'M8 8V6a2 2 0 0 1 2-2h9.5a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-3';
+const bookmarkFront = 'M5 8a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v12.5l-5.5-3.5L5 20.5z';
+const bookmarkBack = 'M9 6v-.5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2V18l-4-2.55';
 
 const line = (...ds: string[]): Glyph => ({ line: ds.map((d) => ({ d })) });
 
@@ -71,6 +75,25 @@ const ICONS = {
   'map-pin': {
     line: [{ d: pin }, { d: c(12, 9.5, 2.5) }],
     filled: [{ d: `${pin}${c(12, 9.5, 3)}`, fill: true }],
+  },
+  /** Folded map (Explore tab); filled = three solid panels with fold gaps. */
+  map: {
+    line: [{ d: 'M3.5 6.5L9 4l6 2.5L20.5 4v13.5L15 20l-6-2.5L3.5 20z' }, { d: 'M9 4v13.5M15 6.5V20' }],
+    filled: [
+      { d: 'M3.5 6.5L7.7 4.6v13.5L3.5 20z', fill: true },
+      { d: 'M10.3 4.55L13.7 5.95v13.5L10.3 18.05z', fill: true },
+      { d: 'M16.3 5.9L20.5 4v13.5L16.3 19.4z', fill: true },
+    ],
+  },
+  /** Two overlapping speech bubbles, front one with dots (Guide tab). */
+  chats: {
+    line: [{ d: chatFront }, { d: chatBack }, { d: 'M6 13h.01M9.5 13h.01M13 13h.01', sw: 2.4 }],
+    filled: [{ d: `${chatFront}${c(5.9, 13, 1.6)}${c(9.5, 13, 1.6)}${c(13.1, 13, 1.6)}`, fill: true }, { d: chatBack }],
+  },
+  /** Two overlapping bookmarks (Trips tab). */
+  bookmarks: {
+    line: [{ d: bookmarkFront }, { d: bookmarkBack }],
+    filled: [{ d: bookmarkFront, fill: true }, { d: bookmarkBack }],
   },
 
   // Time and travel

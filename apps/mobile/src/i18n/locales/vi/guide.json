@@ -30,7 +30,9 @@
   "session": {
     "loading": "Đang mở Hướng dẫn…",
     "error": "Không mở được Hướng dẫn. Thử lại.",
-    "notFound": "Địa điểm này không còn khả dụng"
+    "notFound": "Địa điểm này không còn khả dụng",
+    "unavailable": "Hướng dẫn chưa sẵn sàng",
+    "unavailableBody": "Máy chủ này hiện chưa có tính năng Hướng dẫn. Địa điểm, lịch trình và chuyến đi vẫn dùng bình thường."
   },
   "empty": {
     "title": "Bạn muốn biết gì về {{place}}?",
@@ -96,5 +98,10 @@
       "label": "Hội An?",
       "question": "Khu Hội An có gì đặc biệt?"
     }
+  },
+  "errors": {
+    "offline": "Mất kết nối nên câu hỏi chưa được gửi. Câu hỏi vẫn nằm trong ô nhập; hãy gửi lại khi có mạng.",
+    "busy": "Dịch vụ AI đang bận. Câu hỏi của bạn vẫn còn; thử lại sau giây lát.",
+    "quota": "Bạn đã hết lượt hỏi trong lúc này. Câu hỏi của bạn vẫn còn; hãy thử lại sau."
   }
 }

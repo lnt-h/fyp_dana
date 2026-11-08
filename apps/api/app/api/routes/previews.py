@@ -38,6 +38,13 @@ IdempotencyKeyHeader = Annotated[str | None, Header(alias="Idempotency-Key")]
 # Terminal ``error`` codes → HTTP status in JSON mode.
 ERROR_STATUS: dict[str, int] = {
     "not_implemented": 501,
+    "resource_not_found": 404,
+    "preview_closed": 410,
+    "preview_expired": 410,
+    "trip_not_saved": 409,
+    "idempotency_in_progress": 409,
+    "idempotency_key_reused": 409,
+    "internal_error": 503,
     "quota_exceeded": 429,
     "revision_conflict": 409,
     "unsupported_request": 422,
@@ -61,7 +68,9 @@ def _wants_stream(request: Request) -> bool:
     return "text/event-stream" in request.headers.get("accept", "")
 
 
-async def _json_result(sink: _CollectingSink, service: Service, request: Request) -> Response:
+async def _json_result(
+    sink: _CollectingSink, service: Service, request: Request, locale: Locale | None = None
+) -> Response:
     terminal = next(
         (
             event
@@ -89,7 +98,11 @@ async def _json_result(sink: _CollectingSink, service: Service, request: Request
     if terminal["type"] == "clarification_required":
         return JSONResponse(status_code=200, content=terminal.get("clarification", {}))
     preview_id = uuid.UUID(str(terminal["preview_id"]))
-    preview = await service.get_preview(preview_id, None, None)
+    # The revision the run produced (or replayed), rendered in the request's locale.
+    revision = terminal.get("preview_revision")
+    preview = await service.get_preview(
+        preview_id, revision if isinstance(revision, int) else None, locale
+    )
     return JSONResponse(
         status_code=201,
         content=preview.model_dump(mode="json"),
@@ -115,7 +128,7 @@ async def create_plan_preview(
     account: Annotated[Account, Depends(get_current_account)],
     idempotency_key: IdempotencyKeyHeader = None,
 ) -> Response:
-    """M2 shell: owner and body are validated; the injected workflow (stub until M3) runs."""
+    """Owner and body are validated here; the injected workflow (the M3 orchestrator) runs."""
     key = idempotency.normalize_key(idempotency_key, required=False)
     trip = await service.owned_trip(trip_id)
     command = ProposeTripCommand(
@@ -133,7 +146,7 @@ async def create_plan_preview(
         )
     collector = _CollectingSink()
     await workflow.propose_trip(command, collector)
-    return await _json_result(collector, service, request)
+    return await _json_result(collector, service, request, body.locale)
 
 
 @router.get("/plan-previews/{preview_id}", response_model=PlanPreview, responses=errors(404, 410))
@@ -219,7 +232,7 @@ async def regenerate_plan_day(
         )
     collector = _CollectingSink()
     await workflow.regenerate_day(command, collector)
-    return await _json_result(collector, service, request)
+    return await _json_result(collector, service, request, body.locale)
 
 
 @router.post(

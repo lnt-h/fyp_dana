@@ -11,6 +11,7 @@ import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { colors } from '../../theme/colors';
 import { radii } from '../../theme/spacing';
 import { fonts } from '../../theme/typography';
+import { useAccount } from '../account/AccountContext';
 import { useIsOffline } from '../home/useNetwork';
 import { authErrorMessage } from './authErrors';
 import { ProviderIcon } from './components/AuthIcons';
@@ -48,7 +49,8 @@ export function SignInGate({ feature, onClose, onSignedIn }: Props) {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const offline = useIsOffline();
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded } = useAuth();
+  const { isSignedIn } = useAccount();
   const { startSSOFlow } = useSSO();
   const [busy, setBusy] = useState<Provider | null>(null);
   const [notice, setNotice] = useState('');

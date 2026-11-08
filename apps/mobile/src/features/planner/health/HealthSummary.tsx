@@ -10,15 +10,19 @@ import { currentLocale } from '../../../i18n';
 import { formatDate } from '../../place/format';
 import { HealthGlyph } from '../timeline/icons';
 import { HealthBadge } from './HealthBadge';
-import type { HealthIssue } from './reasons';
+import { HealthNotices } from './HealthNotices';
+import type { HealthIssue, HealthNotice } from './reasons';
 
 /**
  * Plan Health summary (the part of SCR-026 shown inline on the proposal): status line, then the server's reasons
  * grouped Must fix (BLOCKING) / Worth checking (WARNING), each with a shortcut to its stop.
  */
-export function HealthSummary({ health, issues, onGoToStop, onOpenDetail, updating = false }: {
+export function HealthSummary({ health, issues, notices = [], dayCount = 1, onGoToStop, onOpenDetail, updating = false }: {
   health: PlanHealth;
   issues: HealthIssue[];
+  /** INFO notices (e.g. estimated legs), shown neutrally; never counted as warnings. */
+  notices?: HealthNotice[];
+  dayCount?: number;
   onGoToStop: (dayIndex: number, stopId: Uuid) => void;
   /** Opens SCR-026 (full Plan Health detail with fix shortcuts). */
   onOpenDetail?: () => void;
@@ -52,6 +56,7 @@ export function HealthSummary({ health, issues, onGoToStop, onOpenDetail, updati
       {health === 'GOOD' && !issues.length && <Text style={h.goodNote}>{t('proposal.health.goodNote')}</Text>}
       {group(t('proposal.health.mustFix'), blocking)}
       {group(t('proposal.health.worthChecking'), warnings)}
+      <HealthNotices dayCount={dayCount} notices={notices} style={h.notices} />
       <Text style={h.note}>{t('proposal.health.recheckNote')}</Text>
       {onOpenDetail ? <Pressable
         accessibilityRole="button"
@@ -193,5 +198,6 @@ const h = StyleSheet.create({
   reviewText: { fontFamily: fonts.bold, fontSize: 14, color: colors.deepOcean },
   quiet: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 24 },
   quietText: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: colors.tealText },
+  notices: { marginTop: spacing.md },
   note: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 18, color: colors.textMuted, marginTop: spacing.sm },
 });

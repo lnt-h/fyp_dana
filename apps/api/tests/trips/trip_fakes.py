@@ -105,6 +105,10 @@ class FakeStore:
         trip.revision += 1
         trip.status = "SAVED"
         trip.saved_at = NOW
+        if snapshot.preferences is not None:
+            trip.planning_preferences = snapshot.preferences.model_dump(
+                mode="json", exclude_none=True
+            )
         return trip
 
     async def get_preview(

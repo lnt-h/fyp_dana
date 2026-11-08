@@ -30,11 +30,12 @@
     "body": "Không thể hoàn tác.",
     "confirm": "Xoá",
     "keep": "Giữ lại",
-    "done": "Đã xoá chuyến đi"
+    "done": "Đã xoá chuyến đi",
+    "failed": "Không xoá được chuyến đi. Hãy thử lại"
   },
   "empty": {
     "title": "Chưa có chuyến đi nào",
-    "body": "Lên kế hoạch 1–3 ngày ở một trong 5 thành phố.",
+    "body": "Lên kế hoạch 1–3 ngày ở Đà Nẵng, gồm cả khu vực Hội An.",
     "action": "Lên kế hoạch chuyến đi"
   },
   "error": {

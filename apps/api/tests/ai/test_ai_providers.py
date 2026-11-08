@@ -24,12 +24,14 @@ GROQ_KEY = "groq-test-SECRET-456"
 
 def test_role_chains_follow_architecture() -> None:
     assert [(s.provider, s.model_id) for s in role_chain(Role.SELECTOR)] == [
-        (Provider.GEMINI, "gemini-2.5-flash"),
-        (Provider.GROQ, "llama-3.3-70b-versatile"),
+        (Provider.GEMINI, "gemini-3.6-flash"),
+        (Provider.GEMINI, "gemini-3.5-flash-lite"),
+        (Provider.GROQ, "openai/gpt-oss-120b"),
     ]
+    assert all(spec.timeout_s <= 15.0 for spec in role_chain(Role.SELECTOR))
     assert [s.provider for s in role_chain(Role.RESEARCHER)] == [Provider.GROQ]
-    assert role_chain(Role.WRITER_RATIONALE)[0].model_id == "gemini-2.5-flash-lite"
-    assert role_chain(Role.WRITER_GUIDE)[0].model_id == "gemini-2.5-flash"
+    assert role_chain(Role.WRITER_RATIONALE)[0].model_id == "gemini-3.5-flash-lite"
+    assert role_chain(Role.WRITER_GUIDE)[0].model_id == "gemini-3.6-flash"
     assert role_chain(Role.EMBEDDING)[0].model_id == "gemini-embedding-001"
     for role in Role:
         for spec in role_chain(role):
@@ -40,15 +42,17 @@ def test_role_chains_follow_architecture() -> None:
 
 def test_role_chain_returns_a_copy() -> None:
     role_chain(Role.SELECTOR).clear()
-    assert len(role_chain(Role.SELECTOR)) == 2
+    assert len(role_chain(Role.SELECTOR)) == 3
 
 
 def test_make_model_builds_agno_models(settings: Settings) -> None:
-    gemini, groq = (make_model(spec, settings) for spec in role_chain(Role.SELECTOR))
-    assert isinstance(gemini, Gemini) and gemini.id == "gemini-2.5-flash"
+    gemini, lite, groq = (make_model(spec, settings) for spec in role_chain(Role.SELECTOR))
+    assert isinstance(gemini, Gemini) and gemini.id == "gemini-3.6-flash"
     assert gemini.api_key == GEMINI_KEY
-    assert gemini.max_output_tokens == 2048
-    assert isinstance(groq, Groq) and groq.id == "llama-3.3-70b-versatile"
+    assert gemini.max_output_tokens == 4096
+    assert gemini.thinking_level == "low" and lite.thinking_level is None
+    assert isinstance(lite, Gemini) and lite.id == "gemini-3.5-flash-lite"
+    assert isinstance(groq, Groq) and groq.id == "openai/gpt-oss-120b"
     assert groq.api_key == GROQ_KEY
 
 
@@ -58,7 +62,7 @@ def test_make_model_without_key_raises(settings_factory: Callable[..., Settings]
         make_model(role_chain(Role.SELECTOR)[0], settings)
     assert excinfo.value.provider is Provider.GEMINI
     # Groq still builds.
-    assert isinstance(make_model(role_chain(Role.SELECTOR)[1], settings), Groq)
+    assert isinstance(make_model(role_chain(Role.SELECTOR)[2], settings), Groq)
 
 
 @pytest.mark.parametrize("blank", ["", "   "])
@@ -103,4 +107,4 @@ def test_api_key_never_in_repr_or_logs(
     for value in texts:
         assert GEMINI_KEY not in value
         assert GROQ_KEY not in value
-    assert "model built role=SELECTOR model=gemini-2.5-flash" in caplog.text
+    assert "model built role=SELECTOR model=gemini-3.6-flash" in caplog.text

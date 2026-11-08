@@ -1,0 +1,43 @@
+{
+ "batchcomplete": true,
+ "query": {
+  "pages": [
+   {
+    "pageid": 25874,
+    "ns": 0,
+    "title": "Chùa Cầu",
+    "original": {
+     "source": "https://upload.wikimedia.org/wikipedia/commons/c/c1/Cau_Nhat_Ban.jpg?utm_source=vi.wikipedia.org&utm_campaign=api&utm_content=original",
+     "width": 1800,
+     "height": 1000
+    },
+    "pageimage": "Cau_Nhat_Ban.jpg",
+    "pageprops": {
+     "page_image_free": "Cau_Nhat_Ban.jpg",
+     "wikibase_item": "Q1091054"
+    },
+    "lastrevid": 75654062,
+    "fullurl": "https://vi.wikipedia.org/wiki/Ch%C3%B9a_C%E1%BA%A7u",
+    "canonicalurl": "https://vi.wikipedia.org/wiki/Ch%C3%B9a_C%E1%BA%A7u"
+   },
+   {
+    "pageid": 143043,
+    "ns": 0,
+    "title": "Bảo tàng Điêu khắc Chăm Đà Nẵng",
+    "original": {
+     "source": "https://upload.wikimedia.org/wikipedia/commons/a/a8/Museum_of_Cham_Sculpture.jpg?utm_source=vi.wikipedia.org&utm_campaign=api&utm_content=original",
+     "width": 2592,
+     "height": 1944
+    },
+    "pageimage": "Museum_of_Cham_Sculpture.jpg",
+    "pageprops": {
+     "page_image_free": "Museum_of_Cham_Sculpture.jpg",
+     "wikibase_item": "Q6940790"
+    },
+    "lastrevid": 75213893,
+    "fullurl": "https://vi.wikipedia.org/wiki/B%E1%BA%A3o_t%C3%A0ng_%C4%90i%C3%AAu_kh%E1%BA%AFc_Ch%C4%83m_%C4%90%C3%A0_N%E1%BA%B5ng",
+    "canonicalurl": "https://vi.wikipedia.org/wiki/B%E1%BA%A3o_t%C3%A0ng_%C4%90i%C3%AAu_kh%E1%BA%AFc_Ch%C4%83m_%C4%90%C3%A0_N%E1%BA%B5ng"
+   }
+  ]
+ }
+}

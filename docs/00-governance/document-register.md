@@ -1,6 +1,6 @@
 # Documentation map — Gonarra × SDLC-Prompt-Checklist
 
-Each artifact is generated from a kit prompt (adapted copy in `prompt-templates/`), audited against its kit checklist in a
+Each artifact is generated from a kit prompt (adapted copy formerly in `prompt-templates/`, removed 2026-11-09, in git history at `f8645f3`), audited against its kit checklist in a
 separate session, fixed (max three rounds) and approved by the mentor. The agent drafts; it never approves.
 
 | Phase | Artifact | Prompt template | Checklist | Replaces (retired) | Status |

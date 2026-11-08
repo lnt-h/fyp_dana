@@ -4,6 +4,7 @@ Names follow ``docs/04-design/api/openapi.yaml``. Additions the 0.4.0 contract l
 §5 trust label contract, OQ-128 acknowledgement) are marked "extension" in the field description.
 """
 
+import datetime as dt
 import uuid
 from datetime import date, datetime
 from typing import Annotated, Literal
@@ -26,8 +27,16 @@ ConflictType = Literal[
     "OPENING_HOURS_UNKNOWN",
     "FACT_STALE",
     "MUST_SEE_NOT_INCLUDED",
+    "CLOSED_ON_DATE",
+    "LEG_MODE_RESTRICTED",
+    "LUNAR_EVENT_CONFLICT",
+    "TICKET_VALIDITY",
+    "SEASONAL_WARNING",
     "WEB_PLACE_UNVERIFIED",
+    "WEB_PLACE_UNRESOLVED",
+    "LEG_ESTIMATED",
 ]
+ConflictSeverity = Literal["BLOCKING", "WARNING", "INFO"]
 LocalTime = Annotated[str, Field(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$", examples=["08:00"])]
 Title = Annotated[str, Field(max_length=120)]
 
@@ -46,10 +55,23 @@ class GeoPoint(BaseModel):
 
 class Conflict(BaseModel):
     type: ConflictType = Field(
-        description="WEB_PLACE_UNVERIFIED is an extension (architecture §3.2 step 7)."
+        description=(
+            "Plan Health conflict type (ADR-011). LEG_ESTIMATED (INFO, openapi 1.0.2) marks a leg "
+            "whose distance/duration is a demo estimate, not a Google Routes measurement."
+        )
     )
-    severity: Literal["BLOCKING", "WARNING"]
+    severity: ConflictSeverity = Field(
+        description=(
+            "BLOCKING → plan BLOCKED; WARNING → plan at most WARNING; INFO is a notice only and "
+            "never changes plan_health."
+        )
+    )
     message: str | None = None
+    rule_id: uuid.UUID | None = Field(
+        default=None, description="place_closure_rules row behind a calendar conflict."
+    )
+    date: dt.date | None = Field(default=None, description="Trip date the conflict applies to.")
+    stop_ids: list[uuid.UUID] = Field(default_factory=list, description="Stops involved.")
 
 
 class WebSource(BaseModel):
@@ -134,6 +156,13 @@ class Leg(BaseModel):
     distance_m: int | None = None
     duration_s: int | None = None
     measured_at: datetime | None = None
+    estimated: bool = Field(
+        default=False,
+        description=(
+            "True when distance_m/duration_s are a straight-line demo estimate (owner demo without "
+            "Google Routes), not a measurement. Such legs also carry a LEG_ESTIMATED conflict."
+        ),
+    )
     conflicts: list[Conflict] = Field(default_factory=list)
 
 
@@ -230,7 +259,18 @@ class PlanPreview(BaseModel):
     health_reasons: list[Conflict] = Field(default_factory=list)
     expires_at: datetime
     days: list[ItineraryDay]
-    assumptions: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(
+        default_factory=list,
+        description="Plan assumptions, rendered in the response locale (stored as stable keys).",
+    )
+    planning_preferences: PlanningPreferences | None = Field(
+        default=None,
+        description=(
+            "Effective preferences (request > trip > account) this preview was generated with; "
+            "day regeneration reuses them and Save copies them to the trip. Null for previews "
+            "created before 1.0.3 or from a saved itinerary without stored preferences."
+        ),
+    )
     research_used: bool = Field(default=False, description="Extension (architecture §5).")
     model_version: str | None = None
     prompt_version: str | None = None

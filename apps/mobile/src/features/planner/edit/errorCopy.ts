@@ -3,6 +3,7 @@ import type { TFunction } from 'i18next';
 const knownCodes = [
   'network', 'route_unavailable', 'ai_unavailable', 'revision_conflict', 'preview_expired', 'preview_closed', 'validation_error',
   'place_not_in_city', 'quota_exceeded', 'idempotency_in_progress', 'database_unavailable', 'resource_not_found', 'authentication_required', 'internal_error',
+  'unsupported_request', 'trip_not_saved',
 ] as const;
 type KnownCode = typeof knownCodes[number];
 

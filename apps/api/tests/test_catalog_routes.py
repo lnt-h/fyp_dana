@@ -1,10 +1,12 @@
 """Catalog and preferences routes with dependency overrides and stubbed repositories (no DB)."""
 
+import dataclasses
 import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, time
 from typing import Any
 
+import jwt
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient, Response
@@ -24,7 +26,13 @@ from app.catalog.search import InvalidCursorError, SearchPage
 from app.db.session import get_db_session
 from app.main import create_app
 from app.models.account import Account
-from app.security.clerk import AuthenticatedUser, get_current_account, get_current_user
+from app.security import clerk
+from app.security.clerk import (
+    AuthenticatedUser,
+    get_current_account,
+    get_current_user,
+    get_optional_account,
+)
 
 CITY_ID = uuid.uuid4()
 PLACE_ID = uuid.uuid4()
@@ -124,6 +132,9 @@ def app(monkeypatch: pytest.MonkeyPatch) -> FastAPI:
     application.dependency_overrides[get_current_account] = lambda: Account(
         id=ACCOUNT_ID, clerk_user_id="u"
     )
+    application.dependency_overrides[get_optional_account] = lambda: Account(
+        id=ACCOUNT_ID, clerk_user_id="u"
+    )
     application.dependency_overrides[get_db_session] = _fake_session
 
     async def cities(self: Any) -> list[CityRecord]:
@@ -151,14 +162,79 @@ async def put(app: FastAPI, path: str, body: Any) -> Response:
         return await client.put(path, json=body)
 
 
-@pytest.mark.parametrize(
-    "path",
-    ["/v1/cities", "/v1/categories", "/v1/places", f"/v1/places/{PLACE_ID}", "/v1/me/preferences"],
-)
-async def test_routes_require_authentication(path: str) -> None:
+@pytest.mark.parametrize("path", ["/v1/me/preferences", "/v1/trips"])
+async def test_private_routes_require_authentication(path: str) -> None:
     response = await get(create_app(), path)
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "authentication_required"
+
+
+PUBLIC_PATHS = ["/v1/cities", "/v1/categories", "/v1/places", f"/v1/places/{PLACE_ID}"]
+
+
+@pytest.fixture
+def public_app(app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> FastAPI:
+    """The catalog app without the auth overrides: real optional-auth dependencies."""
+    app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides.pop(get_current_account, None)
+    app.dependency_overrides.pop(get_optional_account, None)
+
+    async def fake_search(session: Any, **kwargs: Any) -> SearchPage:
+        return SearchPage(items=[SUMMARY], next_cursor=None)
+
+    async def fake_detail(self: Any, place_id: uuid.UUID) -> PlaceDetailRecord | None:
+        return DETAIL
+
+    monkeypatch.setattr(catalog_routes, "search_catalog", fake_search)
+    monkeypatch.setattr(PlacesRepository, "get_published_detail", fake_detail)
+    return app
+
+
+@pytest.mark.parametrize("path", PUBLIC_PATHS)
+async def test_public_catalog_reads_work_for_guests(public_app: FastAPI, path: str) -> None:
+    response = await get(public_app, path)
+    assert response.status_code == 200, response.text
+
+
+class _Verifier:
+    def __init__(self, valid: bool) -> None:
+        self.valid = valid
+
+    def verify(self, token: str) -> AuthenticatedUser:
+        if not self.valid:
+            raise jwt.InvalidTokenError("bad token")
+        return AuthenticatedUser("user_1", None)
+
+
+@pytest.mark.parametrize("path", PUBLIC_PATHS)
+async def test_public_catalog_reads_reject_an_invalid_token(
+    public_app: FastAPI, monkeypatch: pytest.MonkeyPatch, path: str
+) -> None:
+    monkeypatch.setattr(clerk, "get_token_verifier", lambda: _Verifier(valid=False))
+    response = await get(public_app, path, headers={"Authorization": "Bearer nope"})
+    assert response.status_code == 401
+
+
+@pytest.mark.parametrize("path", PUBLIC_PATHS)
+async def test_public_catalog_reads_accept_a_valid_token(
+    public_app: FastAPI, monkeypatch: pytest.MonkeyPatch, path: str
+) -> None:
+    seen: list[uuid.UUID] = []
+
+    async def account(user: Any, session: Any) -> Account:
+        assert user.subject == "user_1"
+        return Account(id=ACCOUNT_ID, clerk_user_id="user_1")
+
+    async def no_job(session: Any, account_id: uuid.UUID) -> bool:
+        seen.append(account_id)
+        return False
+
+    monkeypatch.setattr(clerk, "get_account_allowing_deletion", account)
+    monkeypatch.setattr(clerk, "has_open_deletion_job", no_job)
+    monkeypatch.setattr(clerk, "get_token_verifier", lambda: _Verifier(valid=True))
+    response = await get(public_app, path, headers={"Authorization": "Bearer ok"})
+    assert response.status_code == 200, response.text
+    assert seen == [ACCOUNT_ID]
 
 
 async def test_cities_lists_enabled_city_with_areas(app: FastAPI) -> None:
@@ -304,6 +380,37 @@ async def test_place_detail_keeps_unknown_facts(
 
     missing = await get(app, f"/v1/places/{uuid.uuid4()}")
     assert missing.status_code == 404
+
+
+async def test_place_detail_exposes_description_origin_and_name_fallback(
+    app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    summary = dataclasses.replace(SUMMARY, name_en="Chùa Linh Ứng", name_en_is_source_fallback=True)
+    detail = dataclasses.replace(
+        DETAIL, summary=summary, translation_origin_en="AI_SUMMARY", description_vi=None
+    )
+
+    async def fake_detail(self: Any, place_id: uuid.UUID) -> PlaceDetailRecord | None:
+        return detail
+
+    monkeypatch.setattr(PlacesRepository, "get_published_detail", fake_detail)
+    en = (await get(app, f"/v1/places/{PLACE_ID}", params={"locale": "en"})).json()
+    assert en["description_origin"] == "AI_SUMMARY"
+    assert en["name_is_source_fallback"] is True and en["name"] == "Chùa Linh Ứng"
+    vi = (await get(app, f"/v1/places/{PLACE_ID}", params={"locale": "vi"})).json()
+    assert vi["description"] is None and vi["description_origin"] is None
+    assert vi["name_is_source_fallback"] is False  # the VI name is the source name
+    monkeypatch.setattr(
+        PlacesRepository,
+        "get_published_detail",
+        lambda self, place_id: _async(DETAIL),
+    )
+    plain = (await get(app, f"/v1/places/{PLACE_ID}", params={"locale": "vi"})).json()
+    assert plain["description_origin"] == "SOURCE"
+
+
+async def _async(value: Any) -> Any:
+    return value
 
 
 async def test_preferences_defaults(app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> None:

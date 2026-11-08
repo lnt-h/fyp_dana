@@ -43,6 +43,7 @@ from app.schemas.trips import (
 )
 from app.schemas.trips import Trip as TripSchema
 from app.trips import idempotency
+from app.trips.assumptions import localize_assumptions
 from app.trips.handoff import HandoffTrip, build_handoff_link
 from app.trips.render import DEFAULT_TIME_ZONE, candidate_names, parse_point, render_days
 from app.trips.repository import CityInfo, FactInfo, TripCursor, TripSort, TripStore
@@ -508,7 +509,8 @@ class TripService:
             health_reasons=reasons,
             expires_at=preview.expires_at,
             days=days,
-            assumptions=snapshot.assumptions,
+            assumptions=localize_assumptions(snapshot.assumptions, locale),
+            planning_preferences=snapshot.preferences,
             research_used=snapshot.research_used,
             model_version=revision.model_version,
             prompt_version=revision.prompt_version,
@@ -576,10 +578,16 @@ class TripService:
                 if edit.op in ("ADD_STOP", "REPLACE_STOP") and edit.place_id is not None
             }
             publications = await self.store.published_places(place_ids, trip.city_id)
-            modes = trip.planning_preferences.get("allowed_modes") or ["WALK"]
+            parent_snapshot = load_snapshot(parent)
+            modes = (
+                parent_snapshot.preferences.allowed_modes
+                if parent_snapshot.preferences is not None
+                and parent_snapshot.preferences.allowed_modes
+                else trip.planning_preferences.get("allowed_modes")
+            ) or ["WALK"]
             default_mode: TravelMode = "DRIVE" if modes[0] == "DRIVE" else "WALK"
             snapshot, health = apply_edits(
-                load_snapshot(parent),
+                parent_snapshot,
                 body.edits,
                 day_count=trip.day_count,
                 default_mode=default_mode,

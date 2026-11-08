@@ -9,7 +9,14 @@ import pytest
 import yaml
 
 from app.curation.auto_publish import Contributions, SourceInfo, compose, gate_reasons
-from app.ingestion.areas import AREAS_DIR, assign_area, load_areas, parse_areas, point_in_ring
+from app.ingestion.areas import (
+    AREAS_DIR,
+    assign_area,
+    hoi_an_area_codes,
+    load_areas,
+    parse_areas,
+    point_in_ring,
+)
 from app.ingestion.calendar import CALENDAR_DIR, parse_rules
 from app.ingestion.common import PROVENANCE_KEY
 from app.ingestion.sheet import parse_opening_hours, parse_rows
@@ -48,26 +55,42 @@ def test_point_in_ring_square() -> None:
         ("Bà Nà Hills", 107.9960, 15.9950, "ba-na-hoa-vang"),
         ("Hải Vân pass", 108.1300, 16.1970, "ba-na-hoa-vang"),
         ("Bạch Mã national park (Huế)", 107.8500, 16.1900, None),
-        ("Mỹ Sơn sanctuary", 108.1240, 15.7640, None),
+        # 2026-11-08 polygons: real clusters that were outside every area.
+        ("Mỹ Sơn sanctuary", 108.1240, 15.7640, "my-son"),
+        ("Quảng Nam citadel (Thanh Chiêm)", 108.2546, 15.8885, "hoi-an-outskirts"),
+        ("Gò Nổi bridge", 108.2626, 15.8513, "hoi-an-outskirts"),
+        ("Nam Phước market", 108.2808, 15.8434, "hoi-an-outskirts"),
+        ("Cham Islands (Wikidata point)", 108.6800, 15.9500, "hoi-an-beaches-islands"),
+        ("Hàn river bridge", 108.2267, 16.0723, "da-nang-center"),
+        ("Thuận Phước bridge", 108.2220, 16.0919, "da-nang-center"),
+        ("An Hải Bắc market (east bank)", 108.2315, 16.0809, "my-khe-ngu-hanh-son"),
+        ("Vincom Plaza (east bank)", 108.2303, 16.0714, "my-khe-ngu-hanh-son"),
+        ("Quảng Nam museum (Tam Kỳ)", 108.4756, 15.5799, "tam-ky"),
+        # Still outside: no catch-all area.
+        ("Bằng An tower (Điện Bàn)", 108.2327, 15.8845, None),
+        ("Lăng Cô beach (Huế)", 108.0600, 16.2700, None),
+        ("Sơn Mỹ memorial (Quảng Ngãi)", 108.8900, 15.1800, None),
+        ("Ngọc Linh mountain", 107.9800, 15.0700, None),
     ],
 )
 def test_area_assignment_of_landmarks(name: str, lng: float, lat: float, area: str | None) -> None:
     assert assign_area(AREAS, lng, lat) == area, name
 
 
-def test_area_file_has_the_six_seeded_codes() -> None:
+def test_area_file_matches_the_seeded_codes_and_names() -> None:
+    from app.cli import AREAS as SEEDED
+
     document = yaml.safe_load((AREAS_DIR / "da-nang.yaml").read_text(encoding="utf-8"))
-    codes = [area.code for area in parse_areas(document)]
-    assert sorted(codes) == sorted(
-        [
-            "da-nang-center",
-            "son-tra",
-            "my-khe-ngu-hanh-son",
-            "ba-na-hoa-vang",
-            "hoi-an-old-town",
-            "hoi-an-beaches-islands",
-        ]
-    )
+    areas = parse_areas(document)
+    assert sorted(area.code for area in areas) == sorted(code for code, _, _ in SEEDED)
+    seeded = {code: (vi, en) for code, vi, en in SEEDED}
+    for area in areas:
+        assert (area.name_vi, area.name_en) == seeded[area.code], area.code
+    assert hoi_an_area_codes(areas) == {
+        "hoi-an-old-town",
+        "hoi-an-beaches-islands",
+        "hoi-an-outskirts",
+    }
     with pytest.raises(ValueError):
         parse_areas({"areas": [{"code": "x", "polygon": [[0, 0], [1, 1]]}]})
 

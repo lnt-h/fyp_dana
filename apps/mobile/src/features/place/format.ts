@@ -52,15 +52,28 @@ export const formatPoint = (point: GeoPoint) => `${point.latitude.toFixed(5)}, $
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
+/** Words used inside fact values; the place screen passes its translations (fallbacks for other callers). */
+export type FactLabels = { free: string; child: (price: string) => string };
+
+const fallbackLabels = (locale: AppLocale): FactLabels => locale === 'vi'
+  ? { child: price => `trẻ em ${price}`, free: 'Miễn phí' }
+  : { child: price => `children ${price}`, free: 'Free' };
+
 /** Renders a KNOWN fact value by its shape (provisional shapes, see types.ts); null when the shape is not recognised. */
-export function formatFactValue(value: FactValue | string | null | undefined, locale: AppLocale): string | null {
+export function formatFactValue(value: FactValue | string | null | undefined, locale: AppLocale, labels: FactLabels = fallbackLabels(locale)): string | null {
   if (typeof value === 'string') return value.trim() || null;
   if (!isObject(value)) return null;
+  if ('free' in value && value.free === true) return labels.free;
+  if ('adult' in value && typeof value.adult === 'number') {
+    const currency = typeof value.currency === 'string' ? value.currency : 'VND';
+    const adult = formatMoney(String(value.adult), currency, locale);
+    return typeof value.child === 'number' ? `${adult} · ${labels.child(formatMoney(String(value.child), currency, locale))}` : adult;
+  }
   if ('intervals' in value && Array.isArray(value.intervals)) {
     const text = value.intervals.map(interval => `${interval.open} – ${interval.close}`).join(', ');
     return text || null;
   }
-  if ('amount' in value && 'currency' in value) return formatMoney(value.amount, value.currency, locale);
+  if ('amount' in value && 'currency' in value && typeof value.amount === 'string' && typeof value.currency === 'string') return formatMoney(value.amount, value.currency, locale);
   if ('text' in value && typeof value.text === 'string') return value.text.trim() || null;
   if ('latitude' in value && 'longitude' in value) return formatPoint(value);
   return null;

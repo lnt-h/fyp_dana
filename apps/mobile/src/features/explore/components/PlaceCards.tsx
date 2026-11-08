@@ -1,11 +1,9 @@
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { GlassBadge, Icon, PhotoCard, Skeleton, categoryIcon, PhotoFallback } from '../../../components/ui';
+import { GlassBadge, Icon, Photo, PhotoCard, Skeleton, categoryIcon, usePhotoFailed } from '../../../components/ui';
 import type { Place } from '../../../lib/api/types';
-import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
@@ -32,7 +30,7 @@ export function PlaceGridCard({ place, categoryLabel, onPress, width }: CardProp
   const { t } = useTranslation();
   const minutes = useMinutes(place);
   const height = Math.round(width * 1.25);
-  const photo = resolveImage(place.thumbnail, { height, width });
+  const [photoFailed, onPhotoError] = usePhotoFailed(place.thumbnail);
   return (
     <Pressable
       accessibilityHint={t('explore.openHint')}
@@ -42,11 +40,7 @@ export function PlaceGridCard({ place, categoryLabel, onPress, width }: CardProp
       style={({ pressed }) => [styles.gridCard, { height, width }, pressed && styles.pressed]}
     >
       <View style={styles.clip}>
-        {photo ? (
-          <Image contentFit="cover" placeholder={photo.placeholder} placeholderContentFit="cover" source={photo.source} style={StyleSheet.absoluteFill} transition={200} />
-        ) : (
-          <PhotoFallback tone="dark" icon={categoryIcon(place.category_code)} />
-        )}
+        <Photo categoryCode={place.category_code} height={height} image={place.thumbnail} name={place.name} onError={onPhotoError} tone="dark" width={width} />
         <LinearGradient colors={['rgba(7,21,30,0)', 'rgba(7,21,30,0.8)']} locations={[0.35, 1]} style={StyleSheet.absoluteFill} />
         {minutes ? <GlassBadge icon="clock" label={minutes} style={styles.badge} /> : null}
         <View style={styles.overlay}>
@@ -55,7 +49,7 @@ export function PlaceGridCard({ place, categoryLabel, onPress, width }: CardProp
             <Icon color={colors.white} name={categoryIcon(place.category_code)} size={15} />
             {categoryLabel ? <Text numberOfLines={1} style={styles.gridMetaText}>{categoryLabel}</Text> : null}
           </View>
-          {photo && place.thumbnail?.attribution_text ? <Text numberOfLines={1} style={styles.credit}>{place.thumbnail.attribution_text}</Text> : null}
+          {!photoFailed && place.thumbnail?.attribution_text ? <Text numberOfLines={1} style={styles.credit}>{place.thumbnail.attribution_text}</Text> : null}
         </View>
       </View>
     </Pressable>
@@ -67,7 +61,6 @@ export function PlaceListRow({ place, categoryLabel, onPress }: CardProps) {
   const { t } = useTranslation();
   const minutes = useMinutes(place);
   const secondary = otherName(place);
-  const photo = resolveImage(place.thumbnail, { height: LIST_THUMB, width: LIST_THUMB });
   return (
     <Pressable
       accessibilityHint={t('explore.openHint')}
@@ -77,11 +70,7 @@ export function PlaceListRow({ place, categoryLabel, onPress }: CardProps) {
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
       <View style={styles.thumb}>
-        {photo ? (
-          <Image contentFit="cover" placeholder={photo.placeholder} source={photo.source} style={StyleSheet.absoluteFill} transition={150} />
-        ) : (
-          <Icon color={colors.tealText} name={categoryIcon(place.category_code)} size={26} />
-        )}
+        <Photo categoryCode={place.category_code} height={LIST_THUMB} iconSize={26} image={place.thumbnail} name={place.name} transition={150} variant="thumb" width={LIST_THUMB} />
       </View>
       <View style={styles.rowBody}>
         <Text numberOfLines={2} style={styles.rowName}>{place.name}</Text>
@@ -107,6 +96,8 @@ export function FeaturedCard({ place, categoryLabel, onPress }: CardProps) {
       attribution={place.thumbnail?.attribution_text}
       badge={minutes ?? undefined}
       badgeIcon="clock"
+      fallbackCategory={place.category_code}
+      fallbackName={place.name}
       image={place.thumbnail}
       imageHeight={FEATURED_HEIGHT}
       onPress={onPress}

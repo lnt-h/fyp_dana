@@ -3,7 +3,10 @@
 For every candidate place of a city this module
 
 1. **composes** the content it would publish from the staged import records (owner sheet >
-   Wikidata/Wikipedia > promoted web candidate), deterministically;
+   Wikidata/Wikipedia > OpenStreetMap > promoted web candidate), deterministically; facts come
+   from the sheet, else from OpenStreetMap (OPENING_HOURS), else from the grounded writer's
+   extraction (``enrich facts``, DEC-028: ``origin = AI_EXTRACTED`` with its grounding flag and
+   the cited evidence revision), each with its own source revision;
 2. runs the **gate** in code (``GATE_RULES``): both locales complete, location inside the city
    boundary, category and area set, every source licensed and attributed, every KNOWN fact
    backed by an attributed source revision (otherwise it is UNKNOWN, never invented), no media
@@ -26,13 +29,14 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, null, select, text, update
+from sqlalchemy import func, null, or_, select, text, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.curation.chunks import content_sha256
 from app.curation.common import audit, normalize_search_text, parse_point
 from app.curation.embedding import ChunkEmbedder
+from app.curation.names import proper_name_fallback
 from app.curation.system import system_account_id
 from app.db.types import ewkt_point
 from app.ingestion.areas import assign_area, load_areas
@@ -49,6 +53,7 @@ from app.models.catalog import (
     PlaceLocalization,
     PlaceMedia,
     PublicationFact,
+    PublicationMedia,
     Source,
     SourceRevision,
     WebPlaceCandidate,
@@ -60,6 +65,10 @@ from app.models.reference import Category, FactField
 logger = logging.getLogger("gonarra.curation")
 
 LOCALES: tuple[str, ...] = ("vi", "en")
+# Grounded AI descriptions (app.research.enrich): one import record per place under this provider.
+AI_SUMMARY_PROVIDER_KEY = "gonarra_ai_summary"
+# AI-extracted facts and short descriptions (app.research.fact_extract, DEC-028).
+AI_FACTS_PROVIDER_KEY = "gonarra_ai_facts"
 UNUSABLE_LICENCES = frozenset({"", "UNKNOWN", "NONE"})
 
 # Human-readable gate rules (reported by the CLI and documented in apps/api/data/README.md).
@@ -69,7 +78,10 @@ GATE_RULES: dict[str, str] = {
     "MISSING_CATEGORY": "no category could be set (sheet or mapped Wikidata class)",
     "MISSING_AREA": "location is outside every travel-area polygon and the sheet names no area",
     "MISSING_NAME": "no name in this locale (sheet name or Wikidata label)",
-    "MISSING_DESCRIPTION": "no description in this locale (Wikipedia, sheet or Wikidata)",
+    "MISSING_DESCRIPTION": (
+        "no description in this locale (Wikipedia, sheet, AI summary of cited sources or Wikidata)"
+    ),
+    "AI_SUMMARY_UNCITED": "an AI-summarised description has no recorded cited source revision",
     "MISSING_LICENCE": "a source used by shown content has no licence or no attribution text",
     "FACT_WITHOUT_SOURCE": "a KNOWN fact has no attributed source revision",
     "SQL_GATE": "fn_publication_gate_violations reported a violation",
@@ -85,6 +97,11 @@ class DesiredLocalization:
     short_description: str | None
     description: str | None
     source_revision_ids: set[uuid.UUID] = field(default_factory=set)
+    # ORIGINAL, or AI_SUMMARY when the description comes from the grounded writer (0007).
+    translation_origin: str = "ORIGINAL"
+    name_is_source_fallback: bool = False
+    # Pages the AI summary was written from (provenance; checked by AI_SUMMARY_UNCITED).
+    cited_revision_ids: set[uuid.UUID] = field(default_factory=set)
 
 
 @dataclass(frozen=True)
@@ -93,6 +110,8 @@ class DesiredFact:
     knowledge_state: str
     value: dict[str, Any] | None
     evidence: tuple[tuple[uuid.UUID, str], ...]  # (source_revision_id, supported_claim)
+    origin: str = "SOURCE"  # SOURCE | OWNER | AI_EXTRACTED (0009, DEC-028)
+    grounding: str | None = None  # STRONG | WEAK for AI_EXTRACTED
 
 
 @dataclass(frozen=True)
@@ -121,7 +140,10 @@ class Contributions:
     sheet: dict[str, Any] | None = None
     wikidata: dict[str, Any] | None = None
     wikipedia: dict[str, dict[str, Any]] = field(default_factory=dict)
+    osm: dict[str, Any] | None = None
     web: WebPlaceCandidate | None = None
+    ai_summary: dict[str, Any] | None = None
+    ai_facts: dict[str, Any] | None = None
 
 
 def _provenance_id(
@@ -143,6 +165,17 @@ def _clean(value: Any) -> str | None:
     return text_value or None
 
 
+def _sourced_fact(payload: dict[str, Any] | None, code: str) -> tuple[dict[str, Any], str] | None:
+    """A staged fact with its own source revision id (sheet and OSM records share the shape)."""
+    fact = ((payload or {}).get("facts") or {}).get(code)
+    revision = (
+        ((payload or {}).get(PROVENANCE_KEY) or {}).get("fact_source_revision_ids") or {}
+    ).get(code)
+    if fact and revision and fact.get("value"):
+        return fact, str(revision)
+    return None
+
+
 def compose(
     place: Place,
     contributions: Contributions,
@@ -152,9 +185,12 @@ def compose(
     fact_fields: Sequence[FactField],
 ) -> Desired:
     sheet, wikidata, web = contributions.sheet, contributions.wikidata, contributions.web
+    osm, ai_summary = contributions.osm, contributions.ai_summary
+    ai_facts = contributions.ai_facts
+    ai_facts_rev = _provenance_id(ai_facts)
     point = parse_point(place.location)
     lng, lat = (point.longitude, point.latitude) if point else (0.0, 0.0)
-    for payload in (sheet, wikidata):
+    for payload in (sheet, wikidata, osm):
         location = (payload or {}).get("location")
         if location:
             lng, lat = float(location["lng"]), float(location["lat"])
@@ -164,7 +200,11 @@ def compose(
         if web_point is not None:
             lng, lat = web_point.longitude, web_point.latitude
 
-    category = (sheet or {}).get("category") or (wikidata or {}).get("category")
+    category = (
+        (sheet or {}).get("category")
+        or (wikidata or {}).get("category")
+        or (osm or {}).get("category")
+    )
     if category is None and web is not None and web.category_guess:
         category = web.category_guess.strip().upper()
     if category is None:
@@ -183,16 +223,25 @@ def compose(
 
     sheet_rev = _provenance_id(sheet)
     wikidata_rev = _provenance_id(wikidata)
+    osm_rev = _provenance_id(osm)
     web_rev = web.source_revision_id if web is not None else None
-    primary = sheet_rev or wikidata_rev or web_rev
+    primary = sheet_rev or wikidata_rev or osm_rev or web_rev
 
+    ai_rev = _provenance_id(ai_summary)
+    ai_cited = {
+        uuid.UUID(str(value))
+        for value in ((ai_summary or {}).get(PROVENANCE_KEY) or {}).get("cited_source_revision_ids")
+        or []
+    }
     localizations: dict[str, DesiredLocalization] = {}
     aliases: dict[str, list[str]] = {}
     chunks: list[DesiredChunk] = []
+    vi_name_rev: uuid.UUID | None = None
     for locale in LOCALES:
         loc = DesiredLocalization(name=None, short_description=None, description=None)
         sheet_name = _clean(((sheet or {}).get("name") or {}).get(locale))
         wd_name = _clean(((wikidata or {}).get("name") or {}).get(locale))
+        osm_name = _clean(((osm or {}).get("name") or {}).get(locale))
         web_name = _clean(getattr(web, f"name_{locale}", None)) if web is not None else None
         if sheet_name:
             loc.name = sheet_name
@@ -200,9 +249,27 @@ def compose(
         elif wd_name:
             loc.name = wd_name
             _add(loc, wikidata_rev)
+        elif osm_name:
+            loc.name = osm_name
+            _add(loc, osm_rev)
         elif web_name:
             loc.name = web_name
             _add(loc, web_rev)
+        name_rev = (
+            (sheet_rev if sheet_name else None)
+            or (wikidata_rev if wd_name else None)
+            or (osm_rev if osm_name else None)
+            or (web_rev if web_name else None)
+        )
+        if locale == "vi":
+            vi_name_rev = name_rev
+        elif not loc.name and "vi" in localizations:
+            # Proper-name fallback (D3): the Vietnamese name unchanged, never a translation.
+            fallback = proper_name_fallback(category, localizations["vi"].name)
+            if fallback is not None:
+                loc.name = fallback
+                loc.name_is_source_fallback = True
+                _add(loc, vi_name_rev)
 
         sheet_short = _clean(((sheet or {}).get("short_description") or {}).get(locale))
         sheet_desc = _clean(((sheet or {}).get("description") or {}).get(locale))
@@ -210,13 +277,18 @@ def compose(
         wiki = contributions.wikipedia.get(locale)
         wiki_text = _clean((wiki or {}).get("summary"))
         wiki_rev = _provenance_id(wiki)
+        ai_text = _clean(((ai_summary or {}).get("description") or {}).get(locale))
 
+        ai_short = _clean(((ai_facts or {}).get("short_description") or {}).get(locale))
         if sheet_short:
             loc.short_description = sheet_short
             _add(loc, sheet_rev)
         elif wd_desc:
             loc.short_description = wd_desc
             _add(loc, wikidata_rev)
+        elif ai_short and ai_facts_rev:
+            loc.short_description = ai_short
+            _add(loc, ai_facts_rev)
 
         if wiki_text and wiki_rev:
             loc.description = wiki_text
@@ -225,6 +297,11 @@ def compose(
         elif sheet_desc:
             loc.description = sheet_desc
             _add(loc, sheet_rev)
+        elif ai_text and ai_rev:
+            loc.description = ai_text
+            loc.translation_origin = "AI_SUMMARY"
+            loc.source_revision_ids.add(ai_rev)
+            loc.cited_revision_ids |= ai_cited
         elif sheet_short:
             loc.description = sheet_short
         elif wd_desc:
@@ -237,6 +314,7 @@ def compose(
             loc.name,
             wd_name,
             sheet_name,
+            osm_name,
             *(((wikidata or {}).get("aliases") or {}).get(locale) or []),
         ):
             cleaned = _clean(candidate)
@@ -245,16 +323,33 @@ def compose(
         aliases[locale] = names
 
     facts: list[DesiredFact] = []
-    sheet_facts = (sheet or {}).get("facts") or {}
-    fact_revs = ((sheet or {}).get(PROVENANCE_KEY) or {}).get("fact_source_revision_ids") or {}
     for fact_field in fact_fields:
         code = fact_field.code
-        sheet_fact = sheet_facts.get(code)
-        fact_rev = fact_revs.get(code)
-        if sheet_fact and fact_rev:
-            value = dict(sheet_fact["value"])
+        owner = _sourced_fact(sheet, code)
+        sourced = owner or _sourced_fact(osm, code)
+        ai = _sourced_fact(ai_facts, code) if sourced is None else None
+        if sourced is not None:
+            staged, fact_rev = sourced
+            value = dict(staged["value"])
             claim = f"{code}: {value.get('text') or value}"[:500]
-            facts.append(DesiredFact(code, "KNOWN", value, ((uuid.UUID(fact_rev), claim),)))
+            origin = "OWNER" if owner is not None else "SOURCE"
+            facts.append(DesiredFact(code, "KNOWN", value, ((uuid.UUID(fact_rev), claim),), origin))
+        elif ai is not None:
+            staged, fact_rev = ai
+            value = dict(staged["value"])
+            claim = f"{code} (AI-extracted): {staged.get('quote') or value}"[:500]
+            facts.append(
+                DesiredFact(
+                    code,
+                    "KNOWN",
+                    value,
+                    ((uuid.UUID(fact_rev), claim),),
+                    "AI_EXTRACTED",
+                    staged.get("grounding")
+                    if staged.get("grounding") in ("STRONG", "WEAK")
+                    else "WEAK",
+                )
+            )
         elif fact_field.required_for_publication:
             evidence: tuple[tuple[uuid.UUID, str], ...] = ()
             if primary is not None:
@@ -311,9 +406,19 @@ def gate_reasons(
             reasons.append(f"MISSING_NAME:{locale}")
         if not loc.description:
             reasons.append(f"MISSING_DESCRIPTION:{locale}")
+        if loc.translation_origin == "AI_SUMMARY" and not any(
+            revision_id in sources for revision_id in loc.cited_revision_ids
+        ):
+            reasons.append(f"AI_SUMMARY_UNCITED:{locale}")
         used |= loc.source_revision_ids
     for fact in desired.facts:
         evidence_ids = {revision_id for revision_id, _ in fact.evidence}
+        if fact.origin == "AI_EXTRACTED":
+            # DEC-028: the cited evidence is a link, not copied content; it must exist (like the
+            # cited pages of an AI summary) but its licence is not required.
+            if not any(revision_id in sources for revision_id in evidence_ids):
+                reasons.append(f"FACT_WITHOUT_SOURCE:{fact.field_code}")
+            continue
         if fact.knowledge_state == "KNOWN" and not any(
             revision_id in sources and sources[revision_id].usable for revision_id in evidence_ids
         ):
@@ -398,10 +503,24 @@ async def gather(session: AsyncSession, place: Place) -> Contributions:
     contributions.sheet = sheet[0][1] if sheet else None
     wikidata = await _latest_payloads(session, place.id, "wikidata")
     contributions.wikidata = wikidata[0][1] if wikidata else None
+    osm = await _latest_payloads(session, place.id, "openstreetmap")
+    latest_osm: dict[str, dict[str, Any]] = {}
+    for upstream_id, payload in osm:
+        latest_osm.setdefault(upstream_id, payload)
+    if latest_osm:
+        # Several OSM elements may describe one place (node + building): prefer one with facts,
+        # then the lowest element id, so the choice is deterministic.
+        contributions.osm = sorted(
+            latest_osm.items(), key=lambda item: (not (item[1].get("facts") or {}), item[0])
+        )[0][1]
     for upstream_id, payload in await _latest_payloads(session, place.id, "wikipedia"):
         locale = upstream_id.split(":", 1)[0]
         if locale in LOCALES and locale not in contributions.wikipedia:
             contributions.wikipedia[locale] = payload
+    ai_summary = await _latest_payloads(session, place.id, AI_SUMMARY_PROVIDER_KEY)
+    contributions.ai_summary = ai_summary[0][1] if ai_summary else None
+    ai_facts = await _latest_payloads(session, place.id, AI_FACTS_PROVIDER_KEY)
+    contributions.ai_facts = ai_facts[0][1] if ai_facts else None
     contributions.web = await session.scalar(
         select(WebPlaceCandidate)
         .where(WebPlaceCandidate.promoted_place_id == place.id)
@@ -432,7 +551,7 @@ async def _sources(
 def _revision_ids(desired: Desired) -> set[uuid.UUID]:
     ids: set[uuid.UUID] = set()
     for loc in desired.localizations.values():
-        ids |= loc.source_revision_ids
+        ids |= loc.source_revision_ids | loc.cited_revision_ids
     for fact in desired.facts:
         ids |= {revision_id for revision_id, _ in fact.evidence}
     ids |= {chunk.source_revision_id for chunk in desired.chunks}
@@ -501,7 +620,14 @@ class _Apply:
                 current.short_description,
                 current.description,
                 current.translation_origin,
-            ) == (loc.name, loc.short_description, loc.description, "ORIGINAL"):
+                current.name_is_source_fallback,
+            ) == (
+                loc.name,
+                loc.short_description,
+                loc.description,
+                loc.translation_origin,
+                loc.name_is_source_fallback,
+            ):
                 continue
             if current is not None:
                 await self.session.execute(
@@ -524,7 +650,8 @@ class _Apply:
                     name=loc.name,
                     short_description=loc.short_description,
                     description=loc.description,
-                    translation_origin="ORIGINAL",
+                    translation_origin=loc.translation_origin,
+                    name_is_source_fallback=loc.name_is_source_fallback,
                     review_state="APPROVED",
                     reviewed_at=self.now,
                 )
@@ -585,6 +712,8 @@ class _Apply:
                 if (
                     current.knowledge_state == fact.knowledge_state
                     and current.value == fact.value
+                    and current.origin == fact.origin
+                    and current.grounding == fact.grounding
                     and current.conflict_state == "NONE"
                     and {(row[0], row[1]) for row in links} == wanted_evidence
                 ):
@@ -609,6 +738,8 @@ class _Apply:
                 verified_at=self.now,
                 review_state="APPROVED",
                 conflict_state="NONE",
+                origin=fact.origin,
+                grounding=fact.grounding,
             )
             self.session.add(row)
             await self.session.flush()
@@ -771,6 +902,33 @@ async def needs_publication(session: AsyncSession, place_id: uuid.UUID) -> bool:
         ).all()
     )
     if approved_facts != published_facts:
+        return True
+    cleared_media = set(
+        (
+            await session.execute(
+                select(PlaceMedia.media_asset_id, PlaceMedia.ordinal)
+                .join(MediaAsset, MediaAsset.id == PlaceMedia.media_asset_id)
+                .where(
+                    PlaceMedia.place_id == place_id,
+                    MediaAsset.rights_state == "CLEARED",
+                    or_(
+                        MediaAsset.rights_expires_on.is_(None),
+                        MediaAsset.rights_expires_on > func.current_date(),
+                    ),
+                )
+            )
+        ).all()
+    )
+    published_media = set(
+        (
+            await session.execute(
+                select(PublicationMedia.media_asset_id, PublicationMedia.ordinal).where(
+                    PublicationMedia.catalog_publication_id == current.id
+                )
+            )
+        ).all()
+    )
+    if {tuple(row) for row in cleared_media} != {tuple(row) for row in published_media}:
         return True
     corpus = await session.scalar(
         select(func.max(KnowledgeChunk.corpus_revision)).where(

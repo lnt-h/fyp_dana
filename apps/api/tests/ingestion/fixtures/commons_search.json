@@ -1,0 +1,73 @@
+{
+    "batchcomplete": true,
+    "query": {
+        "searchinfo": {
+            "totalhits": 7
+        },
+        "search": [
+            {
+                "ns": 6,
+                "title": "File:Phuoc Lam Pagoda 3.jpg",
+                "pageid": 87362911,
+                "size": 336,
+                "wordcount": 158,
+                "snippet": "I, the copyright holder of this work, hereby publish it under the following license: This file is licensed under the Creative Commons Attribution-Share",
+                "timestamp": "2025-11-25T06:12:28Z"
+            },
+            {
+                "ns": 6,
+                "title": "File:Chùa phước lâm.png",
+                "pageid": 169743627,
+                "size": 271,
+                "wordcount": 41,
+                "snippet": "I, the copyright holder of this work, hereby publish it under the following license: English Chùa Phước Lâm Kon Tum author name string: Benjaminelevenis",
+                "timestamp": "2025-10-08T23:14:27Z"
+            },
+            {
+                "ns": 6,
+                "title": "File:Phuoc Lam Pagoda 6.jpg",
+                "pageid": 87362917,
+                "size": 396,
+                "wordcount": 162,
+                "snippet": "I, the copyright holder of this work, hereby publish it under the following license: This file is licensed under the Creative Commons Attribution-Share",
+                "timestamp": "2024-10-05T10:19:38Z"
+            },
+            {
+                "ns": 6,
+                "title": "File:Phuoc Lam Pagoda 1.jpg",
+                "pageid": 87362912,
+                "size": 370,
+                "wordcount": 152,
+                "snippet": "I, the copyright holder of this work, hereby publish it under the following license: This file is licensed under the Creative Commons Attribution-Share",
+                "timestamp": "2026-02-11T05:48:16Z"
+            },
+            {
+                "ns": 6,
+                "title": "File:Phuoc Lam Pagoda 5.jpg",
+                "pageid": 87362916,
+                "size": 397,
+                "wordcount": 156,
+                "snippet": "I, the copyright holder of this work, hereby publish it under the following license: This file is licensed under the Creative Commons Attribution-Share",
+                "timestamp": "2026-02-08T13:52:11Z"
+            },
+            {
+                "ns": 6,
+                "title": "File:Phuoc Lam Pagoda 4.jpg",
+                "pageid": 87362915,
+                "size": 336,
+                "wordcount": 158,
+                "snippet": "I, the copyright holder of this work, hereby publish it under the following license: This file is licensed under the Creative Commons Attribution-Share",
+                "timestamp": "2026-10-23T03:19:41Z"
+            },
+            {
+                "ns": 6,
+                "title": "File:Phuoc Lam Pagoda 2.jpg",
+                "pageid": 87362909,
+                "size": 336,
+                "wordcount": 158,
+                "snippet": "I, the copyright holder of this work, hereby publish it under the following license: This file is licensed under the Creative Commons Attribution-Share",
+                "timestamp": "2024-07-14T10:52:30Z"
+            }
+        ]
+    }
+}

@@ -23,8 +23,7 @@ docs/
 ├── 00-governance/                document control for the whole set
 │   ├── document-register.md      every artifact, its template, checklist and status
 │   ├── template-adaptation-log.md
-│   ├── ai-agent-guidelines.md    fixed decisions and rules for AI-assisted drafting
-│   └── prompt-templates/         adapted prompt templates (analysis, design, requirements)
+│   └── ai-agent-guidelines.md    fixed decisions and rules for AI-assisted drafting
 ├── 01-intake/                    intent, sources, glossary, stakeholders
 ├── 02-requirements/              BRD, BRD audit, elicitation session record (interviews/)
 ├── 03-analysis/                  PRD, user stories, traceability matrix, PRD audit

@@ -87,6 +87,10 @@ class Citation(BaseModel):
     trust_level: TrustLevel = "VERIFIED"
 
 
+FactOrigin = Literal["SOURCE", "OWNER", "AI_EXTRACTED"]
+FactGrounding = Literal["STRONG", "WEAK"]
+
+
 class PlaceFact(BaseModel):
     """One operational fact. UNKNOWN is never collapsed into an empty value (FR-005)."""
 
@@ -101,6 +105,21 @@ class PlaceFact(BaseModel):
         default=None, description="Most recent supporting source (1.0); also listed in sources."
     )
     sources: list[Citation]
+    origin: FactOrigin = Field(
+        default="SOURCE",
+        description=(
+            "1.0.4 (DEC-028): SOURCE (open data or official source), OWNER (owner sheet) or "
+            "AI_EXTRACTED (extracted by Gonarra's grounded writer from the cited source; label "
+            "it 'Summarised from sources' and show the source link)."
+        ),
+    )
+    grounding: FactGrounding | None = Field(
+        default=None,
+        description=(
+            "1.0.4: AI_EXTRACTED only. STRONG = the extraction quote matches the cited text; "
+            "WEAK = it matches only partly. Null for other origins."
+        ),
+    )
 
 
 class ClosureRule(BaseModel):
@@ -118,6 +137,9 @@ class ClosureRule(BaseModel):
     verified_at: date | None = None
 
 
+DescriptionOrigin = Literal["SOURCE", "AI_SUMMARY"]
+
+
 class PlaceSummary(BaseModel):
     id: uuid.UUID
     city_id: uuid.UUID
@@ -126,6 +148,13 @@ class PlaceSummary(BaseModel):
     area_code: str | None = None
     name_vi: str = Field(description="Vietnamese name, always present (FR-076).")
     name: str = Field(description="Name in the requested locale.")
+    name_is_source_fallback: bool = Field(
+        default=False,
+        description=(
+            "1.0.3. True when `name` (EN locale) is the original Vietnamese proper name reused "
+            "unchanged because no source gives an English name; never a machine translation."
+        ),
+    )
     short_description: str | None = None
     location: GeoPoint
     visit_minutes_suggested: int | None = None
@@ -143,6 +172,14 @@ class PlaceSummaryPage(PageInfo):
 class PlaceDetail(PlaceSummary):
     name_en: str
     description: str | None = None
+    description_origin: DescriptionOrigin | None = Field(
+        default=None,
+        description=(
+            "1.0.3. SOURCE = text from a cited source (Wikipedia lead, operator sheet, Wikidata); "
+            "AI_SUMMARY = summarised by Gonarra's grounded writer from the listed sources (label "
+            "it in the UI). Null when there is no description."
+        ),
+    )
     visit_minutes_min: int | None = None
     visit_minutes_max: int | None = None
     entrance_location: GeoPoint | None = None

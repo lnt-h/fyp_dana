@@ -10,9 +10,11 @@ Severity is fixed per conflict type (architecture §3.6, openapi ``Conflict.type
   ``LEG_MODE_RESTRICTED``, ``DAY_WINDOW_EXCEEDED``, ``WEB_PLACE_UNRESOLVED``.
 - WARNING: ``OPENING_HOURS_UNKNOWN``, ``FACT_STALE``, ``MUST_SEE_NOT_INCLUDED``,
   ``LUNAR_EVENT_CONFLICT``, ``TICKET_VALIDITY``, ``SEASONAL_WARNING``, ``WEB_PLACE_UNVERIFIED``.
+- INFO: ``LEG_ESTIMATED`` (a leg measured by the demo estimate provider, not Google Routes).
 
-``plan_health`` is ``BLOCKED`` iff a blocking conflict exists, else ``WARNING`` if any conflict
-exists or any stop is ``WEB_UNVERIFIED`` (FR-031 cap), else ``GOOD``.
+``plan_health`` is ``BLOCKED`` iff a blocking conflict exists, else ``WARNING`` if any warning
+exists or any stop is ``WEB_UNVERIFIED`` (FR-031 cap), else ``GOOD``. INFO notices never change
+the status: an estimated leg is labelled on the leg, it does not make a feasible plan worse.
 
 Messages: each conflict has a stable ``message_key`` for the mobile i18n catalogue and a fixed
 English ``message`` as fallback; neither contains user or place text.
@@ -27,7 +29,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Literal
 
-from app.planning.calendar.rules import Severity, TravelMode
+from app.planning.calendar.rules import TravelMode
 from app.planning.calendar.windows import DAY_MINUTES, DayWindow, Interval, contains, overlaps
 
 ConflictType = Literal[
@@ -44,7 +46,9 @@ ConflictType = Literal[
     "SEASONAL_WARNING",
     "WEB_PLACE_UNVERIFIED",
     "WEB_PLACE_UNRESOLVED",
+    "LEG_ESTIMATED",
 ]
+Severity = Literal["BLOCKING", "WARNING", "INFO"]
 PlanHealthStatus = Literal["GOOD", "WARNING", "BLOCKED"]
 TrustLevel = Literal["VERIFIED", "WEB_UNVERIFIED"]
 LegAvailability = Literal["AVAILABLE", "UNAVAILABLE", "EXPIRED"]
@@ -66,6 +70,7 @@ CONFLICT_SEVERITY: Mapping[ConflictType, Severity] = {
     "SEASONAL_WARNING": "WARNING",
     "WEB_PLACE_UNVERIFIED": "WARNING",
     "WEB_PLACE_UNRESOLVED": "BLOCKING",
+    "LEG_ESTIMATED": "INFO",
 }
 
 CONFLICT_MESSAGES: Mapping[ConflictType, str] = {
@@ -82,6 +87,7 @@ CONFLICT_MESSAGES: Mapping[ConflictType, str] = {
     "SEASONAL_WARNING": "A seasonal or dated notice applies to this visit.",
     "WEB_PLACE_UNVERIFIED": "This place was found on the web and is not verified by Gonarra.",
     "WEB_PLACE_UNRESOLVED": "This web-found place could not be confirmed to exist.",
+    "LEG_ESTIMATED": "Travel time and distance are estimates, not measured routes.",
 }
 
 _TYPE_ORDER: Mapping[str, int] = {name: index for index, name in enumerate(CONFLICT_SEVERITY)}
@@ -99,6 +105,7 @@ __all__ = [
     "HealthStop",
     "LegAvailability",
     "PlanHealthStatus",
+    "Severity",
     "TrustLevel",
     "evaluate",
     "message_key",
@@ -148,6 +155,7 @@ class HealthLeg:
     travel_mode: TravelMode
     availability: LegAvailability
     duration_s: int | None = None
+    estimated: bool = False  # distance/duration from the demo estimate provider
 
 
 @dataclass(frozen=True, slots=True)
@@ -327,6 +335,8 @@ def _check_day(
         pair = (leg.from_stop_id, leg.to_stop_id)
         if leg.availability != "AVAILABLE":
             found.append(_conflict("LEG_UNAVAILABLE", day=day.date, stop_ids=pair))
+        elif leg.estimated:
+            found.append(_conflict("LEG_ESTIMATED", day=day.date, stop_ids=pair))
         origin, target = stops[leg.from_stop_id], stops[leg.to_stop_id]
         found.extend(
             _conflict("LEG_MODE_RESTRICTED", day=day.date, stop_ids=pair, rule_id=rule_id)
@@ -451,7 +461,7 @@ def evaluate(
     status: PlanHealthStatus
     if any(conflict.blocking for conflict in conflicts):
         status = "BLOCKED"
-    elif conflicts or has_web:
+    elif has_web or any(conflict.severity == "WARNING" for conflict in conflicts):
         status = "WARNING"
     else:
         status = "GOOD"

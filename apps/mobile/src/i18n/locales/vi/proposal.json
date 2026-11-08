@@ -17,7 +17,8 @@
   "cover": {
     "photo": "Ảnh {{name}}",
     "cityPhoto": "Ảnh {{city}}",
-    "credit": "Ảnh: {{credit}}"
+    "credit": "Ảnh: {{credit}}",
+    "meta": "{{city}} · {{dates}} · {{days}} · {{stops}}"
   },
   "stats": {
     "days": "Thời lượng",
@@ -55,7 +56,11 @@
     "goToStopA11y": "Đến điểm dừng {{number}}, {{name}}",
     "onDate": "Ngày {{date}}",
     "affects": "Ảnh hưởng: {{stops}}",
-    "affectedStop": "Ngày {{day}} #{{number}} {{name}}"
+    "affectedStop": "Ngày {{day}} #{{number}} {{name}}",
+    "notices": "Cần biết",
+    "severityInfo": "Lưu ý",
+    "noticeDays_one": "Ngày {{days}}",
+    "noticeDays_other": "Các ngày {{days}}"
   },
   "conflict": {
     "CLOSED_AT_PLANNED_TIME": "Đóng cửa vào giờ dự kiến",
@@ -70,7 +75,8 @@
     "TICKET_VALIDITY": "Vé có thể không dùng được cho lịch này",
     "SEASONAL_WARNING": "Lưu ý theo mùa",
     "WEB_PLACE_UNVERIFIED": "Tìm trên web, chưa đối chiếu nguồn",
-    "WEB_PLACE_UNRESOLVED": "Không xác nhận được địa điểm từ web"
+    "WEB_PLACE_UNRESOLVED": "Không xác nhận được địa điểm từ web",
+    "LEG_ESTIMATED": "Quãng đường và thời gian đi chỉ là ước tính"
   },
   "itinerary": {
     "title": "Lịch trình theo ngày",
@@ -88,7 +94,10 @@
     "warnings_other": "{{count}} cảnh báo",
     "expandHint": "Mở hoặc thu gọn lịch trình của ngày này",
     "empty": "Ngày {{day}} chưa có điểm dừng",
-    "emptyBody": "Thêm địa điểm đã đối chiếu nguồn ở {{city}} hoặc tạo lại ngày này."
+    "emptyBody": "Thêm địa điểm đã đối chiếu nguồn ở {{city}} hoặc tạo lại ngày này.",
+    "chip": "{{weekday}} {{date}}",
+    "chipA11y_one": "Ngày {{day}}, {{date}}, {{count}} điểm dừng",
+    "chipA11y_other": "Ngày {{day}}, {{date}}, {{count}} điểm dừng"
   },
   "stop": {
     "minutes": "{{count}} phút",
@@ -101,7 +110,8 @@
     "detailsA11y": "Mở thẻ địa điểm {{name}}",
     "why": "Vì sao chọn?",
     "whyHide": "Thu gọn",
-    "aiLabel": "Gợi ý của AI"
+    "aiLabel": "Gợi ý của AI",
+    "a11yNoTime": "{{number}}, {{name}}, {{unknown}}, {{status}}"
   },
   "leg": {
     "WALK": "Đi bộ",
@@ -111,7 +121,11 @@
     "hoursMinutes": "{{hours}} giờ {{minutes}} phút",
     "unavailable": "Không có tuyến đường — không ước tính",
     "a11y": "{{mode}}, {{distance}}, {{duration}}",
-    "unavailableA11y": "{{mode}}, không có dữ liệu tuyến đường, không ước tính"
+    "unavailableA11y": "{{mode}}, không có dữ liệu tuyến đường, không ước tính",
+    "approx": "≈ {{value}}",
+    "estimatedA11y": "{{mode}}, khoảng {{distance}}, khoảng {{duration}}, ước tính",
+    "unavailableShort": "Không có tuyến đường",
+    "estimateNotice": "Khoảng cách và thời gian di chuyển được ước tính theo đường thẳng, chưa đo trên đường thực tế."
   },
   "map": {
     "title": "Bản đồ",
@@ -126,7 +140,8 @@
     "attributionGoogle": "Dữ liệu bản đồ © Google",
     "attributionApple": "Bản đồ © Apple",
     "noStops": "Ngày này chưa có điểm dừng",
-    "legendUnavailable": "Ngày có chặng không có tuyến đường bị đánh dấu \"Bị chặn\". Hãy đổi cách di chuyển hoặc thay điểm dừng."
+    "legendUnavailable": "Ngày có chặng không có tuyến đường bị đánh dấu \"Bị chặn\". Hãy đổi cách di chuyển hoặc thay điểm dừng.",
+    "legendStraight": "Các đường nối thẳng giữa những điểm dừng, không phải lộ trình thực tế."
   },
   "save": {
     "action": "Lưu chuyến đi",
@@ -193,7 +208,9 @@
     "database_unavailable": "Dịch vụ tạm gián đoạn. Thử lại.",
     "resource_not_found": "Không tìm thấy mục này.",
     "internal_error": "Có lỗi xảy ra. Thử lại.",
-    "authentication_required": "Phiên đăng nhập đã hết. Hãy đăng nhập lại để tiếp tục."
+    "authentication_required": "Phiên đăng nhập đã hết. Hãy đăng nhập lại để tiếp tục.",
+    "unsupported_request": "Chưa hỗ trợ thay đổi này.",
+    "trip_not_saved": "Hãy lưu chuyến đi trước rồi thử lại."
   },
   "sheet": {
     "subtitle": "Ngày {{day}} · điểm dừng {{number}} · {{time}}",
@@ -318,15 +335,6 @@
     "retry": "Thử lại",
     "close": "Đóng"
   },
-  "dev": {
-    "label": "Dữ liệu mẫu · lần sửa tới",
-    "none": "Thành công",
-    "network": "Mất kết nối",
-    "route_unavailable": "Lỗi tuyến đường",
-    "revision_conflict": "Xung đột 409",
-    "ai_unavailable": "AI bận",
-    "preview_expired": "Hết hạn"
-  },
   "book": "Đặt chỗ ở và hoạt động",
   "eyebrow": "{{city}} · {{dates}}",
   "healthCard": {
@@ -339,5 +347,11 @@
     "reviewDetailHint": "Mở chi tiết tình trạng kế hoạch",
     "good": "Kế hoạch ổn",
     "goodA11y": "Tình trạng kế hoạch: ổn"
+  },
+  "ready": {
+    "toast": "Đề xuất đã sẵn sàng — chưa được lưu"
+  },
+  "assumptions": {
+    "title": "Lịch trình này dựa trên"
   }
 }

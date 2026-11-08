@@ -28,6 +28,8 @@ export type ProposalData = {
   cityId: Uuid | null;
   /** Modes the Edit stop sheet may offer (trip `planning_preferences.allowed_modes`). */
   allowedModes: TravelMode[];
+  /** Server-localized assumption lines of the preview (e.g. the demo-estimate disclosure); empty for a saved trip. */
+  assumptions: string[];
 };
 
 export type StopPlace = { thumbnail: Media | null; categoryCode: string | null };
@@ -72,7 +74,7 @@ async function fromTrip(trip: TripDetail): Promise<ProposalData> {
   const days = numberDays(trip.days);
   const [city, places] = await Promise.all([cityOf(trip.city_id), placesOf(days)]);
   return {
-    ...city, allowedModes: modesOf(trip), cityId: trip.city_id, cover: coverOf(days, places), days, health: null, healthReasons: [],
+    ...city, allowedModes: modesOf(trip), assumptions: [], cityId: trip.city_id, cover: coverOf(days, places), days, health: null, healthReasons: [],
     origin: null, places, previewId: null, previewRevision: null, readOnly: trip.status === 'SAVED', saved: trip.status === 'SAVED',
     startDate: trip.start_date, tripId: trip.id,
   };
@@ -80,7 +82,14 @@ async function fromTrip(trip: TripDetail): Promise<ProposalData> {
 
 const ALL_MODES: TravelMode[] = ['WALK', 'DRIVE'];
 
-function modesOf(trip: TripDetail | null): TravelMode[] {
+/**
+ * Travel modes the plan was made with: the preview's own effective preferences (openapi 1.0.3
+ * `PlanPreview.planning_preferences`, what generation and day regeneration used), else the trip's saved preferences
+ * (copied there on Save), else both modes.
+ */
+function modesOf(trip: TripDetail | null, preview?: PlanPreview | null): TravelMode[] {
+  const fromPreview = preview?.planning_preferences?.allowed_modes;
+  if (fromPreview?.length) return fromPreview;
   const modes = trip?.planning_preferences?.allowed_modes;
   return modes?.length ? modes : ALL_MODES;
 }
@@ -92,8 +101,11 @@ function modesOf(trip: TripDetail | null): TravelMode[] {
 export async function withPreview(data: ProposalData, preview: PlanPreview): Promise<ProposalData> {
   const days = numberDays(preview.days);
   const places = await placesOf(days, data.places);
+  const modes = preview.planning_preferences?.allowed_modes;
   return {
     ...data,
+    allowedModes: modes?.length ? modes : data.allowedModes,
+    assumptions: preview.assumptions ?? [],
     days,
     health: preview.plan_health,
     healthReasons: preview.health_reasons ?? [],
@@ -122,7 +134,8 @@ async function load({ previewId, tripId, mode }: Params): Promise<ProposalData> 
   const [trip, places] = await Promise.all([getTrip(preview.trip_id).catch(() => null), placesOf(days)]);
   return {
     ...(await cityOf(trip?.city_id)),
-    allowedModes: modesOf(trip),
+    allowedModes: modesOf(trip, preview),
+    assumptions: preview.assumptions ?? [],
     cityId: trip?.city_id ?? null,
     cover: coverOf(days, places),
     days,

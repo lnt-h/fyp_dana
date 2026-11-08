@@ -28,7 +28,7 @@ Read this before generating or auditing any artifact. It is a summary; the sourc
 
 ## Rules for every artifact
 
-- Run the named kit prompt literally: its §5 output contract, §6 self-check, §7 structure. Fill its `2.2` parameters in an adapted copy under `docs/00-governance/prompt-templates/<kit-path>` (keep the six sections; add a first-line HTML comment naming the kit file and commit `6996dae`) and add a row to `docs/00-governance/template-adaptation-log.md`.
+- Run the named kit prompt literally: its §5 output contract, §6 self-check, §7 structure. Fill its `2.2` parameters in an adapted copy (the copies under `docs/00-governance/prompt-templates/` were removed on 2026-11-09 and remain in git history at `f8645f3`; restore one from there before reusing it, keeping the six sections and the first-line HTML comment naming the kit file and commit `6996dae`) and add a row to `docs/00-governance/template-adaptation-log.md`.
 - Write in English. Document control: ID `GONARRA-<KIND>`, version 0.1, status Draft, owner Lê Ngọc Tấn Hiền, approver trantrongminh, date 2026-11-04, prompt path + version.
 - Preserve every existing ID; never renumber; new IDs continue the scheme of kit A9 (FR-, NFR-, US-, AC-, CMP-, ADR-, API-, TASK-, TC-, DEF-). Legacy FR-00..07 / US-00..08 / UC-00..06 / HA-02 may be kept as a "Legacy ID" column.
 - Never invent people, dates, numbers, approvals or test results. Unknowns → `OQ-xxx` (continue after OQ-007) with owner Lê Ngọc Tấn Hiền and a needed-by date; assumptions → `ASM-xxx` (continue after ASM-011).

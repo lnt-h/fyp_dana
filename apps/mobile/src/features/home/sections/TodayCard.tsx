@@ -1,15 +1,13 @@
 import { router } from 'expo-router';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
 
-import { GlassBadge, Icon, PrimaryButton, SecondaryButton, Skeleton, PhotoFallback } from '../../../components/ui';
+import { GlassBadge, Icon, Photo, PrimaryButton, SecondaryButton, Skeleton, usePhotoFailed } from '../../../components/ui';
 import { getPlace, getTrip } from '../../../lib/api/source';
 import type { CityCode, Media, Stop, Trip, TripDetail } from '../../../lib/api/types';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
-import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
@@ -65,6 +63,7 @@ export function TodayCard({ trip, cityCode, onOpenPlace }: { trip: Trip; cityCod
   const [nowMinutes, setNowMinutes] = useState(() => vietnamMinutesNow());
   const [thumb, setThumb] = useState<Media | null>(null);
   const [notice, setNotice] = useState('');
+  const [photoFailed, onPhotoError] = usePhotoFailed(thumb);
 
   useEffect(() => {
     let active = true;
@@ -119,7 +118,6 @@ export function TodayCard({ trip, cityCode, onOpenPlace }: { trip: Trip; cityCod
   }
 
   const media = thumb ?? (cityCode ? CITY_IMAGES[cityCode] : null);
-  const photo = resolveImage(media, { height: PHOTO_HEIGHT, width: 400 });
   const kicker = t('homeSheet.today.kicker', { day: dayIndex });
   // SCR-032: the Today screen shows the rest of today and links to the full itinerary.
   const viewPlan = () => router.push({ pathname: '/trip/[tripId]/today', params: { tripId: trip.id } });
@@ -128,11 +126,7 @@ export function TodayCard({ trip, cityCode, onOpenPlace }: { trip: Trip; cityCod
     <View style={styles.card}>
       <View style={styles.clip}>
         <View style={styles.photo}>
-          {photo ? (
-            <Image contentFit="cover" placeholder={photo.placeholder} placeholderContentFit="cover" source={photo.source} style={StyleSheet.absoluteFill} transition={200} />
-          ) : (
-            <PhotoFallback tone="dark" icon="calendar" />
-          )}
+          <Photo height={PHOTO_HEIGHT} icon="calendar" image={media} onError={onPhotoError} tone="dark" width={400} />
           <LinearGradient colors={['rgba(7,21,30,0)', 'rgba(7,21,30,0.72)']} locations={[0.3, 1]} style={StyleSheet.absoluteFill} />
           <GlassBadge icon="calendar" label={kicker} style={styles.badge} />
           <View style={styles.overlay}>
@@ -147,6 +141,7 @@ export function TodayCard({ trip, cityCode, onOpenPlace }: { trip: Trip; cityCod
             ) : (
               <Text numberOfLines={2} style={styles.name}>{t('homeSheet.today.done')}</Text>
             )}
+            {thumb?.attribution_text && !photoFailed ? <Text numberOfLines={1} style={styles.credit}>{thumb.attribution_text}</Text> : null}
           </View>
         </View>
         <View style={styles.body}>
@@ -174,6 +169,7 @@ const styles = StyleSheet.create({
   doneBody: { ...typography.body, color: colors.textMuted, fontSize: 15, lineHeight: 21 },
   name: { color: colors.white, fontFamily: fonts.bold, fontSize: 22, letterSpacing: -0.2, lineHeight: 28 },
   notice: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
+  credit: { color: 'rgba(255,255,255,0.82)', fontFamily: fonts.medium, fontSize: 11, marginTop: 4 },
   overlay: { bottom: 0, left: 0, padding: spacing.md, position: 'absolute', right: 0 },
   photo: { backgroundColor: colors.deepOcean, height: PHOTO_HEIGHT },
   time: { color: colors.white, fontFamily: fonts.bold, fontSize: 15 },

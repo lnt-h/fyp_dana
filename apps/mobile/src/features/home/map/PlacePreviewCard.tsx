@@ -1,10 +1,8 @@
-import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Icon, categoryIcon } from '../../../components/ui';
+import { Icon, Photo, categoryIcon } from '../../../components/ui';
 import type { Place } from '../../../lib/api/types';
-import { resolveImage } from '../../../lib/images/imagekit';
 import { colors } from '../../../theme/colors';
 import { radii } from '../../../theme/spacing';
 import { elevation } from '../../../theme/elevation';
@@ -18,7 +16,6 @@ type Props = {
 /** Small floating card for the tapped marker; tap opens the place card (SCR-033). */
 export function PlacePreviewCard({ place, onOpen }: Props) {
   const { t } = useTranslation();
-  const image = resolveImage(place.thumbnail, { height: 56, width: 56 });
   const minutes = place.visit_minutes_suggested;
 
   return (
@@ -29,11 +26,7 @@ export function PlacePreviewCard({ place, onOpen }: Props) {
       style={({ pressed }) => [styles.card, elevation.md, pressed && styles.pressed]}
     >
       <View style={styles.photo}>
-        {image ? (
-          <Image contentFit="cover" placeholder={image.placeholder} source={image.source} style={StyleSheet.absoluteFill} />
-        ) : (
-          <Icon color={colors.tealText} name={categoryIcon(place.category_code)} size={24} />
-        )}
+        <Photo categoryCode={place.category_code} height={56} iconSize={24} image={place.thumbnail} name={place.name} variant="thumb" width={56} />
       </View>
       <View style={styles.body}>
         <Text numberOfLines={1} style={styles.name}>{place.name}</Text>

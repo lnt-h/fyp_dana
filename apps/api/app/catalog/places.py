@@ -27,9 +27,11 @@ from sqlalchemy import (
     or_,
     select,
     table,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.catalog.reference import AreaRecord
 from app.models.catalog import (
@@ -38,6 +40,8 @@ from app.models.catalog import (
     MediaAsset,
     Place,
     PlaceClosureRule,
+    PlaceFact,
+    PlaceLocalization,
     PlaceMedia,
     PublicationMedia,
     Source,
@@ -115,9 +119,14 @@ class PlaceSummaryRecord:
     thumbnail: MediaRecord | None = None
     # Published places are always VERIFIED (architecture §5 trust label contract).
     trust_level: Literal["VERIFIED"] = "VERIFIED"
+    # Migration 0007: the EN name is the Vietnamese proper name reused unchanged.
+    name_en_is_source_fallback: bool = False
 
     def name(self, locale: str) -> str:
         return self.name_en if locale == "en" else self.name_vi
+
+    def name_is_source_fallback(self, locale: str) -> bool:
+        return locale == "en" and self.name_en_is_source_fallback
 
     def short_description(self, locale: str) -> str | None:
         return self.short_description_en if locale == "en" else self.short_description_vi
@@ -135,6 +144,26 @@ class FactSourceRecord:
     homepage_url: str | None
 
 
+_ORIGIN_COLUMN: list[bool] = []
+
+
+async def _fact_origin_available(session: AsyncSession) -> bool:
+    """Transitional (2026-11-08): True once migration 0009 added ``place_facts.origin``.
+
+    Lets a database still at 0008 serve place details (origin reads as SOURCE) until the owner
+    runs ``alembic upgrade head``; the answer is cached per process (restart after upgrading).
+    """
+    if not _ORIGIN_COLUMN:
+        found = await session.scalar(
+            text(
+                "SELECT EXISTS (SELECT 1 FROM information_schema.columns "
+                "WHERE table_name = 'place_facts' AND column_name = 'origin')"
+            )
+        )
+        _ORIGIN_COLUMN.append(bool(found))
+    return _ORIGIN_COLUMN[0]
+
+
 @dataclass(frozen=True)
 class FactRecord:
     place_fact_id: uuid.UUID
@@ -146,6 +175,8 @@ class FactRecord:
     valid_until: date | None
     is_stale: bool
     sources: tuple[FactSourceRecord, ...]
+    origin: str = "SOURCE"  # SOURCE | OWNER | AI_EXTRACTED (0009, DEC-028)
+    grounding: str | None = None
 
 
 @dataclass(frozen=True)
@@ -178,6 +209,9 @@ class PlaceDetailRecord:
     facts: tuple[FactRecord, ...]
     media: tuple[MediaRecord, ...]
     closure_rules: tuple[ClosureRuleRecord, ...]
+    # place_localizations.translation_origin of each published localization (0007: AI_SUMMARY).
+    translation_origin_vi: str = "ORIGINAL"
+    translation_origin_en: str = "ORIGINAL"
 
 
 def _lat(geography: Any) -> Any:
@@ -186,6 +220,10 @@ def _lat(geography: Any) -> Any:
 
 def _lng(geography: Any) -> Any:
     return func.ST_X(func.geometry(geography), type_=Float)
+
+
+_LOC_VI = aliased(PlaceLocalization, name="loc_vi")
+_LOC_EN = aliased(PlaceLocalization, name="loc_en")
 
 
 def published_places_select() -> Select[Any]:
@@ -206,10 +244,12 @@ def published_places_select() -> Select[Any]:
             _lat(vw.c.location).label("lat"),
             _lng(vw.c.location).label("lng"),
             vw.c.visit_minutes_suggested,
+            _LOC_EN.name_is_source_fallback.label("name_en_is_source_fallback"),
         )
         .select_from(vw)
         .join(CatalogPublication, CatalogPublication.id == vw.c.catalog_publication_id)
         .join(Place, Place.id == vw.c.place_id)
+        .join(_LOC_EN, _LOC_EN.id == CatalogPublication.localization_en_id)
     )
 
 
@@ -229,6 +269,7 @@ def summary_from_row(row: Any, thumbnail: MediaRecord | None = None) -> PlaceSum
         lng=row.lng,
         visit_minutes_suggested=row.visit_minutes_suggested,
         thumbnail=thumbnail,
+        name_en_is_source_fallback=bool(row.name_en_is_source_fallback),
     )
 
 
@@ -339,6 +380,8 @@ class PlacesRepository:
                     vw.c.published_at,
                     vw.c.description_vi,
                     vw.c.description_en,
+                    _LOC_VI.translation_origin.label("translation_origin_vi"),
+                    _LOC_EN.translation_origin.label("translation_origin_en"),
                     vw.c.visit_minutes_min,
                     vw.c.visit_minutes_max,
                     _lat(vw.c.entrance_location).label("entrance_lat"),
@@ -347,6 +390,7 @@ class PlacesRepository:
                     Area.name_en.label("area_name_en"),
                     Area.sort_order.label("area_sort_order"),
                 )
+                .join(_LOC_VI, _LOC_VI.id == CatalogPublication.localization_vi_id)
                 .outerjoin(
                     Area,
                     and_(
@@ -379,6 +423,8 @@ class PlacesRepository:
             published_at=row.published_at,
             description_vi=row.description_vi,
             description_en=row.description_en,
+            translation_origin_vi=row.translation_origin_vi,
+            translation_origin_en=row.translation_origin_en,
             visit_minutes_min=row.visit_minutes_min,
             visit_minutes_max=row.visit_minutes_max,
             entrance_lat=row.entrance_lat,
@@ -413,6 +459,14 @@ class PlacesRepository:
             )
         ).all()
         fact_ids = [row.place_fact_id for row in fact_rows]
+        origins: dict[uuid.UUID, tuple[str, str | None]] = {}
+        if fact_ids and await _fact_origin_available(self._session):
+            origin_rows = await self._session.execute(
+                select(PlaceFact.id, PlaceFact.origin, PlaceFact.grounding).where(
+                    PlaceFact.id.in_(fact_ids)
+                )
+            )
+            origins = {row[0]: (row[1], row[2]) for row in origin_rows.all()}
         sources: dict[uuid.UUID, list[FactSourceRecord]] = {}
         if fact_ids:
             source_rows = (
@@ -462,6 +516,8 @@ class PlacesRepository:
                 valid_until=row.valid_until,
                 is_stale=bool(row.is_stale),
                 sources=tuple(sources.get(row.place_fact_id, ())),
+                origin=origins.get(row.place_fact_id, ("SOURCE", None))[0],
+                grounding=origins.get(row.place_fact_id, ("SOURCE", None))[1],
             )
             for row in fact_rows
         ]

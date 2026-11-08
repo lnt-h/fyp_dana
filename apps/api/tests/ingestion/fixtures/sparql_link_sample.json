@@ -1,0 +1,320 @@
+{
+ "head": {
+  "vars": [
+   "item",
+   "coord",
+   "labelVi",
+   "labelEn",
+   "descVi",
+   "descEn",
+   "articleVi",
+   "articleEn",
+   "classLabels",
+   "aliasesVi",
+   "aliasesEn",
+   "images"
+  ]
+ },
+ "results": {
+  "bindings": [
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q183421"
+    },
+    "coord": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(108.869444444 15.178333333)"
+    },
+    "labelVi": {
+     "xml:lang": "vi",
+     "type": "literal",
+     "value": "Thảm sát Mỹ Lai"
+    },
+    "labelEn": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "My Lai Massacre"
+    },
+    "descVi": {
+     "xml:lang": "vi",
+     "type": "literal",
+     "value": "vụ thảm sát thường dân Việt Nam của lính Mỹ trong chiến tranh Việt Nam (1968)"
+    },
+    "descEn": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "1968 U.S. war crime during the Vietnam War"
+    },
+    "articleVi": {
+     "type": "uri",
+     "value": "https://vi.wikipedia.org/wiki/Th%E1%BA%A3m_s%C3%A1t_M%E1%BB%B9_Lai"
+    },
+    "articleEn": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/My_Lai_massacre"
+    },
+    "classLabels": {
+     "type": "literal",
+     "value": "war crime|war crimes trial|wartime sexual violence|massacre"
+    },
+    "aliasesVi": {
+     "type": "literal",
+     "value": "Vụ thảm sát Sơn Mỹ|Thảm sát Sơn Mỹ"
+    },
+    "aliasesEn": {
+     "type": "literal",
+     "value": "Mỹ Lai Massacre|Mylai Massacre|Sơn Mỹ Massacre|Songmy Massacre"
+    },
+    "images": {
+     "type": "literal",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/My%20Lai%20massacre.jpg"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q6755207"
+    },
+    "coord": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(108.26 16.0)"
+    },
+    "labelVi": {
+     "xml:lang": "vi",
+     "type": "literal",
+     "value": "Ngũ Hành Sơn"
+    },
+    "labelEn": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Ngũ Hành Sơn"
+    },
+    "descVi": {
+     "xml:lang": "vi",
+     "type": "literal",
+     "value": "5 ngọn núi ở Đà Nẵng, Việt Nam"
+    },
+    "descEn": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "group of mountains near Da Nang, Vietnam"
+    },
+    "articleVi": {
+     "type": "uri",
+     "value": "https://vi.wikipedia.org/wiki/Ng%C5%A9_H%C3%A0nh_S%C6%A1n"
+    },
+    "articleEn": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/Ng%C5%A9_H%C3%A0nh_S%C6%A1n"
+    },
+    "classLabels": {
+     "type": "literal",
+     "value": "mountain range"
+    },
+    "aliasesVi": {
+     "type": "literal",
+     "value": ""
+    },
+    "aliasesEn": {
+     "type": "literal",
+     "value": "Marble Mountains (Vietnam)|Ngu Hanh Son"
+    },
+    "images": {
+     "type": "literal",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Marble%20Mountains%20View%203.JPG"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q1091054"
+    },
+    "coord": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(108.325968055 15.87719)"
+    },
+    "labelVi": {
+     "xml:lang": "vi",
+     "type": "literal",
+     "value": "Chùa Cầu"
+    },
+    "labelEn": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Japanese Bridge"
+    },
+    "descEn": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "bridge in Hoi An, Vietnam"
+    },
+    "articleVi": {
+     "type": "uri",
+     "value": "https://vi.wikipedia.org/wiki/Ch%C3%B9a_C%E1%BA%A7u"
+    },
+    "articleEn": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/Japanese_Bridge"
+    },
+    "classLabels": {
+     "type": "literal",
+     "value": "covered bridge|Buddhist temple in Vietnam"
+    },
+    "aliasesVi": {
+     "type": "literal",
+     "value": "Lai Viễn Kiều|Lai Viễn"
+    },
+    "aliasesEn": {
+     "type": "literal",
+     "value": "Chùa Cầu|Japanese Covered Bridge"
+    },
+    "images": {
+     "type": "literal",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/2024%20H%E1%BB%99i%20An%20-%20Japanese%20Covered%20Bridge%20%28Ch%C3%B9a%20C%E1%BA%A7u%29%20after%20renovation%20-%20img%2011.jpg"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q7022659"
+    },
+    "coord": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(108.2525 16.00833333)"
+    },
+    "labelVi": {
+     "xml:lang": "vi",
+     "type": "literal",
+     "value": "Ngũ Hành Sơn"
+    },
+    "labelEn": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Ngũ Hành Sơn"
+    },
+    "descVi": {
+     "xml:lang": "vi",
+     "type": "literal",
+     "value": "phường thuộc thành phố Đà Nẵng (trước đây là quận)"
+    },
+    "descEn": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "ward of Da Nang, Vietnam, formerly a district"
+    },
+    "articleVi": {
+     "type": "uri",
+     "value": "https://vi.wikipedia.org/wiki/Ng%C5%A9_H%C3%A0nh_S%C6%A1n_(ph%C6%B0%E1%BB%9Dng)"
+    },
+    "articleEn": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/Ng%C5%A9_H%C3%A0nh_S%C6%A1n,_Da_Nang"
+    },
+    "classLabels": {
+     "type": "literal",
+     "value": "ward of Vietnam"
+    },
+    "aliasesVi": {
+     "type": "literal",
+     "value": "Quận Ngũ Hành Sơn"
+    },
+    "aliasesEn": {
+     "type": "literal",
+     "value": "Ngũ Hành Sơn, Đà Nẵng|Ngũ Hành Sơn ward"
+    },
+    "images": {
+     "type": "literal",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Phong%20c%E1%BA%A3nh%20%E1%BB%9F%20Ng%C5%A9%20H%C3%A0nh%20S%C6%A1n.jpg"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q132483343"
+    },
+    "coord": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(108.3304759 15.8787149)"
+    },
+    "labelEn": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Minh Huong Temple of Literature, Hoi An"
+    },
+    "classLabels": {
+     "type": "literal",
+     "value": "temple of Confucius"
+    },
+    "aliasesVi": {
+     "type": "literal",
+     "value": ""
+    },
+    "aliasesEn": {
+     "type": "literal",
+     "value": "Văn chỉ Minh Hương (Hội An)"
+    },
+    "images": {
+     "type": "literal",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/V%C4%83n%20ch%E1%BB%89%20Minh%20H%C6%B0%C6%A1ng%20%28H%E1%BB%99i%20An%29%202024%20-%20img%2001.jpg"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q18277260"
+    },
+    "coord": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(108.277 16.099)"
+    },
+    "labelVi": {
+     "xml:lang": "vi",
+     "type": "literal",
+     "value": "Chùa Linh Ứng"
+    },
+    "labelEn": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Linh Ung Pagoda"
+    },
+    "descVi": {
+     "xml:lang": "vi",
+     "type": "literal",
+     "value": "Chùa ở Đà Nẵng, Việt Nam"
+    },
+    "descEn": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Pagoda in Da Nang, Vietnam"
+    },
+    "articleVi": {
+     "type": "uri",
+     "value": "https://vi.wikipedia.org/wiki/Ch%C3%B9a_Linh_%E1%BB%A8ng"
+    },
+    "classLabels": {
+     "type": "literal",
+     "value": "pagoda"
+    },
+    "aliasesVi": {
+     "type": "literal",
+     "value": ""
+    },
+    "aliasesEn": {
+     "type": "literal",
+     "value": ""
+    },
+    "images": {
+     "type": "literal",
+     "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Lady%20Buddha%20Statue%20at%20Linh%20Ung%20Pagoda.jpg|http://commons.wikimedia.org/wiki/Special:FilePath/Son-Tra-Peninsula%20Da-Nang%20Vietnam%20Linh-Ung-Pagoda-01.jpg"
+    }
+   }
+  ]
+ }
+}

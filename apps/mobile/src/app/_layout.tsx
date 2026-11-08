@@ -1,6 +1,6 @@
 import '../i18n';
 
-import { ClerkProvider, useAuth, useSession } from '@clerk/expo';
+import { ClerkProvider, useSession } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { useFonts } from 'expo-font';
 import { ActivityIndicator, View } from 'react-native';
@@ -13,8 +13,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../theme/colors';
-import { AccountProvider } from '../features/account/AccountContext';
+import { AccountProvider, useAccount } from '../features/account/AccountContext';
+import { ConfigErrorScreen } from '../features/config/ConfigErrorScreen';
+import { demoNoAuth } from '../lib/demoAuth';
 import { ApiAuthBridge } from '../lib/api/ApiAuthBridge';
+import { isApiConfigured } from '../lib/api/config';
 import { SelectedCityProvider } from '../features/home/cityStore';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
@@ -27,10 +30,10 @@ if (!publishableKey) {
 function AppStack() {
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAccount();
   const { session } = useSession();
   if (!isLoaded) return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator accessibilityLabel={t('common.loadingSession')} /></View>;
-  const pendingTask = Boolean(session?.currentTask);
+  const pendingTask = !demoNoAuth && Boolean(session?.currentTask);
   return <Stack screenOptions={{ animation: reduceMotion ? 'none' : 'fade', contentStyle: { backgroundColor: colors.deepOcean }, headerShown: false }}>
     <Stack.Protected guard={pendingTask}><Stack.Screen name="auth-task" /></Stack.Protected>
     <Stack.Protected guard={!pendingTask}>
@@ -64,6 +67,8 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) {
     return <View style={{ flex: 1, backgroundColor: colors.deepOcean, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.white} accessibilityLabel={t('common.loadingApp')} /></View>;
   }
+  // EXPO_PUBLIC_API_URL is required: there is no local data to fall back to (config.ts).
+  if (!isApiConfigured()) return <ConfigErrorScreen />;
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>

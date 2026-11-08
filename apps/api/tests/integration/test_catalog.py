@@ -41,7 +41,12 @@ from app.models.catalog import (
     SourceRevision,
 )
 from app.models.reference import City, FactField
-from app.security.clerk import AuthenticatedUser, get_current_account, get_current_user
+from app.security.clerk import (
+    AuthenticatedUser,
+    get_current_account,
+    get_current_user,
+    get_optional_account,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -358,6 +363,7 @@ async def test_place_detail_and_http_routes(session: AsyncSession, token: str) -
     app.dependency_overrides[get_db_session] = same_session
     app.dependency_overrides[get_current_user] = lambda: AuthenticatedUser("u", None)
     app.dependency_overrides[get_current_account] = lambda: account
+    app.dependency_overrides[get_optional_account] = lambda: account
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         cities = (await client.get("/v1/cities")).json()["items"]
         assert [c["code"] for c in cities] == ["da-nang"]
@@ -422,3 +428,27 @@ async def test_place_detail_and_http_routes(session: AsyncSession, token: str) -
 
     assert await PreferencesRepository(session).get_locale(account.id) == "en"
     assert await ReferenceRepository(session).get_enabled_city(city_code="hoi-an") is None
+
+
+async def test_seed_keeps_only_da_nang_and_removes_unreferenced_cities(
+    session: AsyncSession, token: str
+) -> None:
+    from app.cli import remove_stale_cities
+
+    free, used = f"x-{token}-free", f"x-{token}-used"
+    for code in (free, used):
+        session.add(City(code=code, name_vi=code, name_en=code, time_zone="Asia/Ho_Chi_Minh"))
+    await session.flush()
+    used_id = await session.scalar(select(City.id).where(City.code == used))
+    await session.execute(
+        text(
+            "INSERT INTO places (city_id, slug, category_code, location)"
+            " VALUES (:c, :s, 'HERITAGE', ST_GeogFromText('SRID=4326;POINT(105.8 21.0)'))"
+        ),
+        {"c": used_id, "s": f"p-{token}"},
+    )
+    removed = await remove_stale_cities(session)
+    assert free in removed and used not in removed and "da-nang" not in removed
+    codes = set((await session.scalars(select(City.code))).all())
+    assert "da-nang" in codes and used in codes and free not in codes
+    assert await remove_stale_cities(session) == []  # idempotent (the used one is kept)

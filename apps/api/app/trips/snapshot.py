@@ -19,7 +19,14 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.errors import AppError, validation_failed
-from app.schemas.trips import Conflict, PlanHealth, PreviewEditOperation, TravelMode, TrustLevel
+from app.schemas.trips import (
+    Conflict,
+    PlanHealth,
+    PlanningPreferences,
+    PreviewEditOperation,
+    TravelMode,
+    TrustLevel,
+)
 
 LegAvailability = Literal["AVAILABLE", "UNAVAILABLE", "EXPIRED"]
 
@@ -74,6 +81,8 @@ class SnapshotLeg(_Snap):
     data_provider_id: uuid.UUID | None = None
     measured_at: datetime | None = None
     expires_at: datetime | None = None
+    # Demo estimate (EstimateProvider), not a Google Routes measurement (openapi Leg.estimated).
+    estimated: bool = False
     conflicts: list[Conflict] = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -101,9 +110,14 @@ class SnapshotDay(_Snap):
 class PlanSnapshot(_Snap):
     days: list[SnapshotDay]
     health_reasons: list[Conflict] = Field(default_factory=list)
+    # Stable assumption keys (app.trips.assumptions), localized at response time; snapshots
+    # written before 2026-11-08 may hold localized text, which passes through unchanged.
     assumptions: list[str] = Field(default_factory=list)
     research_used: bool = False
     agent_run_id: uuid.UUID | None = None
+    # Effective planning preferences used to generate this preview (request > trip > account),
+    # so day regeneration and edits reuse them; null for snapshots without a generation run.
+    preferences: PlanningPreferences | None = None
 
     @model_validator(mode="after")
     def _unique(self) -> Self:
@@ -132,7 +146,12 @@ class PublishedPlace(BaseModel):
     visit_minutes_max: int
 
 
-SEVERITY_HEALTH: dict[str, PlanHealth] = {"BLOCKING": "BLOCKED", "WARNING": "WARNING"}
+# INFO notices (LEG_ESTIMATED) are shown but never change plan_health.
+SEVERITY_HEALTH: dict[str, PlanHealth] = {
+    "BLOCKING": "BLOCKED",
+    "WARNING": "WARNING",
+    "INFO": "GOOD",
+}
 
 
 def evaluate_health(snapshot: PlanSnapshot) -> tuple[PlanHealth, list[Conflict]]:
@@ -166,7 +185,7 @@ def evaluate_health(snapshot: PlanSnapshot) -> tuple[PlanHealth, list[Conflict]]
         level = SEVERITY_HEALTH[reason.severity]
         if level == "BLOCKED":
             health = "BLOCKED"
-        elif health == "GOOD":
+        elif level == "WARNING" and health == "GOOD":
             health = "WARNING"
     if health == "GOOD" and any(
         leg.availability != "AVAILABLE" for day in snapshot.days for leg in day.legs
@@ -426,6 +445,7 @@ class _Editor:
             assumptions=list(self.snapshot.assumptions),
             research_used=self.snapshot.research_used,
             agent_run_id=self.snapshot.agent_run_id,
+            preferences=self.snapshot.preferences,
         )
 
 

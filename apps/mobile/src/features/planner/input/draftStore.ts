@@ -15,6 +15,8 @@ export type PlannerDraft = {
   modes: TravelMode[];
   mustSee: Pick<Place, 'id' | 'name'>[];
   requestText: string;
+  /** Optional trip name (`TripCreate.title`), set on the wizard's review step. */
+  title?: string;
   /** True once prefill from saved preferences (API-004) was applied. */
   prefilled: boolean;
 };

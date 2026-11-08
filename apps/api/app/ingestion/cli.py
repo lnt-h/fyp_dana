@@ -2,9 +2,12 @@
 
 policy list | policy activate <provider_key> --terms-version <text>
 areas load
-ingest wikidata | ingest wikipedia | ingest sheet <csv>
+ingest wikidata | ingest wikidata-link | ingest wikipedia | ingest osm | ingest commons |
+  ingest sheet <csv>
 web-candidates promote
 publish auto [--dry-run] [--include-withdrawn] [--no-embed]
+publish summary            (release-gate counts: published total, by area, Hội An area)
+publish audit-sample [--fraction 0.1] [--seed N] [--out path.csv]
 closure-rules load [--file <yaml>]
 pipeline run [--sheet <csv>] [--dry-run] [--no-embed]
 """
@@ -20,16 +23,22 @@ import typer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.curation.audit_sample import audit_rows, write_csv
 from app.curation.auto_publish import GATE_RULES, PublishReport, auto_publish
 from app.curation.embedding import ChunkEmbedder, DisabledEmbedder, GeminiChunkEmbedder
+from app.curation.operator import OperatorService, takedown_place
+from app.curation.system import system_account_id
 from app.curation.web_promotion import promote_pending
 from app.db.session import engine, session_factory
-from app.ingestion.areas import DATA_DIR, write_area_boundaries
+from app.ingestion.areas import DATA_DIR, hoi_an_area_codes, load_areas, write_area_boundaries
 from app.ingestion.calendar import CalendarReport, load_calendar
 from app.ingestion.common import PolicyNotActiveError, RunReport, load_city
+from app.ingestion.commons import import_commons
+from app.ingestion.osm import import_osm
 from app.ingestion.policies import activate_policy, list_policies
 from app.ingestion.sheet import import_sheet
 from app.ingestion.wikidata import import_wikidata
+from app.ingestion.wikidata_link import LinkReport, import_wikidata_links
 from app.ingestion.wikipedia import import_wikipedia
 
 policy_app = typer.Typer(help="Provider policies (ADR-006 default deny).", no_args_is_help=True)
@@ -77,6 +86,36 @@ def _echo_run(report: RunReport) -> None:
     extra = getattr(report, "unmapped", None)
     if extra is not None:
         typer.echo(f"  skipped (unmapped class): {extra}")
+    sparse = getattr(report, "skipped_sparse", None)
+    if sparse:
+        typer.echo(
+            f"  skipped (FOOD/CAFE without name:en/website/hours/cuisine/wikidata): {sparse}"
+        )
+    for label, attribute in (
+        ("skipped (non-Latin name, no name:vi)", "skipped_foreign_name"),
+        ("skipped (code-like name, e.g. A1)", "skipped_code_name"),
+        ("skipped (wikidata tag is a person)", "skipped_human_name"),
+        ("matched by wikidata tag", "matched_wikidata"),
+        ("matched by name within 100 m", "matched_name"),
+        ("with parsed opening hours", "with_opening_hours"),
+        ("places with photos", "places_with_media"),
+        ("Wikipedia articles looked up for page images", "page_image_articles"),
+        ("page images dropped (article about another subject)", "page_image_wrong_subject"),
+        ("places with a Wikipedia page image", "places_with_page_image"),
+        ("places with a Commons geosearch photo", "places_with_geosearch"),
+        ("places with a Commons search photo", "places_with_search"),
+        ("Commons geosearch/search/imageinfo requests", "extra_requests"),
+        ("media assets", "media_assets"),
+    ):
+        value = getattr(report, attribute, None)
+        if value is not None:
+            typer.echo(f"  {label}: {value}")
+    by_license = getattr(report, "by_license", None)
+    if by_license:
+        typer.echo(
+            "  accepted by licence: "
+            + ", ".join(f"{code}={count}" for code, count in sorted(by_license.items()))
+        )
     by_category = getattr(report, "by_category", None)
     if by_category:
         typer.echo(
@@ -179,10 +218,50 @@ def ingest_wikidata() -> None:
     _ingest(lambda s: import_wikidata(s, city_code=_city()))
 
 
+@ingest_app.command("wikidata-link")
+def ingest_wikidata_link() -> None:
+    """Link places without a QID to their Wikidata item (name + distance + place type)."""
+    try:
+        report = _run(lambda s: import_wikidata_links(s, city_code=_city()))
+    except PolicyNotActiveError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    _echo_links(report)
+
+
+def _echo_links(report: LinkReport) -> None:
+    if report.skipped_unchanged:
+        typer.echo("wikidata-link: unchanged, run skipped")
+        return
+    typer.echo(
+        f"wikidata-link: candidates={report.candidates} items={report.items} "
+        f"linked={report.linked} backfilled={report.backfilled} "
+        f"not_a_place_items={report.not_a_place}"
+    )
+    for slug, qid in report.humans:
+        typer.echo(f"  person, not a place (wikidata tag P31=Q5): {slug} -> {qid}")
+    for slug, qid in report.duplicates:
+        typer.echo(f"  duplicate (QID already on another place): {slug} -> {qid}")
+    for slug, qid in report.contested:
+        typer.echo(f"  contested (a closer place took the item): {slug} -> {qid}")
+
+
 @ingest_app.command("wikipedia")
 def ingest_wikipedia() -> None:
     """Fetch VI/EN Wikipedia summaries for imported places with sitelinks."""
     _ingest(lambda s: import_wikipedia(s, city_code=_city()))
+
+
+@ingest_app.command("osm")
+def ingest_osm() -> None:
+    """Import named OpenStreetMap POIs (Overpass) with names and opening hours."""
+    _ingest(lambda s: import_osm(s, city_code=_city()))
+
+
+@ingest_app.command("commons")
+def ingest_commons() -> None:
+    """Attach licensed Wikimedia Commons photos (Wikidata P18, OSM tags) to imported places."""
+    _ingest(lambda s: import_commons(s, city_code=_city()))
 
 
 @ingest_app.command("sheet")
@@ -234,6 +313,66 @@ def publish_auto(
     _echo_publish(report, verbose=verbose)
 
 
+@publish_app.command("takedown")
+def publish_takedown(
+    slug: str = typer.Argument(..., help="Place slug, e.g. place-3."),
+    reason: str = typer.Option(..., "--reason", help="Audited withdrawal reason."),
+    retire: bool = typer.Option(
+        True, "--retire/--no-retire", help="Also mark the place RETIRED (never re-published)."
+    ),
+) -> None:
+    """Owner takedown of one place by slug: withdraw its publication and retire it."""
+
+    async def work(session: AsyncSession) -> tuple[object, bool, bool]:
+        city = await load_city(session, _city())
+        actor = await system_account_id(session)
+        return await takedown_place(
+            session,
+            city_id=city.id,
+            slug=slug,
+            reason=reason,
+            actor_account_id=actor,
+            retire=retire,
+        )
+
+    try:
+        place_id, withdrawn, retired = _run(work)
+    except LookupError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"takedown {slug} ({place_id}): withdrawn={withdrawn} retired={retired}")
+
+
+@publish_app.command("summary")
+def publish_summary() -> None:
+    """Release-gate counts: published places per city and area, and the Hội An area total."""
+    summary = _run(lambda s: OperatorService(s).city_summary())
+    hoi_an = hoi_an_area_codes(load_areas(_city()))
+    for city in summary.items:
+        if not city.is_enabled and not city.published_count:
+            continue
+        in_hoi_an = sum(a.published_count for a in city.published_by_area if a.area_code in hoi_an)
+        typer.echo(
+            f"{city.code}: published={city.published_count} hoi_an_area={in_hoi_an} "
+            f"candidates={city.candidate_count} pending_web={city.pending_web_candidate_count}"
+        )
+        for area in city.published_by_area:
+            mark = " (Hội An area)" if area.area_code in hoi_an else ""
+            typer.echo(f"  {area.area_code}: {area.published_count}{mark}")
+
+
+@publish_app.command("audit-sample")
+def publish_audit_sample(
+    fraction: float = typer.Option(0.1, min=0.01, max=1.0, help="Share of published places."),
+    seed: int | None = typer.Option(None, help="Random seed (repeatable sample)."),
+    out: Annotated[Path, typer.Option("--out", dir_okay=False)] = Path("audit-sample.csv"),
+) -> None:
+    """Write a CSV of a random sample of published places for the owner's accuracy check."""
+    rows = _run(lambda s: audit_rows(s, fraction=fraction, seed=seed))
+    write_csv(rows, out)
+    typer.echo(f"audit sample: {len(rows)} places written to {out}")
+
+
 # ---- closure rules ------------------------------------------------------------------------
 
 
@@ -262,7 +401,8 @@ def pipeline_run(
     no_embed: bool = typer.Option(False, "--no-embed"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
-    """areas → wikidata → wikipedia → sheet → web candidates → publish → closure rules.
+    """areas → wikidata → wikipedia → osm → commons → sheet → web candidates → publish →
+    closure rules.
 
     An importer whose provider policy is not ACTIVE is skipped with a message (default deny).
     """
@@ -271,6 +411,8 @@ def pipeline_run(
     steps: list[tuple[str, Callable[[AsyncSession], Awaitable[RunReport]]]] = [
         ("wikidata", lambda s: import_wikidata(s, city_code=city)),
         ("wikipedia", lambda s: import_wikipedia(s, city_code=city)),
+        ("osm", lambda s: import_osm(s, city_code=city)),
+        ("commons", lambda s: import_commons(s, city_code=city)),
     ]
     sheet_path = sheet or (DEFAULT_SHEET if DEFAULT_SHEET.exists() else None)
     if sheet_path is not None:

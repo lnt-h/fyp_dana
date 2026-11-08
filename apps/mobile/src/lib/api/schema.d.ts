@@ -298,6 +298,9 @@ export interface paths {
          * Regenerate one day, keeping other days and locked stops
          * @description Locked stops keep place, day and visit duration (solver constraints, ADR-011); all other days are copied
          *     unchanged. Appends a DAY_REGENERATED revision. Streams like API-018 with `Accept: text/event-stream`.
+         *     Uses the preview's `planning_preferences` (1.0.3). With `Idempotency-Key` (DAY_REGENERATE), a retry with
+         *     the same key and body replays the completed revision (`preview_ready` / 201) instead of 409
+         *     `revision_conflict`; the same key with another body is 409 `idempotency_key_reused`.
          */
         post: operations["regeneratePlanDay"];
         delete?: never;
@@ -703,10 +706,11 @@ export interface components {
             /** Format: uuid */
             id: string;
             /**
-             * @description Stable city code. FYP release enables `da-nang` only (the Hội An area belongs to it, DEC-013).
+             * @description Stable city code. Gonarra covers Đà Nẵng only (the Hội An area belongs to it, DEC-013; other cities removed 1.0.3).
              * @example da-nang
+             * @enum {string}
              */
-            code: string;
+            code: "da-nang";
             name_vi: string;
             name_en: string;
             /** @example Asia/Ho_Chi_Minh */
@@ -752,6 +756,11 @@ export interface components {
             name_vi: string;
             /** @description Name in the requested locale. */
             name: string;
+            /**
+             * @description 1.0.3. True when `name` (EN locale) is the original Vietnamese proper name reused unchanged because no source gives an English name; never a machine translation.
+             * @default false
+             */
+            name_is_source_fallback: boolean;
             short_description?: string | null;
             location: components["schemas"]["GeoPoint"];
             visit_minutes_suggested?: number | null;
@@ -791,6 +800,16 @@ export interface components {
             /** @description Most recent citation (convenience for the source line); null when there is none. */
             source?: components["schemas"]["Citation"] | null;
             sources: components["schemas"]["Citation"][];
+            /**
+             * @description 1.0.4 (DEC-028). SOURCE = from an open-data or official source record; OWNER = owner sheet; AI_EXTRACTED = extracted by Gonarra's grounded writer from the cited source (label it "Summarised from sources" and show the source link). Absent means SOURCE.
+             * @enum {string}
+             */
+            origin?: "SOURCE" | "OWNER" | "AI_EXTRACTED";
+            /**
+             * @description 1.0.4. AI_EXTRACTED only. STRONG = the extraction quote matches the cited text; WEAK = it matches only partly. Null for other origins.
+             * @enum {string|null}
+             */
+            grounding?: "STRONG" | "WEAK" | null;
         };
         /** @description Curator-reviewed calendar rule (ADR-011 0.3); AI never writes these. params shape depends on rule_kind. */
         ClosureRule: {
@@ -817,6 +836,11 @@ export interface components {
         PlaceDetail: components["schemas"]["PlaceSummary"] & {
             name_en: string;
             description?: string | null;
+            /**
+             * @description 1.0.3. SOURCE = text from a cited source (Wikipedia lead, operator sheet, Wikidata); AI_SUMMARY = summarised by Gonarra's grounded writer from the listed sources (label it in the UI). Null when there is no description.
+             * @enum {string|null}
+             */
+            description_origin?: "SOURCE" | "AI_SUMMARY" | null;
             visit_minutes_min?: number | null;
             visit_minutes_max?: number | null;
             entrance_location?: components["schemas"]["GeoPoint"] | null;
@@ -931,6 +955,13 @@ export interface components {
             duration_s?: number | null;
             /** Format: date-time */
             measured_at?: string | null;
+            /**
+             * @description 1.0.2. True when distance_m / duration_s are a straight-line demo estimate (no Google Routes key;
+             *     development, test and demo environments only), not a measurement. Such a leg also carries a
+             *     `LEG_ESTIMATED` (INFO) conflict. Never true in staging or production.
+             * @default false
+             */
+            estimated: boolean;
             conflicts?: components["schemas"]["Conflict"][];
         };
         Conflict: {
@@ -938,11 +969,15 @@ export interface components {
              * @description Plan Health is code (ADR-011 0.3). Calendar rules: CLOSED_ON_DATE and LEG_MODE_RESTRICTED are
              *     blocking; LUNAR_EVENT_CONFLICT, TICKET_VALIDITY and SEASONAL_WARNING are warnings. Web stops
              *     (ADR-014): WEB_PLACE_UNVERIFIED caps the plan at WARNING; WEB_PLACE_UNRESOLVED is blocking.
+             *     LEG_ESTIMATED (1.0.2, severity INFO) marks a leg whose values are a demo estimate (`Leg.estimated`).
              * @enum {string}
              */
-            type: "CLOSED_AT_PLANNED_TIME" | "LEG_UNAVAILABLE" | "DAY_WINDOW_EXCEEDED" | "OPENING_HOURS_UNKNOWN" | "FACT_STALE" | "MUST_SEE_NOT_INCLUDED" | "CLOSED_ON_DATE" | "LEG_MODE_RESTRICTED" | "LUNAR_EVENT_CONFLICT" | "TICKET_VALIDITY" | "SEASONAL_WARNING" | "WEB_PLACE_UNVERIFIED" | "WEB_PLACE_UNRESOLVED";
-            /** @enum {string} */
-            severity: "BLOCKING" | "WARNING";
+            type: "CLOSED_AT_PLANNED_TIME" | "LEG_UNAVAILABLE" | "DAY_WINDOW_EXCEEDED" | "OPENING_HOURS_UNKNOWN" | "FACT_STALE" | "MUST_SEE_NOT_INCLUDED" | "CLOSED_ON_DATE" | "LEG_MODE_RESTRICTED" | "LUNAR_EVENT_CONFLICT" | "TICKET_VALIDITY" | "SEASONAL_WARNING" | "WEB_PLACE_UNVERIFIED" | "WEB_PLACE_UNRESOLVED" | "LEG_ESTIMATED";
+            /**
+             * @description BLOCKING → plan BLOCKED; WARNING → plan at most WARNING; INFO (1.0.2) is a notice only and never changes plan_health.
+             * @enum {string}
+             */
+            severity: "BLOCKING" | "WARNING" | "INFO";
             message?: string;
             /**
              * Format: uuid
@@ -1029,7 +1064,10 @@ export interface components {
             /** Format: date-time */
             expires_at: string;
             days: components["schemas"]["ItineraryDay"][];
+            /** @description 1.0.3. Plan assumptions rendered in the response locale (stored as stable keys, de-duplicated). */
             assumptions?: string[];
+            /** @description 1.0.3. Effective preferences (request > trip > account) this preview was generated with; API-021 reuses them and Save copies them to the trip. Null for older previews. */
+            planning_preferences?: components["schemas"]["PlanningPreferences"] | null;
             model_version?: string | null;
             prompt_version?: string | null;
             corpus_revision?: number | null;
