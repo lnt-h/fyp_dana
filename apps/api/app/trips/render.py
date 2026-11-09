@@ -16,6 +16,18 @@ from app.trips.snapshot import PlanSnapshot
 
 _POINT = re.compile(r"POINT\s*\(\s*(-?[0-9.eE+-]+)\s+(-?[0-9.eE+-]+)\s*\)")
 DEFAULT_TIME_ZONE = "Asia/Ho_Chi_Minh"
+# Display step for leg durations (Đợt 3): the UI quotes travel in 15-minute steps. The stored
+# snapshot keeps the exact Routes measurement (scheduling and Plan Health use it); only the
+# rendered contract value is rounded to the step, always up, so the plan never under-quotes.
+DISPLAY_DURATION_STEP_S = 15 * 60
+
+
+def display_duration_s(duration_s: int | None) -> int | None:
+    """Round a leg duration up to the 15-minute display step (``None`` stays ``None``)."""
+    if duration_s is None:
+        return None
+    step = DISPLAY_DURATION_STEP_S
+    return ((max(0, duration_s) + step - 1) // step) * step
 
 
 def parse_point(ewkt: str | None) -> GeoPoint | None:
@@ -89,7 +101,7 @@ async def render_days(
                 travel_mode=leg.travel_mode,
                 availability=leg.availability,
                 distance_m=leg.distance_m,
-                duration_s=leg.duration_s,
+                duration_s=display_duration_s(leg.duration_s),
                 measured_at=leg.measured_at,
                 estimated=leg.estimated,
                 conflicts=leg.conflicts,

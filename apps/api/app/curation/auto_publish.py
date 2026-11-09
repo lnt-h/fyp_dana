@@ -54,6 +54,8 @@ from app.curation.names import (
     normalise_display_name,
     prefer_diacritic_alias,
     proper_name_fallback,
+    swapped_vi_en,
+    venue_name_needs_editorial,
     vi_name_problem,
 )
 from app.curation.overrides import CurationOverrides, load_overrides
@@ -156,7 +158,8 @@ GATE_RULES: dict[str, str] = {
     "NO_EDITORIAL_SOURCE": (
         "no Wikidata item, Wikivoyage listing, Wikipedia article or owner-sheet row, and (non-"
         "venue categories) no OSM name:en, website or opening hours; FOOD/CAFE/NIGHTLIFE always "
-        "need an editorial source"
+        "need an editorial source, and a generic English venue description ('... stall') never "
+        "counts OSM alone as editorial"
     ),
     "OUTSIDE_CITY": "location is outside the city boundary",
     "MISSING_CATEGORY": "no category could be set (sheet or mapped Wikidata class)",
@@ -169,7 +172,12 @@ GATE_RULES: dict[str, str] = {
     "AI_CONTENT": "AI-generated description or fact (retired by DEC-031)",
     "GENERIC_NAME": "the name is only a class word (Chùa, Museum, Produce …)",
     "VI_NAME_NOT_VIETNAMESE": (
-        "the VI name has no Vietnamese diacritics and is not an allow-listed brand"
+        "the VI name has no Vietnamese diacritics and is not an allow-listed brand; "
+        "owner adds the spelling to the sheet, code never guesses diacritics"
+    ),
+    "NAME_SWAPPED": (
+        "the VI name is plain Latin while the EN name carries Vietnamese diacritics "
+        "(locales exchanged); owner fixes the order in the sheet"
     ),
     "NAME_FORMAT": "the name is in a non-Latin script",
     "NOT_A_STOP": "hotel, bank, tailor, office, supermarket or mall, or listed as not a stop",
@@ -626,19 +634,28 @@ def compose(
             _add(vi_loc, en_loc.name_revision_id)
             aliases["vi"] = [en_loc.name, *[a for a in aliases["vi"] if a != en_loc.name]]
     vi_name = localizations["vi"].name
+    en_name = localizations["en"].name
     for locale in LOCALES:
         name = localizations[locale].name
         if name and is_generic_name(name, has_qid=bool(qid)):
             name_reasons.append(f"GENERIC_NAME:{locale}")
     if vi_name and vi_name_problem(vi_name, category):
         name_reasons.append("VI_NAME_NOT_VIETNAMESE")
+    if swapped_vi_en(vi_name, en_name):
+        name_reasons.append("NAME_SWAPPED")
 
     editorial = bool(
         qid
         or sheet is not None
         or wikivoyage is not None
         or any(_provenance_id(w) for w in contributions.wikipedia.values())
-        or (category not in CURATED_ONLY_CATEGORIES and osm_has_tourist_signal(osm))
+        or (
+            category not in CURATED_ONLY_CATEGORIES
+            and not venue_name_needs_editorial(
+                localizations["vi"].name, localizations["en"].name
+            )
+            and osm_has_tourist_signal(osm)
+        )
     )
     return Desired(
         lng=lng,

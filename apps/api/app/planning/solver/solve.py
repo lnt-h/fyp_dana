@@ -18,8 +18,17 @@
 * Day balance: a hard per-day capacity of stops (fair share, raised for stops servable only that
   day, capped by the pace ``DaySpec.max_stops``) plus a soft floor share, so a multi-day trip is
   not packed into day 1 and no day stays empty while candidates exist.
+* Compactness (Đợt 3): arcs between stops of different travel areas (``StopSpec.area``) pay
+  ``SolverParams.area_spread_penalty`` on top of their travel time, so far-apart places (Hải Vân
+  vs Hội An) land on different days whenever the windows allow it. Anchors carry no area, so the
+  first and last legs of a day are never penalised.
 * Variety: ``SolverInput.category_day_caps`` caps stops per ``StopSpec.category`` per day
   (raised to the category's fair share over the days).
+* Meals (Đợt 3): two FOOD stops served on the same day must start at least
+  ``SolverParams.meal_gap_s`` apart. With the tightened lunch/dinner windows from
+  ``app.planning.assemble`` (each shorter than the gap) this forbids two FOOD stops in the same
+  meal window and keeps lunch and dinner of a day ≥ 3h apart — while the pool reserves two FOOD
+  picks per day, one lands at lunch and the other at dinner.
 * Same-day tickets: stops with a ``StopSpec.ticket_group`` (a ticket valid only on its day of
   purchase, e.g. the Hội An Old Town ticket) are pinned to one day when the first solution
   spreads them, so a plan does not buy the same ticket twice (TICKET_VALIDITY).
@@ -347,13 +356,31 @@ def _solve(inp: SolverInput, pins: dict[str, int]) -> tuple[SolverResult, dict[s
         value = leg(a.key, b.key, a.day)
         return _FORBIDDEN if value is None else value
 
+    def cost(from_node: int, to_node: int) -> int:
+        """Optimiser cost: exact travel plus the compactness penalty between stops of two
+        different travel areas (anchors are free). The time dimension keeps exact travel."""
+        value = travel(from_node, to_node)
+        if value in (0, _FORBIDDEN):
+            return value
+        a, b = live[from_node], live[to_node]
+        if (
+            a.stop is not None
+            and b.stop is not None
+            and a.stop.area is not None
+            and b.stop.area is not None
+            and a.stop.area != b.stop.area
+        ):
+            value += params.area_spread_penalty
+        return value
+
     # Node-indexed matrices are evaluated in C++ (no Python callback per arc evaluation).
     n_live = len(live)
     travel_matrix = [[travel(f, t) for t in range(n_live)] for f in range(n_live)]
+    cost_matrix = [[cost(f, t) for t in range(n_live)] for f in range(n_live)]
     time_matrix = [[service(f) + travel_matrix[f][t] for t in range(n_live)] for f in range(n_live)]
-    travel_idx = routing.RegisterTransitMatrix(travel_matrix)
+    cost_idx = routing.RegisterTransitMatrix(cost_matrix)
     time_idx = routing.RegisterTransitMatrix(time_matrix)
-    routing.SetArcCostEvaluatorOfAllVehicles(travel_idx)
+    routing.SetArcCostEvaluatorOfAllVehicles(cost_idx)
     routing.AddDimension(time_idx, SECONDS_PER_DAY, SECONDS_PER_DAY, False, "Time")
     time_dim = routing.GetDimensionOrDie("Time")
     solver = routing.solver()
@@ -475,6 +502,25 @@ def _solve(inp: SolverInput, pins: dict[str, int]) -> tuple[SolverResult, dict[s
             ca, cb = time_dim.CumulVar(ia), time_dim.CumulVar(ib)
             aa, ab = routing.ActiveVar(ia), routing.ActiveVar(ib)
             solver.Add(cb + 2 * _BIG_M >= ca + first.visit_s + _BIG_M * aa + _BIG_M * ab)
+
+    # Meals: two FOOD stops served on the same day must start ``meal_gap_s`` apart. Only
+    # same-day copies of two FOOD stops constrain each other (cross-day arcs are forbidden).
+    food_nodes: list[int] = [
+        node_id
+        for node_id in range(2 * n_days, len(live))
+        if (food := live[node_id].stop) is not None and food.category == "FOOD"
+    ]
+    for pos, node_a in enumerate(food_nodes):
+        for node_b in food_nodes[pos + 1 :]:
+            if live[node_a].day != live[node_b].day:
+                continue
+            ia, ib = manager.NodeToIndex(node_a), manager.NodeToIndex(node_b)
+            ca, cb = time_dim.CumulVar(ia), time_dim.CumulVar(ib)
+            aa, ab = routing.ActiveVar(ia), routing.ActiveVar(ib)
+            # When both stops are served (aa == ab == 1) the starts differ by the gap in
+            # either direction; when either is dropped the Big-M term relaxes both.
+            solver.Add(cb - ca >= params.meal_gap_s - 2 * _BIG_M * (2 - aa - ab))
+            solver.Add(ca - cb >= params.meal_gap_s - 2 * _BIG_M * (2 - aa - ab))
 
     # Lunch breaks.
     breaks: dict[int, Any] = {}

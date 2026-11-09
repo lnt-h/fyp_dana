@@ -45,7 +45,7 @@ A place is published only when all of these hold (codes appear in the CLI report
 | `MISSING_NAME:<locale>` | a VI **and** an EN name (sheet, else Wikidata label, else OSM `name:en`); never machine-translated. Proper-name fallback: see below |
 | `MISSING_DESCRIPTION:<locale>` | only when `REQUIRE_DESCRIPTION` is on (DEC-033 option B); under option A a place without a human-written description publishes and the card says "No description yet" |
 | `AI_CONTENT` | no localization with `translation_origin` `AI_SUMMARY`/`AI_DRAFT` and no fact with `origin = AI_EXTRACTED` (DEC-031) |
-| `GENERIC_NAME`, `VI_NAME_NOT_VIETNAMESE`, `NAME_FORMAT` | name quality: not a bare class word, a VI name with Vietnamese diacritics or an allow-listed brand, Latin/Vietnamese script only |
+| `GENERIC_NAME`, `VI_NAME_NOT_VIETNAMESE`, `NAME_FORMAT`, `NAME_SWAPPED` | name quality: not a bare class word, a VI name with Vietnamese diacritics or an allow-listed brand (code never guesses diacritics — the owner adds the spelling to the sheet), Latin/Vietnamese script only, locales not exchanged ("Thia Go" / "Thìa Gỗ" rejects as `NAME_SWAPPED`) |
 | `NOT_A_STOP` | hotels, banks, tailors, offices, supermarkets and malls are not travel stops |
 | `DUPLICATE_OF:<slug>`, `PART_OF:<slug>` | the place is another candidate (same item/QID/OSM element, or similar name within the category radius) or a sub-part of an existing place |
 | `MISSING_LICENCE:<publisher>` | every source behind shown text, facts or chunks has a licence and attribution text |

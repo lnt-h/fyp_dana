@@ -122,22 +122,39 @@ export function HomeSheetContent({ categoryFilter, onCategoryChange, onOpenPlace
         <CategoryChips categories={populated ?? []} gutter={GUTTER} loading={populated === null && !categoriesFailed} onChange={onCategoryChange} selected={categoryFilter} />
       ) : null}
 
-      {!offline && city ? (
-        <HomePlaceRails categories={categories} cityCode={city.code} cityId={cityId} gutter={GUTTER} isVi={isVi} onOpenPlace={onOpenPlace} populated={populated} />
-      ) : null}
-
-      {isLoaded && !isSignedIn ? (
-        <SavedTripsGuest gutter={GUTTER} onSignIn={() => setGate('trips')} />
-      ) : isSignedIn ? (
-        <SavedTrips cities={cities} errorKind={tripsError} gutter={GUTTER} onRetry={() => void loadTrips(false)} state={tripsState} trips={trips} />
-      ) : null}
-
-      {!offline && city ? (
+      {!offline && city && categoryFilter !== null ? (
         <ExplorePlaces
           cityName={cityName}
           categories={categories}
+          categoryCode={categoryFilter}
           errorKind={placesLoad.state === 'error' ? placesLoad.kind : null}
-          filtered={categoryFilter !== null}
+          filtered
+          gutter={GUTTER}
+          isVi={isVi}
+          onOpenPlace={onOpenPlace}
+          onRetry={retryPlaces}
+          places={placesLoad.state === 'ready' ? placesLoad.items : []}
+          state={placesLoad.state}
+        />
+      ) : null}
+
+      {!offline && city && categoryFilter === null ? (
+        <HomePlaceRails categories={categories} cityCode={city.code} cityId={cityId} gutter={GUTTER} isVi={isVi} onOpenPlace={onOpenPlace} populated={populated} />
+      ) : null}
+
+      {isLoaded && !isSignedIn && categoryFilter === null ? (
+        <SavedTripsGuest gutter={GUTTER} onSignIn={() => setGate('trips')} />
+      ) : isSignedIn && categoryFilter === null ? (
+        <SavedTrips cities={cities} errorKind={tripsError} gutter={GUTTER} onRetry={() => void loadTrips(false)} state={tripsState} trips={trips} />
+      ) : null}
+
+      {!offline && city && categoryFilter === null ? (
+        <ExplorePlaces
+          cityName={cityName}
+          categories={categories}
+          categoryCode={null}
+          errorKind={placesLoad.state === 'error' ? placesLoad.kind : null}
+          filtered={false}
           gutter={GUTTER}
           isVi={isVi}
           onOpenPlace={onOpenPlace}

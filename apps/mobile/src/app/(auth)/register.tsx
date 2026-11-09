@@ -50,7 +50,7 @@ export default function RegisterScreen() {
       if (sent.error) throw sent.error;
     }
   }); }
-  return <AuthShell back={() => router.canGoBack() ? router.back() : router.replace('/welcome')}>
+  return <AuthShell back={() => router.canGoBack() ? router.back() : router.replace('/welcome')} fitViewport>
     <BrandSymbol /><Heading title={t(verifying ? 'auth.register.titleVerify' : 'auth.register.title')} subtitle={verifying ? t('auth.register.subtitleVerify', { email: email.trim() }) : t('auth.register.subtitle')} />
     {verifying ? <Field label={t('auth.register.code')} value={code} onChangeText={setCode} keyboardType="number-pad" autoComplete="one-time-code" onSubmitEditing={submit} editable={!disabled} /> : <>
       <Field label={t('auth.register.name')} value={name} onChangeText={setName} autoComplete="name" autoCapitalize="words" editable={!disabled} />

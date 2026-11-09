@@ -1,6 +1,7 @@
 /** Small building blocks shared by the edit sheet, picker, regenerate sheet and Plan Health detail. */
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Icon } from '../../../components/ui/Icon';
 import { colors } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts } from '../../../theme/typography';
@@ -52,6 +53,31 @@ export function PillButton({ label, icon, onPress, tone = 'default', disabled, s
     {icon ? <PlannerIcon color={fg} name={icon} size={18} /> : null}
     <Text numberOfLines={1} style={[u.pillText, { color: fg }]}>{label}</Text>
   </Pressable>;
+}
+
+/** Overflow menu: one trigger row (more icon + label) expanding to stacked actions. */
+export function OverflowMenu({ label, hint, children, style }: {
+  label: string;
+  hint?: string;
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const [open, setOpen] = useState(false);
+  return <View style={style}>
+    <Pressable
+      accessibilityHint={hint}
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityState={{ expanded: open }}
+      onPress={() => setOpen(value => !value)}
+      style={({ pressed }) => [u.menuTrigger, pressed && u.pressed]}
+    >
+      <Icon color={colors.ink} name="more" size={20} strokeWidth={2} />
+      <Text numberOfLines={1} style={u.menuTriggerText}>{label}</Text>
+      <PlannerIcon color={colors.textMuted} name={open ? 'chevronUp' : 'chevronDown'} size={18} />
+    </Pressable>
+    {open ? <View style={u.menuBody}>{children}</View> : null}
+  </View>;
 }
 
 export function SectionLabel({ children, trailing }: { children: string; trailing?: ReactNode }) {
@@ -116,6 +142,9 @@ export const u = StyleSheet.create({
   pressed: { opacity: 0.8 },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
   label: { fontFamily: fonts.semibold, fontSize: 13, lineHeight: 18, color: colors.textSecondary },
+  menuTrigger: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: MIN_TOUCH, paddingHorizontal: 14, borderRadius: radii.button, borderWidth: 1, borderColor: editTokens.border, backgroundColor: colors.white },
+  menuTriggerText: { fontFamily: fonts.semibold, fontSize: 14, lineHeight: 19, color: colors.ink, flex: 1 },
+  menuBody: { gap: spacing.xs, marginTop: spacing.xs },
   banner: { borderRadius: radii.card, padding: spacing.sm, backgroundColor: colors.surface },
   bannerError: { backgroundColor: editTokens.errorBg },
   bannerWarning: { backgroundColor: editTokens.warnBg },

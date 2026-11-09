@@ -94,6 +94,9 @@ class StopSpec:
     must_see: bool = False
     lock: Lock | None = None
     category: str | None = None  # for the per-category variety cap
+    # Travel area of the place (PoolPlace.area_code): days serving many distinct areas pay
+    # ``SolverParams.area_spread_penalty``, so far-apart places land on different days (Đợt 3).
+    area: str | None = None
     # Places sharing a ticket that is valid only on its day of purchase (e.g. the Hội An Old
     # Town ticket). The solver prefers to serve one group on a single day (TICKET_VALIDITY).
     ticket_group: str | None = None
@@ -123,6 +126,15 @@ class SolverParams:
     # Day balance: cost per stop a day falls short of its floor share (stops ÷ days, capped by the
     # day's capacity). Larger than the travel saved by consolidating, smaller than a must-see.
     day_balance_penalty: int = 10_800
+    # Meals (Đợt 3): two FOOD stops served on the same day must start at least this far
+    # apart. Longer than either tightened meal window (2.5h), so two FOOD stops can never share
+    # one window, and lunch/dinner of a day stay ≥ 3h apart.
+    meal_gap_s: int = 3 * 3600
+    # Compactness (Đợt 3): extra travel seconds added to arcs between stops of different travel
+    # areas, so far-apart places (Hải Vân vs Hội An) land on different days when feasible.
+    # Kept well below ``drop_penalty_base`` so the penalty only steers day assignment and can
+    # never make dropping a chosen stop cheaper than connecting it.
+    area_spread_penalty: int = 3_600
 
     def drop_penalty(self, stop: StopSpec) -> int:
         if stop.lock is not None:

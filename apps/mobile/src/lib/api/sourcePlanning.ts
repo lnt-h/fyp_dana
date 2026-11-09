@@ -70,7 +70,11 @@ export async function streamRegenerateDay(
   onEvent: (event: PlanningStreamEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  return runPlanningStream(`/v1/plan-previews/${encodeURIComponent(previewId)}/regenerate`, { body, idempotencyKey, method: 'POST', signal }, onEvent);
+  return runPlanningStream(
+    `/v1/plan-previews/${encodeURIComponent(previewId)}/regenerate`,
+    { body, idempotencyKey, method: 'POST', query: { locale: currentLocale() }, signal },
+    onEvent,
+  );
 }
 
 /** API-010 `GET /v1/places?city_id&q&category_code` (published places of the trip's city only). */

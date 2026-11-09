@@ -18,7 +18,7 @@ import { PlannerIcon } from '../timeline/icons';
 import type { NumberedDay, NumberedStop } from '../timeline/model';
 import type { StopPlace } from '../timeline/useProposal';
 import type { EditFocus, PendingEdit } from './draftStore';
-import { InlineBanner, PillButton, SectionLabel, editTokens } from './EditUI';
+import { InlineBanner, OverflowMenu, PillButton, SectionLabel, editTokens } from './EditUI';
 import { editErrorCopy } from './errorCopy';
 import { VISIT_MAX, VISIT_MIN, VISIT_STEP, regenerationEnabled } from './flags';
 import { Sheet } from './Sheet';
@@ -235,7 +235,8 @@ function EditStopBody({ target, day, index, stop, days, places, allowedModes, pe
 
       <View style={[e.section, target.focus === 'replace' && e.focused]}>
         <SectionLabel>{t('proposal.sheet.actions')}</SectionLabel>
-        <View style={e.wrap}>
+        {/* One overflow trigger instead of three competing buttons (Wave 5 P1). */}
+        <OverflowMenu label={t('proposal.sheet.actions')}>
           <PillButton disabled={disabled} icon="swap" label={t('proposal.sheet.replace')} onPress={() => onReplace(stop)} />
           {regenerationEnabled ? <PillButton
             accessibilityHint={t('proposal.sheet.lockHint')}
@@ -246,7 +247,7 @@ function EditStopBody({ target, day, index, stop, days, places, allowedModes, pe
             selected={locked !== stop.is_locked}
           /> : null}
           <PillButton disabled={disabled || stop.is_locked} icon="close" label={t('proposal.sheet.remove')} onPress={() => setConfirmRemove(true)} tone="danger" />
-        </View>
+        </OverflowMenu>
         {regenerationEnabled ? <Text style={e.hint}>{t('proposal.sheet.lockHint')}</Text> : null}
         {stop.is_locked ? <Text style={e.hint}>{t('proposal.sheet.lockedRemove')}</Text> : null}
       </View>

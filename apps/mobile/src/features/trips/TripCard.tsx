@@ -14,6 +14,18 @@ import { fonts, typography } from '../../theme/typography';
 /** Cover photo height of a trip card (dp). */
 const PHOTO_HEIGHT = 168;
 
+/**
+ * Per-trip duotone wash over the city cover (Wave 6 P2): every trip shares the one Đà Nẵng cover photo, so a
+ * deterministic tint from the trip id tells cards apart at a glance. The first variant keeps the original look.
+ */
+const COVER_WASHES = ['rgba(22,33,43,0.35)', 'rgba(13,92,99,0.38)', 'rgba(122,58,44,0.32)'];
+
+function coverWash(tripId: string): string {
+  let hash = 0;
+  for (let index = 0; index < tripId.length; index++) hash = (hash * 31 + tripId.charCodeAt(index)) >>> 0;
+  return COVER_WASHES[hash % COVER_WASHES.length] ?? COVER_WASHES[0]!;
+}
+
 type Props = {
   trip: Trip;
   title: string;
@@ -59,7 +71,7 @@ export function TripCard({ trip, title, cityName, cityCode, dates, isToday, open
           ) : (
             <PhotoFallback icon="suitcase" tone="dark" />
           )}
-          <LinearGradient colors={['rgba(22,33,43,0.35)', 'rgba(22,33,43,0)']} locations={[0, 0.45]} style={StyleSheet.absoluteFill} />
+          <LinearGradient colors={[coverWash(trip.id), 'rgba(22,33,43,0)']} locations={[0, 0.45]} style={StyleSheet.absoluteFill} />
           <View style={styles.dayChip}>
             <Icon color={colors.ink} name="calendar" size={14} strokeWidth={2} />
             <Text maxFontSizeMultiplier={1.3} numberOfLines={1} style={styles.dayChipText}>{days}</Text>

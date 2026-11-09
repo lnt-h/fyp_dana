@@ -169,12 +169,13 @@ async def edit_plan_preview(
     body: PlanPreviewEdit,
     service: Service,
     idempotency_key: IdempotencyKeyHeader = None,
+    locale: Annotated[Locale | None, Query()] = None,
 ) -> JSONResponse:
     """Manual edit: no AI, no routing, no solver (M3). Re-timing is a sequential shift.
 
     Optional ``Idempotency-Key`` (PREVIEW_EDIT): a retry with the same key and body answers the
     stored 200 with ``Idempotent-Replayed: true`` instead of 409 ``revision_conflict``."""
-    result = await service.edit_preview(preview_id, body, raw_key=idempotency_key)
+    result = await service.edit_preview(preview_id, body, locale=locale, raw_key=idempotency_key)
     headers = (
         {idempotency.REPLAYED_HEADER: "true" if result.replayed else "false"}
         if idempotency_key is not None
@@ -211,7 +212,11 @@ async def regenerate_plan_day(
     workflow: Workflow,
     account: Annotated[Account, Depends(get_current_account)],
     idempotency_key: IdempotencyKeyHeader = None,
+    locale: Annotated[Locale | None, Query()] = None,
 ) -> Response:
+    resolved_locale = locale or body.locale
+    if resolved_locale is not None and body.locale is None:
+        body = body.model_copy(update={"locale": resolved_locale})
     key = idempotency.normalize_key(idempotency_key, required=False)
     preview = await service.owned_preview(preview_id)
     command = RegenerateDayCommand(
@@ -232,7 +237,7 @@ async def regenerate_plan_day(
         )
     collector = _CollectingSink()
     await workflow.regenerate_day(command, collector)
-    return await _json_result(collector, service, request, body.locale)
+    return await _json_result(collector, service, request, resolved_locale)
 
 
 @router.post(
@@ -245,10 +250,11 @@ async def accept_plan_preview(
     body: AcceptPreviewRequest,
     service: Service,
     idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+    locale: Annotated[Locale | None, Query()] = None,
 ) -> JSONResponse:
     """Save (explicit only). Header ``Idempotency-Key`` (UUID) is required; a replay answers the
     stored 200 body with ``Idempotent-Replayed: true``."""
-    result = await service.accept_preview(preview_id, body, idempotency_key)
+    result = await service.accept_preview(preview_id, body, idempotency_key, locale=locale)
     return JSONResponse(
         status_code=200,
         content=result.body,

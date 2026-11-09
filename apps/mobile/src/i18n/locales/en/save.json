@@ -41,8 +41,10 @@
       "BLOCKED": "Plan is blocked"
     },
     "note": "This version replaces your previously saved trip.",
+    "noteNew": "Create a new trip from this draft.",
     "notePrices": "Prices are never stored with a trip.",
     "save": "Save trip",
+    "saveNew": "Save new trip",
     "saving": "Saving…",
     "savingStatus": "Saving your trip. Please keep the app open.",
     "keepEditing": "Keep editing",

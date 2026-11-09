@@ -9,12 +9,12 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
-import { CircleButton, Icon, type IconName, PhotoFallback } from '../../../components/ui';
+import { CircleButton, Icon, PhotoFallback } from '../../../components/ui';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import type { City } from '../../../lib/api/types';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
 import { resolveImage } from '../../../lib/images/imagekit';
-import { colors, type CategoryTone } from '../../../theme/colors';
+import { colors } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
 import { VN_TIME_ZONE } from './vnTime';
@@ -98,46 +98,6 @@ export function FieldError({ children, style }: { children?: string; style?: obj
   </View>;
 }
 
-/**
- * Pill segmented control. `tab` semantics for view switches (Form / Describe), `radio` for value choices (days, pace).
- * The selected segment is lifted on white with bold ink text, so the state never depends on colour alone.
- */
-export function Segmented<T extends string | number>({ label, options, value, onChange, role = 'tab', invalid = false }: {
-  label: string; options: { value: T; label: string; icon?: IconName }[]; value: T | null; onChange: (value: T) => void;
-  role?: 'tab' | 'radio'; invalid?: boolean;
-}) {
-  return <View accessibilityRole={role === 'tab' ? 'tablist' : 'radiogroup'} accessibilityLabel={label} style={[p.segmented, invalid && p.invalid]}>
-    {options.map(option => {
-      const selected = option.value === value;
-      return <Pressable key={String(option.value)} accessibilityRole={role} accessibilityLabel={option.label}
-        accessibilityState={role === 'tab' ? { selected } : { checked: selected }} onPress={() => onChange(option.value)}
-        style={({ pressed }) => [p.segment, selected && p.segmentSelected, pressed && !selected && { opacity: 0.7 }]}>
-        {option.icon && <Icon name={option.icon} size={18} color={selected ? colors.ink : colors.textMuted} />}
-        <Text numberOfLines={1} style={[p.segmentText, selected && p.segmentTextSelected]}>{option.label}</Text>
-      </Pressable>;
-    })}
-  </View>;
-}
-
-/**
- * Selectable chip with an optional leading icon. Plain chips: selected = primary fill + white text + trailing check.
- * Category chips (`tone` from `categoryColor`): the icon always carries the category colour; selected = category soft
- * fill with a category-coloured ring and a check, so the state never depends on colour alone.
- */
-export function Chip({ label, selected, onPress, kind, icon, disabled = false, grow = false, tone: category }: {
-  label: string; selected: boolean; onPress: () => void; kind: 'radio' | 'checkbox'; icon?: IconName; disabled?: boolean; grow?: boolean;
-  tone?: CategoryTone;
-}) {
-  const fg = selected && !category ? colors.white : colors.ink;
-  const iconColor = category ? category.fg : selected ? colors.white : colors.primary;
-  return <Pressable accessibilityRole={kind} accessibilityLabel={label} accessibilityState={{ checked: selected, disabled }} disabled={disabled} onPress={onPress}
-    style={({ pressed }) => [p.chip, grow && p.flex, selected && (category ? [p.chipCategory, { backgroundColor: category.bg, borderColor: category.fg }] : p.chipSelected), (pressed || disabled) && { opacity: 0.6 }]}>
-    {icon && <Icon name={icon} size={18} color={iconColor} strokeWidth={2} />}
-    <Text maxFontSizeMultiplier={1.4} numberOfLines={1} style={[p.chipText, { color: fg }]}>{label}</Text>
-    {selected && <Icon name="check" size={16} strokeWidth={2.4} color={category ? colors.ink : colors.white} />}
-  </Pressable>;
-}
-
 export function ChipRow({ children }: { children: ReactNode }) {
   return <View style={p.chipRow}>{children}</View>;
 }
@@ -171,7 +131,7 @@ export function CityTiles({ cities, selectedId, onSelect, label, nameOf }: {
 
 /** Banner: `info` (neutral note), `warning` (refusal), `error` (role alert). */
 export function Banner({ tone: kind, title, children, action }: { tone: 'info' | 'warning' | 'error'; title?: string; children?: ReactNode; action?: ReactNode }) {
-  const iconColor = kind === 'error' ? tone.error : kind === 'warning' ? colors.deepOcean : colors.tealText;
+  const iconColor = kind === 'error' ? tone.error : kind === 'warning' ? colors.ink : colors.primary;
   return <View accessibilityRole={kind === 'error' ? 'alert' : undefined} accessibilityLiveRegion={kind === 'error' ? 'assertive' : 'polite'}
     style={[p.banner, kind === 'warning' && p.bannerWarning, kind === 'error' && p.bannerError]}>
     <View style={[p.bannerIcon, kind === 'warning' && { backgroundColor: colors.warnBg }, kind === 'error' && { backgroundColor: colors.dangerBg }]}>
@@ -202,8 +162,8 @@ export function PickerField({ label, text, placeholder, mode, value, onChange, m
   return <View style={p.fieldBlock}>
     {!hideLabel && <Text style={p.label}>{label}</Text>}
     <Pressable accessibilityRole="button" accessibilityLabel={`${label}, ${text ?? placeholder ?? ''}`} accessibilityHint={pickerTitle} onPress={show}
-      style={({ pressed }) => [p.field, !!error && p.invalid, pressed && { backgroundColor: colors.surfaceTint }]}>
-      <View style={p.fieldIcon}><Icon name={mode === 'date' ? 'calendar' : 'clock'} size={20} color={colors.tealText} /></View>
+      style={({ pressed }) => [p.field, !!error && p.invalid, pressed && { backgroundColor: colors.surface }]}>
+      <View style={p.fieldIcon}><Icon name={mode === 'date' ? 'calendar' : 'clock'} size={20} color={colors.primary} /></View>
       <Text numberOfLines={1} style={[p.fieldText, !text && { color: colors.textMuted }]}>{text ?? placeholder}</Text>
       {mode === 'date' && <Icon name="chevron-right" size={18} color={colors.textMuted} />}
     </Pressable>
@@ -222,7 +182,7 @@ export function PickerField({ label, text, placeholder, mode, value, onChange, m
             </Pressable>
           </View>
           <DateTimePicker value={draft} mode={mode} display={mode === 'date' ? 'inline' : 'spinner'} is24Hour locale={locale} minimumDate={minimumDate}
-            timeZoneName={VN_TIME_ZONE} accentColor={colors.audioTeal} textColor={colors.deepOcean} themeVariant="light" minuteInterval={mode === 'time' ? 5 : undefined}
+            timeZoneName={VN_TIME_ZONE} accentColor={colors.primary} textColor={colors.ink} themeVariant="light" minuteInterval={mode === 'time' ? 5 : undefined}
             onValueChange={(_event, date) => setDraft(date)} />
         </View>
       </View>
@@ -243,7 +203,7 @@ export const p = StyleSheet.create({
   inner: { width: '100%', maxWidth: 480, alignSelf: 'center' },
   footer: { backgroundColor: colors.white, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.hairline, paddingHorizontal: GUTTER, paddingTop: spacing.sm },
 
-  avatar: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceTint },
+  avatar: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   intro: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.xl },
   bubble: { flex: 1, backgroundColor: colors.white, borderRadius: radii.card, borderTopLeftRadius: 8, borderWidth: 1, borderColor: tone.hairline, paddingHorizontal: 18, paddingVertical: 16 },
   introLabel: { ...typography.eyebrow, marginBottom: 6 },
@@ -257,29 +217,17 @@ export const p = StyleSheet.create({
   hint: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted, marginTop: 4 },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  chip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16, minHeight: 46, borderRadius: radii.chip, borderWidth: 1, borderColor: tone.border, backgroundColor: colors.white },
-  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipCategory: { borderWidth: 2, paddingHorizontal: 15 },
-  chipText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink, textAlign: 'center' },
-  chipTextSelected: { color: colors.white },
-  chipTick: { color: colors.white, fontSize: 15, fontWeight: '700' },
-
-  segmented: { flexDirection: 'row', backgroundColor: colors.surfaceTint, borderRadius: radii.button, padding: 4, borderWidth: 1, borderColor: 'transparent' },
-  segment: { flex: 1, flexDirection: 'row', gap: 6, minHeight: 46, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
-  segmentSelected: { backgroundColor: colors.white, borderColor: colors.hairline, borderWidth: 1 },
-  segmentText: { fontFamily: fonts.bold, fontSize: 15, color: colors.textMuted, textAlign: 'center' },
-  segmentTextSelected: { color: colors.ink },
   invalid: { borderColor: tone.error, borderWidth: 1.5 },
 
   tileScroll: { marginHorizontal: -GUTTER },
   tileRow: { paddingHorizontal: GUTTER, paddingVertical: 6, gap: spacing.sm },
   tile: { width: TILE_W, height: TILE_H, borderRadius: radii.photoCard, backgroundColor: colors.white, borderWidth: 3, borderColor: colors.white },
-  tileSelected: { borderColor: colors.audioTeal },
+  tileSelected: { borderColor: colors.primary },
   tileClip: { flex: 1, borderRadius: radii.photoCard - 3, overflow: 'hidden', justifyContent: 'flex-end', padding: spacing.sm },
-  tileBadge: { position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.audioTeal, borderWidth: 2, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  tileBadge: { position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, borderWidth: 2, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   tileName: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 20, color: colors.white, letterSpacing: -0.2 },
 
-  banner: { flexDirection: 'row', gap: spacing.sm, borderRadius: radii.card, backgroundColor: colors.surfaceTint, padding: spacing.md, marginBottom: 14 },
+  banner: { flexDirection: 'row', gap: spacing.sm, borderRadius: radii.card, backgroundColor: colors.surface, padding: spacing.md, marginBottom: 14 },
   bannerWarning: { backgroundColor: colors.warningBg },
   bannerError: { backgroundColor: colors.dangerBg },
   bannerIcon: { width: 36, height: 36, borderRadius: radii.iconTile, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
@@ -289,11 +237,11 @@ export const p = StyleSheet.create({
   fieldBlock: { marginBottom: 4 },
   label: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink, marginBottom: spacing.xs },
   field: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 58, borderWidth: 1, borderColor: tone.border, borderRadius: radii.field, backgroundColor: colors.white, paddingLeft: 8, paddingRight: 14 },
-  fieldIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.surfaceTint, alignItems: 'center', justifyContent: 'center' },
+  fieldIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   fieldText: { flex: 1, fontFamily: fonts.bold, fontSize: 16, color: colors.ink },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.xs },
   error: { flex: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: tone.error },
-  link: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 16 },
+  link: { color: colors.primary, fontFamily: fonts.bold, fontSize: 16 },
 
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(7,21,30,0.35)' },
   sheet: { backgroundColor: colors.white, borderTopLeftRadius: radii.sheet, borderTopRightRadius: radii.sheet, paddingHorizontal: spacing.lg, paddingTop: 10 },

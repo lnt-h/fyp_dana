@@ -82,8 +82,8 @@ export function AudioMark({ size }: { size: number }) {
     <Svg height={size} viewBox="0 0 94 94" width={size}>
       <Defs>
         <RadialGradient cx="50%" cy="50%" id="audioGlow" r="50%">
-          <Stop offset="0%" stopColor={colors.audioTeal} />
-          <Stop offset="62%" stopColor={colors.audioTeal} />
+          <Stop offset="0%" stopColor={colors.primary} />
+          <Stop offset="62%" stopColor={colors.primary} />
           <Stop offset="100%" stopColor={colors.sun} stopOpacity={0.72} />
         </RadialGradient>
       </Defs>
@@ -92,7 +92,7 @@ export function AudioMark({ size }: { size: number }) {
         cy={47}
         fill="url(#audioGlow)"
         r={46.5}
-        stroke={colors.audioTeal}
+        stroke={colors.primary}
         strokeOpacity={0.4}
       />
       <G transform="translate(18 18)">
@@ -155,15 +155,12 @@ export const OnboardingMosaic = memo(function OnboardingMosaic({ height, width }
           top={-25 * scale}
           width={wide}
         />
-        <View style={[styles.audioMark, { height: 94 * scale, top: 349 * scale, width: wide }]}>
-          <AudioMark size={94 * scale} />
-        </View>
         <Tile
           crop={imageCrops.beach}
-          height={344 * scale}
+          height={468 * scale}
           radius={radiusWide}
           source={images.beach}
-          top={473 * scale}
+          top={349 * scale}
           width={wide}
         />
       </View>
@@ -207,18 +204,12 @@ const styles = StyleSheet.create({
     top: 0,
   },
   tile: {
-    backgroundColor: colors.skyWash,
+    backgroundColor: colors.surface,
     left: 0,
     overflow: 'hidden',
     position: 'absolute',
   },
   image: {
-    position: 'absolute',
-  },
-  audioMark: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    left: 0,
     position: 'absolute',
   },
 });

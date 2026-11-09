@@ -42,7 +42,12 @@ export const stayPricesEnabled = process.env.EXPO_PUBLIC_FEATURE_PRICES === '1';
  */
 export async function acceptPreview(previewId: Uuid, body: AcceptPreviewRequest, idempotencyKey: string): Promise<AcceptPreviewResult> {
   try {
-    const response = await apiRequestRaw<TripDetail>(`/v1/plan-previews/${encodeURIComponent(previewId)}/accept`, { body, idempotencyKey, method: 'POST' });
+    const response = await apiRequestRaw<TripDetail>(`/v1/plan-previews/${encodeURIComponent(previewId)}/accept`, {
+      body,
+      idempotencyKey,
+      method: 'POST',
+      query: { locale: currentLocale() },
+    });
     return { replayed: response.headers.get('Idempotent-Replayed') === 'true', trip: response.data };
   } catch (error) {
     // No response: the save may have committed; the caller retries with the same key.

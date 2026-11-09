@@ -12,8 +12,8 @@ import { Chip, CircleButton, Icon, Photo, Skeleton, categoryIcon } from '../../.
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { currentLocale } from '../../../i18n';
 import { listCategories } from '../../../lib/api/source';
-import { searchCityPlaces } from '../../../lib/api/sourcePlanning';
-import type { Category, Place, Uuid } from '../../../lib/api/types';
+import { cachedPlace, searchCityPlaces } from '../../../lib/api/sourcePlanning';
+import type { Category, GeoPoint, Place, Uuid } from '../../../lib/api/types';
 import { categoryColor, colors } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
@@ -24,6 +24,18 @@ import type { EditOutcome } from '../edit/usePreviewEditor';
 
 export const MUST_SEE_LIMIT = 10;
 const THUMB = 64;
+
+/** Squared haversine distance (km², monotonic with metres); the anchor and candidate locations are already in the payloads. */
+function nearFirst(items: Place[], anchor: GeoPoint): Place[] {
+  const rad = (deg: number) => (deg * Math.PI) / 180;
+  const distance = (point: GeoPoint) => {
+    const dLat = rad(point.latitude - anchor.latitude);
+    const dLng = rad(point.longitude - anchor.longitude);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(anchor.latitude)) * Math.cos(rad(point.latitude)) * Math.sin(dLng / 2) ** 2;
+    return h;
+  };
+  return [...items].sort((a, b) => distance(a.location) - distance(b.location));
+}
 
 export type PickedPlace = Pick<Place, 'id' | 'name'>;
 
@@ -117,7 +129,11 @@ export function PlacePicker({ mode, cityId, cityName, planned = {}, offline = fa
   const currentDay = mode.kind === 'add' ? mode.dayIndex : null;
   const vi = currentLocale() === 'vi';
   // DEC-031: an area (bay, old town) is not a planner stop — it is shown on the map and answered by the Guide only.
-  const schedulable = results?.filter(item => !item.is_area) ?? null;
+  const listed = results?.filter(item => !item.is_area) ?? null;
+  // Replace mode ranks nearest-first from the current stop's cached location (already fetched, no new call);
+  // every other mode keeps the server's relevance order.
+  const anchor = mode?.kind === 'replace' && mode.placeId ? cachedPlace(mode.placeId)?.location ?? null : null;
+  const schedulable = listed && anchor ? nearFirst(listed, anchor) : listed;
 
   function badgeFor(place: Place): string | null {
     if (mustSee) return null;

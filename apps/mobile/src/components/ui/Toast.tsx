@@ -24,14 +24,16 @@ const ICON: Record<NonNullable<ToastProps['tone']>, { name?: IconName; color: st
 
 /**
  * Short, non-modal confirmation (e.g. "Trip saved"): ink pill with white text (16.3:1), announced politely.
- * Position it yourself (absolute, near the top or above the bottom bar); it never blocks the screen.
+ * The pill always renders below a standard 44-pt navigation bar: callers anchor this near the top of the screen
+ * (where the Back button sits) and the inner offset keeps the pill from ever covering back navigation.
  */
 export function Toast({ text, tone = 'neutral', icon, onDismiss, style }: ToastProps) {
   const { t } = useTranslation();
   const look = ICON[tone];
   const iconName = icon ?? look.name;
   return (
-    <View accessibilityLiveRegion="polite" accessibilityRole="alert" pointerEvents="box-none" style={[styles.toast, elevation.floating, style]}>
+    <View pointerEvents="box-none" style={style}>
+    <View accessibilityLiveRegion="polite" accessibilityRole="alert" pointerEvents="box-none" style={[styles.toast, styles.belowNav, elevation.floating]}>
       {iconName ? <Icon color={look.color} name={iconName} size={18} strokeWidth={2} /> : null}
       <Text maxFontSizeMultiplier={1.4} style={styles.text}>{text}</Text>
       {onDismiss ? (
@@ -39,6 +41,7 @@ export function Toast({ text, tone = 'neutral', icon, onDismiss, style }: ToastP
           <Icon color={colors.white} name="close" size={16} strokeWidth={2} />
         </Pressable>
       ) : null}
+    </View>
     </View>
   );
 }
@@ -57,4 +60,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
   },
+  /** Standard snackbar clearance below a 44-pt nav bar: the pill never covers Back. */
+  belowNav: { marginTop: 44 + spacing.xs },
 });

@@ -110,7 +110,7 @@ export function RangeCalendar({ today, startDate, dayCount, onChange, onTooLong 
             accessibilityState={{ disabled: past, selected }}
             disabled={past}
             onPress={() => tap(date)}
-            style={({ pressed }) => [c.day, selected && c.daySelected, pressed && !selected && { backgroundColor: colors.surfaceTint }]}
+            style={({ pressed }) => [c.day, selected && c.daySelected, pressed && !selected && { backgroundColor: colors.surface }]}
           >
             <Text style={[c.dayText, past && c.dayPast, selected && c.dayTextSelected, date === today && !selected && c.today]}>{Number(date.slice(8, 10))}</Text>
           </Pressable>
@@ -130,7 +130,7 @@ function NavButton({ icon, label, onPress, disabled = false }: { icon: 'back' | 
     onPress={onPress}
     style={({ pressed }) => [c.nav, disabled && { opacity: 0.3 }, pressed && { opacity: 0.6 }]}
   >
-    <Icon color={colors.deepOcean} name={icon} size={20} />
+    <Icon color={colors.ink} name={icon} size={20} />
   </Pressable>;
 }
 
@@ -140,18 +140,18 @@ const c = StyleSheet.create({
   wrap: { borderRadius: radii.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.hairline, padding: spacing.sm },
   head: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
   title: { flex: 1, textAlign: 'center', fontFamily: fonts.bold, fontSize: 16, color: colors.ink },
-  nav: { width: MIN_TOUCH, height: MIN_TOUCH, borderRadius: MIN_TOUCH / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceTint },
+  nav: { width: MIN_TOUCH, height: MIN_TOUCH, borderRadius: MIN_TOUCH / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   row: { flexDirection: 'row' },
   weekday: { width: `${100 / 7}%`, textAlign: 'center', fontFamily: fonts.bold, fontSize: 12, color: colors.textMuted, paddingVertical: spacing.xxs },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: `${100 / 7}%`, height: CELL + 4, alignItems: 'center', justifyContent: 'center' },
-  band: { position: 'absolute', left: 0, right: 0, top: 2, bottom: 2, backgroundColor: colors.surfaceTint },
+  band: { position: 'absolute', left: 0, right: 0, top: 2, bottom: 2, backgroundColor: colors.surface },
   bandStart: { left: '50%' },
   bandEnd: { right: '50%' },
   day: { width: CELL, height: CELL, borderRadius: CELL / 2, alignItems: 'center', justifyContent: 'center' },
-  daySelected: { backgroundColor: colors.deepOcean },
+  daySelected: { backgroundColor: colors.primary },
   dayText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
   dayTextSelected: { fontFamily: fonts.bold, color: colors.white },
   dayPast: { color: colors.disabledButton, textDecorationLine: 'line-through' },
-  today: { color: colors.tealText, fontFamily: fonts.bold, textDecorationLine: 'underline' },
+  today: { color: colors.primary, fontFamily: fonts.bold, textDecorationLine: 'underline' },
 });

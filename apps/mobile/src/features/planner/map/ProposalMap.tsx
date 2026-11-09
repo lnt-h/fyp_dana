@@ -82,6 +82,9 @@ export function ProposalMap({ day, places, selectedStopId, onSelect, onOpenPlace
           onMapReady={fitAll}
           pitchEnabled={false}
           rotateEnabled={false}
+          // The map sits inside the page scroll: it never captures vertical drags (Wave 6 P2). Pins stay
+          // tappable and pinch-zoom still works; the recenter button returns to the day's bounds.
+          scrollEnabled={false}
           showsPointsOfInterests={false}
           style={StyleSheet.absoluteFill}
           toolbarEnabled={false}
@@ -100,13 +103,15 @@ export function ProposalMap({ day, places, selectedStopId, onSelect, onOpenPlace
               strokeWidth={3}
             />;
           })}
-          {day.stops.map(stop => {
+          {day.stops.map((stop, index) => {
             const isSelected = stop.id === selectedStopId;
             const blocked = isStopBlocked(stop);
             const web = stop.trust_level === 'WEB_UNVERIFIED';
+            // Per-day numbering (Wave 6 P2): pins restart at 1 each day, matching the timeline rail.
+            const displayNumber = index + 1;
             return <Marker
               key={stop.id}
-              accessibilityLabel={[t('proposal.map.pin', { name: stop.name, number: stop.number, time: formatTime(stop.planned_arrival) ?? t('proposal.stop.timeUnknown') }), web ? t('proposal.stop.web') : null].filter(Boolean).join(', ')}
+              accessibilityLabel={[t('proposal.map.pin', { name: stop.name, number: displayNumber, time: formatTime(stop.planned_arrival) ?? t('proposal.stop.timeUnknown') }), web ? t('proposal.stop.web') : null].filter(Boolean).join(', ')}
               accessibilityRole="button"
               anchor={{ x: 0.5, y: 0.5 }}
               coordinate={stop.location}
@@ -114,7 +119,7 @@ export function ProposalMap({ day, places, selectedStopId, onSelect, onOpenPlace
               zIndex={isSelected ? 10 : 1}
             >
               <View style={[m.pinWrap, isSelected && { borderColor: blocked ? colors.danger : routeColor }, !isSelected && blocked && m.pinBlocked, web && m.pinWeb]}>
-                <NumberPin dayIndex={day.day_index - 1} number={stop.number} size={28} />
+                <NumberPin dayIndex={day.day_index - 1} number={displayNumber} size={28} />
               </View>
             </Marker>;
           })}
@@ -147,7 +152,7 @@ export function ProposalMap({ day, places, selectedStopId, onSelect, onOpenPlace
           <View style={m.currentClip}>
             <Photo categoryCode={selectedPlace?.categoryCode} height={44} iconSize={22} image={selectedPlace?.thumbnail} name={selected.name} transition={150} variant="thumb" width={44} />
           </View>
-          <NumberPin dayIndex={day.day_index - 1} number={selected.number} size={24} style={m.currentPin} />
+          <NumberPin dayIndex={day.day_index - 1} number={selectedIndex + 1} size={24} style={m.currentPin} />
         </View>
         <View style={m.currentCopy}>
           <Text numberOfLines={1} style={m.currentName}>{selected.name}</Text>

@@ -127,6 +127,9 @@ export function SaveSheet(props: SaveSheetProps) {
   }, [onSaved, state, t]);
 
   const saving = state.status === 'saving';
+  // First save (Wave 6 P2): the caller passes `tripId = previewId` when there is no trip yet, so the confirm card
+  // says "new trip" and only warns about replacing when a saved trip already exists.
+  const isNewTrip = tripId === previewId;
   const blocked = planHealth === 'BLOCKED' && state.status === 'idle' ? { reasons: healthReasons ?? [] } : state.status === 'blocked' ? state : null;
   const close = () => { if (!saving) onClose(); };
   const viewTrip = (trip: TripDetail) => {
@@ -296,7 +299,7 @@ export function SaveSheet(props: SaveSheetProps) {
   /* ------------------------------------------------------------ Confirm (+ saving, error, interrupted, conflict) */
   const interrupted = state.status === 'interrupted';
   const conflict = state.status === 'conflict' ? state : null;
-  const primaryLabel = saving ? t('save.confirm.saving') : interrupted ? t('save.interrupted.retry') : t('save.confirm.save');
+  const primaryLabel = saving ? t('save.confirm.saving') : interrupted ? t('save.interrupted.retry') : isNewTrip ? t('save.confirm.saveNew') : t('save.confirm.save');
   const needsAck = (summary.webUnverifiedStops?.length ?? 0) > 0;
   const onPrimary = interrupted ? retry : needsAck ? async () => setAckOpen(true) : () => save(false);
 
@@ -366,7 +369,7 @@ export function SaveSheet(props: SaveSheetProps) {
       ) : null}
 
       <Text style={styles.note}>
-        {t('save.confirm.note')}
+        {t(isNewTrip ? 'save.confirm.noteNew' : 'save.confirm.note')}
         {stayPricesEnabled ? ` ${t('save.confirm.notePrices')}` : ''}
       </Text>
     </SheetFrame>

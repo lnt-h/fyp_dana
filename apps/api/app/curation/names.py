@@ -165,6 +165,11 @@ LATIN_BRAND_ALLOWLIST = frozenset(
 # Venue categories whose names are often Latin brand names ("Rosie's Cafe", "Morning Glory").
 VENUE_CATEGORIES = frozenset({"FOOD", "CAFE", "NIGHTLIFE"})
 
+# Whole words that mark a venue name as a plain English description, not a brand
+# ("Banana fritters stall"): flagged even in venue categories, which otherwise keep
+# Latin brand names. Owner-maintained together with the allow-list below.
+VENUE_DESCRIPTIVE_WORDS = frozenset({"stall", "stand", "cart", "kiosk"})
+
 # Vietnamese-specific letters (after NFD the tone marks are combining characters).
 _VI_LETTERS = set("ăâđêôơưĂÂĐÊÔƠƯ")
 
@@ -199,13 +204,38 @@ def vi_name_problem(vi_name: str | None, category: str | None) -> bool:
     """True when the VI name is not Vietnamese: no diacritics, not a venue brand, not allow-listed.
 
     Catches "Tan Ky", "Diep Dong Nguyen", "Cua Dai", "Military blockhouse ruins". Venue
-    categories (FOOD, CAFE, NIGHTLIFE) keep Latin brand names.
+    categories (FOOD, CAFE, NIGHTLIFE) keep Latin brand names ("Rosie's Cafe"), but not a
+    plain English description such as "Banana fritters stall" (handled by
+    :func:`venue_name_needs_editorial`, reported as ``NO_EDITORIAL_SOURCE`` instead).
     """
     if not vi_name or has_vietnamese_diacritics(vi_name):
         return False
-    if category in VENUE_CATEGORIES:
+    if fold_words(vi_name) in LATIN_BRAND_ALLOWLIST:
         return False
-    return fold_words(vi_name) not in LATIN_BRAND_ALLOWLIST
+    if category in VENUE_CATEGORIES:
+        # Brands are kept ("Morning Glory"); a plain description ("Banana fritters
+        # stall") is flagged for the owner, alongside the editorial-source requirement.
+        return bool(set(fold_words(vi_name).split()) & VENUE_DESCRIPTIVE_WORDS)
+    return True
+
+
+def venue_name_needs_editorial(vi_name: str | None, en_name: str | None) -> bool:
+    """True when a venue name is a generic English description ("Banana fritters stall"),
+    not a brand: it may not ride on OSM alone and needs an editorial source."""
+    for name in (vi_name, en_name):
+        if name and not has_vietnamese_diacritics(name):
+            if set(fold_words(name).split()) & VENUE_DESCRIPTIVE_WORDS:
+                return True
+    return False
+
+
+def swapped_vi_en(vi_name: str | None, en_name: str | None) -> bool:
+    """True when the locales look exchanged: the VI name is plain Latin while the EN name
+    carries Vietnamese diacritics ("Thia Go" / "Thìa Gỗ"). The gate rejects; the owner
+    fixes the order in the sheet, since code cannot know which spelling is canonical."""
+    if not vi_name or not en_name:
+        return False
+    return not has_vietnamese_diacritics(vi_name) and has_vietnamese_diacritics(en_name)
 
 
 def prefer_diacritic_alias(name: str | None, aliases: list[str]) -> str | None:

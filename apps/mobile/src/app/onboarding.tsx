@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import Svg, { Path } from 'react-native-svg';
 
 import { Wordmark } from '../components/brand/BrandMarks';
+import { PrimaryButton } from '../components/ui/Buttons';
 import { markOnboardingSeen } from '../features/onboarding/onboardingSeen';
 import { OnboardingMosaic } from '../features/onboarding/components/OnboardingMosaic';
 import { PersonalizedOnboardingScene } from '../features/onboarding/components/PersonalizedOnboardingScene';
@@ -50,16 +51,6 @@ type SlideCopyProps = {
 
 type TransitionAction = 'back' | 'primary';
 
-type PrimaryActionButtonProps = {
-  accessibilityHint: string;
-  accessibilityLabel: string;
-  busy: boolean;
-  disabled?: boolean;
-  label: string;
-  onPress: () => void;
-  reducedMotionEnabled: boolean;
-};
-
 function SlideCopy({ bottom, fontSize, title }: SlideCopyProps) {
   return (
     <View style={[styles.copyBlock, { bottom }]}>
@@ -68,73 +59,18 @@ function SlideCopy({ bottom, fontSize, title }: SlideCopyProps) {
   );
 }
 
-function DirectionIcon({ direction }: { direction: 'back' | 'next' }) {
-  const path = direction === 'back' ? 'M15 5L7 13L15 21' : 'M9 5L17 13L9 21';
-
+function DirectionIcon() {
   return (
     <Svg height={26} viewBox="0 0 24 26" width={24}>
       <Path
-        d={path}
+        d="M15 5L7 13L15 21"
         fill="none"
-        stroke={direction === 'back' ? colors.ink : colors.white}
+        stroke={colors.ink}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={2}
       />
     </Svg>
-  );
-}
-
-function PrimaryActionButton({
-  accessibilityHint,
-  accessibilityLabel,
-  busy,
-  disabled = false,
-  label,
-  onPress,
-  reducedMotionEnabled,
-}: PrimaryActionButtonProps) {
-  const interactionDisabled = disabled || busy;
-
-  return (
-    <Pressable
-      accessibilityHint={accessibilityHint}
-      accessibilityLabel={accessibilityLabel}
-      accessibilityRole="button"
-      accessibilityState={{ busy, disabled }}
-      disabled={interactionDisabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.nextButton,
-        pressed && !reducedMotionEnabled && styles.nextButtonPressed,
-      ]}
-    >
-      {({ pressed }) => (
-        <>
-          <LinearGradient
-            colors={
-              disabled
-                ? [colors.disabledButton, colors.disabledButton]
-                : pressed
-                  ? [colors.primaryPressed, colors.primaryPressed]
-                  : [colors.primary, colors.primaryPressed]
-            }
-            end={{ x: 1, y: 0.5 }}
-            pointerEvents="none"
-            start={{ x: 0, y: 0.5 }}
-            style={styles.nextButtonSurface}
-          />
-          <Text style={styles.nextText}>{label}</Text>
-          <View
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            style={styles.nextIcon}
-          >
-            <DirectionIcon direction="next" />
-          </View>
-        </>
-      )}
-    </Pressable>
   );
 }
 
@@ -389,17 +325,17 @@ export default function OnboardingScreen() {
             onPress={handleBack}
             style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
           >
-            <DirectionIcon direction="back" />
+            <DirectionIcon />
           </Pressable>
         ) : null}
 
-        <PrimaryActionButton
+        <PrimaryButton
           accessibilityHint={t(isFinalStep ? 'onboarding.startHint' : 'onboarding.nextHint')}
           accessibilityLabel={t(isFinalStep ? 'onboarding.startLabel' : 'onboarding.nextLabel')}
-          busy={primaryButtonBusy}
           label={t(isFinalStep ? 'onboarding.start' : 'onboarding.next')}
+          loading={primaryButtonBusy}
           onPress={handlePrimaryPress}
-          reducedMotionEnabled={reducedMotionEnabled}
+          style={styles.nextButton}
         />
       </View>
     </View>
@@ -435,23 +371,21 @@ const styles = StyleSheet.create({
   },
   skipButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: colors.white,
+    borderColor: colors.hairline,
+    borderWidth: 1,
     justifyContent: 'center',
-    shadowColor: colors.ink,
-    shadowOffset: { height: 4, width: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
+    minHeight: 44,
+    minWidth: 44,
   },
   skipText: {
     color: colors.ink,
     fontFamily: 'HankenGrotesk_700Bold',
   },
   skipButtonPressed: {
-    backgroundColor: 'rgba(255,255,255,0.32)',
-    transform: [{ scale: 0.98 }],
+    backgroundColor: colors.surface,
   },
   copyBlock: {
-    alignItems: 'center',
     left: 16,
     position: 'absolute',
     right: 16,
@@ -461,7 +395,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontFamily: 'HankenGrotesk_500Medium',
     letterSpacing: -1.35,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   pagination: {
     alignItems: 'center',
@@ -484,9 +418,10 @@ const styles = StyleSheet.create({
     width: 28,
   },
   footer: {
+    alignItems: 'center',
     flexDirection: 'row',
-    gap: 15,
-    height: 60,
+    gap: 12,
+    minHeight: 52,
     position: 'absolute',
     zIndex: 4,
   },
@@ -494,49 +429,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.hairline,
+    borderRadius: 14,
     borderWidth: 1,
-    borderRadius: 30,
-    height: 60,
+    height: 52,
     justifyContent: 'center',
-    width: 60,
+    width: 52,
   },
   backButtonPressed: {
     backgroundColor: colors.hairline,
-    transform: [{ scale: 0.98 }],
   },
   nextButton: {
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: 30,
     flex: 1,
-    flexDirection: 'row',
-    height: 60,
-    justifyContent: 'center',
-  },
-  nextButtonPressed: {
-    elevation: 5,
-    shadowColor: colors.primary,
-    shadowOffset: { height: 3, width: 0 },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    transform: [{ scale: 0.985 }],
-  },
-  nextButtonSurface: {
-    borderRadius: 30,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  nextText: {
-    color: colors.white,
-    fontSize: 20,
-    fontFamily: 'HankenGrotesk_700Bold',
-    lineHeight: 24,
-  },
-  nextIcon: {
-    marginLeft: 6,
-    transform: [{ scale: 0.58 }],
   },
 });

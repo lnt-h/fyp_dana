@@ -47,7 +47,8 @@ export function HeroGallery({ name, thumbnail, media, height, categoryCode, topL
   const [index, setIndex] = useState(0);
   useEffect(() => { setIndex(0); }, [photos]);
   const current = photos[index] ?? null;
-  const thumbs = photos.slice(0, MAX_THUMBS);
+  // The gallery shows the other photos (Wave 6 P2): the hero never repeats itself in the row below.
+  const thumbs = photos.map((photo, position) => ({ index: position, photo })).filter(item => item.index !== index).slice(0, MAX_THUMBS);
   const credit = current?.attribution_text
     ? current.license_code
       ? t('place.gallery.credit', { credit: current.attribution_text, license: current.license_code })
@@ -55,7 +56,7 @@ export function HeroGallery({ name, thumbnail, media, height, categoryCode, topL
     : null;
 
   const insets = useSafeAreaInsets();
-  const gallery = thumbs.length > 1;
+  const gallery = photos.length > 1;
   if (!current) {
     // No photo: the strong category gradient with a large category icon (never a brown or grey box), white title.
     return <View style={[g.fallback, { height }]}>
@@ -90,15 +91,14 @@ export function HeroGallery({ name, thumbnail, media, height, categoryCode, topL
       {children}
     </PhotoHero>
     {gallery ? <View style={g.row}>
-      {thumbs.map((photo, position) => {
-        const selected = position === index;
+      {thumbs.map(item => {
+        const photo = item.photo;
         return <Pressable
           key={photo.media_asset_id}
-          accessibilityLabel={t('place.gallery.thumbA11y', { index: position + 1, name, total: thumbs.length })}
+          accessibilityLabel={t('place.gallery.thumbA11y', { index: item.index + 1, name, total: photos.length })}
           accessibilityRole="imagebutton"
-          accessibilityState={{ selected }}
-          onPress={() => setIndex(position)}
-          style={({ pressed }) => [g.thumb, selected && g.thumbSelected, pressed && { opacity: 0.8 }]}
+          onPress={() => setIndex(item.index)}
+          style={({ pressed }) => [g.thumb, pressed && { opacity: 0.8 }]}
         >
           <Photo categoryCode={categoryCode} height={THUMB} iconSize={20} image={photo} name={name} transition={150} variant="thumb" width={THUMB} />
         </Pressable>;
@@ -121,5 +121,4 @@ const g = StyleSheet.create({
   credit: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.textMuted },
   row: { position: 'absolute', right: spacing.lg, bottom: -GALLERY_OVERHANG, flexDirection: 'row', gap: spacing.xs },
   thumb: { width: THUMB, height: THUMB, borderRadius: 12, borderWidth: 2, borderColor: colors.white, overflow: 'hidden', backgroundColor: colors.white },
-  thumbSelected: { borderColor: colors.primary, borderWidth: 3 },
 });

@@ -56,8 +56,10 @@ export function DayTimeline({ day, cityName, places, categoryNames = {}, selecte
       : day.stops.map((stop, index) => {
         const last = index === day.stops.length - 1;
         const leg = last ? undefined : outgoingLeg(day, stop.id);
+        // Per-day numbering (Wave 6 P2): the rail restarts at 1 each day; `stop.number` stays continuous for health/a11y copy.
+        const displayNumber = index + 1;
         return <View key={stop.id}>
-          <RailStop dayIndex={day.day_index} last={last} number={stop.number}>
+          <RailStop dayIndex={day.day_index} last={last} number={displayNumber}>
             <StopCard
               categoryName={categoryNames[place(stop.place_id)?.categoryCode ?? ''] ?? null}
               edit={edit ? {
@@ -74,7 +76,7 @@ export function DayTimeline({ day, cityName, places, categoryNames = {}, selecte
               reducedMotion={reducedMotion}
               rowRef={view => registerRow(stop.id, view)}
               selected={stop.id === selectedStopId}
-              stop={stop}
+              stop={{ ...stop, number: displayNumber }}
             />
           </RailStop>
           {last ? null : leg ? <RailLeg leg={leg} /> : <RailGap />}
