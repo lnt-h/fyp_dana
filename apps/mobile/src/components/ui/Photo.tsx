@@ -35,7 +35,7 @@ export function Photo({ image, width, height, categoryCode, name, icon, iconSize
   const url = image?.url?.trim() || null;
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const resolved = resolveImage(image, { height, width });
-  const fallback = { categoryCode, icon, iconSize, name, tone, variant };
+  const fallback = { categoryCode, icon, iconSize, tone, variant };
 
   if (!resolved || (url !== null && failedUrl === url)) return <PhotoFallback {...fallback} />;
   return <>

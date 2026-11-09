@@ -5,7 +5,6 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, Text
 
 import { AiMark, Icon, Photo, PrimaryButton, Skeleton, type IconName } from '../../components/ui';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-import { currentLocale } from '../../i18n';
 import { SIGN_IN_AGAIN_ROUTE, isAuthError } from '../../lib/api/errors';
 import { ApiError, getPlace, listCategories, listCities, loadErrorKind, streamGuide, type LoadErrorKind } from '../../lib/api/source';
 import { fetchPreferences, savePreferences, toPreferencesWrite } from '../../lib/api/sourceAccount';
@@ -88,7 +87,8 @@ const CITY_SUGGESTIONS: Suggestion[] = [
  * One question in flight; the stream aborts on unmount, clear or scope change.
  */
 export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: GuideScope; onChangePlace: () => void; keyboardOpen: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = (i18n.resolvedLanguage === 'vi' ? 'vi' : 'en') as Locale;
   const reduceMotion = useReducedMotion();
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [place, setPlace] = useState<PlaceDetail | null>(null);
@@ -109,7 +109,6 @@ export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: Guide
 
   useEffect(() => {
     let alive = true;
-    const locale = currentLocale();
     const fresh = freshRef.current;
     freshRef.current = false;
     setLoad({ state: 'loading' });
@@ -152,7 +151,7 @@ export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: Guide
     if (!noticeDismissed) fetchPreferences().then(prefs => { if (alive) setShowNotice(!prefs.ai_notice_acknowledged_at); }).catch(() => undefined);
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeKey(scope), attempt]);
+  }, [scopeKey(scope), attempt, locale]);
 
   const hasItems = items.length > 0;
   // The empty state (starter questions) reads from the top; a thread follows its newest message.
@@ -162,7 +161,21 @@ export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: Guide
 
   async function send(raw: string) {
     const content = raw.trim();
-    if (!content || busy || !session || content.length > MAX_QUESTION) return;
+    const currentLang = (i18n.resolvedLanguage === 'vi' ? 'vi' : 'en') as Locale;
+    if (!content || busy || content.length > MAX_QUESTION) return;
+
+    let activeSession = session;
+    if (!activeSession || activeSession.locale !== currentLang) {
+      try {
+        const opened = await openGuideSession(scopeKey(scope), sessionBody(scope, currentLang));
+        setSession(opened.session);
+        setItems(opened.history.map(message => ({ kind: 'message', message })));
+        activeSession = opened.session;
+      } catch {
+        return;
+      }
+    }
+
     const pendingId = localId('pending');
     const traveler: GuideMessage = { content, created_at: new Date().toISOString(), id: localId('traveler'), input_mode: 'TEXT', role: 'TRAVELER', seq: 0 };
     setItems(current => [...current.filter(item => item.kind !== 'error'), { kind: 'message', message: traveler }, { id: pendingId, kind: 'pending', text: '' }]);
@@ -180,7 +193,7 @@ export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: Guide
     const insufficient = () => update(() => ({ id: localId('insufficient'), kind: 'insufficient' }));
     let finished = false;
     try {
-      await streamGuide(session.id, { content, input_mode: 'TEXT' }, event => {
+      await streamGuide(activeSession.id, { content, input_mode: 'TEXT' }, event => {
         if (controller.signal.aborted) return;
         if (event.type === 'progress') update(item => ({ ...item, stage: event.stage }));
         else if (event.type === 'text') update(item => ({ ...item, text: item.text + event.delta }));
@@ -194,7 +207,7 @@ export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: Guide
       if (!finished && !controller.signal.aborted) {
         // Stream dropped without a terminal event: re-fetch the stored result (all pages, so the newest is included),
         // never POST again. Only an answer stored after this question counts; an older answer is never shown.
-        const answer = storedAnswerFor(await listAllGuideMessages(session.id), content);
+        const answer = storedAnswerFor(await listAllGuideMessages(activeSession.id), content);
         if (answer) update(() => ({ kind: 'message', message: answer }));
         else fail('generic');
       }
@@ -219,7 +232,7 @@ export function GuideChat({ scope, onChangePlace, keyboardOpen }: { scope: Guide
           setBusy(false);
           setItems([]);
           // API-026 delete is not wired; forget the cached session and start a fresh one without history.
-          forgetGuideSession(scopeKey(scope), currentLocale());
+          forgetGuideSession(scopeKey(scope), locale);
           freshRef.current = true;
           setAttempt(n => n + 1);
         },

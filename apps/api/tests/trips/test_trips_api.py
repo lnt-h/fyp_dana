@@ -494,3 +494,45 @@ async def test_edited_leg_mode_is_measured_and_saved_measured(
     assert saved_leg["travel_mode"] == "DRIVE"
     assert saved_leg["availability"] == "AVAILABLE"
     assert (saved_leg["distance_m"], saved_leg["duration_s"]) == (1200, 300)
+
+
+async def test_edit_and_accept_preview_honor_locale_query(
+    world: World, client: AsyncClient
+) -> None:
+    trip, preview, rev2 = _two_revision_preview(world)
+    stops = rev2["days"][0]["stops"]
+
+    # 1. Edit with locale=en renders stop names in English
+    edited_en = await client.patch(
+        f"/v1/plan-previews/{preview.id}?locale=en",
+        json={
+            "expected_revision": 2,
+            "edits": [{"op": "LOCK_STOP", "stop_id": stops[0]["id"]}],
+        },
+    )
+    assert edited_en.status_code == 200, edited_en.text
+    en_stop = edited_en.json()["days"][0]["stops"][0]
+    assert en_stop["name"] == "Museum EN"
+
+    # 2. Edit with locale=vi renders stop names in Vietnamese
+    edited_vi = await client.patch(
+        f"/v1/plan-previews/{preview.id}?locale=vi",
+        json={
+            "expected_revision": 3,
+            "edits": [{"op": "LOCK_STOP", "stop_id": stops[1]["id"]}],
+        },
+    )
+    assert edited_vi.status_code == 200, edited_vi.text
+    vi_stop = edited_vi.json()["days"][0]["stops"][0]
+    assert vi_stop["name"] == "Museum VI"
+
+    # 3. Accept with locale=en returns the TripDetail rendered in English
+    saved = await client.post(
+        f"/v1/plan-previews/{preview.id}/accept?locale=en",
+        json=_accept_body(preview, trip, acknowledge_web_unverified=True),
+        headers={"Idempotency-Key": str(uuid.uuid4())},
+    )
+    assert saved.status_code == 200, saved.text
+    saved_stops = saved.json()["days"][0]["stops"]
+    assert saved_stops[0]["name"] == "Museum EN"
+    assert saved_stops[1]["name"] == "Bridge EN"

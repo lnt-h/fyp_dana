@@ -20,7 +20,7 @@ import { useSelectedCity } from '../../features/home/cityStore';
 import { useTabBarHeight } from '../../features/home/components/HomeTabBar';
 import { HomeMap } from '../../features/home/map/HomeMap';
 import { PlacePreviewCard } from '../../features/home/map/PlacePreviewCard';
-import { cityCenter, cityRegion, framedRegion } from '../../features/home/map/region';
+import { DA_NANG_TRAVEL_BBOX, cityCenter, cityRegion, framedRegion } from '../../features/home/map/region';
 import { useLocateMe } from '../../features/home/map/useLocateMe';
 import { SearchBody, SearchHeader } from '../../features/home/search/SearchPanel';
 import { SearchPill } from '../../features/home/search/SearchPill';
@@ -104,7 +104,16 @@ export default function HomeScreen() {
   const markerKey = markers.map(place => place.id).join(',');
   useEffect(() => {
     if (!city || !mapReady || markerLoad.state !== 'ready') return;
-    const points = markers.map(place => place.location);
+    const inBounds = markers
+      .map(place => place.location)
+      .filter(
+        p =>
+          p.latitude >= DA_NANG_TRAVEL_BBOX.minLat &&
+          p.latitude <= DA_NANG_TRAVEL_BBOX.maxLat &&
+          p.longitude >= DA_NANG_TRAVEL_BBOX.minLng &&
+          p.longitude <= DA_NANG_TRAVEL_BBOX.maxLng,
+      );
+    const points = inBounds.length > 0 ? inBounds : markers.map(place => place.location);
     if (points.length > 1) {
       mapRef.current?.fitToCoordinates(points, {
         animated: !reduced,

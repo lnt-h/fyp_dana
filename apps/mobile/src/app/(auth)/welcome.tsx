@@ -8,6 +8,7 @@ import { useAuth } from '@clerk/expo';
 import { demoNoAuth } from '../../lib/demoAuth';
 import { Redirect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { fonts } from '../../theme/typography';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
@@ -54,23 +55,23 @@ export default function WelcomeScreen() {
 
 const styles = StyleSheet.create({
   brand: { marginTop: 4, gap: 10 },
-  tagline: { fontSize: 13, fontFamily: 'HankenGrotesk_500Medium', color: palette.textSecondary },
+  tagline: { fontSize: 13, fontFamily: fonts.medium, color: palette.textSecondary },
   destination: { marginTop: 20, marginBottom: 20, paddingBottom: 12 },
   heroFrame: { width: '100%', borderRadius: 16, overflow: 'hidden', backgroundColor: palette.skyWash },
   hero: { position: 'absolute', width: '100%', height: '100%', borderRadius: 16 },
   heroShade: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '65%' },
   destinationCopy: { position: 'absolute', bottom: 22, left: 22, right: 120 },
-  eyebrow: { color: palette.white, fontFamily: 'HankenGrotesk_600SemiBold', fontSize: 13 },
-  destinationName: { color: palette.white, fontFamily: 'HankenGrotesk_700Bold', fontSize: 30, lineHeight: 36, marginTop: 4 },
+  eyebrow: { color: palette.white, fontFamily: fonts.semibold, fontSize: 13 },
+  destinationName: { color: palette.white, fontFamily: fonts.bold, fontSize: 30, lineHeight: 36, marginTop: 4 },
   accent: { width: 32, height: 4, borderRadius: 2, backgroundColor: palette.coral, marginTop: 10 },
   detailFrame: { position: 'absolute', bottom: 0, right: 18, width: 96, height: 120, borderRadius: 18, borderWidth: 5, borderColor: palette.white, backgroundColor: palette.white, shadowColor: palette.ink, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.16, shadowRadius: 10, elevation: 4 },
   detailPhoto: { width: '100%', height: '100%', borderRadius: 13 },
-  title: { fontSize: 32, lineHeight: 38, fontFamily: 'HankenGrotesk_700Bold', letterSpacing: -1, color: palette.ink },
+  title: { fontSize: 32, lineHeight: 38, fontFamily: fonts.bold, letterSpacing: -1, color: palette.ink },
   compactTitle: { fontSize: 28, lineHeight: 34 },
   period: { color: palette.coral },
   subtitle: { fontSize: 16, lineHeight: 24, color: palette.muted, marginTop: 8, marginBottom: 8 },
   footer: { marginTop: 12, paddingBottom: 8 },
   signIn: { minHeight: 48, paddingVertical: 12, justifyContent: 'center', alignItems: 'center' },
   accountPrompt: { color: palette.muted, fontSize: 15, lineHeight: 22, textAlign: 'center' },
-  signInText: { color: palette.tealText, fontFamily: 'HankenGrotesk_700Bold' },
+  signInText: { color: palette.tealText, fontFamily: fonts.bold },
 });

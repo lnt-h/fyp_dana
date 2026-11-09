@@ -32,18 +32,33 @@ export function framedRegion(point: GeoPoint, delta: number, aspect: number): Re
   };
 }
 
+export const DA_NANG_TRAVEL_BBOX = {
+  maxDelta: 0.42,
+  maxLat: 16.22,
+  maxLng: 108.42,
+  minLat: 15.82,
+  minLng: 107.95,
+};
+
 /** Region showing all points (mean centre, padded span) or the city fallback when there are none. */
 export function cityRegion(code: CityCode | undefined, points: GeoPoint[], aspect: number): Region {
-  if (points.length === 0) {
+  const bbox = DA_NANG_TRAVEL_BBOX;
+  const inBounds = points.filter(
+    p => p.latitude >= bbox.minLat && p.latitude <= bbox.maxLat && p.longitude >= bbox.minLng && p.longitude <= bbox.maxLng
+  );
+  const targetPoints = inBounds.length > 0 ? inBounds : points;
+
+  if (targetPoints.length === 0) {
     const fallback = FALLBACK_CENTERS[code ?? 'da-nang'] ?? FALLBACK_CENTERS['da-nang'];
     return framedRegion(fallback, fallback.delta, aspect);
   }
   const mean = {
-    latitude: points.reduce((sum, p) => sum + p.latitude, 0) / points.length,
-    longitude: points.reduce((sum, p) => sum + p.longitude, 0) / points.length,
+    latitude: targetPoints.reduce((sum, p) => sum + p.latitude, 0) / targetPoints.length,
+    longitude: targetPoints.reduce((sum, p) => sum + p.longitude, 0) / targetPoints.length,
   };
-  const lats = points.map(p => p.latitude);
-  const lngs = points.map(p => p.longitude);
+  const lats = targetPoints.map(p => p.latitude);
+  const lngs = targetPoints.map(p => p.longitude);
   const span = Math.max(Math.max(...lats) - Math.min(...lats), (Math.max(...lngs) - Math.min(...lngs)) / aspect);
-  return framedRegion(mean, Math.max(span * 3, 0.015), aspect);
+  const delta = Math.min(Math.max(span * 1.35, 0.02), bbox.maxDelta);
+  return framedRegion(mean, delta, aspect);
 }

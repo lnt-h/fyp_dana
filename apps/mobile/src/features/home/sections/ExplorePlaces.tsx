@@ -42,9 +42,10 @@ function PlaceTile({ place, categoryName, onPress }: { place: Place; categoryNam
 }
 
 /** "Khám phá {city}": published places of the selected city, filtered (on the server) by the shared category chip. */
-export function ExplorePlaces({ places, categories, isVi, state, errorKind, cityName, filtered, onRetry, onOpenPlace, gutter }: {
+export function ExplorePlaces({ places, categories, categoryCode, isVi, state, errorKind, cityName, filtered, onRetry, onOpenPlace, gutter }: {
   places: Place[];
   categories: Category[];
+  categoryCode?: string | null;
   isVi: boolean;
   state: PlacesLoad;
   /** Why the last load failed (second line of the retry banner). */
@@ -57,12 +58,13 @@ export function ExplorePlaces({ places, categories, isVi, state, errorKind, city
   gutter: number;
 }) {
   const { t } = useTranslation();
-  const title = cityName ? t('homeSheet.explore.title', { city: cityName }) : t('homeSheet.explore.titleNoCity');
-  const inset = { marginHorizontal: gutter };
   const nameOf = (code: string) => {
     const category = categories.find(item => item.code === code);
     return category ? (isVi ? category.name_vi : category.name_en) : null;
   };
+  const categoryTitle = categoryCode ? nameOf(categoryCode) : null;
+  const title = categoryTitle || (cityName ? t('homeSheet.explore.title', { city: cityName }) : t('homeSheet.explore.titleNoCity'));
+  const inset = { marginHorizontal: gutter };
 
   let body;
   if (state === 'loading') {

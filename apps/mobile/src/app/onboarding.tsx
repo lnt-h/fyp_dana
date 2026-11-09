@@ -23,6 +23,7 @@ import { PersonalizedOnboardingScene } from '../features/onboarding/components/P
 import { PlanningOnboardingScene } from '../features/onboarding/components/PlanningOnboardingScene';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { colors } from '../theme/colors';
+import { fonts } from '../theme/typography';
 
 const slides = [
   { key: 'discover' },
@@ -106,34 +107,18 @@ function PrimaryActionButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.nextButton,
-        pressed && !reducedMotionEnabled && styles.nextButtonPressed,
+        disabled && { backgroundColor: colors.disabledButton },
+        pressed && !interactionDisabled && !reducedMotionEnabled && styles.nextButtonPressed,
       ]}
     >
-      {({ pressed }) => (
-        <>
-          <LinearGradient
-            colors={
-              disabled
-                ? [colors.disabledButton, colors.disabledButton]
-                : pressed
-                  ? [colors.primaryPressed, colors.primaryPressed]
-                  : [colors.primary, colors.primaryPressed]
-            }
-            end={{ x: 1, y: 0.5 }}
-            pointerEvents="none"
-            start={{ x: 0, y: 0.5 }}
-            style={styles.nextButtonSurface}
-          />
-          <Text style={styles.nextText}>{label}</Text>
-          <View
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            style={styles.nextIcon}
-          >
-            <DirectionIcon direction="next" />
-          </View>
-        </>
-      )}
+      <Text style={styles.nextText}>{label}</Text>
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={styles.nextIcon}
+      >
+        <DirectionIcon direction="next" />
+      </View>
     </Pressable>
   );
 }
@@ -485,8 +470,8 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
-    gap: 15,
-    height: 60,
+    gap: 12,
+    height: 50,
     position: 'absolute',
     zIndex: 4,
   },
@@ -494,11 +479,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.hairline,
+    borderRadius: 14,
     borderWidth: 1,
-    borderRadius: 30,
-    height: 60,
+    height: 50,
     justifyContent: 'center',
-    width: 60,
+    width: 50,
   },
   backButtonPressed: {
     backgroundColor: colors.hairline,
@@ -507,33 +492,21 @@ const styles = StyleSheet.create({
   nextButton: {
     alignItems: 'center',
     backgroundColor: colors.primary,
-    borderRadius: 30,
+    borderRadius: 14,
     flex: 1,
     flexDirection: 'row',
-    height: 60,
+    height: 50,
     justifyContent: 'center',
   },
   nextButtonPressed: {
-    elevation: 5,
-    shadowColor: colors.primary,
-    shadowOffset: { height: 3, width: 0 },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
+    backgroundColor: colors.primaryPressed,
     transform: [{ scale: 0.985 }],
-  },
-  nextButtonSurface: {
-    borderRadius: 30,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
   },
   nextText: {
     color: colors.white,
-    fontSize: 20,
-    fontFamily: 'HankenGrotesk_700Bold',
-    lineHeight: 24,
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    lineHeight: 22,
   },
   nextIcon: {
     marginLeft: 6,
