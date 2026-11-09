@@ -41,8 +41,10 @@
       "BLOCKED": "Lịch trình đang bị chặn"
     },
     "note": "Phiên bản này sẽ thay thế chuyến đã lưu trước đó.",
+    "noteNew": "Tạo một chuyến đi mới từ bản nháp này.",
     "notePrices": "Giá không được lưu cùng chuyến đi.",
     "save": "Lưu chuyến đi",
+    "saveNew": "Lưu trip mới",
     "saving": "Đang lưu…",
     "savingStatus": "Đang lưu chuyến đi. Bạn giữ ứng dụng mở nhé.",
     "keepEditing": "Tiếp tục chỉnh sửa",

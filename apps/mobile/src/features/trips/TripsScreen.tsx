@@ -206,7 +206,8 @@ export function TripsScreen() {
         <Text accessibilityRole="header" numberOfLines={1} style={[styles.title, styles.titleFlex]}>{t('trips.title')}</Text>
         {hasTrips && <NewTripButton label={t('trips.newTrip')} onPress={newTrip} />}
       </View>
-      <Text style={styles.subtitle}>{showSkeleton ? t('trips.loading') : subtitle}</Text>
+      {/* Counts live on the section headers (Wave 6 P2): no duplicate total line above them. */}
+      {!hasTrips ? <Text style={styles.subtitle}>{showSkeleton ? t('trips.loading') : subtitle}</Text> : null}
       {state === 'error' && (
         <View accessibilityRole="alert" style={styles.banner}>
           <Icon color={errorText} name="warning" size={20} />

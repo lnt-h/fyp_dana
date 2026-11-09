@@ -19,12 +19,13 @@ the status: unknown hours stay unknown and an estimated leg is labelled on the l
 a feasible plan worse.
 
 Messages: each conflict has a stable ``message_key`` for the mobile i18n catalogue and a fixed
-fallback ``message``; neither contains user or place text. Hours fallbacks are bilingual
-(``VI / EN``): ``OPENING_HOURS_UNKNOWN`` means no hours data exists at all, while ``FACT_STALE``
-means hours data exists but was verified long ago. A ``SEASONAL_WARNING`` carrying a calendar
-rule note surfaces that note (which names the place, period and reason) instead of the generic
-fallback; notes are caller-supplied ``(note_vi, note_en)`` pairs so this module stays pure
-(no I/O, no model output).
+fallback ``message``; neither contains user or place text. The hours fallbacks are bilingual
+(``VI / EN``): ``OPENING_HOURS_UNKNOWN`` means the place has no hours data at all, while
+``FACT_STALE`` means it has hours data that was verified long ago (it is only emitted when
+the effective window carries hours, never for unknown hours). A ``SEASONAL_WARNING`` whose
+rule id is in ``evaluate``'s ``rule_notes`` surfaces that caller-localized note (the specific
+content from the closure YAML for the caller's locale, which names the place, period and
+reason) instead of the generic fallback; without a note the generic fallback stays.
 """
 
 from __future__ import annotations
@@ -84,8 +85,8 @@ CONFLICT_MESSAGES: Mapping[ConflictType, str] = {
     "CLOSED_AT_PLANNED_TIME": "The place is closed at the planned time.",
     "LEG_UNAVAILABLE": "No route is available for this leg.",
     "DAY_WINDOW_EXCEEDED": "The day runs outside its start or end time.",
-    "OPENING_HOURS_UNKNOWN": "Opening hours are unknown; check before you go.",
-    "FACT_STALE": "Some details were last verified more than 180 days ago.",
+    "OPENING_HOURS_UNKNOWN": "Chưa có giờ mở cửa / No opening hours available",
+    "FACT_STALE": "Giờ mở cửa có thể đã cũ / Hours may be out of date",
     "MUST_SEE_NOT_INCLUDED": "A must-see place is not in the plan.",
     "CLOSED_ON_DATE": "The place is closed on this date.",
     "LEG_MODE_RESTRICTED": "This travel mode is not allowed for this leg on this date.",
@@ -231,12 +232,13 @@ def _conflict(
     stop_ids: tuple[uuid.UUID, ...] = (),
     rule_id: uuid.UUID | None = None,
     place_id: uuid.UUID | None = None,
+    message: str | None = None,
 ) -> HealthConflict:
     return HealthConflict(
         type=kind,
         severity=CONFLICT_SEVERITY[kind],
         message_key=message_key(kind),
-        message=CONFLICT_MESSAGES[kind],
+        message=message if message is not None else CONFLICT_MESSAGES[kind],
         rule_id=rule_id,
         date=day,
         stop_ids=stop_ids,
@@ -247,7 +249,12 @@ def _conflict(
 # ---- checks ---------------------------------------------------------------------------------
 
 
-def _check_window(stop: HealthStop, day: date, window: DayWindow | None) -> list[HealthConflict]:
+def _check_window(
+    stop: HealthStop,
+    day: date,
+    window: DayWindow | None,
+    rule_notes: Mapping[uuid.UUID, str] | None = None,
+) -> list[HealthConflict]:
     found: list[HealthConflict] = []
     ids = (stop.stop_id,)
     if window is None:
@@ -268,8 +275,21 @@ def _check_window(stop: HealthStop, day: date, window: DayWindow | None) -> list
         if notice.conflict_type == "TICKET_VALIDITY":
             continue  # evaluated across the whole plan
         if notice.interval is None or overlaps(notice.interval, stop.span):
+            # A seasonal note surfaces the closure YAML's specific content (place, period,
+            # reason) in the caller's locale; without one the generic fallback stays.
+            note = (
+                rule_notes.get(notice.rule_id)
+                if notice.conflict_type == "SEASONAL_WARNING" and rule_notes
+                else None
+            )
             found.append(
-                _conflict(notice.conflict_type, day=day, stop_ids=ids, rule_id=notice.rule_id)
+                _conflict(
+                    notice.conflict_type,
+                    day=day,
+                    stop_ids=ids,
+                    rule_id=notice.rule_id,
+                    message=note,
+                )
             )
     return found
 
@@ -311,15 +331,20 @@ def _check_stop(
     *,
     today: date,
     stale_after_days: int,
+    rule_notes: Mapping[uuid.UUID, str] | None = None,
 ) -> list[HealthConflict]:
     ids = (stop.stop_id,)
     found: list[HealthConflict] = []
     if stop.trust_level == "WEB_UNVERIFIED":
         kind: ConflictType = "WEB_PLACE_UNVERIFIED" if stop.web_resolved else "WEB_PLACE_UNRESOLVED"
         found.append(_conflict(kind, day=day, stop_ids=ids))
-    found.extend(_check_window(stop, day, window))
+    found.extend(_check_window(stop, day, window, rule_notes))
+    # "Hours may be out of date" only when hours exist but are old; with no hours at all the
+    # OPENING_HOURS_UNKNOWN notice above already says so.
+    has_hours = window is not None and not window.unknown_hours
     if (
-        stop.fact_verified_at is not None
+        has_hours
+        and stop.fact_verified_at is not None
         and (today - stop.fact_verified_at).days > stale_after_days
     ):
         found.append(_conflict("FACT_STALE", day=day, stop_ids=ids))
@@ -442,9 +467,12 @@ def evaluate(
     *,
     today: date,
     stale_after_days: int = DEFAULT_STALE_AFTER_DAYS,
+    rule_notes: Mapping[uuid.UUID, str] | None = None,
 ) -> HealthResult:
     """Evaluate ``plan`` against the effective ``windows`` (from ``effective_windows``).
 
+    ``rule_notes`` maps a calendar rule id to its caller-localized note (the closure YAML's
+    specific ``note_vi``/``note_en`` content); a ``SEASONAL_WARNING`` with a note surfaces it.
     Conflicts are de-duplicated and ordered by date (date-less last), contract type order, stop
     ids, rule id and place id, so identical inputs give identical output (NFR-032).
     """
@@ -453,7 +481,14 @@ def evaluate(
         for stop in day.stops:
             window = windows.get((stop.place_id, day.date)) if stop.place_id else None
             found.extend(
-                _check_stop(stop, day.date, window, today=today, stale_after_days=stale_after_days)
+                _check_stop(
+                    stop,
+                    day.date,
+                    window,
+                    today=today,
+                    stale_after_days=stale_after_days,
+                    rule_notes=rule_notes,
+                )
             )
         found.extend(_check_day(day, windows))
     found.extend(_check_tickets(plan, windows))
