@@ -17,7 +17,11 @@ schedulable:
   - slug: hai-van-pass
 
 # Part of another place: folded into the parent, not a stop (in addition to Wikidata P361/P527).
-part_of: []
+part_of:
+  - slug: cho-vai-hoi-an
+    parent: cho-hoi-an   # textile section inside Hội An Market, not a separate stop
+  - slug: linh-phong-bao-thap
+    parent: linh-phong-thien-tu   # stupa inside Linh Phong monastery, Bà Nà
 
 # Records that are not trip stops (the name rule already catches hotels, banks, offices …).
 not_a_stop:

@@ -23,8 +23,8 @@ type Load = { state: 'loading' } | { state: 'ready'; place: PlaceDetail } | { st
 
 /** Facts shown as tiles, only when KNOWN (anti-noise rule 1); ADDRESS_VI lives in the driver card. */
 const tileFacts = ['OPENING_HOURS', 'ADMISSION_PRICE', 'ENTRANCE_LOCATION', 'PAYMENT_METHODS', 'DRESS_CODE', 'ACCESS_RULES'] as const;
-/** Facts named once in the quiet "Not listed yet: …" line when UNKNOWN (unknown stays unknown, never invented). */
-const missingFacts = ['OPENING_HOURS', 'ADMISSION_PRICE', 'ADDRESS_VI'] as const;
+/** Facts named once in the quiet "Not listed yet: …" line when UNKNOWN (unknown stays unknown, never invented). ADDRESS_VI is excluded: a place without an address shows the driver card without an address line, never a "not listed" placeholder. */
+const missingFacts = ['OPENING_HOURS', 'ADMISSION_PRICE'] as const;
 
 const HERO_HEIGHT = 380;
 /** Height of the bottom action bar above the safe-area inset (scroll padding so nothing hides under it). */
@@ -207,7 +207,7 @@ export function PlaceScreen({ placeId }: { placeId: string }) {
         {place.description
           ? <Text style={s.body}>{place.description}</Text>
           : <Text style={s.noDescription}>{t('place.description.none')}</Text>}
-        {place.description_source ? <DescriptionCredit source={place.description_source} /> : null}
+        {place.description_source && place.description ? <DescriptionCredit source={place.description_source} /> : null}
 
         {photos.length > 0 && <>
           <SectionHeader style={s.section} title={t('place.media.title')} />

@@ -172,3 +172,47 @@ def test_generic_name_gets_no_fallback() -> None:
     )
     assert desired.localizations["en"].name is None
     assert "MISSING_NAME:en" in gate_reasons(desired, inside=True, sources={rev: OSM})
+
+
+def test_vi_name_without_diacritics_is_rejected() -> None:
+    """Undiacriticized VI names ("Com Nieu Nha Do") hold for the owner sheet spelling."""
+    rev = uuid.uuid4()
+    contributions = Contributions(osm=_osm(rev, "HERITAGE", {"vi": "Com Nieu Nha Do"}))
+    desired = compose(
+        _place(), contributions, area_codes=AREAS, categories=CATEGORIES, fact_fields=()
+    )
+    assert "VI_NAME_NOT_VIETNAMESE" in gate_reasons(desired, inside=True, sources={rev: OSM})
+
+
+def test_venue_brand_kept_but_descriptive_stall_is_not() -> None:
+    rev = uuid.uuid4()
+    brand = compose(
+        _place(),
+        Contributions(osm=_osm(rev, "FOOD", {"vi": "Morning Glory"})),
+        area_codes=AREAS,
+        categories=CATEGORIES,
+        fact_fields=(),
+    )
+    assert "VI_NAME_NOT_VIETNAMESE" not in gate_reasons(brand, inside=True, sources={rev: OSM})
+    stall = compose(
+        _place(),
+        Contributions(osm=_osm(rev, "FOOD", {"vi": "Banana fritters stall"})),
+        area_codes=AREAS,
+        categories=CATEGORIES,
+        fact_fields=(),
+    )
+    reasons = gate_reasons(stall, inside=True, sources={rev: OSM})
+    assert "VI_NAME_NOT_VIETNAMESE" in reasons  # owner supplies the curated name
+    assert "NO_EDITORIAL_SOURCE" in reasons  # OSM alone never vouches a "... stall"
+
+
+def test_swapped_vi_en_is_rejected() -> None:
+    """"Thia Go" / "Thìa Gỗ": locales exchanged, owner fixes the order in the sheet."""
+    rev = uuid.uuid4()
+    contributions = Contributions(
+        osm=_osm(rev, "FOOD", {"vi": "Thia Go", "en": "Thìa Gỗ"})
+    )
+    desired = compose(
+        _place(), contributions, area_codes=AREAS, categories=CATEGORIES, fact_fields=()
+    )
+    assert "NAME_SWAPPED" in gate_reasons(desired, inside=True, sources={rev: OSM})

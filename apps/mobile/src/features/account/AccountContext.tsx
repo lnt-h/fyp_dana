@@ -71,7 +71,7 @@ function useAccountState() {
     const demoProfile: Profile = {
       ...guestProfile,
       interests: guestProfile.interests.length ? guestProfile.interests : serverInterests ?? [],
-      name: guestProfile.name || t('account.profile.demoName'),
+      name: guestProfile.name || t('account.profile.guestName'),
     };
     return {
       profile: demoProfile, isSignedIn: true, isLoaded: true, reduceMotion, setReduceMotion,
