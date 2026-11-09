@@ -8,13 +8,15 @@ Severity is fixed per conflict type (architecture §3.6, openapi ``Conflict.type
 
 - BLOCKING: ``CLOSED_AT_PLANNED_TIME``, ``CLOSED_ON_DATE``, ``LEG_UNAVAILABLE``,
   ``LEG_MODE_RESTRICTED``, ``DAY_WINDOW_EXCEEDED``, ``WEB_PLACE_UNRESOLVED``.
-- WARNING: ``OPENING_HOURS_UNKNOWN``, ``FACT_STALE``, ``MUST_SEE_NOT_INCLUDED``,
-  ``LUNAR_EVENT_CONFLICT``, ``TICKET_VALIDITY``, ``SEASONAL_WARNING``, ``WEB_PLACE_UNVERIFIED``.
-- INFO: ``LEG_ESTIMATED`` (a leg measured by the demo estimate provider, not Google Routes).
+- WARNING: ``FACT_STALE``, ``MUST_SEE_NOT_INCLUDED``, ``LUNAR_EVENT_CONFLICT``,
+  ``TICKET_VALIDITY``, ``SEASONAL_WARNING``, ``WEB_PLACE_UNVERIFIED``.
+- INFO: ``OPENING_HOURS_UNKNOWN`` (missing data, not a plan problem; DEC-030 amends ADR-011) and
+  ``LEG_ESTIMATED`` (a leg measured by the demo estimate provider, not Google Routes).
 
 ``plan_health`` is ``BLOCKED`` iff a blocking conflict exists, else ``WARNING`` if any warning
 exists or any stop is ``WEB_UNVERIFIED`` (FR-031 cap), else ``GOOD``. INFO notices never change
-the status: an estimated leg is labelled on the leg, it does not make a feasible plan worse.
+the status: unknown hours stay unknown and an estimated leg is labelled on the leg; neither makes
+a feasible plan worse.
 
 Messages: each conflict has a stable ``message_key`` for the mobile i18n catalogue and a fixed
 English ``message`` as fallback; neither contains user or place text.
@@ -60,7 +62,7 @@ CONFLICT_SEVERITY: Mapping[ConflictType, Severity] = {
     "CLOSED_AT_PLANNED_TIME": "BLOCKING",
     "LEG_UNAVAILABLE": "BLOCKING",
     "DAY_WINDOW_EXCEEDED": "BLOCKING",
-    "OPENING_HOURS_UNKNOWN": "WARNING",
+    "OPENING_HOURS_UNKNOWN": "INFO",  # DEC-030: missing data, not a plan problem
     "FACT_STALE": "WARNING",
     "MUST_SEE_NOT_INCLUDED": "WARNING",
     "CLOSED_ON_DATE": "BLOCKING",

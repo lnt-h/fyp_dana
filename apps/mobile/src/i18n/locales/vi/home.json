@@ -17,7 +17,10 @@
     "openPlace": "Mở thẻ địa điểm {{name}}",
     "cluster": "{{count}} địa điểm, chạm để phóng to",
     "locationDenied": "Chưa có quyền vị trí. Bản đồ vẫn dùng bình thường.",
-    "locationFailed": "Chưa lấy được vị trí lúc này. Thử lại sau nhé."
+    "locationFailed": "Chưa lấy được vị trí lúc này. Thử lại sau nhé.",
+    "loadError": "Không tải được địa điểm",
+    "retry": "Thử lại",
+    "retryHint": "Tải lại các địa điểm trên bản đồ"
   },
   "search": {
     "pillLabel": "Tìm địa điểm ở {{city}}",
@@ -32,9 +35,11 @@
     "resultCount": "Kết quả ở {{city}}: {{count}}",
     "emptyTitle": "Không tìm thấy “{{q}}” ở {{city}}",
     "emptyTopicTitle": "Chưa có địa điểm thuộc chủ đề này ở {{city}}",
-    "emptyBody": "Gonarra chỉ hiển thị địa điểm đã đối chiếu nguồn ở Đà Nẵng và khu vực Hội An. Thử tên tiếng Việt hoặc tên tiếng Anh.",
+    "emptyBody": "Gonarra có địa điểm ở Đà Nẵng và khu vực Hội An. Thử tên tiếng Việt hoặc tên tiếng Anh.",
     "changeCity": "Đổi thành phố",
     "error": "Không tìm được lúc này.",
-    "retry": "Thử lại"
+    "retry": "Thử lại",
+    "showAll": "Xem tất cả địa điểm",
+    "clearTopic": "Bỏ chủ đề"
   }
 }

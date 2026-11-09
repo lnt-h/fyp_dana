@@ -2,7 +2,8 @@
 
 No I/O and no model output: everything here is deterministic Gonarra code (ADR-011). Times are
 local (Asia/Ho_Chi_Minh). Leg values come only from the matrix; an unavailable leg stays
-``UNAVAILABLE`` with null distance/duration.
+``UNAVAILABLE`` with null distance/duration. A pair whose mode a calendar rule restricts uses the
+walking matrix on that date (:mod:`app.planning.leg_modes`), in the solver and in the snapshot.
 
 When no leg can be measured at all (no routing provider configured) the strict solve cannot place
 anything, because unavailable arcs are forbidden. The scheduler then re-solves with a fixed
@@ -16,7 +17,7 @@ from __future__ import annotations
 import math
 import uuid
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, time, timedelta
 
 from app.planning.calendar.windows import DayWindow
@@ -28,6 +29,7 @@ from app.planning.health import (
     HealthResult,
     HealthStop,
 )
+from app.planning.leg_modes import LegModePlan
 from app.planning.pool import PoolPlace
 from app.planning.solver import (
     DaySpec,
@@ -77,6 +79,13 @@ class ScheduleInput:
     must_see: frozenset[uuid.UUID] = frozenset()
     locks: Mapping[uuid.UUID, LockedStop] = field(default_factory=dict)  # by place_id
     params: SolverParams = field(default_factory=SolverParams)
+    # Day balance (pace): hard cap of stops per day (raised for locks and must-sees) and a soft
+    # fair share per day so no requested day stays empty while candidates exist.
+    max_stops_per_day: int | None = None
+    # Variety: soft cap of stops per category per day (absent category = uncapped).
+    category_day_caps: Mapping[str, int] = field(default_factory=dict)
+    # Restricted travel modes (car-free zones): WALK pairs and departure bans per date.
+    leg_modes: LegModePlan = field(default_factory=LegModePlan)
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +121,28 @@ def solver_windows(
     return result
 
 
+def ticket_groups(
+    places: Sequence[PoolPlace],
+    frames: Sequence[DayFrame],
+    windows: Mapping[tuple[uuid.UUID, date], DayWindow],
+) -> dict[str, str]:
+    """Stop key → ticket group, for tickets valid only on their day of purchase.
+
+    The solver keeps the stops of one group on a single day (``StopSpec.ticket_group``), so a
+    plan never buys the Hội An Old Town ticket twice (TICKET_VALIDITY, ADR-011).
+    """
+    groups: dict[str, str] = {}
+    for place in places:
+        for frame in frames:
+            window = windows.get((place.place_id, frame.date))
+            if window is None:
+                continue
+            for notice in window.notices:
+                if notice.conflict_type == "TICKET_VALIDITY" and notice.ticket_valid_same_day:
+                    groups[place.key] = f"ticket:{notice.rule_id}"
+    return groups
+
+
 def schedule(inp: ScheduleInput) -> ScheduleOutput:
     days = tuple(
         DaySpec(
@@ -124,7 +155,19 @@ def schedule(inp: ScheduleInput) -> ScheduleOutput:
         for frame in inp.frames
     )
     index_of = {frame.day_index: i for i, frame in enumerate(inp.frames)}
+    if inp.max_stops_per_day is not None:
+        cap = inp.max_stops_per_day
+        locked_per_day = [
+            sum(1 for lock in inp.locks.values() if index_of.get(lock.day_index) == i)
+            for i in range(len(days))
+        ]
+        must_share = -(-len(inp.must_see) // max(1, len(days)))
+        days = tuple(
+            replace(day, max_stops=max(cap, locked_per_day[i], must_share))
+            for i, day in enumerate(days)
+        )
     stops = []
+    groups = ticket_groups(inp.places, inp.frames, inp.windows)
     for rank, place in enumerate(inp.places):
         locked = inp.locks.get(place.place_id)
         stops.append(
@@ -135,10 +178,20 @@ def schedule(inp: ScheduleInput) -> ScheduleOutput:
                 rank=rank,
                 must_see=place.place_id in inp.must_see,
                 lock=Lock(index_of[locked.day_index], locked.position) if locked else None,
+                category=place.category_code,
+                ticket_group=groups.get(place.key),
             )
         )
+    walk_durations = inp.leg_modes.walk_durations_s()
+    bans = inp.leg_modes.bans_s()
     strict = SolverInput(
-        days=days, stops=tuple(stops), durations=inp.matrix.duration_s, params=inp.params
+        days=days,
+        stops=tuple(stops),
+        durations=inp.matrix.duration_s,
+        params=inp.params,
+        category_day_caps=inp.category_day_caps,
+        day_durations=walk_durations,
+        departure_bans=bans,
     )
     result = solve(strict) if stops else _empty(days)
     if stops and not any(plan.stops for plan in result.days) and not _any_available(inp.matrix):
@@ -147,7 +200,15 @@ def schedule(inp: ScheduleInput) -> ScheduleOutput:
             value = inp.matrix.duration_s(a, b)
             return UNAVAILABLE_BUFFER_S if value is None else value
 
-        loose = SolverInput(days=days, stops=tuple(stops), durations=buffered, params=inp.params)
+        loose = SolverInput(
+            days=days,
+            stops=tuple(stops),
+            durations=buffered,
+            params=inp.params,
+            category_day_caps=inp.category_day_caps,
+            day_durations=walk_durations,
+            departure_bans=bans,
+        )
         return ScheduleOutput(solve(loose), buffered=True)
     return ScheduleOutput(result, buffered=False)
 
@@ -206,12 +267,16 @@ def build_days(
                 )
             )
             keys.append(scheduled.key)
-        legs = [
-            _leg(inp.matrix, a.id, b.id, key_a, key_b, mode, provider_ids, now)
-            for (a, b), (key_a, key_b) in zip(
-                zip(stops, stops[1:], strict=False), zip(keys, keys[1:], strict=False), strict=True
-            )
-        ]
+        legs = []
+        for (a, b), (key_a, key_b) in zip(
+            zip(stops, stops[1:], strict=False), zip(keys, keys[1:], strict=False), strict=True
+        ):
+            walk_matrix = inp.leg_modes.walk_matrix
+            if walk_matrix is not None and inp.leg_modes.walks(frame.date, (key_a, key_b)):
+                # A rule restricts the plan's mode here: the solver used the walking leg.
+                legs.append(_leg(walk_matrix, a.id, b.id, key_a, key_b, "WALK", provider_ids, now))
+            else:
+                legs.append(_leg(inp.matrix, a.id, b.id, key_a, key_b, mode, provider_ids, now))
         snapshot_days.append(
             SnapshotDay(
                 day_index=frame.day_index,

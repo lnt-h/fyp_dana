@@ -19,6 +19,7 @@ from typing import Protocol
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.ai.quota import Bucket, QuotaDecision, QuotaReservation
+from app.observability import log_failure
 from app.routing.google_routes import MAX_DESTINATIONS_PER_REQUEST, MAX_ORIGINS_PER_REQUEST
 from app.routing.matrix_cache import (
     CachedLeg,
@@ -233,8 +234,9 @@ async def get_matrix(
                 [keys_with_coords[k] for k in batch.destinations],
                 mode,
             )
-        except Exception:  # noqa: BLE001 — a provider bug must degrade, not fail the plan
-            logger.exception("routes provider_raised mode=%s", mode)
+        except Exception as exc:  # noqa: BLE001 — a provider bug must degrade, not fail the plan
+            # No exception text: it may carry coordinates (precise locations are never logged).
+            log_failure(logger, "routes_provider_raised", exc, mode=str(mode))
             elements = []
         finally:
             if reservation is not None:

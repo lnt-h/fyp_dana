@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import Svg, { Path } from 'react-native-svg';
 
 import { Wordmark } from '../components/brand/BrandMarks';
+import { markOnboardingSeen } from '../features/onboarding/onboardingSeen';
 import { OnboardingMosaic } from '../features/onboarding/components/OnboardingMosaic';
 import { PersonalizedOnboardingScene } from '../features/onboarding/components/PersonalizedOnboardingScene';
 import { PlanningOnboardingScene } from '../features/onboarding/components/PlanningOnboardingScene';
@@ -75,7 +76,7 @@ function DirectionIcon({ direction }: { direction: 'back' | 'next' }) {
       <Path
         d={path}
         fill="none"
-        stroke={colors.white}
+        stroke={direction === 'back' ? colors.ink : colors.white}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={2}
@@ -115,8 +116,8 @@ function PrimaryActionButton({
               disabled
                 ? [colors.disabledButton, colors.disabledButton]
                 : pressed
-                  ? [colors.audioTeal, colors.deepOcean]
-                  : [colors.ink, colors.ink]
+                  ? [colors.primaryPressed, colors.primaryPressed]
+                  : [colors.primary, colors.primaryPressed]
             }
             end={{ x: 1, y: 0.5 }}
             pointerEvents="none"
@@ -226,6 +227,7 @@ export default function OnboardingScreen() {
 
   const handlePrimaryPress = useCallback(() => {
     if (isFinalStep) {
+      markOnboardingSeen();
       router.replace('/welcome');
       return;
     }
@@ -240,6 +242,7 @@ export default function OnboardingScreen() {
   }, [changeSlide, slideIndex]);
 
   const handleSkip = useCallback(() => {
+    markOnboardingSeen();
     router.replace('/welcome');
   }, []);
 
@@ -440,7 +443,7 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
   },
   skipText: {
-    color: colors.deepOcean,
+    color: colors.ink,
     fontFamily: 'HankenGrotesk_700Bold',
   },
   skipButtonPressed: {
@@ -455,7 +458,7 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   title: {
-    color: colors.deepOcean,
+    color: colors.ink,
     fontFamily: 'HankenGrotesk_500Medium',
     letterSpacing: -1.35,
     textAlign: 'center',
@@ -477,7 +480,7 @@ const styles = StyleSheet.create({
     width: 8,
   },
   pageDotActive: {
-    backgroundColor: colors.deepOcean,
+    backgroundColor: colors.primary,
     width: 28,
   },
   footer: {
@@ -489,19 +492,21 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignItems: 'center',
-    backgroundColor: '#B8C0C4',
+    backgroundColor: colors.surface,
+    borderColor: colors.hairline,
+    borderWidth: 1,
     borderRadius: 30,
     height: 60,
     justifyContent: 'center',
     width: 60,
   },
   backButtonPressed: {
-    backgroundColor: '#A7B0B5',
+    backgroundColor: colors.hairline,
     transform: [{ scale: 0.98 }],
   },
   nextButton: {
     alignItems: 'center',
-    backgroundColor: colors.ink,
+    backgroundColor: colors.primary,
     borderRadius: 30,
     flex: 1,
     flexDirection: 'row',
@@ -510,7 +515,7 @@ const styles = StyleSheet.create({
   },
   nextButtonPressed: {
     elevation: 5,
-    shadowColor: colors.audioTeal,
+    shadowColor: colors.primary,
     shadowOffset: { height: 3, width: 0 },
     shadowOpacity: 0.22,
     shadowRadius: 10,

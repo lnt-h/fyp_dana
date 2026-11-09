@@ -427,3 +427,70 @@ async def test_deletion_request_is_idempotent_by_state(world: World, client: Asy
     status = await client.get("/v1/me/deletion")
     assert status.status_code == 200 and status.json()["id"] == first.json()["id"]
     assert len(world.store.jobs) == 1
+
+
+class _FakeMeasurer:
+    """Routing stand-in: measures every requested leg (records the requests)."""
+
+    def __init__(self) -> None:
+        self.requests: list[Any] = []
+
+    async def measure(self, legs: Any) -> dict[Any, Any]:
+        from datetime import UTC, datetime
+
+        from app.trips.snapshot import LegMeasurement
+
+        self.requests.extend(legs)
+        return {
+            leg: LegMeasurement(
+                distance_m=1200,
+                duration_s=300,
+                data_provider_id=uuid.UUID(int=0xE5),
+                measured_at=datetime(2026, 11, 9, tzinfo=UTC),
+                estimated=True,
+            )
+            for leg in legs
+        }
+
+
+async def test_edited_leg_mode_is_measured_and_saved_measured(
+    world: World, client: AsyncClient
+) -> None:
+    """Bug 2026-11-09: a leg switched by SET_LEG_MODE stayed EXPIRED and was saved EXPIRED, so
+    the saved trip showed an unavailable leg. The edit now re-measures it and Save keeps it."""
+    store = world.store
+    store.leg_measurer = _FakeMeasurer()
+    trip = store.make_trip(world.account_id, world.city.id)
+    museum, bridge = store.make_publication("Museum"), store.make_publication("Bridge")
+    stops = [verified_stop(museum, 1, time(9, 0)), verified_stop(bridge, 2, time(11, 0))]
+    preview = store.make_preview(trip, [{"days": [day(1, stops)]}])
+    edited = await client.patch(
+        f"/v1/plan-previews/{preview.id}",
+        json={
+            "expected_revision": 1,
+            "edits": [
+                {
+                    "op": "SET_LEG_MODE",
+                    "from_stop_id": stops[0]["id"],
+                    "to_stop_id": stops[1]["id"],
+                    "travel_mode": "DRIVE",
+                }
+            ],
+        },
+    )
+    assert edited.status_code == 200, edited.text
+    leg = edited.json()["days"][0]["legs"][0]
+    assert (leg["travel_mode"], leg["availability"]) == ("DRIVE", "AVAILABLE")
+    assert leg["duration_s"] == 300
+    assert store.leg_measurer.requests == [(museum.place_id, bridge.place_id, "DRIVE")]
+    saved = await client.post(
+        f"/v1/plan-previews/{preview.id}/accept",
+        json=_accept_body(preview, trip),
+        headers={"Idempotency-Key": str(uuid.uuid4())},
+    )
+    assert saved.status_code == 200, saved.text
+    detail = await client.get(f"/v1/trips/{trip.id}")
+    saved_leg = detail.json()["days"][0]["legs"][0]
+    assert saved_leg["travel_mode"] == "DRIVE"
+    assert saved_leg["availability"] == "AVAILABLE"
+    assert (saved_leg["distance_m"], saved_leg["duration_s"]) == (1200, 300)

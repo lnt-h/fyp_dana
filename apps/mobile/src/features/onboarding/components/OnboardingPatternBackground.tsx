@@ -123,18 +123,18 @@ export const OnboardingPatternBackdrop = memo(function OnboardingPatternBackdrop
             y1={-31.2996}
             y2={722.7}
           >
-            <Stop offset="0" stopColor="#BBE9FF" />
-            <Stop offset="0.5" stopColor="#4383B6" />
-            <Stop offset="1" stopColor="#C7CFD1" />
+            <Stop offset="0" stopColor="#BDE7E3" />
+            <Stop offset="0.5" stopColor="#3E9C96" />
+            <Stop offset="1" stopColor="#F6C3B8" />
           </LinearGradient>
           <LinearGradient id={veilId} x1="0" x2="0" y1="0" y2="1">
-            <Stop offset="0" stopColor="#BBE9FF" />
+            <Stop offset="0" stopColor="#CDEBE8" />
             <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
           </LinearGradient>
           <LinearGradient id={cellGlassId} x1="0" x2="0" y1="0" y2="1">
             <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.28} />
             <Stop offset="0.55" stopColor="#FFFFFF" stopOpacity={0.2} />
-            <Stop offset="1" stopColor="#DDF4FF" stopOpacity={0.12} />
+            <Stop offset="1" stopColor="#E6F4F3" stopOpacity={0.12} />
           </LinearGradient>
           <Filter height="120%" id={patternBlurId} width="120%" x="-10%" y="-10%">
             <FeGaussianBlur stdDeviation={0.35} />

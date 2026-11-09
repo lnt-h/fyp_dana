@@ -5,15 +5,21 @@ import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAccount } from '../features/account/AccountContext';
+import { hasSeenOnboarding } from '../features/onboarding/onboardingSeen';
 import { LoadingDots, SplashLogo } from '../components/brand/BrandMarks';
 import { colors } from '../theme/colors';
 
+/** Splash: signed-in travellers and returning guests (onboarding seen on this device) go to Home; first-time guests see onboarding. */
 export default function SplashScreen() {
   const { isLoaded, isSignedIn } = useAccount();
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    if (isLoaded) router.replace(isSignedIn ? '/home' : '/onboarding');
+    if (!isLoaded) return;
+    if (isSignedIn) { router.replace('/home'); return; }
+    let alive = true;
+    hasSeenOnboarding().then(seen => { if (alive) router.replace(seen ? '/home' : '/onboarding'); });
+    return () => { alive = false; };
   }, [isLoaded, isSignedIn]);
 
   return (

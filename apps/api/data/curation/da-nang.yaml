@@ -1,0 +1,43 @@
+# Owner curation decisions for Đà Nẵng (DEC-031). Applied by the publication gate in code
+# (app/curation/overrides.py). Keys are place slugs. This file never carries descriptions or
+# facts; those come from human-written sources (owner sheet, Wikivoyage, Wikipedia, OSM).
+# Edit and re-run `uv run python -m app.cli publish auto`.
+
+# Areas: published for the map and the Guide, never a planner stop (places.is_area).
+# A Wikidata class such as bay, peninsula, mountain range or old town also marks an area.
+areas:
+  - slug: hoi-an-ancient-town   # the whole old town; its houses, halls and temples are stops
+  - slug: ngu-hanh-son          # Marble Mountains massif; Thủy Sơn, caves and pagodas are stops
+  - slug: son-tra-mountain      # Sơn Trà peninsula
+  - slug: cham-islands          # Cù Lao Chàm archipelago
+  - slug: ba-na-hills           # resort area; Golden Bridge and the pagodas inside are stops
+
+# Never an area even when a source class says so (owner decision: a drive stop).
+schedulable:
+  - slug: hai-van-pass
+
+# Part of another place: folded into the parent, not a stop (in addition to Wikidata P361/P527).
+part_of: []
+
+# Records that are not trip stops (the name rule already catches hotels, banks, offices …).
+not_a_stop:
+  - slug: phu-kien-09
+    reason: accessories shop, not a market
+  - slug: bricksstone
+    reason: shop with a Cyrillic name
+  - slug: produce
+    reason: generic OSM produce stall
+  - slug: fruits-and-vegetables
+    reason: generic OSM produce stall
+  - slug: mm-mega-market-da-nang
+    reason: supermarket
+  - slug: aeon-mall-da-nang
+    reason: shopping mall
+  - slug: waterpark-365-mikazuki-hotel
+    reason: hotel facility; public day tickets not confirmed
+
+# Descriptions of the wrong entity (source: wikipedia | wikivoyage).
+blocked_descriptions:
+  - slug: precious-heritage-art-gallery-museum
+    locale: en
+    source: wikipedia   # the EN sitelink resolves to the biography of the photographer Réhahn

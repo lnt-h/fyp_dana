@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   notice: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
   credit: { color: 'rgba(255,255,255,0.82)', fontFamily: fonts.medium, fontSize: 11, marginTop: 4 },
   overlay: { bottom: 0, left: 0, padding: spacing.md, position: 'absolute', right: 0 },
-  photo: { backgroundColor: colors.deepOcean, height: PHOTO_HEIGHT },
+  photo: { backgroundColor: colors.surface, height: PHOTO_HEIGHT },
   time: { color: colors.white, fontFamily: fonts.bold, fontSize: 15 },
   timeRow: { alignItems: 'center', flexDirection: 'row', gap: 6, marginBottom: 2 },
 });

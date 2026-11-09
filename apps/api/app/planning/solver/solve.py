@@ -10,7 +10,19 @@
   the selector rank; must-sees are prohibitively expensive to drop; locked stops keep only the
   copy of their day, with an even larger penalty, and are ordered by ``position``.
 * Arcs whose leg is unavailable (``durations`` returns ``None``) are removed — never estimated.
+* Travel-mode restrictions (ADR-011 amendment 2026-11-09): ``SolverInput.day_durations`` replaces
+  a pair's duration on a date (the walking leg inside a car-free zone) and
+  ``SolverInput.departure_bans`` forbids departing along an arc inside a restricted window, so a
+  plan never contains a restricted leg.
 * Optional lunch break per day (OR-Tools break interval on the time dimension).
+* Day balance: a hard per-day capacity of stops (fair share, raised for stops servable only that
+  day, capped by the pace ``DaySpec.max_stops``) plus a soft floor share, so a multi-day trip is
+  not packed into day 1 and no day stays empty while candidates exist.
+* Variety: ``SolverInput.category_day_caps`` caps stops per ``StopSpec.category`` per day
+  (raised to the category's fair share over the days).
+* Same-day tickets: stops with a ``StopSpec.ticket_group`` (a ticket valid only on its day of
+  purchase, e.g. the Hội An Old Town ticket) are pinned to one day when the first solution
+  spreads them, so a plan does not buy the same ticket twice (TICKET_VALIDITY).
 * Fixed first-solution strategy, guided local search, a solution limit as the deterministic
   work bound and a time limit as safety cap: same input ⇒ same output.
 
@@ -20,7 +32,8 @@
 from __future__ import annotations
 
 import time as _time
-from collections.abc import Collection
+from collections import Counter
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -57,6 +70,21 @@ class _Node:
     domain: tuple[tuple[int, int], ...]  # allowed service-start ranges
 
 
+def stop_count(node: _Node) -> int:
+    return 1 if node.stop is not None else 0
+
+
+def add_count_dimension(routing: Any, name: str, counts: list[int], capacity: list[int]) -> Any:
+    """A dimension counting nodes (``counts`` per node) with a hard capacity per vehicle."""
+    callback = routing.RegisterUnaryTransitVector(counts)
+    routing.AddDimensionWithVehicleCapacity(callback, 0, capacity, True, name)
+    return routing.GetDimensionOrDie(name)
+
+
+def _category_of(node: _Node) -> str | None:
+    return node.stop.category if node.stop is not None else None
+
+
 def _copy_domain(stop: StopSpec, day: DaySpec) -> tuple[tuple[int, int], ...]:
     ranges: list[tuple[int, int]] = []
     for interval in sorted(stop.windows.get(day.date, ()), key=lambda i: (i.start_s, i.end_s)):
@@ -71,6 +99,33 @@ def _copy_domain(stop: StopSpec, day: DaySpec) -> tuple[tuple[int, int], ...]:
         else:
             merged.append((lo, hi))
     return tuple(merged)
+
+
+# Plan Health compares whole minutes (a departure is rounded up to the minute), so a departure
+# that must precede a banned span ends at least one minute before it.
+_BAN_MARGIN_S = 60
+
+
+def _banned_all_day(spans: Sequence[tuple[int, int]]) -> bool:
+    return any(lo <= 0 and hi >= SECONDS_PER_DAY for lo, hi in spans)
+
+
+def _ban_departures(
+    routing: Any,
+    time_dim: Any,
+    from_index: int,
+    to_index: int,
+    visit_s: int,
+    spans: Sequence[tuple[int, int]],
+) -> None:
+    """If ``from → to`` is used, its departure (service start + visit) lies outside ``spans``."""
+    solver = routing.solver()
+    cumul = time_dim.CumulVar(from_index)
+    used = solver.IsEqualCstVar(routing.NextVar(from_index), to_index)
+    for lo, hi in spans:
+        before = solver.IsLessOrEqualCstVar(cumul, lo - _BAN_MARGIN_S - visit_s)
+        after = solver.IsGreaterOrEqualCstVar(cumul, hi - visit_s)
+        solver.Add(before + after >= used)
 
 
 def _validate(inp: SolverInput) -> None:
@@ -88,7 +143,101 @@ def _validate(inp: SolverInput) -> None:
 
 
 def solve(inp: SolverInput) -> SolverResult:
+    """Solve, then make sure no day is left empty while a stop could be served on it.
+
+    The insertion heuristic may put a stop that is servable on several days onto a busy day and
+    local search rarely moves it (that means swapping its day copies). For each empty day that
+    some stop could serve, the stop is pinned to that day — a dropped one first (best rank),
+    else the lowest-ranked stop of the fullest other day — and the model is solved again. At
+    most one re-solve per day; the result is kept only if it schedules at least as many stops.
+    """
     _validate(inp)
+    result, servable = _solve(inp, {})
+    result, servable, pins = _group_tickets(inp, result, servable, {})
+    by_key = {stop.key: stop for stop in inp.stops}
+    for _ in range(len(inp.days) - 1):
+        if result.status is not SolveStatus.SOLVED:
+            break
+        empty = [plan.day_index for plan in result.days if not plan.stops]
+        day_of = {s.key: plan.day_index for plan in result.days for s in plan.stops}
+        movable = [
+            key
+            for key, ds in servable.items()
+            if key not in pins and by_key[key].lock is None and any(v in ds for v in empty)
+        ]
+        if not empty or not movable:
+            break
+        dropped = sorted((k for k in movable if k not in day_of), key=lambda k: by_key[k].rank)
+        if dropped:
+            key = dropped[0]
+        else:
+            load = {v: sum(1 for d in day_of.values() if d == v) for v in set(day_of.values())}
+            key = max(
+                (k for k in movable if load.get(day_of[k], 0) > 1),
+                key=lambda k: (load[day_of[k]], by_key[k].rank, k),
+                default="",
+            )
+            if not key:
+                break
+        target = next(v for v in empty if v in servable[key])
+        candidate, servable = _solve(inp, {**pins, key: target})
+        if candidate.status is not SolveStatus.SOLVED or _count(candidate) < _count(result):
+            break
+        pins[key] = target
+        result = candidate
+    return result
+
+
+def _count(result: SolverResult) -> int:
+    return sum(len(plan.stops) for plan in result.days)
+
+
+def _scheduled_days(result: SolverResult) -> dict[str, int]:
+    return {stop.key: plan.day_index for plan in result.days for stop in plan.stops}
+
+
+def _group_tickets(
+    inp: SolverInput,
+    result: SolverResult,
+    servable: dict[str, set[int]],
+    pins: dict[str, int],
+) -> tuple[SolverResult, dict[str, set[int]], dict[str, int]]:
+    """Pin a same-ticket group to one day when the first solution split it (ADR-011).
+
+    A ticket valid only on its day of purchase (``StopSpec.ticket_group``, e.g. the Hội An Old
+    Town ticket) costs twice when its places are spread over two days. Each group is moved to
+    the day that already serves most of it, and the move is kept only when every stop of the
+    group can be served that day and no stop is lost. Locks are never overridden.
+    """
+    if len(inp.days) < 2:
+        return result, servable, pins
+    groups: dict[str, list[str]] = {}
+    for stop in inp.stops:
+        if stop.ticket_group is not None and stop.lock is None:
+            groups.setdefault(stop.ticket_group, []).append(stop.key)
+    for group in sorted(groups):
+        keys = groups[group]
+        if len(keys) < 2:
+            continue
+        day_of = _scheduled_days(result)
+        used = [day_of[key] for key in keys if key in day_of]
+        counts = Counter(used)
+        if len(counts) < 2:
+            continue
+        target = min(counts, key=lambda day: (-counts[day], day))
+        if any(target not in servable.get(key, set()) for key in keys):
+            continue
+        candidate_pins = {**pins, **dict.fromkeys(keys, target)}
+        candidate, candidate_servable = _solve(inp, candidate_pins)
+        if candidate.status is not SolveStatus.SOLVED or _count(candidate) < _count(result):
+            continue
+        result, servable, pins = candidate, candidate_servable, candidate_pins
+    return result, servable, pins
+
+
+def _solve(inp: SolverInput, pins: dict[str, int]) -> tuple[SolverResult, dict[str, set[int]]]:
+    """One OR-Tools solve; ``pins`` restricts a stop to one day without a lock's penalty.
+    Also returns the days on which each candidate stop can be served."""
     params = inp.params
     days = inp.days
     n_days = len(days)
@@ -101,7 +250,12 @@ def solve(inp: SolverInput) -> SolverResult:
     copies: dict[str, list[int]] = {}
     pre_dropped: dict[str, DropReason] = {}
     for stop in inp.stops:
-        allowed_days = [stop.lock.day_index] if stop.lock is not None else range(n_days)
+        if stop.lock is not None:
+            allowed_days: Sequence[int] = [stop.lock.day_index]
+        elif stop.key in pins:
+            allowed_days = [pins[stop.key]]
+        else:
+            allowed_days = range(n_days)
         stop_copies: list[int] = []
         for v in allowed_days:
             domain = _copy_domain(stop, days[v])
@@ -117,17 +271,30 @@ def solve(inp: SolverInput) -> SolverResult:
                 else DropReason.CLOSED_ON_ALL_DATES
             )
 
+    by_key_pre = {stop.key: stop for stop in inp.stops}
+
     # Leg lookup memo over keys (the accessor may be a cache-backed matrix).
     leg_memo: dict[tuple[str, str], int | None] = {}
 
-    def leg(a: str, b: str) -> int | None:
-        if a == b:
-            return 0
+    def base_leg(a: str, b: str) -> int | None:
         pair = (a, b)
         if pair not in leg_memo:
             value = inp.durations(a, b)
             leg_memo[pair] = None if value is None else max(0, int(value))
         return leg_memo[pair]
+
+    def leg(a: str, b: str, v: int) -> int | None:
+        """Duration of ``a → b`` on day ``v``: the date's override (another mode) first; an arc
+        banned for the whole day is unavailable (ADR-011 amendment 2026-11-09)."""
+        if a == b:
+            return 0
+        when = days[v].date
+        if _banned_all_day(inp.departure_bans.get(when, {}).get((a, b), ())):
+            return None
+        override = inp.day_durations.get(when, {}).get((a, b))
+        if override is not None:
+            return max(0, int(override))
+        return base_leg(a, b)
 
     # Unreachable copies: no usable in-arc or out-arc within their day.
     for key, idxs in list(copies.items()):
@@ -138,11 +305,12 @@ def solve(inp: SolverInput) -> SolverResult:
             peers = [
                 nodes[j].key for j in range(2 * n_days, len(nodes)) if nodes[j].day == node.day
             ]
-            has_in = leg(day.start_key, key) is not None or any(
-                leg(p, key) is not None for p in peers if p != key
+            v = node.day
+            has_in = leg(day.start_key, key, v) is not None or any(
+                leg(p, key, v) is not None for p in peers if p != key
             )
-            has_out = leg(key, day.end_key) is not None or any(
-                leg(key, p) is not None for p in peers if p != key
+            has_out = leg(key, day.end_key, v) is not None or any(
+                leg(key, p, v) is not None for p in peers if p != key
             )
             if has_in and has_out:
                 reachable.append(i)
@@ -172,9 +340,11 @@ def solve(inp: SolverInput) -> SolverResult:
 
     def travel(from_node: int, to_node: int) -> int:
         a, b = live[from_node], live[to_node]
+        if a.day != b.day:
+            return _FORBIDDEN  # arcs across days are removed below
         if a.stop is None and b.stop is None:
-            return leg(a.key, b.key) or 0  # empty day: start → end
-        value = leg(a.key, b.key)
+            return leg(a.key, b.key, a.day) or 0  # empty day: start → end
+        value = leg(a.key, b.key, a.day)
         return _FORBIDDEN if value is None else value
 
     # Node-indexed matrices are evaluated in C++ (no Python callback per arc evaluation).
@@ -231,8 +401,60 @@ def solve(inp: SolverInput) -> SolverResult:
                 continue
             if a.stop is None and b.stop is None:
                 continue  # empty day is always allowed
-            if leg(a.key, b.key) is None:
+            if leg(a.key, b.key, a.day) is None:
                 routing.NextVar(from_index).RemoveValue(to_index)
+                continue
+            spans = inp.departure_bans.get(days[a.day].date, {}).get((a.key, b.key), ())
+            if spans:
+                _ban_departures(routing, time_dim, from_index, to_index, service(from_node), spans)
+
+    # Day balance. Travel cost alone packs every stop into the first day whenever the day window
+    # is long enough (a 2-day plan once put all 10 stops on day 1), and local search can hardly
+    # move a stop between days (that means swapping its day copies). So the balance is a hard
+    # per-day capacity on a Stops dimension: the fair share ceil(stops ÷ days), raised to the
+    # stops that can only be served that day (closures, locks), and never above the pace cap
+    # ``max_stops``. A soft lower bound (the floor share) also makes an empty day cost more
+    # than dropping a low-ranked stop, so no requested day stays empty while candidates exist.
+    servable_days = {key: {live[i].day for i in idxs} for key, idxs in copies.items()}
+    n_candidates = len(servable_days)
+    capacities: list[int] = []
+    for v, day in enumerate(days):
+        only_here = sum(1 for ds in servable_days.values() if ds == {v})
+        cap = max(-(-n_candidates // n_days), only_here)
+        if day.max_stops is not None:
+            cap = min(cap, day.max_stops)
+        capacities.append(cap)
+    if n_days > 1 or any(day.max_stops is not None for day in days):
+        stops_dim = add_count_dimension(
+            routing, "Stops", [stop_count(live[n]) for n in range(len(live))], capacities
+        )
+        for v in range(n_days):
+            servable = sum(1 for ds in servable_days.values() if v in ds)
+            lower = min(n_candidates // n_days, capacities[v], servable)
+            if n_days > 1 and lower > 0:
+                # An empty route is "unused" and OR-Tools would skip its soft-bound cost.
+                routing.SetVehicleUsedWhenEmpty(True, v)
+                stops_dim.SetCumulVarSoftLowerBound(
+                    routing.End(v), lower, params.day_balance_penalty
+                )
+
+    # Variety: per-day cap per category, raised to the category's fair share over the days so
+    # a capped category never forces a drop that spreading could avoid.
+    category_counts: dict[str, int] = {}
+    for key in copies:
+        category = by_key_pre[key].category
+        if category is not None:
+            category_counts[category] = category_counts.get(category, 0) + 1
+    for category in sorted(category_counts):
+        category_cap = inp.category_day_caps.get(category)
+        if category_cap is None or category_counts[category] <= category_cap:
+            continue
+        add_count_dimension(
+            routing,
+            f"Category:{category}",
+            [1 if _category_of(live[n]) == category else 0 for n in range(len(live))],
+            [max(category_cap, -(-category_counts[category] // n_days))] * n_days,
+        )
 
     # Disjunctions (optional / must-see / locked).
     by_key = {stop.key: stop for stop in inp.stops}
@@ -298,7 +520,10 @@ def solve(inp: SolverInput) -> SolverResult:
             DroppedStop(k, DropReason.NOT_SCHEDULED, by_key[k].must_see, by_key[k].lock is not None)
             for k in sorted(copies)
         )
-        return SolverResult(SolveStatus.NO_SOLUTION, (), all_dropped, None, time_limit_reached)
+        no_solution = SolverResult(
+            SolveStatus.NO_SOLUTION, (), all_dropped, None, time_limit_reached
+        )
+        return no_solution, servable_days
 
     def value(var: Any) -> int:
         return int(solution.Value(var))
@@ -334,7 +559,9 @@ def solve(inp: SolverInput) -> SolverResult:
             prev_node, prev_departure = node_id, departure
             index = value(routing.NextVar(index))
         to_end = (
-            travel(prev_node, node_of(index)) if stops else (leg(day.start_key, day.end_key) or 0)
+            travel(prev_node, node_of(index))
+            if stops
+            else (leg(day.start_key, day.end_key, v) or 0)
         )
         lunch: BreakSlot | None = None
         if day.lunch is not None and v in break_starts:
@@ -356,13 +583,14 @@ def solve(inp: SolverInput) -> SolverResult:
         for k in sorted(copies)
         if k not in visited
     )
-    return SolverResult(
+    solved = SolverResult(
         status=SolveStatus.SOLVED,
         days=tuple(plans),
         dropped=pre + solver_dropped,
         objective=int(solution.ObjectiveValue()),
         time_limit_reached=time_limit_reached,
     )
+    return solved, servable_days
 
 
 def regenerate_day(
@@ -394,6 +622,8 @@ def regenerate_day(
         stops=tuple(stops),
         durations=inp.durations,
         params=params or inp.params,
+        day_durations=inp.day_durations,
+        departure_bans=inp.departure_bans,
     )
     result = solve(single)
     return replace(result, days=tuple(replace(plan, day_index=day_index) for plan in result.days))

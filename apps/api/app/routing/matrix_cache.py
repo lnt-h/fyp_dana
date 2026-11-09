@@ -3,7 +3,8 @@
 Rows are keyed ``(origin_key, destination_key, travel_mode)`` with keys ``place:<uuid>``,
 ``web:<uuid>`` or ``anchor:<code>`` — never traveler GPS. Only Google measurements are written
 (AVAILABLE, or UNAVAILABLE when Google reports no route); transient failures, quota denials and
-estimates are never cached. Each operation is a short transaction of its own.
+estimates are never cached. Rows are written only under the ACTIVE ``google_routes`` provider
+policy (never DRAFT or RETIRED). Each operation is a short transaction of its own.
 """
 
 from __future__ import annotations
@@ -61,11 +62,13 @@ class MatrixCache(Protocol):
         ...
 
 
+# Only the ACTIVE google_routes policy (owner-approved terms, ADR-006) may cover cached rows; a
+# DRAFT or RETIRED policy never does, so without an ACTIVE one nothing is cached.
 _POLICY_ID = text(
     "SELECT pp.id FROM provider_policies pp "
     "JOIN data_providers dp ON dp.id = pp.data_provider_id "
-    "WHERE dp.provider_key = :provider_key "
-    "ORDER BY (pp.status = 'APPROVED') DESC, pp.policy_revision DESC LIMIT 1"
+    "WHERE dp.provider_key = :provider_key AND pp.status = 'ACTIVE' "
+    "ORDER BY pp.policy_revision DESC LIMIT 1"
 )
 
 
@@ -129,7 +132,7 @@ class SqlMatrixCache:
         async with self._session_factory() as session:
             policy_id = await self._routes_policy_id(session)
             if policy_id is None:
-                logger.warning("routes cache_write_skipped reason=no_google_routes_policy")
+                logger.warning("routes cache_write_skipped reason=no_active_google_routes_policy")
                 return 0
             for row in values:
                 row["provider_policy_id"] = policy_id

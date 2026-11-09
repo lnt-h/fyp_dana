@@ -4,7 +4,7 @@
 |---|---|
 | Document ID | GONARRA-API |
 | Document version | 2.0 (condensed; 0.1–0.4 five-city text at git tag `docs-sdlc-full`) |
-| Contract | [openapi.yaml](./openapi.yaml) `info.version` 1.0.4 (OpenAPI 3.1.0); 34 operations; the generated `apps/api/openapi.json` is checked in CI |
+| Contract | [openapi.yaml](./openapi.yaml) `info.version` 1.0.5 (OpenAPI 3.1.0); 34 operations; the generated `apps/api/openapi.json` is checked in CI |
 | Date | 2026-11-09 |
 | Owner | Lê Ngọc Tấn Hiền |
 | Approver | trantrongminh, FYP mentor — **[Pending]** |
@@ -16,6 +16,7 @@ This document explains the rules that `openapi.yaml` cannot express on its own. 
 |---|---|---|
 | 0.1–0.4 | 2026-11-04..05 | Five-city design with curator admin routes (API-033..API-063) |
 | 2.0 | 2026-11-09 | Rewritten against openapi 1.0.4: Đà Nẵng only; curator routes withdrawn (DEC-022); trust labels, research stages, calendar conflicts (DEC-015..017); `Leg.estimated` and INFO `LEG_ESTIMATED` (DEC-023); guest catalog reads, content-origin labels (1.0.3); AI-extracted facts `PlaceFact.origin` / `grounding` (DEC-028, 1.0.4) |
+| 2.1 | 2026-11-09 | Against openapi 1.0.5 (DEC-031/DEC-032): AI-written catalog content retired (`AI_SUMMARY` descriptions and `AI_EXTRACTED` facts no longer produced); `PlaceSummary.is_area`; `PlaceDetail.description_source` attribution with licence and link; no description → 'No description yet' |
 
 ## 1. Consumers and boundaries
 
@@ -50,7 +51,7 @@ All routes are FastAPI routers under `apps/api/app/api/routes/` (`health`, `iden
 
 ### 3.2 Locale
 
-Content operations take `locale` (`vi` | `en`); it defaults to the account preference, then `vi`. Vietnamese names are always returned. `PlaceSummary.name_is_source_fallback = true` means the EN name is the Vietnamese proper name reused unchanged, never machine-translated. `PlaceDetail.description_origin` is `SOURCE` or `AI_SUMMARY`; `PlaceFact.origin` is `SOURCE`, `OWNER` or `AI_EXTRACTED` (absent means `SOURCE`), with `PlaceFact.grounding` `STRONG` | `WEAK` for `AI_EXTRACTED` only. Clients label AI-summarised or AI-extracted content "Tóm tắt từ nguồn" / "Summarised from sources" and show the source link.
+Content operations take `locale` (`vi` | `en`); it defaults to the account preference, then `vi`. Vietnamese names are always returned. `PlaceSummary.name_is_source_fallback = true` means the EN name is the Vietnamese proper name reused unchanged, never machine-translated. Descriptions are verbatim human-written text from a cited source (DEC-031): `PlaceDetail.description_origin` is `SOURCE` or null, and `PlaceDetail.description_source` names the provider, publisher, licence and link (Wikivoyage CC BY-SA 4.0, Wikipedia, the owner sheet); a place without one returns null description and the client shows 'No description yet' / 'Chưa có mô tả'. `PlaceFact.origin` is `SOURCE` or `OWNER` (`AI_EXTRACTED` is retired); `grounding` stays null. `PlaceSummary.is_area` marks a bay, peninsula, mountain range or old town: it appears on the map and in Guide answers but can never be added as a planner stop — clients disable 'Add to trip' and say 'Area — pick a place inside it' / 'Khu vực — chọn điểm cụ thể bên trong'.
 
 ### 3.3 Authentication and authorization
 
@@ -137,7 +138,7 @@ Per-account daily caps (defaults): 10 proposals (API-018 generate, API-021) and 
 - Major version in the path (`/v1`); `/health` and `/ready` are unversioned probes.
 - Additive within v1: new operations, optional request fields, response fields, error codes and enum values. Clients treat unknown enum values as "other".
 - Breaking changes need `/v2` and an ADR. Deprecations use `deprecated: true` plus `Deprecation` and `Sunset` headers at least one release ahead.
-- `info.version` follows SemVer; the history of 1.0.1..1.0.4 is in the `info.description` of `openapi.yaml`.
+- `info.version` follows SemVer; the history of 1.0.1..1.0.5 is in the `info.description` of `openapi.yaml`.
 
 ### 3.11 Operation table
 

@@ -8,6 +8,9 @@ from app.config import get_settings
 from app.db.session import engine
 from app.observability import install_observability
 
+# info.version of the documented contract (docs/04-design/api/openapi.yaml).
+API_VERSION = "1.0.4"
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -19,7 +22,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     application = FastAPI(
         title=settings.app_name,
-        version="0.1.0",
+        version=API_VERSION,
         lifespan=lifespan,
         docs_url=None if settings.environment == "production" else "/docs",
     )

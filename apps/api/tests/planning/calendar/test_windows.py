@@ -99,6 +99,25 @@ def test_partial_narrows() -> None:
     assert window.intervals == ((780, 1020),)
 
 
+def test_mode_restriction_never_narrows_hours() -> None:
+    """A car-free zone qualifies legs, not opening hours (Old Town 15:00–22:00 bug)."""
+    car_free = make(
+        10,
+        "WEEKLY",
+        "PARTIAL",
+        {"weekdays": [1], "from": "15:00", "to": "22:00", "restricted_modes": ["DRIVE"]},
+        applies_to="AREA",
+        place_id=None,
+        area_code="hoi-an-old-town",
+    )
+    window = windows([car_free], [MON], [OLD_HOUSE])[(OLD_HOUSE.place_id, MON)]
+    assert window.intervals == ((480, 1020),)  # the place's own hours, not 15:00–17:00
+    assert window.adjustments == ()
+    assert [(r.rule_id, r.interval) for r in window.mode_restrictions] == [
+        (car_free.id, (900, 1320))
+    ]
+
+
 def test_partial_without_time_is_a_notice() -> None:
     partial = make(5, "SEASON", "PARTIAL", {"from_month_day": "09-01", "to_month_day": "12-31"})
     window = windows([partial], [TUE])[(MUSEUM.place_id, TUE)]

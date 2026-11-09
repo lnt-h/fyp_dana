@@ -91,10 +91,10 @@ Vietnamese name, English name or a common alias, so that I find the same destina
 **US-002 — Sources and freshness** (Must · FR-003, FR-005, FR-008). As a traveler, I want to see the source and
 source-check date of each fact, so that I can decide how much to rely on it.
 
-- AC1 Given a published place, when I open it, then I see both names, a description in my language, category, area, suggested duration and map position.
-- AC2 Given a known fact, when I view it, then its source and source-check date are shown; an AI-extracted fact also reads "Summarised from sources" with the source link.
+- AC1 Given a published place, when I open it, then I see both names, a description in my language when a human-written one exists (otherwise "No description yet"), category, area, suggested duration and map position.
+- AC2 Given a known fact, when I view it, then its source and source-check date are shown with the source link (catalog text and facts are human-written, never AI-generated).
 - AC3 Given a fact with no supported value, then it reads "unknown"; given a fact checked 181 days ago, then it is labelled stale.
-- AC4 Given open-data content (OSM, Wikipedia, Commons photo), then the required attribution is shown.
+- AC4 Given open-data content (OSM, Wikipedia, Wikivoyage, Commons photo), then the required attribution and licence are shown.
 
 **US-003 — Only published or labelled places** (Must · FR-004). As a traveler, I want to see only places that
 passed Gonarra's source checks, or web-found places clearly labelled as such, so that I do not act on unchecked data.
@@ -158,13 +158,12 @@ research without a queue.
 - AC2 Given a closed, not-found or outside-boundary candidate, then nothing is created.
 - AC3 Given a trip holding a promoted candidate, then it shows `VERIFIED` only after the gate publishes the place.
 
-**US-051 — Descriptions and facts from cited sources** (Must · FR-011, FR-003, FR-005). As the operator, I want
-missing descriptions and facts filled from fetched sources by the grounded writer, so that place screens are not
-empty and nothing is invented.
+**US-051 — Descriptions and facts from human-written sources** (Must · FR-011, FR-003, FR-005). As the operator, I want
+place screens filled from cited human-written sources, so that they are not empty and nothing is invented.
 
-- AC1 Given a place lacking a description, when `enrich descriptions` runs, then VI and EN text is stored only if it cites supplied sources, and is labelled "Summarised from sources".
-- AC2 Given a place with unknown address, hours or price, when `enrich facts` runs, then a value is stored only if it cites a supplied evidence id and passes code parsing; contact data is rejected.
-- AC3 Given the enrichment run, then provider calls stay within the quota ledger budget and logs hold counts only.
+- AC1 Given a place with no description, then the pipeline stores one only from the owner sheet, Wikivoyage or Wikipedia in that locale, with its source revision, attribution and licence; otherwise the card says "No description yet" (DEC-031, DEC-033).
+- AC2 Given a place with unknown address, hours or price, then a value is stored only from a human-written source record with its source revision and must pass code parsing; contact data is rejected.
+- AC3 Given any candidate, then the gate rule `AI_CONTENT` rejects AI-generated descriptions and facts, and no CLI command can enable them without `allow_ai_content` and an ACTIVE provider policy.
 
 ### Planning
 

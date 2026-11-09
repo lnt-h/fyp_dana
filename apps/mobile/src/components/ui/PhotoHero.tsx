@@ -10,7 +10,7 @@ import { fonts, typography } from '../../theme/typography';
 import { Icon, type IconName } from './Icon';
 import { Photo, usePhotoFailed } from './Photo';
 
-const SCRIM = ['rgba(7,21,30,0)', 'rgba(7,21,30,0.25)', 'rgba(7,21,30,0.72)'] as const;
+const SCRIM = ['rgba(22,33,43,0)', 'rgba(22,33,43,0.25)', 'rgba(22,33,43,0.72)'] as const;
 const ARCH_HEIGHT = 36;
 
 export type PhotoHeroProps = {
@@ -28,7 +28,7 @@ export type PhotoHeroProps = {
   kicker?: string;
   /** Photo credit, e.g. Media.attribution_text. Required by licence whenever a photo is shown. */
   attribution?: string | null;
-  /** Curved canvas-coloured bottom edge that the page content tucks under (default true). */
+  /** Curved canvas-coloured (white) bottom edge that the page content tucks under (default true). */
   arch?: boolean;
   /** Floating controls over the photo (e.g. CircleButtons), placed below the safe-area top inset. */
   topLeft?: ReactNode;
@@ -55,17 +55,16 @@ export function PhotoHero({ image, fallbackIcon, fallbackCategory, fallbackName,
         categoryCode={fallbackCategory}
         height={height}
         icon={fallbackIcon ?? (fallbackCategory ? undefined : 'lantern')}
-        iconSize={40}
+        iconSize={56}
         image={image}
         name={fallbackName}
         onError={onPhotoError}
-        tone="dark"
         transition={250}
         width={width}
       />
       <LinearGradient colors={SCRIM} locations={[0.35, 0.6, 1]} pointerEvents="none" style={StyleSheet.absoluteFill} />
       {/* Top fade so floating controls and the status bar stay legible on bright skies. */}
-      <LinearGradient colors={['rgba(7,21,30,0.35)', 'rgba(7,21,30,0)']} pointerEvents="none" style={[styles.topFade, { height: insets.top + 80 }]} />
+      <LinearGradient colors={['rgba(22,33,43,0.35)', 'rgba(22,33,43,0)']} pointerEvents="none" style={[styles.topFade, { height: insets.top + 80 }]} />
 
       {topLeft || topRight ? (
         <View pointerEvents="box-none" style={[styles.controls, { top: insets.top + spacing.xs }]}>
@@ -102,7 +101,7 @@ const styles = StyleSheet.create({
   controls: { flexDirection: 'row', justifyContent: 'space-between', left: spacing.md, position: 'absolute', right: spacing.md },
   kicker: { color: colors.white, flexShrink: 1, fontFamily: fonts.bold, fontSize: 17 },
   kickerRow: { alignItems: 'center', flexDirection: 'row', gap: 6, marginBottom: 4 },
-  root: { backgroundColor: colors.deepOcean, overflow: 'hidden', width: '100%' },
+  root: { backgroundColor: colors.surface, overflow: 'hidden', width: '100%' },
   title: { ...typography.display, color: colors.white },
   topFade: { left: 0, position: 'absolute', right: 0, top: 0 },
 });

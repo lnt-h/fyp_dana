@@ -186,8 +186,10 @@
       "internal_error": "Something went wrong. Try again.",
       "authentication_required": "Your session ended. Sign in again to continue.",
       "revision_conflict": "This draft changed elsewhere. Open it again to continue.",
-      "trip_not_saved": "Save this trip first, then try again."
-    }
+      "trip_not_saved": "Save this trip first, then try again.",
+      "idempotency_in_progress": "Your plan is still being made. Try again in a moment."
+    },
+    "dropped": "The connection dropped while planning. Try again: Gonarra picks up the same plan, it won’t make a second one."
   },
   "wizard": {
     "title": "Create itinerary",

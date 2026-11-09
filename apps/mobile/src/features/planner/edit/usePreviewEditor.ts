@@ -15,6 +15,8 @@ function classify(error: unknown): { status: PendingStatus; code: string } {
     const { code } = error.error;
     if (code === 'revision_conflict') return { code, status: 'conflict' };
     if (code === 'preview_expired' || code === 'preview_closed') return { code, status: 'expired' };
+    // A non-retryable 4xx (e.g. day_overflow, publication_incomplete): retrying the same ops cannot succeed.
+    if (error.status >= 400 && error.status < 500 && !error.retryable && code !== 'idempotency_in_progress') return { code, status: 'rejected' };
     return { code, status: 'failed' };
   }
   return { code: 'network', status: 'failed' };
@@ -71,7 +73,7 @@ export function usePreviewEditor({ previewId, revision, onPreview }: Options) {
   /** Same request again with the same `Idempotency-Key` (safe if the first one did land). */
   const retry = useCallback(async () => {
     const current = getPending(previewId);
-    if (!current || current.status === 'applying') return null;
+    if (!current || current.status === 'applying' || current.status === 'rejected') return null;
     if (current.status === 'conflict') return reloadAndReapply();
     return send(current);
   }, [previewId, reloadAndReapply, send]);

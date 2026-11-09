@@ -12,17 +12,18 @@ uv run python -m app.cli policy list                   # provider policies (defa
 uv run python -m app.cli policy activate wikidata  --terms-version "CC0 checked 2026-11-07"
 uv run python -m app.cli policy activate wikipedia --terms-version "CC BY-SA 4.0 + ToU checked 2026-11-07"
 uv run python -m app.cli policy activate gonarra_sheet --terms-version "owner sheet v1"
+uv run python -m app.cli policy activate wikivoyage --terms-version "CC BY-SA 4.0 checked 2026-11-09"
 uv run python -m app.cli pipeline run [--sheet data/sheet/da-nang.csv] [--dry-run] [--no-embed] [-v]
-uv run python -m app.cli policy activate gonarra_ai_summary --terms-version "D3 grounded summaries"
-uv run python -m app.cli enrich descriptions [--limit 150] [--food-cafe-cap 40] [--retry-insufficient]
 uv run python -m app.cli publish auto
 uv run python -m app.cli publish summary               # published total, by area, Hội An area
 uv run python -m app.cli publish audit-sample [--fraction 0.1] [--seed 7] [--out audit.csv]
+uv run python -m app.cli caches sweep                  # provider-cache retention
 ```
 
-`pipeline run` = `areas load` → `ingest wikidata` → `ingest wikipedia` → `ingest sheet <csv>`
-(when given, or when `data/sheet/da-nang.csv` exists) → `web-candidates promote` →
-`publish auto` → `closure-rules load`. Each step also runs alone. An importer whose provider policy
+`pipeline run` = `areas load` → `ingest wikidata` → `ingest wikidata-link` → `ingest wikipedia` →
+`ingest osm` → `ingest wikivoyage` → `ingest commons` → `ingest sheet <csv>` (when given, or when
+`data/sheet/da-nang.csv` exists) → `web-candidates promote` → `publish auto` → `closure-rules load`
+→ `caches sweep`. Each step also runs alone. An importer whose provider policy
 is not ACTIVE refuses to run (ADR-006); `pipeline run` reports it and continues.
 `publish auto --dry-run` runs the gate and writes nothing. Chunk embeddings need `GEMINI_API_KEY`;
 without it, places still publish and their Guide OVERVIEW chunks stay pending until a later run.
@@ -42,8 +43,11 @@ A place is published only when all of these hold (codes appear in the CLI report
 | `MISSING_CATEGORY` | category from the sheet or a mapped Wikidata class |
 | `MISSING_AREA` | sheet `area_code`, or the location falls inside an `areas/<city>.yaml` polygon |
 | `MISSING_NAME:<locale>` | a VI **and** an EN name (sheet, else Wikidata label, else OSM `name:en`); never machine-translated. Proper-name fallback: see below |
-| `MISSING_DESCRIPTION:<locale>` | a VI and an EN description (Wikipedia summary, else sheet description, else grounded AI summary, else sheet short description, else Wikidata description) |
-| `AI_SUMMARY_UNCITED:<locale>` | an AI-summarised description has at least one recorded cited source revision |
+| `MISSING_DESCRIPTION:<locale>` | only when `REQUIRE_DESCRIPTION` is on (DEC-033 option B); under option A a place without a human-written description publishes and the card says "No description yet" |
+| `AI_CONTENT` | no localization with `translation_origin` `AI_SUMMARY`/`AI_DRAFT` and no fact with `origin = AI_EXTRACTED` (DEC-031) |
+| `GENERIC_NAME`, `VI_NAME_NOT_VIETNAMESE`, `NAME_FORMAT` | name quality: not a bare class word, a VI name with Vietnamese diacritics or an allow-listed brand, Latin/Vietnamese script only |
+| `NOT_A_STOP` | hotels, banks, tailors, offices, supermarkets and malls are not travel stops |
+| `DUPLICATE_OF:<slug>`, `PART_OF:<slug>` | the place is another candidate (same item/QID/OSM element, or similar name within the category radius) or a sub-part of an existing place |
 | `MISSING_LICENCE:<publisher>` | every source behind shown text, facts or chunks has a licence and attribution text |
 | `FACT_WITHOUT_SOURCE:<field>` | every KNOWN fact cites an attributed source revision |
 | `SQL_GATE:<violation>` | `fn_publication_gate_violations` (re-checked inside `fn_publish_place`) |
@@ -70,27 +74,15 @@ RELIGIOUS_SITE and CRAFT_VILLAGE, and for other categories only when the name do
 a generic place word such as "Núi", "Bãi biển" or "Bảo tàng" (`app/curation/names.py`). Names are
 never machine-translated.
 
-### Grounded AI descriptions (`enrich descriptions`, D3)
+### Descriptions and facts (human-written only, DEC-031)
 
-`app/research/enrich.py` writes a 2–3 sentence VI and EN description for draft places that lack a
-Wikipedia or sheet description in some locale. Sources, in order: the place's Wikipedia extracts,
-its official website from OSM, else a Tavily search ("<name> Hội An|Đà Nẵng") and up to two result
-pages (social, booking and review sites skipped). Each fetched page is recorded as a
-`source_revisions` row. The `grounded_writer` (Gemini 3.5 Flash-Lite → Groq gpt-oss-120b) must
-cite only supplied URLs; a draft with an unsupplied URL, a price, opening hours, a phone number, a
-rating, a URL/e-mail or a number that is not in the sources is rejected (one repair call).
-`insufficient_evidence` stores no description (only a REJECTED marker record so a re-run skips the
-place). A valid draft is staged as an import record of provider `gonarra_ai_summary` with its own
-source revision (publisher "Gonarra", licence `GONARRA-AI-SUMMARY`) and the cited revisions; the
-gate publishes it with `place_localizations.translation_origin = 'AI_SUMMARY'` so the app can label
-it. AI summaries are not Guide chunks.
-
-Priority (budget: Tavily ≈ 1 000 searches/month): (1) Wikidata places in an area; (2) OSM places
-with `wikidata`/`website`/`opening_hours` tags or a tourism category; (3) FOOD/CAFE/MARKET with a
-website or opening hours and an EN name or in the Hội An area. Hội An area first within a tier;
-FOOD + CAFE capped at 40 per run; at most `--limit` places. Already enriched places are skipped.
-The run stops when the writer chain is exhausted three times in a row and continues without search
-when Tavily's quota is spent. Raise `GONARRA_QUOTA_TAVILY_PER_DAY` (default 25) for a one-off batch.
+Catalog descriptions and facts come only from human-written, openly licensed sources and the
+owner sheet, in this order: owner-sheet description, then the matched Wikivoyage listing
+(CC BY-SA 4.0, `lastedit` ≥ 2023 for facts), then the Wikipedia lead reached through the place's
+own Wikidata sitelink, else none. Wikidata descriptions are used only as short descriptions. No
+model writes, translates or paraphrases catalog content (`AI_CONTENT` gate rule); the former
+`enrich descriptions` / `enrich facts` commands and their providers are retired. A missing
+description is a normal state (DEC-033 option A), shown as "No description yet".
 
 `publish audit-sample` writes a CSV of a random 10 % of current publications (names, descriptions
 with origin and sources, cited URLs, facts with evidence locators, image credit) with empty

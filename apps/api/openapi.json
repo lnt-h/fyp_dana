@@ -622,7 +622,7 @@
             "type": "array"
           },
           "type": {
-            "description": "Plan Health conflict type (ADR-011). LEG_ESTIMATED (INFO, openapi 1.0.2) marks a leg whose distance/duration is a demo estimate, not a Google Routes measurement.",
+            "description": "Plan Health conflict type (ADR-011). LEG_ESTIMATED (INFO, openapi 1.0.2) marks a leg whose distance/duration is a demo estimate, not a Google Routes measurement. OPENING_HOURS_UNKNOWN is INFO (DEC-030): a notice that never changes plan_health.",
             "enum": [
               "CLOSED_AT_PLANNED_TIME",
               "LEG_UNAVAILABLE",
@@ -648,6 +648,91 @@
           "severity"
         ],
         "title": "Conflict",
+        "type": "object"
+      },
+      "DescriptionSource": {
+        "description": "Where the displayed description comes from (1.0.5, DEC-031/DEC-032). Show one line under\nthe text, e.g. \"From Wikivoyage · CC BY-SA 4.0\" / \"Theo Wikivoyage · CC BY-SA 4.0\", linking\n``url``; for ``OWNER`` \"Gonarra\". The text is verbatim (markup removed).",
+        "properties": {
+          "attribution_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribution Text"
+          },
+          "license_code": {
+            "description": "e.g. \"CC-BY-SA-4.0\", \"own-work\".",
+            "title": "License Code",
+            "type": "string"
+          },
+          "license_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Licence deed, when open.",
+            "title": "License Url"
+          },
+          "provider": {
+            "enum": [
+              "WIKIPEDIA",
+              "WIKIVOYAGE",
+              "OWNER",
+              "OTHER"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "publisher": {
+            "description": "e.g. \"Wikivoyage (en)\", \"Wikipedia (vi)\".",
+            "title": "Publisher",
+            "type": "string"
+          },
+          "retrieved_at": {
+            "format": "date",
+            "title": "Retrieved At",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Page and revision, when known.",
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Link to the source page or revision.",
+            "title": "Url"
+          }
+        },
+        "required": [
+          "provider",
+          "publisher",
+          "license_code",
+          "retrieved_at"
+        ],
+        "title": "DescriptionSource",
         "type": "object"
       },
       "Directions": {
@@ -1532,8 +1617,19 @@
                 "type": "null"
               }
             ],
-            "description": "1.0.3. SOURCE = text from a cited source (Wikipedia lead, operator sheet, Wikidata); AI_SUMMARY = summarised by Gonarra's grounded writer from the listed sources (label it in the UI). Null when there is no description.",
+            "description": "1.0.3. SOURCE = human-written text from a cited source (owner sheet, Wikivoyage, Wikipedia). AI_SUMMARY is retired by DEC-031 (1.0.5) and no longer served. Null when there is no description: show 'No description yet' / 'Chưa có mô tả'.",
             "title": "Description Origin"
+          },
+          "description_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DescriptionSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "1.0.5. Attribution, licence and link of the description; null without one."
           },
           "entrance_location": {
             "anyOf": [
@@ -1556,6 +1652,12 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "is_area": {
+            "default": false,
+            "description": "1.0.5 (DEC-031). True for an area (bay, peninsula, mountain range, old town): shown on the map and in the Guide but never a planner stop; disable 'Add to trip' and say 'Area — pick a place inside it' / 'Khu vực — chọn điểm cụ thể bên trong'.",
+            "title": "Is Area",
+            "type": "boolean"
           },
           "location": {
             "$ref": "#/components/schemas/GeoPoint"
@@ -1714,6 +1816,12 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "is_area": {
+            "default": false,
+            "description": "1.0.5 (DEC-031). True for an area (bay, peninsula, mountain range, old town): shown on the map and in the Guide but never a planner stop; disable 'Add to trip' and say 'Area — pick a place inside it' / 'Khu vực — chọn điểm cụ thể bên trong'.",
+            "title": "Is Area",
+            "type": "boolean"
           },
           "location": {
             "$ref": "#/components/schemas/GeoPoint"
@@ -3230,7 +3338,7 @@
                 "type": "null"
               }
             ],
-            "description": "1.0.4: AI_EXTRACTED only. STRONG = the extraction quote matches the cited text; WEAK = it matches only partly. Null for other origins.",
+            "description": "1.0.4: AI_EXTRACTED only (retired, DEC-031). STRONG = the extraction quote matches the cited text; WEAK = it matches only partly. Null for other origins.",
             "title": "Grounding"
           },
           "knowledge_state": {
@@ -3244,7 +3352,7 @@
           },
           "origin": {
             "default": "SOURCE",
-            "description": "1.0.4 (DEC-028): SOURCE (open data or official source), OWNER (owner sheet) or AI_EXTRACTED (extracted by Gonarra's grounded writer from the cited source; label it 'Summarised from sources' and show the source link).",
+            "description": "1.0.4 (DEC-028), narrowed in 1.0.5 (DEC-031). SOURCE = from an open-data or official source record; OWNER = owner sheet. AI_EXTRACTED is retired and no longer produced. Absent means SOURCE.",
             "enum": [
               "SOURCE",
               "OWNER",
@@ -3655,7 +3763,7 @@
   },
   "info": {
     "title": "Gonarra API",
-    "version": "0.1.0"
+    "version": "1.0.4"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4634,7 +4742,7 @@
         ]
       },
       "post": {
-        "description": "Creates (or returns the open) deletion job; the purge runs in\n``uv run python -m app.cli run-deletion-jobs``.",
+        "description": "Creates (or returns the open) deletion job; the purge runs in\n``uv run python -m app.cli run-deletion-jobs``. The shared demo account (demo builds) is\nrefused with ``409 demo_account_not_deletable``: every unsigned demo caller shares it.",
         "operationId": "request_account_deletion_v1_me_deletion_post",
         "requestBody": {
           "content": {
@@ -4666,6 +4774,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "content": {

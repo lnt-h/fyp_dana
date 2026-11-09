@@ -1,0 +1,141 @@
+# Production stack for one VM (ADR-002 single-VM variant, OQ-129): Caddy (TLS) -> api -> db,
+# a one-shot migrate job and a nightly backup job. Runbook: infra/README.md.
+#
+#   cp infra/.env.example .env && chmod 600 .env     # then fill in secrets
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Every value comes from ./.env (gitignored), which Compose reads for ${...} interpolation and
+# which the api/migrate containers load with env_file. Required values fail fast with ${VAR:?}.
+# The db has no published port; only Caddy listens on the host (80, 443).
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-api-image: &api-image
+  image: ${GONARRA_API_IMAGE:-gonarra-api}:${GONARRA_API_TAG:-latest}
+  build:
+    context: ./apps/api
+
+x-api-env: &api-env
+  env_file:
+    # Override with GONARRA_ENV_FILE only for smoke tests (see infra/README.md).
+    - path: ${GONARRA_ENV_FILE:-./.env}
+      required: true
+  environment:
+    # Pinned here so no env file can turn a VM deploy into development/demo (ADR-006 refusals).
+    GONARRA_ENVIRONMENT: production
+    GONARRA_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gonarra}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-gonarra}
+
+services:
+  db:
+    image: gonarra-db:16
+    build:
+      context: ./infra/postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gonarra}
+      POSTGRES_USER: ${POSTGRES_USER:-gonarra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [backend]
+    logging: *logging
+
+  migrate:
+    <<: [*api-image, *api-env]
+    # One-shot: bring the schema to head, then exit 0. api starts only after it succeeds.
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    healthcheck:
+      disable: true
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [backend]
+    logging: *logging
+
+  api:
+    <<: [*api-image, *api-env]
+    restart: unless-stopped
+    user: "999:999"
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, urllib.request as u; sys.exit(0 if u.urlopen('http://127.0.0.1:8000/ready', timeout=4).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks: [backend, edge]
+    logging: *logging
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      GONARRA_API_HOST: ${GONARRA_API_HOST:?set GONARRA_API_HOST in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+      GONARRA_TLS_MODE: ${GONARRA_TLS_MODE:-acme}
+    ports:
+      - "${GONARRA_HTTP_PORT:-80}:80"
+      - "${GONARRA_HTTPS_PORT:-443}:443"
+      - "${GONARRA_HTTPS_PORT:-443}:443/udp"
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [edge]
+    logging: *logging
+
+  backup:
+    image: gonarra-db:16
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/usr/local/bin/gonarra-backup.sh"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-gonarra}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      PGDATABASE: ${POSTGRES_DB:-gonarra}
+      TZ: ${BACKUP_TZ:-Asia/Ho_Chi_Minh}
+      BACKUP_HOUR: ${BACKUP_HOUR:-3}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ./infra/backup/backup.sh:/usr/local/bin/gonarra-backup.sh:ro
+      - backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [backend]
+    logging: *logging
+
+networks:
+  # db, migrate and backup never need the internet.
+  backend:
+    internal: true
+  # api (outbound to Gemini/Groq/Tavily/Google/Clerk) and Caddy (inbound 80/443).
+  edge: {}
+
+volumes:
+  postgres-data:
+  backups:
+  caddy-data:
+  caddy-config:

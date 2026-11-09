@@ -1,7 +1,6 @@
 {
-  "eyebrow": "Trả lời kèm nguồn đã đối chiếu",
   "title": "Hỏi đáp du lịch",
-  "subtitle": "Hỏi đáp có nguồn về thành phố và từng địa điểm",
+  "subtitle": "Hỏi về Đà Nẵng và các địa điểm",
   "picker": {
     "title": "Hỏi về Đà Nẵng hoặc một địa điểm",
     "body": "Hỏi về cả thành phố, hoặc chọn một địa điểm. Câu trả lời luôn kèm nguồn. Nếu nguồn không đủ, Gonarra sẽ nói rõ.",
@@ -13,15 +12,20 @@
     "a11yPlace": "Mở Hướng dẫn cho {{name}}",
     "minutes": "{{count}} phút",
     "wholeCity": "Cả {{city}}",
-    "wholeCityBody": "Văn hoá, lịch sử, phép lịch sự và các khu như Hội An"
+    "wholeCityBody": "Văn hoá, lịch sử, phép lịch sự và các khu như Hội An",
+    "searchLabel": "Tìm địa điểm",
+    "searchPlaceholder": "Tìm địa điểm, ví dụ Hội An",
+    "loadMore": "Xem thêm địa điểm",
+    "noResults": "Không có địa điểm nào khớp “{{q}}”",
+    "clearSearch": "Xoá tìm kiếm"
   },
   "context": {
     "a11y": "Địa điểm: {{name}}",
     "hint": "Chọn địa điểm khác",
-    "change": "Đổi địa điểm",
+    "change": "Đổi",
     "cityA11y": "Thành phố: {{name}}",
     "cityHint": "Chọn một địa điểm để hỏi",
-    "cityScope": "Cả thành phố · Hỏi về một địa điểm"
+    "pickPlace": "Chọn địa điểm"
   },
   "clear": "Xoá cuộc trò chuyện",
   "clearConfirmTitle": "Xoá cuộc trò chuyện này?",
@@ -36,7 +40,7 @@
   },
   "empty": {
     "title": "Bạn muốn biết gì về {{place}}?",
-    "body": "Mỗi câu trả lời đều kèm nguồn đã đối chiếu. Nếu nguồn chưa đủ, Gonarra sẽ nói rõ."
+    "body": "Tôi trả lời dựa trên nguồn đã đối chiếu của Gonarra và luôn kèm nguồn."
   },
   "you": "Bạn",
   "assistant": "Hướng dẫn",
@@ -48,9 +52,6 @@
     "ANSWERING": "Đang soạn câu trả lời…"
   },
   "addingSources": "Đang thêm nguồn…",
-  "sources": "Nguồn ({{count}})",
-  "aiLabel": "Do AI tạo từ nguồn đã đối chiếu của Gonarra",
-  "aiLabelWeb": "Do AI tạo từ các trang web chưa đối chiếu nguồn",
   "insufficient": {
     "title": "Chưa đủ nguồn để trả lời",
     "body": "Nguồn đã đối chiếu của Gonarra không đề cập điều này, nên tôi không đoán. Hãy hỏi tại chỗ hoặc kênh chính thức."
@@ -67,7 +68,7 @@
     "send": "Gửi",
     "busy": "Đợi câu trả lời hiện tại",
     "counter": "{{count}}/{{max}}",
-    "disclaimer": "AI có thể sai. Hãy xem nguồn trước khi đi."
+    "disclaimer": "Câu trả lời AI luôn dẫn nguồn"
   },
   "suggest": {
     "hours": {
@@ -97,11 +98,28 @@
     "cityHoiAn": {
       "label": "Hội An?",
       "question": "Khu Hội An có gì đặc biệt?"
+    },
+    "cityBeaches": {
+      "label": "Bãi biển?",
+      "question": "Ở Đà Nẵng có những bãi biển nào đẹp?"
     }
   },
   "errors": {
     "offline": "Mất kết nối nên câu hỏi chưa được gửi. Câu hỏi vẫn nằm trong ô nhập; hãy gửi lại khi có mạng.",
     "busy": "Dịch vụ AI đang bận. Câu hỏi của bạn vẫn còn; thử lại sau giây lát.",
     "quota": "Bạn đã hết lượt hỏi trong lúc này. Câu hỏi của bạn vẫn còn; hãy thử lại sau."
-  }
+  },
+  "webAnswer": "Từ web",
+  "webAnswerA11y": "Từ web: các trang này chưa được đối chiếu nguồn",
+  "placeCardHint": "Mở địa điểm",
+  "sources_one": "{{count}} nguồn",
+  "sources_other": "{{count}} nguồn",
+  "guest": {
+    "title": "Đăng nhập để hỏi Hướng dẫn",
+    "body": "Hướng dẫn trả lời câu hỏi về Đà Nẵng và Hội An kèm nguồn đã đối chiếu. Câu hỏi của bạn được giữ trong tài khoản.",
+    "action": "Đăng nhập"
+  },
+  "moreSources_one": "Xem thêm {{count}} nguồn",
+  "moreSources_other": "Xem thêm {{count}} nguồn",
+  "moreSourcesShort": "+{{count}}"
 }

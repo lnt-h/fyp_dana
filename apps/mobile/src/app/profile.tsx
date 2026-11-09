@@ -28,7 +28,7 @@ export default function ProfileScreen() {
   return <AccountShell title={t('account.profile.title')} fallback="/home">
     <View style={[a.card, styles.identity]}>
       <View style={styles.avatar} accessible accessibilityRole="image" accessibilityLabel={t('account.profile.avatarLabel', { name })}>
-        {initial ? <Text style={styles.initial}>{initial}</Text> : <AccountIcon name="person" color={colors.ink} size={30} />}
+        {initial ? <Text style={styles.initial}>{initial}</Text> : <AccountIcon name="person" color={colors.white} size={30} />}
       </View>
       <View style={styles.identityCopy}>
         <Text numberOfLines={1} style={styles.name}>{name}</Text>
@@ -41,12 +41,12 @@ export default function ProfileScreen() {
       accessibilityHint={t('account.profile.preferencesHint')} onPress={() => router.push('/travel-preferences')}
       style={({ pressed }) => [a.card, styles.prefs, pressed && a.pressed]}>
       <View style={styles.prefsHeader}>
-        <AccountIcon name="sliders" />
+        <View style={a.iconTile}><AccountIcon name="sliders" color={colors.primary} size={18} /></View>
         <Text style={styles.prefsTitle}>{t('account.profile.preferences')}</Text>
         <AccountIcon name="chevron" color={colors.textMuted} size={18} />
       </View>
       {interests.length || travelType ? <View style={styles.chips}>
-        {interests.map(label => <Chip key={label} label={label} tone="tint" />)}
+        {interests.map(label => <Chip key={label} label={label} />)}
         {travelType ? <Chip icon="navigation" label={travelType} /> : null}
       </View> : <Text style={styles.prefsEmpty}>{t('account.profile.preferencesEmpty')}</Text>}
     </Pressable>
@@ -75,18 +75,18 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
-  // Solid sun with ink initial: 10.1:1 contrast.
-  avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sun },
-  initial: { fontFamily: fonts.bold, fontSize: 28, color: colors.ink },
+  // Primary disc with a white initial: 5.18:1 (28 pt bold).
+  avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
+  initial: { fontFamily: fonts.bold, fontSize: 28, color: colors.white },
   identityCopy: { flex: 1 },
   name: { ...typography.headline, color: colors.ink },
-  email: { ...typography.caption, fontSize: 15, lineHeight: 21, marginTop: 2 },
+  email: { ...typography.caption, color: colors.textSecondary, fontSize: 15, lineHeight: 21, marginTop: 2 },
   create: { marginTop: -spacing.xs, marginBottom: spacing.lg },
   prefs: { padding: spacing.lg, gap: spacing.sm, minHeight: MIN_TOUCH },
   prefsHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: MIN_TOUCH - 12 },
-  prefsTitle: { flex: 1, fontFamily: fonts.bold, fontSize: 17, lineHeight: 22, color: colors.ink },
+  prefsTitle: { flex: 1, fontFamily: fonts.semibold, fontSize: 16, lineHeight: 22, color: colors.ink },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  prefsEmpty: { ...typography.caption, fontSize: 15, lineHeight: 21 },
+  prefsEmpty: { ...typography.caption, color: colors.textSecondary, fontSize: 15, lineHeight: 21 },
   signOut: { height: 52, borderRadius: radii.button, marginTop: spacing.xs, ...elevation.none },
   delete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, minHeight: MIN_TOUCH + 4, marginTop: spacing.sm, borderRadius: radii.button },
   deleteText: { fontFamily: fonts.bold, fontSize: 16, color: errorColor },

@@ -209,6 +209,12 @@ def _place(lng: float, lat: float) -> Place:
     )
 
 
+VI_TEXT = (
+    "Chùa Cầu là cây cầu cổ có mái che bắc qua một lạch nước nhỏ trong phố cổ Hội An, Việt Nam."
+)
+EN_TEXT = "The Japanese Covered Bridge is an old bridge with a roof over a small stream in Hội An."
+
+
 def test_compose_and_gate_pass_for_bilingual_wikidata_place() -> None:
     wd_rev, vi_rev, en_rev = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
     contributions = Contributions(
@@ -222,11 +228,11 @@ def test_compose_and_gate_pass_for_bilingual_wikidata_place() -> None:
         },
         wikipedia={
             "vi": {
-                "summary": "Chùa Cầu là ...",
+                "summary": VI_TEXT,
                 PROVENANCE_KEY: {"source_revision_id": str(vi_rev)},
             },
             "en": {
-                "summary": "The bridge ...",
+                "summary": EN_TEXT,
                 PROVENANCE_KEY: {"source_revision_id": str(en_rev)},
             },
         },
@@ -240,7 +246,7 @@ def test_compose_and_gate_pass_for_bilingual_wikidata_place() -> None:
     )
     assert desired.area_code == "hoi-an-old-town"
     assert desired.visit_minutes == (30, 60, 120)
-    assert desired.localizations["vi"].description == "Chùa Cầu là ..."
+    assert desired.localizations["vi"].description == VI_TEXT
     assert desired.localizations["en"].short_description == "covered bridge"
     assert desired.aliases["vi"] == ["Chùa Cầu", "Lai Viễn Kiều"]
     assert [(f.field_code, f.knowledge_state) for f in desired.facts] == [
@@ -282,12 +288,16 @@ def test_gate_rejects_missing_locale_and_area() -> None:
     reasons = gate_reasons(
         desired, inside=True, sources={rev: SourceInfo("Wikidata", "CC0-1.0", "Wikidata (CC0)")}
     )
-    assert reasons == [
-        "MISSING_AREA",
-        "MISSING_DESCRIPTION:vi",
-        "MISSING_NAME:en",
-        "MISSING_DESCRIPTION:en",
-    ]
+    # DEC-033 option A: descriptions are optional; a Wikidata record without its QID in the
+    # payload and no other editorial source is not a catalog place.
+    assert reasons == ["NO_EDITORIAL_SOURCE", "MISSING_AREA", "MISSING_NAME:en"]
+    option_b = gate_reasons(
+        desired,
+        inside=True,
+        sources={rev: SourceInfo("Wikidata", "CC0-1.0", "Wikidata (CC0)")},
+        require_description=True,
+    )
+    assert "MISSING_DESCRIPTION:vi" in option_b and "MISSING_DESCRIPTION:en" in option_b
 
 
 def test_gate_requires_a_source() -> None:

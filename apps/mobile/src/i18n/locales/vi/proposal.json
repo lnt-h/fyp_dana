@@ -12,7 +12,8 @@
   },
   "status": {
     "unsaved": "Chưa lưu",
-    "saved": "Đã lưu"
+    "saved": "Đã lưu",
+    "expired": "Hết hạn"
   },
   "cover": {
     "photo": "Ảnh {{name}}",
@@ -37,10 +38,6 @@
     "GOOD": "Ổn",
     "WARNING": "Cần chú ý",
     "BLOCKED": "Bị chặn",
-    "badgeGood": "Ổn",
-    "badgeWarning_one": "Cần chú ý · {{count}} cảnh báo",
-    "badgeWarning_other": "Cần chú ý · {{count}} cảnh báo",
-    "badgeBlocked": "Bị chặn · {{blocking}} lỗi, {{warnings}} cảnh báo",
     "summaryGood": "Ổn — có thể lưu",
     "summaryWarning": "Cần chú ý — có thể lưu",
     "summaryBlocked": "Bị chặn — chưa thể lưu",
@@ -57,16 +54,21 @@
     "onDate": "Ngày {{date}}",
     "affects": "Ảnh hưởng: {{stops}}",
     "affectedStop": "Ngày {{day}} #{{number}} {{name}}",
-    "notices": "Cần biết",
-    "severityInfo": "Lưu ý",
-    "noticeDays_one": "Ngày {{days}}",
-    "noticeDays_other": "Các ngày {{days}}"
+    "pill": {
+      "good": "Ổn",
+      "check_one": "{{count}} điểm cần xem",
+      "check_other": "{{count}} điểm cần xem",
+      "blocked": "Cần chỉnh",
+      "updating": "Đang kiểm tra…",
+      "hint": "Mở chi tiết tình trạng kế hoạch",
+      "a11y": "Tình trạng kế hoạch: {{status}}"
+    }
   },
   "conflict": {
     "CLOSED_AT_PLANNED_TIME": "Đóng cửa vào giờ dự kiến",
     "LEG_UNAVAILABLE": "Không có tuyến đường — không ước tính",
     "DAY_WINDOW_EXCEEDED": "Vượt khung giờ trong ngày",
-    "OPENING_HOURS_UNKNOWN": "Giờ mở cửa: chưa rõ",
+    "OPENING_HOURS_UNKNOWN": "Chưa có giờ mở cửa",
     "FACT_STALE": "Giờ mở cửa có thể đã cũ",
     "MUST_SEE_NOT_INCLUDED": "Không thể xếp một địa điểm bạn muốn đến",
     "CLOSED_ON_DATE": "Đóng cửa vào ngày này",
@@ -97,7 +99,8 @@
     "emptyBody": "Thêm địa điểm đã đối chiếu nguồn ở {{city}} hoặc tạo lại ngày này.",
     "chip": "{{weekday}} {{date}}",
     "chipA11y_one": "Ngày {{day}}, {{date}}, {{count}} điểm dừng",
-    "chipA11y_other": "Ngày {{day}}, {{date}}, {{count}} điểm dừng"
+    "chipA11y_other": "Ngày {{day}}, {{date}}, {{count}} điểm dừng",
+    "chipLabel": "Ngày {{day}} · {{when}}"
   },
   "stop": {
     "minutes": "{{count}} phút",
@@ -108,10 +111,10 @@
     "selected": "Đang chọn",
     "details": "Thẻ địa điểm",
     "detailsA11y": "Mở thẻ địa điểm {{name}}",
-    "why": "Vì sao chọn?",
     "whyHide": "Thu gọn",
-    "aiLabel": "Gợi ý của AI",
-    "a11yNoTime": "{{number}}, {{name}}, {{unknown}}, {{status}}"
+    "a11yNoTime": "{{number}}, {{name}}, {{unknown}}, {{status}}",
+    "web": "Từ web",
+    "whyMore": "Xem toàn bộ ghi chú"
   },
   "leg": {
     "WALK": "Đi bộ",
@@ -125,7 +128,7 @@
     "approx": "≈ {{value}}",
     "estimatedA11y": "{{mode}}, khoảng {{distance}}, khoảng {{duration}}, ước tính",
     "unavailableShort": "Không có tuyến đường",
-    "estimateNotice": "Khoảng cách và thời gian di chuyển được ước tính theo đường thẳng, chưa đo trên đường thực tế."
+    "legend": "≈ thời gian di chuyển ước tính"
   },
   "map": {
     "title": "Bản đồ",
@@ -147,12 +150,8 @@
     "action": "Lưu chuyến đi",
     "saved": "Đã lưu",
     "a11yHint": "Lưu đề xuất này thành chuyến đi của bạn",
-    "healthA11y": "Xem tình trạng kế hoạch",
-    "blocked": "Kế hoạch đang bị chặn. Hãy sửa các vấn đề trong phần Tình trạng trước khi lưu.",
-    "emptyDay": "Ngày {{day}} chưa có điểm dừng. Mỗi ngày cần ít nhất một điểm dừng để lưu.",
-    "success": "Đã lưu chuyến đi. Đây là dữ liệu mẫu: chức năng lưu thật sẽ có khi kết nối API.",
+    "success": "Đã lưu chuyến đi",
     "dismiss": "Đóng",
-    "check": "Kiểm tra",
     "blockedShort": "Kế hoạch bị chặn: hãy sửa vấn đề trước khi lưu.",
     "emptyDayShort": "Ngày {{day}} chưa có điểm dừng nên chưa thể lưu."
   },
@@ -190,9 +189,10 @@
     "expiredBody": "Chuyến đã lưu của bạn không đổi. Tạo lại kế hoạch để tiếp tục chỉnh sửa.",
     "createAgain": "Tạo lại",
     "errorTitle": "Chưa áp dụng được thay đổi",
-    "updated": "Đã cập nhật bản nháp · bản {{revision}}",
+    "updated": "Đã cập nhật lịch trình",
     "busy": "Hãy chờ thay đổi hiện tại hoàn tất.",
-    "dismiss": "Đóng thông báo"
+    "dismiss": "Đóng thông báo",
+    "rejectedBody": "Không áp dụng được thay đổi này. Hãy bỏ thay đổi để tiếp tục chỉnh sửa."
   },
   "errors": {
     "network": "Không có kết nối. Thử lại.",
@@ -210,7 +210,17 @@
     "internal_error": "Có lỗi xảy ra. Thử lại.",
     "authentication_required": "Phiên đăng nhập đã hết. Hãy đăng nhập lại để tiếp tục.",
     "unsupported_request": "Chưa hỗ trợ thay đổi này.",
-    "trip_not_saved": "Hãy lưu chuyến đi trước rồi thử lại."
+    "trip_not_saved": "Hãy lưu chuyến đi trước rồi thử lại.",
+    "day_overflow": "Như vậy ngày này sẽ kéo qua nửa đêm. Hãy rút ngắn hoặc bỏ bớt một điểm.",
+    "publication_incomplete": "Một địa điểm trong lịch trình không còn khả dụng. Hãy thay địa điểm đó rồi thử lại.",
+    "duplicate_place": "Địa điểm này đã có trong chuyến đi.",
+    "unknown_stop": "Điểm dừng này không còn trong bản nháp.",
+    "unknown_leg": "Chặng này không còn trong bản nháp.",
+    "not_published": "Địa điểm này hiện không khả dụng.",
+    "idempotency_key_reused": "Thay đổi này xung đột với một thay đổi trước. Hãy bỏ và thử lại.",
+    "snapshot_invalid": "Bản nháp này không nhận được thay đổi đó.",
+    "plan_blocked": "Hãy sửa các vấn đề của lịch trình trước.",
+    "stop_locked": "Điểm dừng này đã được khóa."
   },
   "sheet": {
     "subtitle": "Ngày {{day}} · điểm dừng {{number}} · {{time}}",
@@ -279,31 +289,29 @@
     "done": "Xong",
     "close": "Đóng",
     "dayFull": "Ngày {{day}} đã có 20 điểm dừng.",
-    "loading": "Đang tải địa điểm"
+    "loading": "Đang tải địa điểm",
+    "pendingBody": "Thay đổi trước chưa được áp dụng. Hãy thử lại hoặc bỏ nó trước khi chọn địa điểm khác."
   },
   "healthDetail": {
     "title": "Tình trạng kế hoạch",
     "openDetail": "Xem chi tiết",
-    "countBlocking_one": "{{count}} lỗi chặn",
-    "countBlocking_other": "{{count}} lỗi chặn",
-    "countWarnings_one": "{{count}} cảnh báo",
-    "countWarnings_other": "{{count}} cảnh báo",
-    "allDays": "Tất cả",
-    "filterA11y": "Hiện vấn đề của",
     "updating": "Đang cập nhật…",
     "error": "Không kiểm tra được kế hoạch",
     "errorBody": "Chưa thể lưu cho tới khi kiểm tra được kế hoạch.",
     "offline": "Bạn đang ngoại tuyến. Đang hiển thị kết quả gần nhất; tạm dừng các lối tắt sửa.",
-    "goodBody": "Mọi điểm dừng mở cửa vào giờ dự kiến, mọi chặng có tuyến đường, ngày kết thúc trước {{end}}.",
-    "arriveLeave": "Đến {{arrival}} · rời {{departure}}",
     "legTo": "Chặng tới #{{number}} {{name}}",
-    "noIssues": "Ngày này không có gì cần sửa.",
     "fixMove": "Chuyển lên đầu ngày",
     "fixMode": "Đổi cách di chuyển",
     "fixReplace": "Thay địa điểm",
     "fixShorten": "Rút ngắn hoặc xoá",
     "fixPlaceCard": "Xem thẻ địa điểm",
-    "fixA11y": "{{action}}: {{name}}"
+    "fixA11y": "{{action}}: {{name}}",
+    "summaryGood": "Mọi điểm đều vừa trong ngày và mọi chặng đều có đường đi.",
+    "summaryWarning": "Có thể lưu lịch trình. Nên xem qua các mục này trước.",
+    "summaryBlocked": "Cần sửa các mục này trước khi lưu.",
+    "noProblems": "Không có gì cần sửa. Mọi điểm đều vừa trong ngày.",
+    "hoursNotListed_one": "Chưa có giờ mở cửa của {{count}} điểm — nên kiểm tra trước khi đi.",
+    "hoursNotListed_other": "Chưa có giờ mở cửa của {{count}} điểm — nên kiểm tra trước khi đi."
   },
   "regen": {
     "title": "Tạo lại ngày {{day}}?",
@@ -331,27 +339,24 @@
     "stageDone": "Xong",
     "stageActive": "Đang làm",
     "failed": "Bản nháp và điểm giữ cố định không đổi.",
-    "done": "Đã tạo lại ngày {{day}} · bản {{revision}}",
+    "done": "Đã tạo lại ngày {{day}}",
     "retry": "Thử lại",
     "close": "Đóng"
   },
   "book": "Đặt chỗ ở và hoạt động",
   "eyebrow": "{{city}} · {{dates}}",
-  "healthCard": {
-    "WARNING": "Cần chú ý",
-    "BLOCKED": "Bị chặn",
-    "more_one": "Và {{count}} vấn đề khác",
-    "more_other": "Và {{count}} vấn đề khác",
-    "review": "Xem vấn đề",
-    "reviewStopHint": "Cuộn tới điểm dừng đầu tiên có vấn đề",
-    "reviewDetailHint": "Mở chi tiết tình trạng kế hoạch",
-    "good": "Kế hoạch ổn",
-    "goodA11y": "Tình trạng kế hoạch: ổn"
-  },
   "ready": {
     "toast": "Đề xuất đã sẵn sàng — chưa được lưu"
   },
   "assumptions": {
-    "title": "Lịch trình này dựa trên"
+    "title_one": "Giả định",
+    "title_other": "Giả định ({{count}})"
+  },
+  "ai": {
+    "line": "Ghi chú do Gonarra AI viết từ mô tả địa điểm."
+  },
+  "closed": {
+    "title": "Bản nháp này đã hết hạn",
+    "body": "Các chuyến đã lưu không thay đổi. Hãy tạo lại lịch trình để sửa hoặc lưu."
   }
 }

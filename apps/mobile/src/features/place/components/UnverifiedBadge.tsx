@@ -20,7 +20,7 @@ type Props = {
 };
 
 /**
- * Trust label for `WEB_UNVERIFIED` content (architecture §5, FR-098, DEC-022): *Chưa đối chiếu nguồn / Not source-checked* pill (word + icon,
+ * Trust label for `WEB_UNVERIFIED` content (architecture §5, FR-098, DEC-022): *Từ web / From the web* outlined pill (word + icon,
  * never colour alone), then the source host and fetched date, and a stale badge once the fetch is older than 7 days.
  */
 export function UnverifiedBadge({ url, fetchedAt, compact = false, onDark = false }: Props) {
@@ -32,13 +32,13 @@ export function UnverifiedBadge({ url, fetchedAt, compact = false, onDark = fals
   const label = [t('place.trust.unverified'), t('place.trust.unverifiedHint'), compact ? null : source, stale ? t('place.stale') : null].filter(Boolean).join('. ');
   return <View accessible accessibilityLabel={label} style={st.wrap}>
     <View style={[st.pill, onDark && st.pillDark]}>
-      <Icon color={onDark ? colors.white : colors.accentText} name="info" size={14} />
+      <Icon color={onDark ? colors.white : colors.warning} name="info" size={14} />
       <Text style={[st.pillText, onDark && { color: colors.white }]}>{t('place.trust.unverified')}</Text>
     </View>
     {!compact && <Text style={[st.source, onDark && { color: colors.white }]}>{source}</Text>}
     {!compact && stale && <View style={[st.pill, st.stale]}>
-      <Icon color={colors.warn} name="warning" size={14} />
-      <Text style={[st.pillText, { color: colors.warn }]}>{t('place.stale')}</Text>
+      <Icon color={colors.warning} name="warning" size={14} />
+      <Text style={[st.pillText, { color: colors.warning }]}>{t('place.stale')}</Text>
     </View>}
   </View>;
 }
@@ -58,10 +58,10 @@ export function CitationTrustBadge({ citation, compact }: { citation: Citation; 
 }
 
 const st = StyleSheet.create({
-  pill: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.surfaceTint, borderColor: colors.accentText, borderRadius: 16, borderStyle: 'dashed', borderWidth: 1, flexDirection: 'row', gap: 5, minHeight: 26, paddingHorizontal: 10, paddingVertical: 3 },
+  pill: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.white, borderColor: colors.warning, borderRadius: 16, borderWidth: 1, flexDirection: 'row', gap: 5, minHeight: 26, paddingHorizontal: 10, paddingVertical: 3 },
   pillDark: { backgroundColor: 'rgba(7,21,30,0.55)', borderColor: 'rgba(255,255,255,0.6)' },
-  pillText: { color: colors.accentText, fontFamily: fonts.bold, fontSize: 12, lineHeight: 16 },
+  pillText: { color: colors.warning, fontFamily: fonts.bold, fontSize: 12, lineHeight: 16 },
   source: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13, lineHeight: 19 },
-  stale: { backgroundColor: colors.warnBg, borderColor: colors.sun, borderStyle: 'solid' },
+  stale: { backgroundColor: colors.warningBg, borderColor: colors.warningBg },
   wrap: { alignItems: 'flex-start', gap: 4, marginTop: 4 },
 });

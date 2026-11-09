@@ -57,8 +57,8 @@ export function ExploreScreen() {
   const q = query.trim();
   const searching = isSignedIn && !offline && q.length > 0;
 
-  const data = useExploreData(city?.id, isSignedIn ? query : '', isSignedIn && !offline);
-  const { categories, categoryName, places, placesState, refresh, results, searchState } = data;
+  const data = useExploreData(city?.id, isSignedIn ? query : '', isSignedIn && !offline, category);
+  const { categories, categoryName, featuredSource, places, placesState, refresh, results, searchState, truncated } = data;
 
   // A signed-out session never keeps a typed query; a new city starts unfiltered.
   useEffect(() => { if (!isSignedIn) setQuery(''); }, [isSignedIn]);
@@ -76,9 +76,10 @@ export function ExploreScreen() {
     refresh();
   }, [city, cityError, refresh, reloadCities]);
 
-  const source = searching ? results : places;
-  const shown = useMemo(() => (category ? source.filter(p => p.category_code === category) : source), [category, source]);
-  const featured = useMemo(() => places.filter(p => p.thumbnail).slice(0, MAX_FEATURED), [places]);
+  // Category filtering happens on the server (search and list), so these are already the right places.
+  const shown = searching ? results : places;
+  const featured = useMemo(() => featuredSource.filter(p => p.thumbnail).slice(0, MAX_FEATURED), [featuredSource]);
+  const countLabel = (count: number) => (truncated ? t('explore.all.countMore', { count }) : t('explore.all.count', { count }));
 
   function renderPlaces(items: Place[]) {
     if (view === 'list') {
@@ -115,7 +116,10 @@ export function ExploreScreen() {
     } else if (searchState === 'done' && shown.length === 0) {
       body = (
         <EmptyState
-          actions={[{ label: t('explore.states.clearSearch'), onPress: () => setQuery('') }]}
+          actions={[
+            { label: t('explore.states.clearSearch'), onPress: () => setQuery('') },
+            ...(category ? [{ label: t('explore.states.showAll'), onPress: () => setCategory(null) }] : []),
+          ]}
           body={t('explore.states.emptyQueryBody')}
           icon="search"
           title={t('explore.states.emptyQueryTitle', { city: name, q })}
@@ -135,7 +139,7 @@ export function ExploreScreen() {
     body = offline
       ? <NoticeBanner icon="info" message={t('explore.states.offlineEmpty')} />
       : <ErrorBanner detail={data.placesError ? t(`common.loadError.${data.placesError}`) : null} message={t('explore.states.error')} onRetry={data.retryPlaces} retryLabel={t('explore.states.retry')} />;
-  } else if (places.length === 0) {
+  } else if (places.length === 0 && !category) {
     body = (
       <EmptyState
         actions={[]}
@@ -155,7 +159,7 @@ export function ExploreScreen() {
       />
     ) : (
       <>
-        <SectionHeader subtitle={t('explore.all.count', { count: shown.length })} title={label} />
+        <SectionHeader subtitle={countLabel(shown.length)} title={label} />
         {renderPlaces(shown)}
       </>
     );
@@ -180,7 +184,7 @@ export function ExploreScreen() {
             </ScrollView>
           </View>
         ) : null}
-        <SectionHeader subtitle={t('explore.all.count', { count: places.length })} title={t('explore.all.title')} />
+        <SectionHeader subtitle={countLabel(places.length)} title={t('explore.all.title')} />
         {renderPlaces(places)}
       </>
     );
@@ -194,7 +198,7 @@ export function ExploreScreen() {
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl colors={[colors.audioTeal]} onRefresh={onRefresh} refreshing={data.refreshing} tintColor={colors.audioTeal} />
+          <RefreshControl colors={[colors.primary]} onRefresh={onRefresh} refreshing={data.refreshing} tintColor={colors.primary} />
         }
         stickyHeaderIndices={[1]}
       >
@@ -254,8 +258,6 @@ const styles = StyleSheet.create({
   status: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
   sticky: {
     backgroundColor: colors.white,
-    borderBottomColor: colors.hairline,
-    borderBottomWidth: StyleSheet.hairlineWidth,
     paddingBottom: spacing.sm,
     paddingTop: spacing.xs,
   },

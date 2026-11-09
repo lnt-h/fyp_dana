@@ -14,11 +14,12 @@ import { currentLocale } from '../../../i18n';
 import { listCategories } from '../../../lib/api/source';
 import { searchCityPlaces } from '../../../lib/api/sourcePlanning';
 import type { Category, Place, Uuid } from '../../../lib/api/types';
-import { colors } from '../../../theme/colors';
+import { categoryColor, colors } from '../../../theme/colors';
 import { MIN_TOUCH, radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
 import { InlineBanner, PillButton, editTokens } from '../edit/EditUI';
 import { editErrorCopy } from '../edit/errorCopy';
+import type { PendingEdit } from '../edit/draftStore';
 import type { EditOutcome } from '../edit/usePreviewEditor';
 
 export const MUST_SEE_LIMIT = 10;
@@ -43,9 +44,16 @@ type Props = {
   onClose: () => void;
   /** Add mode: the day already has the maximum number of stops. */
   dayFull?: boolean;
+  /**
+   * Unresolved proposal edit (ADR-009): while it exists no new edit can be sent, so rows are disabled and the picker
+   * itself offers Retry / Discard (Discard only when the server refused it for good).
+   */
+  pending?: PendingEdit;
+  onRetryPending?: () => void;
+  onDiscardPending?: () => void;
 };
 
-export function PlacePicker({ mode, cityId, cityName, planned = {}, offline = false, onChoose, onClose, dayFull = false }: Props) {
+export function PlacePicker({ mode, cityId, cityName, planned = {}, offline = false, onChoose, onClose, dayFull = false, pending, onRetryPending, onDiscardPending }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
@@ -101,11 +109,15 @@ export function PlacePicker({ mode, cityId, cityName, planned = {}, offline = fa
   const title = mode.kind === 'add'
     ? t('proposal.picker.titleAdd', { day: mode.dayIndex })
     : mode.kind === 'replace' ? t('proposal.picker.titleReplace', { number: mode.number }) : t('proposal.picker.titleMustSee');
-  const busy = busyId !== null;
   const mustSee = mode.kind === 'mustSee';
+  // An edit still applying (e.g. this picker's own choice) counts as busy; a failed one blocks choosing until resolved.
+  const blockedByPending = !mustSee && !!pending;
+  const busy = busyId !== null || (!mustSee && pending?.status === 'applying');
   const full = mustSee && mode.selected.length >= MUST_SEE_LIMIT;
   const currentDay = mode.kind === 'add' ? mode.dayIndex : null;
   const vi = currentLocale() === 'vi';
+  // DEC-031: an area (bay, old town) is not a planner stop — it is shown on the map and answered by the Guide only.
+  const schedulable = results?.filter(item => !item.is_area) ?? null;
 
   function badgeFor(place: Place): string | null {
     if (mustSee) return null;
@@ -115,11 +127,11 @@ export function PlacePicker({ mode, cityId, cityName, planned = {}, offline = fa
     return day === currentDay ? t('proposal.picker.inThisDay') : t('proposal.picker.inDay', { day });
   }
 
-  return <Modal animationType={reducedMotion ? 'none' : 'slide'} onRequestClose={() => { if (!busy) onClose(); }} presentationStyle="fullScreen" visible={visible}>
+  return <Modal animationType={reducedMotion ? 'none' : 'slide'} onRequestClose={() => { if (busyId === null) onClose(); }} presentationStyle="fullScreen" visible={visible}>
     <StatusBar style="dark" />
     <View accessibilityViewIsModal style={[k.screen, { paddingTop: insets.top }]}>
       <View style={k.header}>
-        <CircleButton accessibilityLabel={t('proposal.picker.close')} disabled={busy} icon="back" onPress={onClose} size={44} tone="tint" />
+        <CircleButton accessibilityLabel={t('proposal.picker.close')} disabled={busyId !== null} icon="back" onPress={onClose} size={44} tone="tint" />
         <View style={k.headerCopy}>
           <Text accessibilityRole="header" numberOfLines={2} style={k.title}>{title}</Text>
           {mode.kind === 'replace' ? <Text numberOfLines={1} style={k.subtitle}>{t('proposal.picker.replacing', { name: mode.name })}</Text> : null}
@@ -155,6 +167,7 @@ export function PlacePicker({ mode, cityId, cityName, planned = {}, offline = fa
         {[...categories].sort((a, b) => a.sort_order - b.sort_order).map(item => <Chip
           key={item.code}
           icon={categoryIcon(item.code)}
+          tone={categoryColor(item.code)}
           label={vi ? item.name_vi : item.name_en}
           onPress={() => setCategory(current => current === item.code ? null : item.code)}
           selected={category === item.code}
@@ -163,9 +176,20 @@ export function PlacePicker({ mode, cityId, cityName, planned = {}, offline = fa
 
       {offline ? <InlineBanner style={k.banner} title={t('proposal.picker.offline')} tone="warning" /> : null}
       {dayFull && currentDay ? <InlineBanner style={k.banner} title={t('proposal.picker.dayFull', { day: currentDay })} tone="warning" /> : null}
-      {error ? <InlineBanner body={t('proposal.edit.kept')} style={k.banner} title={error} tone="error" /> : null}
+      {blockedByPending && pending && pending.status !== 'applying' ? <InlineBanner
+        actions={pending.status === 'rejected'
+          ? <PillButton label={t('proposal.edit.discard')} onPress={() => onDiscardPending?.()} tone="primary" />
+          : <>
+            <PillButton icon="refresh" label={pending.status === 'conflict' ? t('proposal.edit.reloadReapply') : t('proposal.edit.retry')} onPress={() => onRetryPending?.()} tone="primary" />
+            <PillButton label={t('proposal.edit.discard')} onPress={() => onDiscardPending?.()} />
+          </>}
+        body={pending.status === 'rejected' ? t('proposal.edit.rejectedBody') : t('proposal.picker.pendingBody')}
+        style={k.banner}
+        title={pending.status === 'conflict' ? t('proposal.edit.conflictTitle') : pending.status === 'expired' ? t('proposal.edit.expiredTitle') : editErrorCopy(t, pending.errorCode)}
+        tone="error"
+      /> : error ? <InlineBanner body={t('proposal.edit.kept')} style={k.banner} title={error} tone="error" /> : null}
 
-      {results === null
+      {schedulable === null
         ? <View accessibilityLabel={t('proposal.picker.loading')} accessibilityLiveRegion="polite" style={k.list}>
           {[0, 1, 2].map(index => <View key={index} style={k.row}>
             <Skeleton height={THUMB} radius={radii.iconTile} width={THUMB} />
@@ -181,13 +205,14 @@ export function PlacePicker({ mode, cityId, cityName, planned = {}, offline = fa
               <Text style={k.emptyBody}>{t('proposal.picker.emptyBody')}</Text>
             </View>}
           contentContainerStyle={[k.list, { paddingBottom: insets.bottom + spacing.xl }]}
-          data={results}
+          data={schedulable}
           keyExtractor={item => item.id}
+          keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => {
             const badge = badgeFor(item);
             const chosen = mustSee && mode.selected.some(selected => selected.id === item.id);
-            const disabled = offline || busy || !!badge || (mode.kind === 'add' && dayFull) || (mustSee && full && !chosen);
+            const disabled = offline || busy || blockedByPending || !!badge || (mode.kind === 'add' && dayFull) || (mustSee && full && !chosen);
             return <PlaceRow
               badge={badge}
               busy={busyId === item.id}

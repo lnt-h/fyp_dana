@@ -3,17 +3,18 @@
 | Field | Value |
 |---|---|
 | Document ID | GONARRA-SAD |
-| Version | 2.0 |
+| Version | 2.1 |
 | Date | 2026-11-09 |
 | Owner | Lê Ngọc Tấn Hiền |
 | Approver | trantrongminh, FYP mentor — **[Pending]** |
-| Decision basis | DEC-013..DEC-028 ([decisions](../../decisions.md)); ADR-001..ADR-014 (§9) |
+| Decision basis | DEC-013..DEC-034 ([decisions](../../decisions.md)); ADR-001..ADR-014 (§9) |
 | Scope | Đà Nẵng only (Hội An is an area inside Đà Nẵng since the 2025 merger); VI and EN equal; free provider tiers only |
 
 | Version | Date | Change |
 |---|---|---|
 | 0.1–0.3 | 2026-11-04..05 | Five-city SAD (IEEE 1016, 4+1 views); full text at git tag `docs-sdlc-full` |
 | 2.0 | 2026-11-09 | Rewritten from the condensed architecture (re-baseline DEC-013..028): Đà Nẵng only, three Agno roles with a deterministic orchestrator, research safety net, city-level Guide, calendar rules, automated publication gate (no curator review, DEC-022), no Google Maps Platform in the demo (DEC-023), AI-extracted facts (DEC-028). Checked against `apps/api` and `apps/mobile` on 2026-11-09 |
+| 2.1 | 2026-11-09 | DEC-031 retires AI-generated catalog content (DEC-025/DEC-028): catalog text is human-written and cited, with Wikivoyage attribution (DEC-032) and optional descriptions (DEC-033); folder tree and AI section updated; DEC-034 API hardening and planner balance |
 
 Related: [BRD](../../02-requirements/BRD.md) · [PRD](../../03-analysis/PRD.md) · [user stories](../../03-analysis/user-stories.md) · [API contract](../api/api-contract.md) and [openapi.yaml](../api/openapi.yaml) · [data model](../data/data-model.md) and [schema.sql](../data/schema.sql) · [diagrams](../diagrams/README.md) · [UI/UX](../ui-ux/README.md) · [test plan](../../07-verification/TEST_PLAN.md).
 
@@ -67,20 +68,20 @@ There is no curator UI. Catalog content enters through the automated ingestion p
 ```text
 apps/api/app/
   ai/          providers.py (ModelSpec, role chains), quota.py (ledger), redaction.py (BR-046), invocations.py
-  agents/      selector.py, researcher.py, writer.py, runtime.py, schemas.py, validators.py, fact_validation.py
+  agents/      selector.py, researcher.py, writer.py, runtime.py, schemas.py, validators.py
                # the only place an Agno Agent is built
   planning/    orchestrator.py (deterministic step-runner), workflows.py, pool.py (candidates), rule_selector.py,
                assemble.py, health.py, solver/{model,solve}.py, calendar/{lunar,rules,windows}.py
   routing/     provider.py (select_provider), estimate.py (demo only), google_routes.py, matrix.py,
                matrix_cache.py, anchors.py, warm.py
   guide/       service.py (ask pipeline), retrieval.py, evidence.py, answer.py, embedding.py, repository.py, store.py
-  research/    tavily.py, fetch.py (SSRF guard), extract.py, places_check.py, candidates_repo.py, toolbox.py,
-               enrich.py (DEC-025 descriptions), fact_extract.py (DEC-028 facts), store.py
+  research/    tavily.py, fetch.py (SSRF guard), extract.py, places_check.py, candidates_repo.py, toolbox.py, store.py
   catalog/     places.py, search.py, normalize.py, preferences.py, reference.py
-  ingestion/   cli.py (Typer groups), wikidata.py, wikidata_link.py, osm.py, wikipedia.py, commons.py, sheet.py,
-               areas.py, calendar.py (closure-rule YAML loader), categories.py, policies.py
-  curation/    auto_publish.py (publication gate, actor system:gonarra-pipeline), facts.py, chunks.py,
-               embedding.py, closure_rules.py, web_promotion.py, operator.py, audit_sample.py
+  ingestion/   cli.py (Typer groups), wikidata.py, wikidata_link.py, osm.py, wikipedia.py, wikivoyage.py, commons.py,
+               sheet.py, areas.py, calendar.py (closure-rule YAML loader), categories.py, policies.py
+  curation/    auto_publish.py (publication gate, actor system:gonarra-pipeline), identity.py, dedupe.py, overrides.py,
+               names.py, facts.py, chunks.py, city_chunks.py, embedding.py, closure_rules.py, web_promotion.py,
+               operator.py, audit_sample.py
   trips/       service.py, repository.py, snapshot.py, render.py, idempotency.py, handoff.py, deletion.py
   security/    clerk.py (JWT, demo shared user), clerk_backend.py, curator.py (operator allow-list)
   api/         router.py, sse.py, routes/{health,identity,preferences,catalog,trips,previews,guide,deletion,admin}.py
@@ -173,7 +174,7 @@ Catalog-first: the researcher runs only for a thin pool (threshold OQ-127) and o
 
 There is no curator queue. A candidate with `EXISTS_OPERATIONAL` inside the Đà Nẵng boundary can be promoted by `python -m app.cli web-candidates promote` (`curation/web_promotion.py`) into the pipeline as an imported place; it becomes `VERIFIED` only if the publication gate later passes it. A model may propose a candidate; it never publishes a place and never invents a displayed fact.
 
-**AI-extracted facts (DEC-028, built).** `enrich facts` (offline, operator-run) lets the `grounded_writer` extract ADDRESS_VI, OPENING_HOURS and ADMISSION_PRICE only from supplied evidence (OSM tags, Wikidata, Wikipedia extracts, the official site, up to two fetched pages). Code keeps a field only if it cites a supplied evidence ID with a source revision, parses hours and prices into the fact shapes, rejects contact data and sets `grounding` `STRONG`/`WEAK`. The gate publishes the result as `origin = AI_EXTRACTED` where no owner-sheet or OSM value exists; the app labels it "Summarised from sources" / "Tóm tắt từ nguồn" with the source link. `enrich descriptions` (DEC-025) writes VI and EN descriptions from source text the same way (`translation_origin = AI_SUMMARY`). Distances and durations never come from a model.
+**Catalog content is human-written and cited (DEC-031, built).** Descriptions come verbatim (markup removed) from the owner sheet, Wikivoyage (CC BY-SA 4.0, DEC-032) or Wikipedia, per locale; each carries `description_source` attribution, licence and link. A description under 80 characters is a stub and counts as absent; DEC-033 option A publishes the place anyway and the app shows "No description yet" / "Chưa có mô tả". Facts come from OpenStreetMap, Wikidata, Wikivoyage listings and the owner sheet, each with a source revision and `origin` `SOURCE`/`OWNER`. AI-generated descriptions (`AI_SUMMARY`) and AI-extracted facts (`AI_EXTRACTED`) are retired: the gate rejects them (`AI_CONTENT`), the enum values stay for history, the retired providers' import records remain as an audit trail, and the documented restore path needs `allow_ai_content` plus an ACTIVE policy. Distances and durations never come from a model.
 
 ### 3.5 City-level Guide retrieval (ADR-010)
 
@@ -193,7 +194,7 @@ Contract: [schema.sql](../data/schema.sql); summary, ownership and retention: [d
 - Planner candidates are published places of the enabled city (`vw_published_places`) plus this request's web candidates. Only published places carry `VERIFIED`, meaning "passed the automated publication gate" (DEC-022), never "human-reviewed".
 - Publications are written only by the gate (`curation/auto_publish.py`, actor `system:gonarra-pipeline`) or withdrawn by the operator. The gate requires VI and EN content, an in-boundary location, a category, an attributed source revision for every shown fact and a recorded licence. Re-running it on unchanged input creates no new publication.
 - `trip_stops` has exactly one shape (published place + publication, or web candidate) with `trust_level`; `vw_trip_stop_trust` upgrades the effective trust once a candidate is promoted and published.
-- AI never writes `place_closure_rules` or publications. AI-extracted facts enter only through the import path with `origin = AI_EXTRACTED` and a cited source revision (DEC-028). Unknown facts stay unknown.
+- AI never writes `place_closure_rules` or publications. AI-written descriptions and AI-extracted facts are retired by DEC-031; the gate rejects them (`AI_CONTENT`) and the import path keeps their records only as history. Unknown facts stay unknown.
 - Provider policies are default-deny (ADR-006): an unknown provider, field or purpose is never persisted. Google Places keeps only `place_id` canonically.
 - Previews are immutable revisions; Save is explicit, optimistic and idempotent (ADR-009).
 
@@ -227,9 +228,9 @@ A dropped stream is resumed by reading the persisted preview or message, never b
 
 ## 7. Hosting and CI
 
-Local development runs Docker Compose with two services, `db` (PostGIS + pgvector image from `infra/postgres`) and `api`. The study runs on one host with Docker Compose plus a Caddy TLS proxy (planned). [ADR-002](../adr/ADR-002-aws-ec2-rds-hosting.md) (AWS ap-southeast-1, EC2 + RDS) stays the default on paper; the final hosting decision is OQ-129, before M2. Images are built for arm64 and amd64. Scheduled work (pipeline run and publication gate, deletion jobs, cache sweeps, `routes warm`) runs as Typer commands of the API image on a timer; no workers, queues or Redis.
+Local development runs Docker Compose with two services, `db` (PostGIS + pgvector image from `infra/postgres`) and `api`. The study runs on one host with Docker Compose plus a Caddy TLS proxy (planned). [ADR-002](../adr/ADR-002-aws-ec2-rds-hosting.md) (AWS ap-southeast-1, EC2 + RDS) stays the default on paper; the final hosting decision is OQ-129, before M2. Images are built for arm64 and amd64. Scheduled work (pipeline run and publication gate, deletion jobs, `caches sweep`, `routes warm`) runs as Typer commands of the API image on a timer; no workers, queues or Redis.
 
-CI (`.github/workflows/ci.yml`): `uv run ruff check .`, `uv run mypy app`, `uv run lint-imports`, `uv run pytest` (agents mocked), `scripts/export_openapi.py --check`, then against the Compose database `alembic upgrade head`, `app.cli seed`, `pytest -m integration` and a downgrade/upgrade round-trip; multi-arch image build; mobile `npm run typecheck` and `npm run check:dependencies`. AI evals against real providers (`pytest -m eval`: selection validity, hallucinated-place rate, calendar-conflict recall, citation validity, `INSUFFICIENT_EVIDENCE` precision and recall) are planned for a nightly job; the `eval` marker is not yet defined.
+CI (`.github/workflows/ci.yml`): `uv run ruff check .`, `uv run mypy app`, `uv run lint-imports`, `uv run pytest` (agents mocked), `scripts/export_openapi.py --check`, then against a scratch database whose name ends `_test` / `_it` / `_ci` (CI uses `gonarra_test`; DEC-034 refuses anything else) `alembic upgrade head`, `app.cli seed`, `pytest -m integration` and a downgrade/upgrade round-trip; multi-arch image build; mobile `npm run typecheck` and `npm run check:dependencies`. AI evals against real providers (`pytest -m eval`: selection validity, hallucinated-place rate, calendar-conflict recall, citation validity, `INSUFFICIENT_EVIDENCE` precision and recall) are planned for a nightly job; the `eval` marker is not yet defined.
 
 ## 8. Quality attributes and risks
 
@@ -252,7 +253,7 @@ CI (`.github/workflows/ci.yml`): `uv run ruff check .`, `uv run mypy app`, `uv r
 | RSK-012 | Web-found places wrong and followed | Label on every surface, existence check, WARNING cap, flag off by default and off for the study if precision is low |
 | RSK-105 | No human review weakens the source-checked claim | "Source-checked" copy only; attributed source per fact; mentor decision OQ-131 |
 | RSK-106 | Estimated legs off by about ±30 % | Development/test/demo only; `estimated`, INFO `LEG_ESTIMATED`, "≈"; never cached; Valhalla before the study (OQ-132) |
-| RSK-107 | AI-summarised descriptions or extracted facts wrong | Supplied sources only, citations validated, contact data rejected, `STRONG`/`WEAK` grounding, "Summarised from sources" label, 10 % audit sample (OQ-133) |
+| RSK-107 | AI-written catalog content returns (retired DEC-025/DEC-028 descriptions or facts) | DEC-031: gate rule `AI_CONTENT` rejects `AI_SUMMARY`/`AI_EXTRACTED`; AI import providers deactivated; restore path needs `allow_ai_content` and an ACTIVE policy; catalog text is human-written and cited; 10 % audit sample (OQ-133 closed, OQ-136) |
 | RSK-108 | OSM misses small eateries | FOOD/CAFE filter, owner CSV, research as `WEB_UNVERIFIED` |
 | RSK-013 / 003 | Tavily, Groq or Gemini quota exhausted | Ledger caps, caches, fallback chains, Tavily credits reserved for the study |
 | RSK-014 | Agno API churn | Exact pin, imports confined to `ai/` and `agents/` |

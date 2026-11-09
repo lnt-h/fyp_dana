@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.places import vw_published_place_facts, vw_published_places
 from app.models.catalog import CatalogPublication, PlaceClosureRule
+from app.models.reference import Area, Category
 from app.planning.calendar.rules import ClosureRule, describe_rule_error
 from app.planning.calendar.windows import OpeningHours
 
@@ -43,6 +44,13 @@ class PoolPlace:
     hours: OpeningHours | None
     fact_verified_at: date | None  # oldest verification of a KNOWN operational fact
     corpus_revision: int | None = None
+    # Localized published text for the rationale writer (never coordinates, hours or prices).
+    description_vi: str | None = None
+    description_en: str | None = None
+    area_name_vi: str | None = None
+    area_name_en: str | None = None
+    category_name_vi: str | None = None
+    category_name_en: str | None = None
 
     @property
     def key(self) -> str:
@@ -53,6 +61,15 @@ class PoolPlace:
 
     def summary(self, locale: str) -> str | None:
         return self.summary_en if locale == "en" else self.summary_vi
+
+    def description(self, locale: str) -> str | None:
+        return self.description_en if locale == "en" else self.description_vi
+
+    def area_name(self, locale: str) -> str | None:
+        return self.area_name_en if locale == "en" else self.area_name_vi
+
+    def category_label(self, locale: str) -> str | None:
+        return self.category_name_en if locale == "en" else self.category_name_vi
 
 
 # "Famous" = the published corpus holds a Wikipedia lead for the place (an approved chunk of the
@@ -100,6 +117,12 @@ async def load_pool(session: AsyncSession, city_id: uuid.UUID) -> list[PoolPlace
                 vw.c.name_en,
                 vw.c.short_description_vi,
                 vw.c.short_description_en,
+                vw.c.description_vi,
+                vw.c.description_en,
+                Area.name_vi.label("area_name_vi"),
+                Area.name_en.label("area_name_en"),
+                Category.name_vi.label("category_name_vi"),
+                Category.name_en.label("category_name_en"),
                 func.ST_Y(func.geometry(vw.c.location)).label("lat"),
                 func.ST_X(func.geometry(vw.c.location)).label("lng"),
                 vw.c.visit_minutes_suggested,
@@ -107,7 +130,12 @@ async def load_pool(session: AsyncSession, city_id: uuid.UUID) -> list[PoolPlace
             )
             .select_from(vw)
             .join(CatalogPublication, CatalogPublication.id == vw.c.catalog_publication_id)
-            .where(vw.c.city_id == city_id)
+            .outerjoin(
+                Area,
+                (Area.code == CatalogPublication.area_code) & (Area.city_id == vw.c.city_id),
+            )
+            .outerjoin(Category, Category.code == vw.c.category_code)
+            .where(vw.c.city_id == city_id, CatalogPublication.is_area.is_(False))
             .order_by(vw.c.place_id)
         )
     ).all()
@@ -160,6 +188,12 @@ async def load_pool(session: AsyncSession, city_id: uuid.UUID) -> list[PoolPlace
             hours=hours.get(row.catalog_publication_id),
             fact_verified_at=verified.get(row.catalog_publication_id),
             corpus_revision=row.corpus_revision,
+            description_vi=row.description_vi,
+            description_en=row.description_en,
+            area_name_vi=row.area_name_vi,
+            area_name_en=row.area_name_en,
+            category_name_vi=row.category_name_vi,
+            category_name_en=row.category_name_en,
         )
         for row in rows
     ]

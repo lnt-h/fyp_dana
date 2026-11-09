@@ -8,7 +8,7 @@ Gonarra is the working name for a bilingual Vietnamese/English AI itinerary plan
 
 Built with React Native, Expo, TypeScript, Expo Router and a Python/FastAPI modular monolith. The current build includes onboarding and Clerk sign-in, the Đà Nẵng catalog with search and place cards, AI trip proposals with a timeline, map, Plan Health and explicit Save, and the city-level Guide, on PostgreSQL 16 with PostGIS and pgvector.
 
-The catalog comes from open data (OpenStreetMap, Wikidata, Wikipedia, Wikimedia Commons) with field-level provenance and an automated publication gate (DEC-022). Descriptions and some facts may be summarised by AI from cited sources only, and the app labels them "Summarised from sources" (DEC-025, DEC-028). Restricted provider content remains runtime-only under its terms. Models may select only published Gonarra place IDs; route distances and durations come from Google Routes, or from a labelled estimate in the demo (DEC-023). See the [data model](docs/04-design/data/data-model.md).
+The catalog comes from open data (OpenStreetMap, Wikidata, Wikipedia, Wikivoyage, Wikimedia Commons) and the owner's sheet, with field-level provenance and an automated publication gate (DEC-022). Descriptions and facts are human-written from cited sources and never AI-generated (DEC-031); each description carries its attribution and licence. Restricted provider content remains runtime-only under its terms. Models may select only published Gonarra place IDs; route distances and durations come from Google Routes, or from a labelled estimate in the demo (DEC-023). AI is used only for planning rationales and Guide answers, from supplied evidence. See the [data model](docs/04-design/data/data-model.md) and the [project guide](docs/PROJECT_GUIDE.md).
 
 ## Getting started
 
@@ -77,6 +77,18 @@ The app has no offline or demo data: every screen reads from the API, and the AP
 | App shows offline / network error, `curl` on the computer works | Phone cannot reach the API: wrong LAN IP, API bound to `127.0.0.1`, or phone on another network | Update the IP, start uvicorn with `--host 0.0.0.0` |
 | `db-check` exits 1 | Migrations behind the code | `uv run alembic upgrade head` |
 | Catalog is empty after a fresh volume | Database recreated | Re-run the ingestion pipeline (`apps/api/README.md`) |
+
+## Deploy
+
+Production runs on one VM with `docker-compose.prod.yml`: Caddy (automatic HTTPS) in front of the API, PostgreSQL 16 + PostGIS + pgvector with no published port, a one-shot migration job before every API start, and nightly `pg_dump` backups kept 14 days. Images build natively on arm64 and amd64.
+
+```bash
+cp infra/.env.example .env && chmod 600 .env   # host name, ACME email, DB password, provider keys
+GONARRA_API_TAG=$(git rev-parse --short HEAD) docker compose -f docker-compose.prod.yml up -d --build --wait
+curl -fsS https://<GONARRA_API_HOST>/ready
+```
+
+First deploy on a fresh Ubuntu VM, updates, rollback, restore from backup and logs: [infra/README.md](infra/README.md). The local `docker-compose.yml` stays the development stack (settings from `infra/dev.env` then `apps/api/.env`; database on `127.0.0.1` only).
 
 ## Documentation
 

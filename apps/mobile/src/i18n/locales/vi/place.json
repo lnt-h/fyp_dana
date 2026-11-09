@@ -1,7 +1,7 @@
 {
   "loading": "Đang tải thẻ địa điểm…",
   "notFoundTitle": "Địa điểm này không còn khả dụng",
-  "notFoundBody": "Địa điểm có thể đã bị gỡ khỏi danh sách địa điểm đã đối chiếu nguồn của Gonarra.",
+  "notFoundBody": "Có thể địa điểm đã bị gỡ hoặc đường dẫn không đúng.",
   "errorTitle": "Chưa tải được địa điểm này",
   "retry": "Thử lại",
   "noPhoto": "Chưa có ảnh của {{name}}",
@@ -9,11 +9,11 @@
   "visitAbout": "khoảng {{count}} phút",
   "driver": {
     "cap": "Đưa cho tài xế xem",
-    "addressUnknown": "Địa chỉ: chưa rõ",
-    "a11y": "Đưa cho tài xế: {{name}}, {{address}}"
+    "a11y": "Đưa cho tài xế: {{name}}, {{address}}",
+    "a11yName": "Đưa cho tài xế: {{name}}"
   },
   "facts": {
-    "title": "Thông tin thực tế",
+    "title": "Thông tin hữu ích",
     "OPENING_HOURS": "Giờ mở cửa",
     "ADMISSION_PRICE": "Giá vé",
     "ADDRESS_VI": "Địa chỉ",
@@ -22,10 +22,9 @@
     "DRESS_CODE": "Trang phục",
     "ACCESS_RULES": "Quy định ra vào",
     "other": "Thông tin khác",
-    "aiExtracted": "Tóm tắt từ nguồn",
-    "aiExtractedHint": "Thông tin này được Gonarra trích từ nguồn bên dưới; hãy kiểm tra nguồn trước khi đi",
     "free": "Miễn phí",
-    "childPrice": "trẻ em {{price}}"
+    "childPrice": "trẻ em {{price}}",
+    "entrancePinned": "Đã đánh dấu để chỉ đường"
   },
   "unknown": "chưa rõ",
   "notApplicable": "không áp dụng",
@@ -39,7 +38,9 @@
     "sectionLabel": "Mục",
     "locatorLabel": "Vị trí trong nguồn",
     "openPlace": "Mở thẻ địa điểm",
-    "verifiedLong": "Đã đối chiếu nguồn · {{date}}"
+    "verifiedLong": "Đã đối chiếu nguồn · {{date}}",
+    "openLink": "Mở nguồn",
+    "openLinkHint": "Mở trang nguồn trong trình duyệt"
   },
   "sections": {
     "OVERVIEW": "Tổng quan",
@@ -52,9 +53,9 @@
   },
   "description": {
     "title": "Giới thiệu",
-    "note": "Mô tả: nội dung do Gonarra biên soạn",
-    "aiSummary": "Tóm tắt từ nguồn",
-    "aiSummaryHint": "Xem các nguồn được dùng để tóm tắt mô tả này"
+    "none": "Chưa có mô tả",
+    "owner": "Gonarra",
+    "source": "Theo {{publisher}} · {{license}}"
   },
   "media": {
     "title": "Ảnh"
@@ -67,13 +68,11 @@
   "directionsFailed": "Không mở được ứng dụng bản đồ",
   "askGuide": "Hỏi về nơi này",
   "quick": {
-    "hours": "Giờ mở cửa",
-    "visit": "Tham quan",
-    "price": "Vé vào cửa"
+    "visit": "Tham quan"
   },
   "share": "Chia sẻ địa điểm",
   "trust": {
-    "unverified": "Chưa đối chiếu nguồn",
+    "unverified": "Từ web",
     "unverifiedHint": "Tìm thấy trên web; Gonarra chưa đối chiếu với nguồn.",
     "webSource": "{{host}} · lấy ngày {{date}}",
     "webSourceUnknown": "Nguồn web"
@@ -82,12 +81,16 @@
     "thumbA11y": "Ảnh {{index}}/{{total}} của {{name}}",
     "credit": "Ảnh: {{credit}} ({{license}})"
   },
-  "tags": {
-    "verified": "Đã đối chiếu nguồn"
+  "nameSourceFallback": "Tên tiếng Việt; nguồn chưa có tên tiếng Anh",
+  "hours": {
+    "everyDay": "Hằng ngày",
+    "allDay": "Mở cửa 24/24",
+    "closed": "Nghỉ {{days}}"
   },
-  "sources": {
-    "line": "Nguồn: {{publishers}}",
-    "hint": "Chuyển tới phần nguồn và ghi công"
-  },
-  "nameSourceFallback": "Tên tiếng Việt; nguồn chưa có tên tiếng Anh"
+  "missing": {
+    "line": "Chưa có thông tin: {{items}}",
+    "OPENING_HOURS": "giờ mở cửa",
+    "ADMISSION_PRICE": "giá vé",
+    "ADDRESS_VI": "địa chỉ"
+  }
 }

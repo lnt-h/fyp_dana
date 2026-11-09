@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon, Photo, categoryIcon } from '../../../components/ui';
 import type { Place } from '../../../lib/api/types';
-import { colors } from '../../../theme/colors';
+import { categoryColor, colors } from '../../../theme/colors';
 import { radii } from '../../../theme/spacing';
 import { elevation } from '../../../theme/elevation';
 import { fonts } from '../../../theme/typography';
@@ -31,7 +31,7 @@ export function PlacePreviewCard({ place, onOpen }: Props) {
       <View style={styles.body}>
         <Text numberOfLines={1} style={styles.name}>{place.name}</Text>
         <View style={styles.meta}>
-          <Icon color={colors.tealText} name={categoryIcon(place.category_code)} size={16} />
+          <Icon color={categoryColor(place.category_code).fg} name={categoryIcon(place.category_code)} size={16} />
           {minutes ? (
             <>
               <Icon color={colors.textMuted} name="clock" size={16} />
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   name: { color: colors.ink, fontFamily: fonts.bold, fontSize: 16, lineHeight: 22 },
   photo: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceTint,
+    backgroundColor: colors.surface,
     borderRadius: 14,
     height: 56,
     justifyContent: 'center',

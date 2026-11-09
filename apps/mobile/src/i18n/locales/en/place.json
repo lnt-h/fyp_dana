@@ -1,7 +1,7 @@
 {
   "loading": "Loading place card…",
   "notFoundTitle": "This place is no longer available",
-  "notFoundBody": "It may have been removed from Gonarra's source-checked places.",
+  "notFoundBody": "It may have been removed, or the link is not right.",
   "errorTitle": "Couldn't load this place",
   "retry": "Try again",
   "noPhoto": "No photo of {{name}} yet",
@@ -9,11 +9,11 @@
   "visitAbout": "about {{count}} min",
   "driver": {
     "cap": "Show your driver",
-    "addressUnknown": "Address unknown",
-    "a11y": "Show your driver: {{name}}, {{address}}"
+    "a11y": "Show your driver: {{name}}, {{address}}",
+    "a11yName": "Show your driver: {{name}}"
   },
   "facts": {
-    "title": "Practical details",
+    "title": "Good to know",
     "OPENING_HOURS": "Opening hours",
     "ADMISSION_PRICE": "Admission",
     "ADDRESS_VI": "Address",
@@ -22,10 +22,9 @@
     "DRESS_CODE": "Dress code",
     "ACCESS_RULES": "Access rules",
     "other": "Other detail",
-    "aiExtracted": "Summarised from sources",
-    "aiExtractedHint": "Gonarra extracted this from the source below; check the source before you go",
     "free": "Free",
-    "childPrice": "children {{price}}"
+    "childPrice": "children {{price}}",
+    "entrancePinned": "Marked for directions"
   },
   "unknown": "unknown",
   "notApplicable": "not applicable",
@@ -39,7 +38,9 @@
     "sectionLabel": "Section",
     "locatorLabel": "Where",
     "openPlace": "Open the place card",
-    "verifiedLong": "Source-checked · {{date}}"
+    "verifiedLong": "Source-checked · {{date}}",
+    "openLink": "Open source",
+    "openLinkHint": "Opens the source page in your browser"
   },
   "sections": {
     "OVERVIEW": "Overview",
@@ -52,9 +53,9 @@
   },
   "description": {
     "title": "About",
-    "note": "Description written by Gonarra",
-    "aiSummary": "Summarised from sources",
-    "aiSummaryHint": "Shows the sources this description was summarised from"
+    "none": "No description yet",
+    "owner": "Gonarra",
+    "source": "From {{publisher}} · {{license}}"
   },
   "media": {
     "title": "Photos"
@@ -67,13 +68,11 @@
   "directionsFailed": "Could not open a maps app",
   "askGuide": "Ask about this place",
   "quick": {
-    "hours": "Opening hours",
-    "visit": "Visit",
-    "price": "Admission"
+    "visit": "Visit"
   },
   "share": "Share this place",
   "trust": {
-    "unverified": "Not source-checked",
+    "unverified": "From the web",
     "unverifiedHint": "Found on the web; Gonarra has not checked it against its sources.",
     "webSource": "{{host}} · fetched {{date}}",
     "webSourceUnknown": "Web source"
@@ -82,12 +81,16 @@
     "thumbA11y": "Photo {{index}} of {{total}} of {{name}}",
     "credit": "Photo: {{credit}} ({{license}})"
   },
-  "tags": {
-    "verified": "Source-checked"
+  "nameSourceFallback": "Vietnamese name; our sources give no English name",
+  "hours": {
+    "everyDay": "Every day",
+    "allDay": "Open 24 hours",
+    "closed": "Closed {{days}}"
   },
-  "sources": {
-    "line": "Sources: {{publishers}}",
-    "hint": "Jumps to sources and credits"
-  },
-  "nameSourceFallback": "Vietnamese name; our sources give no English name"
+  "missing": {
+    "line": "Not listed yet: {{items}}",
+    "OPENING_HOURS": "hours",
+    "ADMISSION_PRICE": "ticket price",
+    "ADDRESS_VI": "address"
+  }
 }

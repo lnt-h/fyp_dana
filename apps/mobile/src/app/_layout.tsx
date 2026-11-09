@@ -34,7 +34,7 @@ function AppStack() {
   const { session } = useSession();
   if (!isLoaded) return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator accessibilityLabel={t('common.loadingSession')} /></View>;
   const pendingTask = !demoNoAuth && Boolean(session?.currentTask);
-  return <Stack screenOptions={{ animation: reduceMotion ? 'none' : 'fade', contentStyle: { backgroundColor: colors.deepOcean }, headerShown: false }}>
+  return <Stack screenOptions={{ animation: reduceMotion ? 'none' : 'fade', contentStyle: { backgroundColor: colors.canvas }, headerShown: false }}>
     <Stack.Protected guard={pendingTask}><Stack.Screen name="auth-task" /></Stack.Protected>
     <Stack.Protected guard={!pendingTask}>
       <Stack.Screen name="index" />
@@ -46,6 +46,8 @@ function AppStack() {
       <Stack.Screen name="settings" />
       <Stack.Screen name="travel-preferences" />
       <Stack.Screen name="language" />
+      {/* Catalog reads are public (API-011), so guests can open a place card from Home or Explore. */}
+      <Stack.Screen name="place/[placeId]" />
       <Stack.Protected guard={Boolean(isSignedIn)}>
         <Stack.Screen name="edit-profile" />
         <Stack.Screen name="delete-account" />
@@ -53,7 +55,6 @@ function AppStack() {
         <Stack.Screen name="plan/[previewId]/index" />
         <Stack.Screen name="plan/[previewId]/proposal" />
         <Stack.Screen name="plan/[previewId]/health" />
-        <Stack.Screen name="place/[placeId]" />
         <Stack.Screen name="trip/[tripId]/today" />
         <Stack.Screen name="trip/[tripId]/book" options={{ presentation: 'modal' }} />
       </Stack.Protected>

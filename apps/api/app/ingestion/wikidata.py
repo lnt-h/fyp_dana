@@ -48,7 +48,7 @@ SPARQL_ENDPOINT = "https://query.wikidata.org/sparql"
 API_URL = "https://www.wikidata.org/w/api.php"
 HUMAN_QID = "Q5"
 ENTITY_BATCH = 50
-IMPORTER_VERSION = "wikidata-1"
+IMPORTER_VERSION = "wikidata-2"  # 2: P31 class labels, P361 part of, P527 has part
 RELEASE_ID = "wdqs-live"
 ENTITY_URL = "https://www.wikidata.org/wiki/{qid}"
 LICENSE_CODE = "CC0-1.0"
@@ -66,6 +66,8 @@ SELECT ?item (SAMPLE(?c) AS ?coord) (SAMPLE(?lv) AS ?labelVi) (SAMPLE(?le) AS ?l
   (GROUP_CONCAT(DISTINCT ?aliasVi; separator="|") AS ?aliasesVi)
   (GROUP_CONCAT(DISTINCT ?aliasEn; separator="|") AS ?aliasesEn)
   (GROUP_CONCAT(DISTINCT ?img; separator="|") AS ?images)
+  (GROUP_CONCAT(DISTINCT ?partOf; separator="|") AS ?partOfs)
+  (GROUP_CONCAT(DISTINCT ?hasPart; separator="|") AS ?hasParts)
 WHERE {{
   SERVICE wikibase:box {{
     ?item wdt:P625 ?c .
@@ -83,6 +85,8 @@ WHERE {{
   OPTIONAL {{ ?av schema:about ?item ; schema:isPartOf <https://vi.wikipedia.org/> }}
   OPTIONAL {{ ?ae schema:about ?item ; schema:isPartOf <https://en.wikipedia.org/> }}
   OPTIONAL {{ ?item wdt:P18 ?img }}
+  OPTIONAL {{ ?item wdt:P361 ?partOf }}
+  OPTIONAL {{ ?item wdt:P527 ?hasPart }}
 }}
 GROUP BY ?item
 """
@@ -101,6 +105,9 @@ class WikidataItem:
     category: str | None = None
     # Wikimedia Commons file names from P18 ("File:" prefix stripped), sorted; see commons.py.
     images: tuple[str, ...] = ()
+    # P361 (part of) and P527 (has part) QIDs: PART_OF gate rule (DEC-031).
+    part_of: tuple[str, ...] = ()
+    has_part: tuple[str, ...] = ()
 
     def payload(self) -> dict[str, Any]:
         """Provider fields as named in the policy's field rules (filtered before storage)."""
@@ -113,6 +120,9 @@ class WikidataItem:
             "aliases": self.aliases,
             "sitelinks": self.sitelinks,
             "image": list(self.images),
+            "classes": list(self.class_labels),
+            "part_of": list(self.part_of),
+            "has_part": list(self.has_part),
         }
 
 
@@ -153,6 +163,12 @@ def _commons_file(value: str) -> str | None:
     """``http://commons.wikimedia.org/wiki/Special:FilePath/A%20b.jpg`` → ``A b.jpg``."""
     name = unquote(value.rsplit("/", 1)[-1]).replace("_", " ").strip()
     return name or None
+
+
+def _qids(value: str | None) -> tuple[str, ...]:
+    """``http://www.wikidata.org/entity/Q1|…`` → sorted QIDs."""
+    qids = {part.rsplit("/", 1)[-1] for part in _split(value)}
+    return tuple(sorted((q for q in qids if _QID.match(q)), key=lambda q: int(q[1:])))
 
 
 def parse_bindings(bindings: Sequence[dict[str, Any]]) -> list[WikidataItem]:
@@ -216,6 +232,8 @@ def parse_bindings(bindings: Sequence[dict[str, Any]]) -> list[WikidataItem]:
                     }
                 )
             ),
+            part_of=_qids(_value(binding, "partOfs")),
+            has_part=_qids(_value(binding, "hasParts")),
         )
     return [items[qid] for qid in sorted(items, key=lambda q: int(q[1:]))]
 

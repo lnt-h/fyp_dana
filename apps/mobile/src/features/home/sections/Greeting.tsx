@@ -28,6 +28,6 @@ export function Greeting({ name, cityName }: { name: string | null; cityName: st
 }
 
 const styles = StyleSheet.create({
-  subtitle: { ...typography.body, color: colors.textMuted, fontSize: 15, marginTop: 2 },
-  title: { ...typography.title, color: colors.deepOcean, fontSize: 26, lineHeight: 32 },
+  subtitle: { ...typography.body, color: colors.textSecondary, marginTop: 2 },
+  title: { ...typography.display, color: colors.ink },
 });

@@ -50,6 +50,14 @@ export function EditStatusBanner({ pending, regenerating, offline, onRetry, onDi
       tone="warning"
     />;
   }
+  if (pending.status === 'rejected') {
+    return <InlineBanner
+      actions={<PillButton label={t('proposal.edit.discard')} onPress={onDiscard} tone="primary" />}
+      body={t('proposal.edit.rejectedBody')}
+      title={editErrorCopy(t, pending.errorCode)}
+      tone="error"
+    />;
+  }
   return <InlineBanner
     actions={<>
       <PillButton icon="refresh" label={t('proposal.edit.retry')} onPress={onRetry} tone="primary" />

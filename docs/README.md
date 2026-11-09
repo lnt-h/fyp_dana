@@ -8,16 +8,18 @@ labelled `WEB_UNVERIFIED`. Owner: Lê Ngọc Tấn Hiền; approver: FYP mentor 
 
 ## Start here
 
-1. [Decision log](decisions.md): decisions, open questions, assumptions and risks.
-2. [BRD](02-requirements/BRD.md) and [PRD](03-analysis/PRD.md): why and what.
-3. [SAD](04-design/architecture/SAD.md) and the [ADRs](04-design/adr/): how, and why that way.
-4. [Development plan](05-development/Software_Development_Plan.md) and [test plan](07-verification/TEST_PLAN.md): when and how it is checked.
+1. [Project guide](PROJECT_GUIDE.md): how the repository, the app and the API fit together, flow by flow.
+2. [Decision log](decisions.md): decisions, open questions, assumptions and risks.
+3. [BRD](02-requirements/BRD.md) and [PRD](03-analysis/PRD.md): why and what.
+4. [SAD](04-design/architecture/SAD.md) and the [ADRs](04-design/adr/): how, and why that way.
+5. [Development plan](05-development/Software_Development_Plan.md) and [test plan](07-verification/TEST_PLAN.md): when and how it is checked.
 
 ## Structure
 
 ```text
 docs/
 ├── README.md                    this index
+├── PROJECT_GUIDE.md             repository, architecture, flows, config, commands
 ├── decisions.md                 DEC, OQ, ASM, RSK
 ├── 02-requirements/             BRD.md, interviews/ (SRC-100, SRC-105)
 ├── 03-analysis/                 PRD.md, user-stories.md
@@ -36,6 +38,7 @@ docs/
 
 | Document | Content |
 |---|---|
+| [Project guide](PROJECT_GUIDE.md) | Architecture, folder tree with file roles, end-to-end flows, configuration, commands, deployment |
 | [decisions.md](decisions.md) | Single log of decisions, open questions, live assumptions and risks |
 | [BRD](02-requirements/BRD.md) | Business objectives, metrics, scope, business rules |
 | [Elicitation records](02-requirements/interviews/) | SRC-100 (2026-11-04) and SRC-105 re-baseline session (2026-11-06) |

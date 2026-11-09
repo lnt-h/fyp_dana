@@ -7,6 +7,7 @@ invocation metadata, Pydantic validation); only ``agent.arun`` is replaced.
 from __future__ import annotations
 
 import json
+import logging
 import re
 import uuid
 from collections import Counter
@@ -718,6 +719,55 @@ async def test_quota_exceeded_is_429_and_keeps_nothing(world: World) -> None:
     assert response.status_code == 429
     assert response.json()["error"]["code"] == "quota_exceeded"
     assert not world.db.messages and not world.db.idem and not world.runner.prompts
+
+
+async def test_question_quota_is_checked_before_retrieval(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An over-quota question never reaches retrieval, so it spends no embedding quota."""
+    calls: list[str] = []
+
+    async def spy(self: HybridRetriever, *args: Any, **kwargs: Any) -> Any:
+        calls.append("retrieve")
+        raise AssertionError("retrieval must not run without question quota")
+
+    monkeypatch.setattr(HybridRetriever, "for_city", spy)
+    monkeypatch.setattr(HybridRetriever, "for_place", spy)
+    world.ledger.caps[Bucket.ACCOUNT_QUESTIONS] = 0
+    record = world.session()
+    response = await world.client.post(
+        f"/v1/ai/sessions/{record.id}/messages",
+        json={"content": "Linh Ung Pagoda hours?", "input_mode": "TEXT"},
+        headers=SSE,
+    )
+    events = parse_sse(response.text)
+    assert [e.get("stage") for e in events if e["type"] == "progress"] == ["VALIDATING"]
+    assert events[-1]["type"] == "error" and events[-1]["error"]["code"] == "quota_exceeded"
+    assert calls == []
+    assert world.ledger.used[Bucket.GEMINI_EMBED] == world.ledger.reserved[Bucket.GEMINI_EMBED] == 0
+    assert sum(world.ledger.reserved.values()) == 0  # every reservation released
+
+
+async def test_unexpected_failure_logs_no_question_text(
+    world: World, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    async def broken(self: HybridRetriever, *args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError("Linh Ung Pagoda hours? secret")
+
+    monkeypatch.setattr(HybridRetriever, "for_city", broken)
+    record = world.session()
+    with caplog.at_level(logging.INFO):
+        response = await world.client.post(
+            f"/v1/ai/sessions/{record.id}/messages",
+            json={"content": "Linh Ung Pagoda hours? secret", "input_mode": "TEXT"},
+            headers=SSE,
+        )
+    assert parse_sse(response.text)[-1]["error"]["code"] == "internal_error"
+    logged = "\n".join(r.getMessage() for r in caplog.records) + "".join(
+        str(r.exc_info) for r in caplog.records
+    )
+    assert "secret" not in logged and "guide_ask_failed" in logged
+    assert world.ledger.used[Bucket.ACCOUNT_QUESTIONS] == 0
 
 
 async def test_provider_failure_is_an_error_event_not_an_answer(world: World) -> None:

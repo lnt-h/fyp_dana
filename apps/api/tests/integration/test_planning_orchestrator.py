@@ -66,6 +66,8 @@ async def _publish(
     cat: str,
     pt: str,
     corpus_revision: int | None = None,
+    *,
+    is_area: bool = False,
 ) -> Any:
     place_id = await db.scalar(
         text(
@@ -89,8 +91,8 @@ async def _publish(
         text(
             "INSERT INTO catalog_publications (place_id, city_id, publication_revision,"
             " category_code, location, visit_minutes_min, visit_minutes_suggested,"
-            " visit_minutes_max, localization_vi_id, localization_en_id, corpus_revision)"
-            " VALUES (:p, :city, 1, :cat, ST_GeogFromText(:pt), 30, 60, 120, :vi, :en, :cr)"
+            " visit_minutes_max, localization_vi_id, localization_en_id, corpus_revision, is_area)"
+            " VALUES (:p, :city, 1, :cat, ST_GeogFromText(:pt), 30, 60, 120, :vi, :en, :cr, :area)"
         ),
         {
             "p": place_id,
@@ -100,6 +102,7 @@ async def _publish(
             "vi": loc["vi"],
             "en": loc["en"],
             "cr": corpus_revision,
+            "area": is_area,
         },
     )
     return place_id
@@ -183,7 +186,8 @@ async def test_propose_trip_end_to_end_over_sse(session: AsyncSession) -> None:
         name, ready = events[-1]
         assert name == "preview_ready", ready
         assert ready["preview_revision"] == 1
-        assert ready["plan_health"] in ("GOOD", "WARNING")  # hours unknown → WARNING
+        # DEC-030: unknown hours and estimated legs are INFO; the plan stays GOOD.
+        assert ready["plan_health"] == "GOOD"
 
         preview = (await client.get(f"/v1/plan-previews/{ready['preview_id']}")).json()
         days = preview["days"]
@@ -193,6 +197,10 @@ async def test_propose_trip_end_to_end_over_sse(session: AsyncSession) -> None:
         assert {uuid.UUID(stop["place_id"]) for stop in stops} <= seeded
         assert all(stop["trust_level"] == "VERIFIED" for stop in stops)
         assert all(stop["planned_arrival"] for stop in stops)
+        hours = [
+            c for stop in stops for c in stop["conflicts"] if c["type"] == "OPENING_HOURS_UNKNOWN"
+        ]
+        assert hours and all(c["severity"] == "INFO" for c in hours)
         legs = [leg for day in days for leg in day["legs"]]
         assert legs and all(leg["estimated"] is True for leg in legs)
         assert all(leg["availability"] == "AVAILABLE" and leg["duration_s"] for leg in legs)
@@ -395,8 +403,8 @@ async def test_routes_provider_estimate_one_day_preview(session: AsyncSession) -
     conflicts = [c for leg in legs for c in leg["conflicts"]]
     assert any(c["type"] == "LEG_ESTIMATED" and c["severity"] == "INFO" for c in conflicts)
     assert not any(c["type"] == "LEG_UNAVAILABLE" for c in conflicts)
-    # Routing never blocks an estimated plan (unknown hours may still make it WARNING).
-    assert preview["plan_health"] in ("GOOD", "WARNING")
+    # Routing never blocks an estimated plan; unknown hours are INFO (DEC-030).
+    assert preview["plan_health"] == "GOOD"
 
 
 async def test_google_routes_403_degrades_to_unavailable_legs(
@@ -524,6 +532,30 @@ async def test_pool_famous_means_a_wikipedia_lead_not_any_description(
     pool = {p.place_id: p for p in await load_pool(db, city_id)}
     assert pool[wiki].famous is True
     assert pool[plain].famous is False
+
+
+async def test_pool_excludes_areas(session: AsyncSession) -> None:
+    """DEC-031: an area (bay, old town) is published for the map and the Guide, never planned."""
+    from app.planning.pool import load_pool
+
+    db = session
+    city_id = await db.scalar(text("SELECT id FROM cities WHERE code = 'da-nang'"))
+    suffix = uuid.uuid4().hex[:8]
+    stop = await _publish(
+        db, city_id, f"wt-stop-{suffix}", "MUSEUM", "SRID=4326;POINT(108.24 16.06)", 1
+    )
+    area = await _publish(
+        db,
+        city_id,
+        f"wt-area-{suffix}",
+        "NATURE",
+        "SRID=4326;POINT(108.25 16.06)",
+        1,
+        is_area=True,
+    )
+    pool = {p.place_id for p in await load_pool(db, city_id)}
+    assert stop in pool
+    assert area not in pool
 
 
 async def test_takedown_by_slug_withdraws_and_retires(session: AsyncSession) -> None:

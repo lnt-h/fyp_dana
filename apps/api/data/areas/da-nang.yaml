@@ -7,7 +7,9 @@
 # `ba-na-hoa-vang` (the broad western/northern remainder of the former Đà Nẵng) comes last.
 # A place outside every polygon gets no area and fails the publication gate (MISSING_AREA).
 #
-# Optional per area: `name_vi` / `name_en` (written to the areas table by `areas load`, which
+# Optional per area: `short_vi` / `short_en` (short display names appended to places that share
+# one name, e.g. "Chùa Linh Ứng (Bãi Bụt)"; owner-maintained, never translated by a model),
+# `name_vi` / `name_en` (written to the areas table by `areas load`, which
 # also creates an area missing from the seed) and `hoi_an_area: true` (the "Hội An area" group
 # counted by the release gate: >= 30 published places). Real tourist clusters only; there is
 # deliberately no catch-all area (scattered mountains and former-Quảng Nam villages stay out).
@@ -16,6 +18,8 @@ areas:
   - code: hoi-an-old-town
     name_vi: Phố cổ Hội An
     name_en: Hoi An Ancient Town
+    short_vi: Hội An
+    short_en: Hoi An
     hoi_an_area: true
     # Inland Hội An: Ancient Town, Cẩm Phô, Tân An, Thanh Hà pottery village, Trà Quế, Cẩm Kim.
     # The eastern edge follows the coast diagonally so An Bàng and Cửa Đại stay coastal.
@@ -29,6 +33,8 @@ areas:
   - code: hoi-an-beaches-islands
     name_vi: Biển và đảo Hội An (An Bàng, Cửa Đại, Cù Lao Chàm)
     name_en: Hoi An beaches and islands (An Bang, Cua Dai, Cham Islands)
+    short_vi: Biển Hội An
+    short_en: Hoi An coast
     hoi_an_area: true
     # An Bàng, Cửa Đại, Cẩm Thanh coconut forest, Hà My, Cù Lao Chàm (Cham Islands). The east
     # edge reaches 108.70 so the outer islets of the Cù Lao Chàm group are covered.
@@ -45,6 +51,8 @@ areas:
   - code: hoi-an-outskirts
     name_vi: Ven Hội An (Thanh Chiêm, Gò Nổi, Nam Phước)
     name_en: Hoi An outskirts (Thanh Chiem, Go Noi, Nam Phuoc)
+    short_vi: Ven Hội An
+    short_en: Hoi An outskirts
     hoi_an_area: true
     # Countryside within ~8 km of the Ancient Town not covered above: the Quảng Nam citadel and
     # Điện Bàn museum at Thanh Chiêm, Gò Nổi island, Nam Phước across the Thu Bồn river and the
@@ -59,6 +67,8 @@ areas:
   - code: son-tra
     name_vi: Bán đảo Sơn Trà
     name_en: Son Tra Peninsula
+    short_vi: Sơn Trà
+    short_en: Son Tra
     # Sơn Trà peninsula (Linh Ứng pagoda, Bãi Bụt, Bàn Cờ peak) and the river-mouth north shore.
     polygon:
       - [108.236, 16.095]
@@ -70,6 +80,8 @@ areas:
   - code: my-khe-ngu-hanh-son
     name_vi: Biển Mỹ Khê – Ngũ Hành Sơn
     name_en: My Khe Beach – Marble Mountains
+    short_vi: Ngũ Hành Sơn
+    short_en: Marble Mountains
     # East bank of the Hàn river south of Sơn Trà: Mỹ Khê, Bắc Mỹ An, Non Nước, Marble Mountains,
     # and An Hải (the east-bank river front between the Rồng and Thuận Phước bridges).
     polygon:
@@ -83,6 +95,8 @@ areas:
   - code: da-nang-center
     name_vi: Trung tâm Đà Nẵng (Hải Châu, Thanh Khê)
     name_en: Da Nang city centre
+    short_vi: Trung tâm Đà Nẵng
+    short_en: Da Nang centre
     # Hải Châu and Thanh Khê west of the Hàn river (Dragon Bridge, Cham Museum, Hàn market). The
     # east edge follows the west bank (Bạch Đằng) up to the Thuận Phước bridge at the river mouth.
     polygon:
@@ -96,6 +110,8 @@ areas:
   - code: ba-na-hoa-vang
     name_vi: Bà Nà – Hòa Vang
     name_en: Ba Na Hills – Hoa Vang
+    short_vi: Bà Nà
+    short_en: Ba Na Hills
     # Bà Nà Hills, Hòa Vang, Liên Chiểu and Hải Vân pass: the rest of the former Đà Nẵng.
     # The northern edge stops at the Hải Vân ridge so Bạch Mã and Lăng Cô (Huế) stay outside.
     polygon:
@@ -112,6 +128,8 @@ areas:
   - code: my-son
     name_vi: Thánh địa Mỹ Sơn
     name_en: My Son Sanctuary
+    short_vi: Mỹ Sơn
+    short_en: My Son
     # The Mỹ Sơn Cham temple valley (UNESCO) and its visitor area in Duy Phú, Duy Xuyên.
     polygon:
       - [108.090, 15.735]
@@ -121,6 +139,8 @@ areas:
   - code: tam-ky
     name_vi: Tam Kỳ – Tam Thanh
     name_en: Tam Ky – Tam Thanh
+    short_vi: Tam Kỳ
+    short_en: Tam Ky
     # Tam Kỳ town (Quảng Nam museum, Khương Mỹ towers) and the Tam Thanh mural village coast.
     polygon:
       - [108.440, 15.500]

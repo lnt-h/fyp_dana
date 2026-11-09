@@ -65,10 +65,14 @@ class DaySpec:
     start_key: str
     end_key: str
     lunch: BreakSpec | None = None
+    # Pace: at most this many stops on the day (``None`` = no cap). Hard constraint.
+    max_stops: int | None = None
 
     def __post_init__(self) -> None:
         if not (0 <= self.start_s < self.end_s <= SECONDS_PER_DAY):
             raise ValueError("day window must satisfy 0 <= start < end <= 86400")
+        if self.max_stops is not None and self.max_stops < 0:
+            raise ValueError("max_stops must be >= 0")
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +93,10 @@ class StopSpec:
     rank: int = 0  # selector rank; 0 = best
     must_see: bool = False
     lock: Lock | None = None
+    category: str | None = None  # for the per-category variety cap
+    # Places sharing a ticket that is valid only on its day of purchase (e.g. the Hội An Old
+    # Town ticket). The solver prefers to serve one group on a single day (TICKET_VALIDITY).
+    ticket_group: str | None = None
 
     def __post_init__(self) -> None:
         if self.visit_minutes <= 0:
@@ -112,6 +120,9 @@ class SolverParams:
     drop_penalty_floor: int = 1_200
     must_see_penalty: int = 10_000_000
     lock_penalty: int = 100_000_000
+    # Day balance: cost per stop a day falls short of its floor share (stops ÷ days, capped by the
+    # day's capacity). Larger than the travel saved by consolidating, smaller than a must-see.
+    day_balance_penalty: int = 10_800
 
     def drop_penalty(self, stop: StopSpec) -> int:
         if stop.lock is not None:
@@ -130,6 +141,17 @@ class SolverInput:
     stops: tuple[StopSpec, ...]
     durations: DurationLookup
     params: SolverParams = field(default_factory=SolverParams)
+    # Per-day cap of stops per category (``StopSpec.category``); missing = uncapped.
+    category_day_caps: Mapping[str, int] = field(default_factory=dict)
+    # Per-date leg durations that replace ``durations`` on that date (e.g. the walking duration
+    # of a pair whose driving leg a car-free rule restricts; ADR-011 amendment 2026-11-09).
+    day_durations: Mapping[date, Mapping[tuple[str, str], int]] = field(default_factory=dict)
+    # Per-date departure bans: the arc (origin, destination) may not be departed (origin's visit
+    # end) inside any of these ``[start_s, end_s)`` spans; a span covering the whole day removes
+    # the arc.
+    departure_bans: Mapping[date, Mapping[tuple[str, str], tuple[tuple[int, int], ...]]] = field(
+        default_factory=dict
+    )
 
 
 class DropReason(StrEnum):

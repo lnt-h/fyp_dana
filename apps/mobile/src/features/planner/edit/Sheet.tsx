@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { colors } from '../../../theme/colors';
@@ -22,7 +22,12 @@ type Props = {
 export function Sheet({ visible, onClose, dismissible = true, accessibilityLabel, role = 'dialog', children, footer }: Props) {
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
-  const close = () => { if (dismissible) onClose(); };
+  const keyboard = useKeyboardOpen();
+  // While a field is focused, a backdrop tap only dismisses the keyboard; it never closes the sheet mid-typing.
+  const close = () => {
+    if (keyboard) { Keyboard.dismiss(); return; }
+    if (dismissible) onClose();
+  };
   return <Modal animationType={reducedMotion ? 'none' : 'slide'} onRequestClose={close} statusBarTranslucent transparent visible={visible}>
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.backdrop}>
       <Pressable accessibilityElementsHidden importantForAccessibility="no-hide-descendants" onPress={close} style={StyleSheet.absoluteFill} />
@@ -38,6 +43,16 @@ export function Sheet({ visible, onClose, dismissible = true, accessibilityLabel
       </View>
     </KeyboardAvoidingView>
   </Modal>;
+}
+
+function useKeyboardOpen() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setOpen(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setOpen(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  return open;
 }
 
 const s = StyleSheet.create({

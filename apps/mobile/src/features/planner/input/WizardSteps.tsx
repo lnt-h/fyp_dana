@@ -12,6 +12,9 @@ import { fonts } from '../../../theme/typography';
 
 export const WIZARD_STEPS = 4;
 
+/** One colour per step (teal, coral, indigo, green): the bar fills with colour as the traveller moves on. */
+const STEP_COLORS = [colors.primary, colors.coral, '#4F46E5', colors.success] as const;
+
 /** Segmented progress under the header (`Unknown-7/8.jpg`): one bar per step, done and current filled. */
 export function StepProgress({ current, total = WIZARD_STEPS }: { current: number; total?: number }) {
   const { t } = useTranslation();
@@ -23,7 +26,7 @@ export function StepProgress({ current, total = WIZARD_STEPS }: { current: numbe
     style={w.progress}
   >
     <View style={w.bars}>
-      {Array.from({ length: total }, (_, index) => <View key={index} style={[w.bar, index < current && w.barDone]} />)}
+      {Array.from({ length: total }, (_, index) => <View key={index} style={[w.bar, index < current && { backgroundColor: STEP_COLORS[index % STEP_COLORS.length] }]} />)}
     </View>
     <Text style={w.stepText}>{label}</Text>
   </View>;
@@ -112,9 +115,8 @@ const w = StyleSheet.create({
   flex: { flex: 1 },
   progress: { gap: 6, paddingTop: spacing.xs },
   bars: { flexDirection: 'row', gap: 6 },
-  bar: { flex: 1, height: 5, borderRadius: 3, backgroundColor: colors.surfaceTint },
-  barDone: { backgroundColor: colors.audioTeal },
-  stepText: { fontFamily: fonts.bold, fontSize: 12, color: colors.textMuted },
+  bar: { flex: 1, height: 6, borderRadius: 3, backgroundColor: colors.hairline },
+  stepText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.textSecondary },
   destination: { marginBottom: spacing.md },
   destinationClip: { height: 140, borderRadius: radii.photoCard, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: colors.surfaceTint },
   destinationCopy: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md },
@@ -122,8 +124,8 @@ const w = StyleSheet.create({
   destinationName: { fontFamily: fonts.bold, fontSize: 22, lineHeight: 27, color: colors.white, letterSpacing: -0.3 },
   destinationSub: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 19, color: colors.white },
   credit: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted, marginTop: spacing.xxs },
-  review: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, minHeight: MIN_TOUCH, padding: spacing.md, borderRadius: radii.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.hairline, marginBottom: spacing.sm },
-  reviewIcon: { width: 40, height: 40, borderRadius: radii.iconTile, backgroundColor: colors.surfaceTint, alignItems: 'center', justifyContent: 'center' },
+  review: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, minHeight: MIN_TOUCH, padding: spacing.md, borderRadius: radii.card, backgroundColor: colors.surface, marginBottom: spacing.sm },
+  reviewIcon: { width: 40, height: 40, borderRadius: radii.iconTile, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
   reviewTitle: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 21, color: colors.ink, marginBottom: 2 },
   reviewLine: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted },
   reason: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.xs },

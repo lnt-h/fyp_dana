@@ -1,12 +1,16 @@
 import uuid
 
-from app.agents.schemas import Pick, SelectionResult
+import pytest
+
+from app.agents.schemas import Pick, Rationale, RationaleSet, SelectionResult
 from app.agents.validators import (
     extract_json_object,
+    fact_like,
     fold,
     normalise_url,
     quote_in_text,
     rule_based_selection,
+    validate_rationales,
     validate_selection,
 )
 
@@ -59,3 +63,52 @@ def test_rule_based_selection_is_deterministic_and_capped() -> None:
     first = rule_based_selection(ids, must_see=[ids[5]], max_picks=10)
     assert first == rule_based_selection(ids, must_see=[ids[5]], max_picks=10)
     assert len(first.picks) == 10 and first.picks[0].place_id == str(ids[5])
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Đèo cao năm trăm mét, nhìn ra cả vịnh.",  # the live VI note (DEC-030 check)
+        "A five hundred metres climb to the summit.",
+        "It is about two kilometres from the old town.",
+        "Mười lăm phút đi bộ là tới chợ.",
+        "Chỉ mất hai tiếng để tham quan.",
+        "Vé khoảng hai trăm nghìn đồng.",
+        "Allow twenty-five minutes for the walk.",
+        "Half an hour is enough here.",
+        "Entry is fifty thousand dong.",
+        "Cách trung tâm ba cây số.",
+        "Đường lên dài 500 mét.",  # digits are still caught
+    ],
+)
+def test_rationale_with_spelled_out_number_and_unit_is_fact_like(text: str) -> None:
+    assert fact_like(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Ngũ Hành Sơn có năm ngọn núi đá vôi.",  # "năm" without a unit
+        "Một trong những cây cầu đẹp nhất thành phố.",
+        "A quiet pagoda with three carved gates.",
+        "One of the oldest bridges in the city.",
+        "Bảy Mẫu Coconut Forest is rowed in round basket boats.",
+        "Năm 1990 ngôi chùa được trùng tu.",
+    ],
+)
+def test_counts_and_names_without_units_are_allowed(text: str) -> None:
+    assert not fact_like(text)
+
+
+def test_validate_rationales_drops_spelled_out_measurements() -> None:
+    result = RationaleSet(
+        rationales=[
+            Rationale(place_id=str(A), text="Con đèo cao năm trăm mét nhìn ra biển."),
+            Rationale(place_id=str(B), text="Five hundred metres of white sand."),
+            Rationale(place_id=str(C), text="Một ngôi chùa yên tĩnh trên núi."),
+        ]
+    )
+    mapping, issues = validate_rationales(result, stop_ids=[A, B, C])
+    assert mapping[A] is None and mapping[B] is None
+    assert mapping[C] == "Một ngôi chùa yên tĩnh trên núi."
+    assert sorted(issues) == sorted([f"fact_like_text:{A}", f"fact_like_text:{B}"])

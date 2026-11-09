@@ -19,7 +19,7 @@ export default function SettingsScreen() {
     <SectionLabel>{t('account.settings.sectionAccessibility')}</SectionLabel>
     <GroupCard>
       <AccountRow icon="motion" title={t('account.common.reduceMotion')} subtitle={t('account.common.reduceMotionSubtitle')}
-        trailing={<Switch accessibilityLabel={t('account.common.reduceMotion')} value={reduceMotion} onValueChange={setReduceMotion} trackColor={{ false: colors.hairline, true: colors.audioTeal }} />} />
+        trailing={<Switch accessibilityLabel={t('account.common.reduceMotion')} value={reduceMotion} onValueChange={setReduceMotion} trackColor={{ false: colors.disabledButton, true: colors.primary }} />} />
     </GroupCard>
 
     <SectionLabel>{t('account.settings.sectionPersonalization')}</SectionLabel>

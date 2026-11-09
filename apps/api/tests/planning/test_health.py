@@ -133,7 +133,11 @@ def test_severity_table_matches_contract() -> None:
         "DAY_WINDOW_EXCEEDED",
         "WEB_PLACE_UNRESOLVED",
     }
-    assert {t for t, s in CONFLICT_SEVERITY.items() if s == "INFO"} == {"LEG_ESTIMATED"}
+    # DEC-030: unknown hours are missing data, not a plan problem.
+    assert {t for t, s in CONFLICT_SEVERITY.items() if s == "INFO"} == {
+        "LEG_ESTIMATED",
+        "OPENING_HOURS_UNKNOWN",
+    }
     assert len(CONFLICT_SEVERITY) == 14
 
 
@@ -190,11 +194,12 @@ def test_closed_on_date_from_regular_hours() -> None:
     assert [(c.type, c.rule_id) for c in result.conflicts] == [("CLOSED_ON_DATE", None)]
 
 
-def test_opening_hours_unknown_is_a_warning_not_a_closure() -> None:
+def test_opening_hours_unknown_is_info_not_a_closure() -> None:
     early = stop(1, UNKNOWN, "06:00", "07:00")  # outside the scheduling default, still not "closed"
     result = run(HealthPlan(days=(day(TUE, early, start=360),)))
     assert types(result) == ["OPENING_HOURS_UNKNOWN"]
-    assert result.plan_health == "WARNING"
+    assert result.conflicts[0].severity == "INFO" and not result.conflicts[0].blocking
+    assert result.plan_health == "GOOD"  # DEC-030
     # No window at all (e.g. a web stop without hours) is also unknown.
     result = run(HealthPlan(days=(day(TUE, stop(2, None, "09:00", "10:00")),)))
     assert types(result) == ["OPENING_HOURS_UNKNOWN"]
@@ -377,6 +382,22 @@ def test_estimated_leg_is_info_and_keeps_plan_good() -> None:
     assert notice.severity == "INFO" and not notice.blocking
     assert notice.stop_ids == (a.stop_id, b.stop_id)
     assert notice.message_key == "plan_health.conflict.leg_estimated"
+    assert result.plan_health == "GOOD"
+
+
+def test_unknown_hours_and_estimated_legs_only_is_good() -> None:
+    """DEC-030: a plan whose only issues are missing hours and estimated legs is GOOD."""
+    unknown_hours = {place.place_id: None for place in PLACES}
+    a = stop(1, MUSEUM, "09:00", "10:30")
+    b = stop(2, BEACH, "11:00", "12:00")
+    c = stop(3, UNKNOWN, "13:00", "14:00")
+    plan = HealthPlan(
+        days=(day(TUE, a, b, c, legs=(leg(a, b, estimated=True), leg(b, c, estimated=True))),)
+    )
+    windows = effective_windows(base_hours=unknown_hours, rules=[], places=PLACES, dates=[TUE])
+    result = evaluate(plan, windows, today=TODAY)
+    assert sorted(types(result)) == ["LEG_ESTIMATED"] * 2 + ["OPENING_HOURS_UNKNOWN"] * 3
+    assert {c.severity for c in result.conflicts} == {"INFO"}
     assert result.plan_health == "GOOD"
 
 

@@ -38,7 +38,74 @@ async def _cleanup(factory: async_sessionmaker[AsyncSession], prefix: str) -> No
         await session.commit()
 
 
-async def test_write_read_expiry_and_upsert(factory: async_sessionmaker[AsyncSession]) -> None:
+_ROUTES_POLICIES = (
+    "FROM provider_policies pp JOIN data_providers dp ON dp.id = pp.data_provider_id "
+    "WHERE dp.provider_key = 'google_routes'"
+)
+
+
+@pytest.fixture
+async def active_routes_policy(
+    factory: async_sessionmaker[AsyncSession],
+) -> AsyncIterator[uuid.UUID]:
+    """The ACTIVE google_routes policy; a seeded DRAFT is activated for the test and reverted."""
+    async with factory() as session:
+        active = await session.scalar(text(f"SELECT pp.id {_ROUTES_POLICIES} AND status='ACTIVE'"))
+        activated: uuid.UUID | None = None
+        if active is None:
+            activated = await session.scalar(
+                text(
+                    f"SELECT pp.id {_ROUTES_POLICIES} AND status='DRAFT' "
+                    "ORDER BY policy_revision DESC LIMIT 1"
+                )
+            )
+            assert activated is not None, "seed creates a google_routes policy"
+            await session.execute(
+                text(
+                    "UPDATE provider_policies SET status='ACTIVE', approved_at=now() WHERE id = :id"
+                ),
+                {"id": activated},
+            )
+            await session.commit()
+            active = activated
+    try:
+        yield active
+    finally:
+        if activated is not None:
+            async with factory() as session:
+                await session.execute(
+                    text(
+                        "UPDATE provider_policies SET status='DRAFT', approved_at=NULL "
+                        "WHERE id = :id"
+                    ),
+                    {"id": activated},
+                )
+                await session.commit()
+
+
+async def test_no_active_policy_caches_nothing(
+    factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """Only an ACTIVE google_routes policy may cover cached rows (never DRAFT or RETIRED)."""
+    async with factory() as session:
+        if await session.scalar(text(f"SELECT pp.id {_ROUTES_POLICIES} AND status='ACTIVE'")):
+            pytest.skip("an ACTIVE google_routes policy exists in this database")
+    tag = uuid.uuid4().hex[:8]
+    cache = SqlMatrixCache(factory)
+    try:
+        written = await cache.write(
+            [CachedLeg(f"anchor:it-{tag}-a", f"place:it-{tag}-b", True, 100, 60)],
+            "DRIVE",
+            now=datetime.now(UTC),
+        )
+        assert written == 0
+    finally:
+        await _cleanup(factory, "anchor:it-")
+
+
+async def test_write_read_expiry_and_upsert(
+    factory: async_sessionmaker[AsyncSession], active_routes_policy: uuid.UUID
+) -> None:
     tag = uuid.uuid4().hex[:8]
     a, b, c = f"anchor:it-{tag}-a", f"place:it-{tag}-b", f"web:it-{tag}-c"
     cache = SqlMatrixCache(factory)
@@ -65,7 +132,8 @@ async def test_write_read_expiry_and_upsert(factory: async_sessionmaker[AsyncSes
             row = (
                 await session.execute(
                     text(
-                        "SELECT r.expires_at - r.fetched_at AS ttl, dp.provider_key "
+                        "SELECT r.expires_at - r.fetched_at AS ttl, dp.provider_key, "
+                        "pp.id AS policy_id "
                         "FROM routes_matrix_cache r "
                         "JOIN provider_policies pp ON pp.id = r.provider_policy_id "
                         "JOIN data_providers dp ON dp.id = pp.data_provider_id "
@@ -76,6 +144,7 @@ async def test_write_read_expiry_and_upsert(factory: async_sessionmaker[AsyncSes
             ).one()
         assert row.ttl == timedelta(days=30)
         assert row.provider_key == "google_routes"
+        assert row.policy_id == active_routes_policy
 
         # Expired rows are invisible.
         assert await cache.read([a, b], "DRIVE", now=now + timedelta(days=30, seconds=1)) == {}

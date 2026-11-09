@@ -11,18 +11,20 @@ export const spacing = {
   huge: 56,
 } as const;
 
-/** Radii shared by every screen (design refresh 2026-11-05: calmer, less pill-heavy). */
+/** Radii shared by every screen (visual refresh 2026-11-09: cards 16, photos inside cards 12, pills 999). */
 export const radii = {
   /** Buttons and button-like actions (52 tall). */
   button: 14,
   field: 12,
   /** Static cards, rows and sections. */
   card: 16,
-  /** Cards whose face is a photo. */
-  photoCard: 20,
+  /** Cards whose face is a photo (same as card since 2026-11-09). */
+  photoCard: 16,
+  /** Photos and thumbnails inside cards. */
+  photo: 12,
   /** Banners, notices, thumbnails and other inset surfaces. */
   inset: 12,
-  iconTile: 10,
+  iconTile: 12,
   /** Filter and choice chips, small status pills. */
   chip: 999,
   sheet: 28,

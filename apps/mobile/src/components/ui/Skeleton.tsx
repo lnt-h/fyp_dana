@@ -42,7 +42,7 @@ export function Skeleton({ width = '100%', height = 16, radius = 12, style }: Sk
       {!reduced && boxWidth > 0 ? (
         <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX }] }]}>
           <LinearGradient
-            colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.65)', 'rgba(255,255,255,0)']}
+            colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.7)', 'rgba(255,255,255,0)']}
             end={{ x: 1, y: 0.5 }}
             start={{ x: 0, y: 0.5 }}
             style={StyleSheet.absoluteFill}
@@ -54,5 +54,5 @@ export function Skeleton({ width = '100%', height = 16, radius = 12, style }: Sk
 }
 
 const styles = StyleSheet.create({
-  base: { backgroundColor: colors.surfaceTint, overflow: 'hidden' },
+  base: { backgroundColor: colors.surface, overflow: 'hidden' },
 });

@@ -137,3 +137,45 @@ async def activate_policy(session: AsyncSession, provider_key: str, terms_versio
     )
     await session.commit()
     return f"{provider_key}: ACTIVE (revision {target.policy_revision}, terms {terms_version!r})"
+
+
+async def deactivate_policy(session: AsyncSession, provider_key: str, reason: str) -> str:
+    """Set the provider's ACTIVE policy to RETIRED (default deny again); audited, reversible.
+
+    ``policy activate <provider_key> --terms-version <text>`` restores it as a new revision with
+    the same purpose, attribution and field rules. Raises ``ValueError`` for an unknown provider
+    or an empty reason."""
+    reason = reason.strip()
+    if not reason:
+        raise ValueError("a reason is required")
+    provider_id = await session.scalar(
+        select(DataProvider.id).where(DataProvider.provider_key == provider_key)
+    )
+    if provider_id is None:
+        raise ValueError(f"unknown provider {provider_key!r}")
+    active = await session.scalar(
+        select(ProviderPolicy).where(
+            ProviderPolicy.data_provider_id == provider_id, ProviderPolicy.status == "ACTIVE"
+        )
+    )
+    if active is None:
+        return f"{provider_key}: no ACTIVE policy (already denied)"
+    actor = await system_account_id(session)
+    active.status = "RETIRED"
+    await session.flush()
+    audit(
+        session,
+        actor_account_id=actor,
+        entity_table="provider_policies",
+        entity_id=active.id,
+        action="POLICY_CHANGE",
+        from_state="ACTIVE",
+        to_state="RETIRED",
+        detail={
+            "provider_key": provider_key,
+            "policy_revision": active.policy_revision,
+            "reason": reason,
+        },
+    )
+    await session.commit()
+    return f"{provider_key}: RETIRED (revision {active.policy_revision}); reason {reason!r}"

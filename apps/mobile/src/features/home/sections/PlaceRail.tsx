@@ -3,16 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
-import { Icon, Photo, SectionHeader, Skeleton, categoryIcon, usePhotoFailed } from '../../../components/ui';
+import { Photo, SectionHeader, Skeleton, usePhotoFailed } from '../../../components/ui';
 import { loadErrorKind, searchPlaces, type LoadErrorKind } from '../../../lib/api/source';
 import type { Category, Place, Uuid } from '../../../lib/api/types';
-import { colors } from '../../../theme/colors';
+import { categoryColor, colors } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
 import { fonts, typography } from '../../../theme/typography';
 import { ErrorBanner } from './SheetBanners';
 
 const CARD_WIDTH = 196;
-const PHOTO_HEIGHT = 124;
+const PHOTO_HEIGHT = 132;
 const RAIL_MAX = 12;
 
 /**
@@ -21,6 +21,8 @@ const RAIL_MAX = 12;
  */
 export const HOI_AN_AREA_CODES = ['hoi-an-old-town', 'hoi-an-beaches-islands', 'hoi-an-outskirts'] as const;
 const FOOD_CATEGORY_CODES = ['FOOD', 'CAFE'] as const;
+/** Single-category rails after Hội An and food, shown only when the category has published places. */
+const CATEGORY_RAILS = ['BEACH', 'VIEWPOINT'] as const;
 
 type Load = { state: 'loading' } | { state: 'error'; kind: LoadErrorKind } | { state: 'ready'; places: Place[] };
 
@@ -37,6 +39,7 @@ function interleave(lists: Place[][]): Place[] {
   return out;
 }
 
+/** Loads a rail; `load` is memoised on the city, filter and UI language so names follow a language switch. */
 function useRail(load: (() => Promise<Place[][]>) | null) {
   const [result, setResult] = useState<Load>({ state: 'loading' });
   const [attempt, setAttempt] = useState(0);
@@ -52,6 +55,7 @@ function useRail(load: (() => Promise<Place[][]>) | null) {
   return { result, retry: () => setAttempt(n => n + 1) };
 }
 
+/** Photo card: photo (radius 12), name, then a category-colour dot with `category · about n min`. No border. */
 function RailCard({ place, categoryName, onPress }: { place: Place; categoryName: string | null; onPress: () => void }) {
   const { t } = useTranslation();
   const [photoFailed, onPhotoError] = usePhotoFailed(place.thumbnail);
@@ -63,10 +67,10 @@ function RailCard({ place, categoryName, onPress }: { place: Place; categoryName
     accessibilityLabel={[place.name, meta].filter(Boolean).join(', ')}
     accessibilityRole="button"
     onPress={onPress}
-    style={({ pressed }) => [r.card, pressed && { opacity: 0.88 }]}
+    style={({ pressed }) => [r.card, pressed && r.pressed]}
   >
     <View style={r.photo}>
-      <Photo categoryCode={place.category_code} height={PHOTO_HEIGHT} image={place.thumbnail} name={place.name} onError={onPhotoError} width={CARD_WIDTH} />
+      <Photo categoryCode={place.category_code} height={PHOTO_HEIGHT} iconSize={40} image={place.thumbnail} name={place.name} onError={onPhotoError} width={CARD_WIDTH} />
       {!photoFailed && place.thumbnail?.attribution_text
         ? <View style={r.creditWrap}><Text numberOfLines={1} style={r.credit}>{t('homeSheet.rails.credit', { credit: place.thumbnail.attribution_text })}</Text></View>
         : null}
@@ -74,18 +78,18 @@ function RailCard({ place, categoryName, onPress }: { place: Place; categoryName
     <View style={r.body}>
       <Text numberOfLines={2} style={r.name}>{place.name}</Text>
       {meta ? <View style={r.metaRow}>
-        <Icon color={colors.tealText} name={categoryIcon(place.category_code)} size={14} />
+        <View style={[r.dot, { backgroundColor: categoryColor(place.category_code).fg }]} />
         <Text numberOfLines={1} style={r.meta}>{meta}</Text>
       </View> : null}
     </View>
   </Pressable>;
 }
 
-/** One themed rail (Vietdetour "Spots in Hội An" pattern): photo or category art, name, `category · about n min`. */
+/** One themed rail: photo cards with name and `category · about n min`. Hidden when it has no places. */
 export function PlaceRail({ title, subtitle, load, categories, isVi, onOpenPlace, gutter }: {
   title: string;
-  subtitle: string;
-  /** Memoised loader; each list is one API-010 page, merged in `interleave`. */
+  subtitle?: string;
+  /** Memoised loader; each list is one API-010 query, merged in `interleave`. */
   load: (() => Promise<Place[][]>) | null;
   categories: Category[];
   isVi: boolean;
@@ -100,18 +104,15 @@ export function PlaceRail({ title, subtitle, load, categories, isVi, onOpenPlace
     return category ? (isVi ? category.name_vi : category.name_en) : null;
   };
 
+  if (result.state === 'ready' && result.places.length === 0) return null;
+
   let body;
   if (result.state === 'loading') {
     body = <View accessibilityLabel={t('homeSheet.explore.loading')} accessibilityRole="progressbar" style={[r.row, { paddingHorizontal: gutter }]}>
-      {[0, 1].map(index => <Skeleton height={PHOTO_HEIGHT + 72} key={index} radius={radii.card} width={CARD_WIDTH} />)}
+      {[0, 1].map(index => <Skeleton height={PHOTO_HEIGHT + 64} key={index} radius={radii.card} width={CARD_WIDTH} />)}
     </View>;
   } else if (result.state === 'error') {
     body = <View style={inset}><ErrorBanner detail={t(`common.loadError.${result.kind}`)} message={t('homeSheet.explore.error')} onRetry={retry} retryLabel={t('homeSheet.explore.retry')} /></View>;
-  } else if (!result.places.length) {
-    body = <View style={[r.empty, inset]}>
-      <Icon color={colors.tealText} name="map-pin" size={20} />
-      <Text style={r.emptyText}>{t('homeSheet.rails.empty')}</Text>
-    </View>;
   } else {
     body = <ScrollView contentContainerStyle={[r.row, { paddingHorizontal: gutter }]} horizontal showsHorizontalScrollIndicator={false}>
       {result.places.map(place => <RailCard categoryName={nameOf(place.category_code)} key={place.id} onPress={() => onOpenPlace(place.id)} place={place} />)}
@@ -124,23 +125,34 @@ export function PlaceRail({ title, subtitle, load, categories, isVi, onOpenPlace
   </View>;
 }
 
-/** "Spots in Hội An" + "Food & drink" rails for Home (SCR-008), below the category chips. Hội An only for Đà Nẵng. */
-export function HomePlaceRails({ cityId, cityCode, categories, isVi, onOpenPlace, gutter }: {
+/**
+ * Home rails (SCR-008) below the category chips: "Spots in Hội An" (Đà Nẵng only), "Food & drink" and single-category
+ * rails, each only when its categories have published places (`populated`, data-driven). Loaders re-run on a city or
+ * language change.
+ */
+export function HomePlaceRails({ cityId, cityCode, categories, populated, isVi, onOpenPlace, gutter }: {
   cityId: Uuid | null;
   cityCode: string | null;
   categories: Category[];
+  /** Categories with published places; null while unknown (category rails wait). */
+  populated: Category[] | null;
   isVi: boolean;
   onOpenPlace: (placeId: string) => void;
   gutter: number;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = i18n.resolvedLanguage;
+  const has = (code: string) => !!populated?.some(category => category.code === code);
+  const foodCodes = FOOD_CATEGORY_CODES.filter(has);
+  const foodKey = foodCodes.join(',');
   const loadHoiAn = useCallback(
     () => Promise.all(HOI_AN_AREA_CODES.map(area => searchPlaces(cityId as Uuid, undefined, null, area))),
-    [cityId],
+    // `language`: the request locale changes the names returned.
+    [cityId, language],
   );
   const loadFood = useCallback(
-    () => Promise.all(FOOD_CATEGORY_CODES.map(code => searchPlaces(cityId as Uuid, undefined, code))),
-    [cityId],
+    () => Promise.all(foodKey.split(',').map(code => searchPlaces(cityId as Uuid, undefined, code))),
+    [cityId, foodKey, language],
   );
   if (!cityId) return null;
   return <View style={r.rails}>
@@ -153,7 +165,7 @@ export function HomePlaceRails({ cityId, cityCode, categories, isVi, onOpenPlace
       subtitle={t('homeSheet.rails.hoiAn.subtitle')}
       title={t('homeSheet.rails.hoiAn.title')}
     /> : null}
-    <PlaceRail
+    {foodCodes.length ? <PlaceRail
       categories={categories}
       gutter={gutter}
       isVi={isVi}
@@ -161,21 +173,55 @@ export function HomePlaceRails({ cityId, cityCode, categories, isVi, onOpenPlace
       onOpenPlace={onOpenPlace}
       subtitle={t('homeSheet.rails.food.subtitle')}
       title={t('homeSheet.rails.food.title')}
-    />
+    /> : null}
+    {CATEGORY_RAILS.filter(has).map(code => <CategoryRail
+      categories={categories}
+      cityId={cityId}
+      code={code}
+      gutter={gutter}
+      isVi={isVi}
+      key={code}
+      language={language}
+      onOpenPlace={onOpenPlace}
+    />)}
   </View>;
+}
+
+function CategoryRail({ code, cityId, language, categories, isVi, onOpenPlace, gutter }: {
+  code: string;
+  cityId: Uuid;
+  language: string | undefined;
+  categories: Category[];
+  isVi: boolean;
+  onOpenPlace: (placeId: string) => void;
+  gutter: number;
+}) {
+  const { t } = useTranslation();
+  const load = useCallback(() => searchPlaces(cityId, undefined, code).then(list => [list]), [cityId, code, language]);
+  const category = categories.find(item => item.code === code);
+  const title = category ? (isVi ? category.name_vi : category.name_en) : code;
+  return <PlaceRail
+    categories={categories}
+    gutter={gutter}
+    isVi={isVi}
+    load={load}
+    onOpenPlace={onOpenPlace}
+    subtitle={t(`homeSheet.rails.category.${code === 'BEACH' ? 'BEACH' : 'VIEWPOINT'}`)}
+    title={title}
+  />;
 }
 
 const r = StyleSheet.create({
   rails: { gap: spacing.xl },
-  row: { flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.sm },
-  card: { width: CARD_WIDTH, borderRadius: radii.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.hairline, overflow: 'hidden' },
-  photo: { height: PHOTO_HEIGHT, backgroundColor: colors.surfaceTint, justifyContent: 'flex-end' },
-  creditWrap: { backgroundColor: 'rgba(7,21,30,0.55)', paddingHorizontal: 6, paddingVertical: 2 },
+  row: { flexDirection: 'row', gap: spacing.md, paddingBottom: spacing.sm },
+  card: { width: CARD_WIDTH },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
+  photo: { height: PHOTO_HEIGHT, borderRadius: radii.photo, overflow: 'hidden', backgroundColor: colors.surface, justifyContent: 'flex-end' },
+  creditWrap: { backgroundColor: 'rgba(22,33,43,0.5)', paddingHorizontal: 6, paddingVertical: 2 },
   credit: { color: colors.white, fontFamily: fonts.medium, fontSize: 9 },
-  body: { padding: spacing.sm, gap: 4, minHeight: 72 },
-  name: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 20, color: colors.ink },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  meta: { flexShrink: 1, fontFamily: fonts.medium, fontSize: 13, color: colors.textMuted },
-  empty: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, padding: spacing.md, borderRadius: radii.card, backgroundColor: colors.surfaceTint },
-  emptyText: { ...typography.caption, color: colors.deepOcean, flex: 1 },
+  body: { paddingTop: spacing.xs, gap: 2, minHeight: 60 },
+  name: { fontFamily: fonts.semibold, fontSize: 15, lineHeight: 20, color: colors.ink },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  meta: { ...typography.micro, flexShrink: 1, color: colors.textSecondary },
 });

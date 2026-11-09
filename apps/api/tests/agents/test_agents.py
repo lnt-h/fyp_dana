@@ -23,11 +23,17 @@ from app.agents.schemas import (
     EvidenceItem,
     Pick,
     RationaleStop,
+    RationaleTraveller,
     ResultSource,
     SelectionResult,
 )
 from app.agents.selector import select_places
-from app.agents.writer import write_guide_answer, write_rationales
+from app.agents.writer import (
+    build_rationale_prompt,
+    trim_text,
+    write_guide_answer,
+    write_rationales,
+)
 from app.ai.invocations import Purpose
 from app.ai.providers import GEMINI_FLASH, GEMINI_FLASH_LITE, GROQ_DEFAULT, Role, role_chain
 from app.ai.quota import Bucket
@@ -250,6 +256,55 @@ async def test_rationales_drop_unknown_and_fact_like_text() -> None:
     assert out.rationales[IDS[0]] and out.rationales[IDS[1]] is None
     assert ledger.used[Bucket.GEMINI_FLASH_LITE] == 1
     assert any(i.startswith("fact_like_text") for i in out.issues)
+
+
+def test_rationale_prompt_carries_description_area_time_and_traveller_redacted() -> None:
+    stop = RationaleStop(
+        place_id=IDS[0],
+        name="Cầu Rồng",
+        category_code="VIEWPOINT",
+        category_label="Viewpoint",
+        area="Hải Châu",
+        summary="bridge in Vietnam",
+        description="A dragon-shaped bridge that breathes fire and water. Call 0905 123 456.",
+        time_of_day="evening",
+    )
+    prompt = build_rationale_prompt(
+        request_text="mail me at a@b.com",
+        stops=[stop],
+        traveller=RationaleTraveller(interests=["Viewpoint", "Food"], pace="relaxed"),
+    )
+    payload = json.loads(prompt)
+    (item,) = payload["stops"]
+    assert item["category"] == "Viewpoint" and item["area"] == "Hải Châu"
+    assert item["time_of_day"] == "evening"
+    assert "breathes fire" in item["description"]
+    assert payload["traveller"] == {"interests": ["Viewpoint", "Food"], "pace": "relaxed"}
+    # BR-046: contact data never reaches the provider.
+    assert "0905 123 456" not in prompt and "a@b.com" not in prompt
+
+
+def test_trim_text_cuts_at_sentence_or_word() -> None:
+    sentence = "First sentence here. " * 40
+    out = trim_text(sentence)
+    assert out is not None and len(out) <= 600 and out.endswith(".")
+    words = "word " * 200
+    out = trim_text(words)
+    assert out is not None and len(out) <= 601 and out.endswith("…") and "  " not in out
+    assert trim_text("  short   text ") == "short text"
+    assert trim_text(None) is None and trim_text("") is None
+
+
+async def test_rationale_left_out_by_model_is_null() -> None:
+    stops = [
+        RationaleStop(place_id=IDS[0], name="A", category_code="BEACH", description="Fine sand."),
+        RationaleStop(place_id=IDS[1], name="B", category_code="VIEWPOINT"),
+    ]
+    content = {"rationales": [{"place_id": str(IDS[0]), "text": "Fine sand for a slow morning."}]}
+    ctx, _, _ = ctx_for(ScriptedRunner([content]))
+    out = await write_rationales(ctx, request_text="", stops=stops, locale="en")
+    assert out.source is ResultSource.MODEL
+    assert out.rationales == {IDS[0]: "Fine sand for a slow morning.", IDS[1]: None}
 
 
 async def test_rationales_degrade_to_null_when_chain_exhausted() -> None:

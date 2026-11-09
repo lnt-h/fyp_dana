@@ -43,7 +43,8 @@ export function RegenerateDaySheet({ dayIndex, days, previewId, revision, offlin
   /** Research stages are listed only once reported (they run only when the catalog pool is thin). */
   const [seenOptional, setSeenOptional] = useState<PlanningStage[]>([]);
   const abort = useRef<AbortController | null>(null);
-  const key = useRef<string | null>(null);
+  /** Idempotency key with the exact body it was used for: reused only for an identical retry (else 409 key_reused). */
+  const key = useRef<{ key: string; body: string } | null>(null);
 
   useEffect(() => {
     if (dayIndex == null) { setPhase({ kind: 'confirm' }); setNote(''); key.current = null; }
@@ -60,18 +61,20 @@ export function RegenerateDaySheet({ dayIndex, days, previewId, revision, offlin
     if (!day || revision == null) return;
     const controller = new AbortController();
     abort.current = controller;
-    key.current = key.current ?? newIdempotencyKey();
+    const body = {
+      day_index: day.day_index,
+      expected_revision: revision,
+      instruction: note.trim() || null,
+      locale: currentLocale(),
+      locked_stop_ids: locked.map(stop => stop.id),
+    };
+    const serialized = JSON.stringify(body);
+    if (!key.current || key.current.body !== serialized) key.current = { body: serialized, key: newIdempotencyKey() };
     setPhase({ kind: 'progress', stage: null });
     setSeenOptional([]);
     const result: { failed: string | null; ready: boolean } = { failed: null, ready: false };
     try {
-      await streamRegenerateDay(previewId, {
-        day_index: day.day_index,
-        expected_revision: revision,
-        instruction: note.trim() || null,
-        locale: currentLocale(),
-        locked_stop_ids: locked.map(stop => stop.id),
-      }, key.current, event => {
+      await streamRegenerateDay(previewId, body, key.current.key, event => {
         if (event.type === 'progress') {
           const stage = event.stage;
           if (!PLANNING_STAGES.includes(stage)) return;
@@ -103,7 +106,7 @@ export function RegenerateDaySheet({ dayIndex, days, previewId, revision, offlin
     role="alertdialog"
     visible={dayIndex != null && !!day}
   >
-    {day ? <ScrollView contentContainerStyle={g.pad} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    {day ? <ScrollView bounces={false} contentContainerStyle={g.pad} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <View style={g.icon}><PlannerIcon color={colors.tealText} name="refresh" size={26} /></View>
 
       {phase.kind === 'progress' ? <>

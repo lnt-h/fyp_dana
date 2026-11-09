@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { GlassBadge, Icon, Photo, PhotoCard, Skeleton, categoryIcon, usePhotoFailed } from '../../../components/ui';
+import { CategoryBadge, Icon, Photo, PhotoCard, Skeleton, categoryIcon, usePhotoFailed } from '../../../components/ui';
 import type { Place } from '../../../lib/api/types';
 import { colors } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
@@ -11,7 +11,6 @@ import { fonts } from '../../../theme/typography';
 export const LIST_THUMB = 64;
 export const FEATURED_WIDTH = 264;
 export const FEATURED_HEIGHT = 300;
-const border = colors.hairline;
 
 function useMinutes(place: Place) {
   const { t } = useTranslation();
@@ -41,14 +40,14 @@ export function PlaceGridCard({ place, categoryLabel, onPress, width }: CardProp
     >
       <View style={styles.clip}>
         <Photo categoryCode={place.category_code} height={height} image={place.thumbnail} name={place.name} onError={onPhotoError} tone="dark" width={width} />
-        <LinearGradient colors={['rgba(7,21,30,0)', 'rgba(7,21,30,0.8)']} locations={[0.35, 1]} style={StyleSheet.absoluteFill} />
-        {minutes ? <GlassBadge icon="clock" label={minutes} style={styles.badge} /> : null}
+        <LinearGradient colors={['rgba(22,33,43,0)', 'rgba(22,33,43,0.8)']} locations={[0.4, 1]} style={StyleSheet.absoluteFill} />
+        {categoryLabel ? <CategoryBadge code={place.category_code} label={categoryLabel} style={styles.badge} variant="chip" /> : null}
         <View style={styles.overlay}>
           <Text numberOfLines={2} style={styles.gridName}>{place.name}</Text>
-          <View style={styles.gridMeta}>
-            <Icon color={colors.white} name={categoryIcon(place.category_code)} size={15} />
-            {categoryLabel ? <Text numberOfLines={1} style={styles.gridMetaText}>{categoryLabel}</Text> : null}
-          </View>
+          {minutes ? <View style={styles.gridMeta}>
+            <Icon color={colors.white} name="clock" size={14} />
+            <Text numberOfLines={1} style={styles.gridMetaText}>{minutes}</Text>
+          </View> : null}
           {!photoFailed && place.thumbnail?.attribution_text ? <Text numberOfLines={1} style={styles.credit}>{place.thumbnail.attribution_text}</Text> : null}
         </View>
       </View>
@@ -76,8 +75,8 @@ export function PlaceListRow({ place, categoryLabel, onPress }: CardProps) {
         <Text numberOfLines={2} style={styles.rowName}>{place.name}</Text>
         {secondary ? <Text numberOfLines={2} style={styles.rowSecondary}>{secondary}</Text> : null}
         <View style={styles.rowMeta}>
-          <Icon color={colors.tealText} name={categoryIcon(place.category_code)} size={15} />
-          <Text numberOfLines={1} style={styles.rowMetaText}>{[categoryLabel, minutes].filter(Boolean).join(' · ')}</Text>
+          {categoryLabel ? <CategoryBadge code={place.category_code} label={categoryLabel} variant="chip" /> : null}
+          {minutes ? <Text numberOfLines={1} style={styles.rowMetaText}>{minutes}</Text> : null}
         </View>
       </View>
       <Icon color={colors.textMuted} name="chevron-right" size={20} />
@@ -147,8 +146,8 @@ export function FeaturedSkeleton() {
 }
 
 const styles = StyleSheet.create({
-  badge: { position: 'absolute', right: spacing.xs, top: spacing.xs },
-  clip: { backgroundColor: colors.deepOcean, borderColor: border, borderRadius: radii.photoCard, borderWidth: StyleSheet.hairlineWidth, flex: 1, overflow: 'hidden' },
+  badge: { left: spacing.xs, maxWidth: '88%', position: 'absolute', top: spacing.xs },
+  clip: { backgroundColor: colors.surface, borderRadius: radii.photoCard, flex: 1, overflow: 'hidden' },
   credit: { color: 'rgba(255,255,255,0.82)', fontFamily: fonts.medium, fontSize: 10, marginTop: 4 },
   featuredSkeleton: { flexDirection: 'row', gap: spacing.md, overflow: 'hidden' },
   gridCard: { backgroundColor: colors.white, borderRadius: radii.photoCard },
@@ -160,10 +159,10 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.94, transform: [{ scale: 0.98 }] },
   row: { alignItems: 'center', borderRadius: radii.inset, flexDirection: 'row', gap: spacing.sm, minHeight: 84, paddingVertical: 10 },
   rowBody: { flex: 1, gap: 3 },
-  rowMeta: { alignItems: 'center', flexDirection: 'row', gap: 5, marginTop: 2 },
+  rowMeta: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   rowMetaText: { color: colors.textMuted, flexShrink: 1, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
-  rowName: { color: colors.ink, fontFamily: fonts.bold, fontSize: 16, lineHeight: 22 },
-  rowPressed: { backgroundColor: colors.surfaceTint },
+  rowName: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 16, lineHeight: 22 },
+  rowPressed: { backgroundColor: colors.surface },
   rowSecondary: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 19 },
-  thumb: { alignItems: 'center', backgroundColor: colors.surfaceTint, borderRadius: radii.inset, height: LIST_THUMB, justifyContent: 'center', overflow: 'hidden', width: LIST_THUMB },
+  thumb: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.photo, height: LIST_THUMB, justifyContent: 'center', overflow: 'hidden', width: LIST_THUMB },
 });

@@ -16,7 +16,8 @@
     "signOut": "Đăng xuất",
     "resetGuest": "Đặt lại phiên khách",
     "deleteAccount": "Xoá tài khoản",
-    "versionCaption": "Gonarra phiên bản {{version}}"
+    "versionCaption": "Gonarra phiên bản {{version}}",
+    "demoName": "Khách demo"
   },
   "common": {
     "language": "Ngôn ngữ",
@@ -67,7 +68,8 @@
     "device": "Theo thiết bị",
     "deviceSubtitle": "Hiện là {{language}}",
     "note": "Lựa chọn được lưu trên thiết bị này và áp dụng ngay.",
-    "changed": "Đã chuyển sang {{language}}"
+    "changed": "Đã chuyển sang {{language}}",
+    "saveFailed": "Không lưu được lựa chọn ngôn ngữ."
   },
   "deleteAccount": {
     "title": "Xoá tài khoản",
@@ -84,7 +86,22 @@
     "confirmHelper": "Nhập đúng từ xác nhận để tiếp tục.",
     "submit": "Xoá tài khoản",
     "keep": "Giữ tài khoản",
-    "notConnected": "Chưa kết nối máy chủ — tính năng sẽ hoạt động khi nối API. Tài khoản và dữ liệu của bạn chưa bị xoá."
+    "failed": "Chưa bắt đầu xoá được. Chưa có gì bị xoá. Hãy thử lại.",
+    "failedOffline": "Không có kết nối nên chưa có gì bị xoá. Hãy thử lại khi có mạng.",
+    "demoTitle": "Không dùng được trong bản demo",
+    "demoBody": "Bản demo dùng chung một tài khoản nên không thể xoá. Tài khoản thật có thể xoá trong Cài đặt.",
+    "backHome": "Về trang chủ",
+    "runningTitle": "Đang xoá tài khoản",
+    "runningBody": "Yêu cầu đã được xác nhận. Chuyến đi, sở thích và câu hỏi Hướng dẫn sẽ bị xoá trong vòng 24 giờ. Bạn có thể đăng xuất ngay.",
+    "retryingBody": "Việc xoá gặp sự cố và sẽ tự động thử lại. Bạn không cần làm gì thêm.",
+    "doneTitle": "Đã xoá tài khoản",
+    "doneBody": "Dữ liệu của bạn đã được xoá. Đang đăng xuất…",
+    "stepRequested": "Đã xác nhận yêu cầu",
+    "stepDeleting": "Đang xoá chuyến đi, sở thích và câu hỏi",
+    "stepDone": "Đã gỡ tài khoản",
+    "stepComplete": "xong",
+    "signOutNow": "Đăng xuất ngay",
+    "signOutDone": "Đăng xuất"
   },
   "editProfile": {
     "title": "Chỉnh sửa hồ sơ",
@@ -115,6 +132,7 @@
       "Couple": "Cặp đôi",
       "Family": "Gia đình",
       "Friends": "Bạn bè"
-    }
+    },
+    "saveFailed": "Không lưu được sở thích. Kiểm tra kết nối và thử lại."
   }
 }

@@ -1,4 +1,4 @@
-import type { ClarificationRequired, IsoDate, LocalTime, Pace, Place, TravelMode, Uuid } from '../../../lib/api/types';
+import type { ClarificationRequired, IsoDate, LocalTime, Pace, Place, TravelMode, Trip, Uuid } from '../../../lib/api/types';
 
 export type InputMode = 'form' | 'describe';
 
@@ -44,3 +44,26 @@ export function takePendingView(): PlannerView | null {
 /** First-use AI notice (FR-073); in memory until API-005 is wired. */
 export const isAiNoticeAcknowledged = () => aiNoticeAcknowledged;
 export const acknowledgeAiNotice = () => { aiNoticeAcknowledged = true; };
+
+/* ---------------------------------------------------------------- Reusable DRAFT trip (one trip per request shape) */
+
+/**
+ * The DRAFT trip the last submit created (API-012). A new submit with the same city, start date and day count plans on
+ * the same trip instead of creating another DRAFT; a change to any of the three creates a new trip. Forgotten once the
+ * trip is saved. In memory only.
+ */
+type ReusableTrip = { trip: Trip; shape: string };
+let reusable: ReusableTrip | null = null;
+
+export const tripShape = (cityId: Uuid, startDate: IsoDate, dayCount: number) => `${cityId}|${startDate}|${dayCount}`;
+
+export function reusableTrip(shape: string): Trip | null {
+  return reusable && reusable.shape === shape && reusable.trip.status === 'DRAFT' ? reusable.trip : null;
+}
+
+export function rememberTrip(trip: Trip, shape: string) { reusable = { shape, trip }; }
+
+/** Called after Save (the trip is no longer a draft) or when the trip turned out to be unusable. */
+export function forgetReusableTrip(tripId?: Uuid) {
+  if (!tripId || reusable?.trip.id === tripId) reusable = null;
+}

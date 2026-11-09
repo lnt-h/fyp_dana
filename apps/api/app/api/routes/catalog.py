@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.places import (
+    DescriptionSourceRecord,
     FactRecord,
     MediaRecord,
     PlaceDetailRecord,
@@ -33,6 +34,7 @@ from app.schemas.catalog import (
     City,
     CityList,
     ClosureRule,
+    DescriptionSource,
     GeoPoint,
     Locale,
     Media,
@@ -146,6 +148,7 @@ def _summary(place: PlaceSummaryRecord, locale: str) -> PlaceSummary:
         catalog_publication_id=place.catalog_publication_id,
         thumbnail=_media(place.thumbnail, locale) if place.thumbnail else None,
         trust_level=place.trust_level,
+        is_area=place.is_area,
     )
 
 
@@ -178,9 +181,53 @@ def _fact(fact: FactRecord) -> PlaceFact:
     )
 
 
+LICENSE_URLS: dict[str, str] = {
+    "CC-BY-SA-4.0": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "CC-BY-SA-3.0": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "CC-BY-4.0": "https://creativecommons.org/licenses/by/4.0/",
+    "CC0-1.0": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "ODBL-1.0": "https://opendatacommons.org/licenses/odbl/1-0/",
+}
+_DESCRIPTION_PROVIDERS = {
+    "wikipedia": "WIKIPEDIA",
+    "wikivoyage": "WIKIVOYAGE",
+    "gonarra_sheet": "OWNER",
+}
+
+
+def _description_source(record: DescriptionSourceRecord | None) -> DescriptionSource | None:
+    if record is None:
+        return None
+    provider = _DESCRIPTION_PROVIDERS.get(record.provider_key or "", "OTHER")
+    return DescriptionSource(
+        provider=provider,
+        publisher=record.publisher,
+        title=record.title,
+        url=record.locator if record.locator.startswith("http") else record.homepage_url,
+        license_code=record.license_code,
+        license_url=LICENSE_URLS.get(record.license_code.upper()),
+        attribution_text=record.attribution_text,
+        retrieved_at=record.retrieved_at.date(),
+    )
+
+
 def _attributions(detail: PlaceDetailRecord) -> list[Attribution]:
     seen: set[tuple[str, str]] = set()
     result: list[Attribution] = []
+    for described in (detail.description_source_vi, detail.description_source_en):
+        if described is None or described.attribution_text is None:
+            continue
+        key = (described.publisher, described.attribution_text)
+        if key not in seen:
+            seen.add(key)
+            result.append(
+                Attribution(
+                    publisher=described.publisher,
+                    attribution_text=described.attribution_text,
+                    license_code=described.license_code,
+                    homepage_url=described.homepage_url,
+                )
+            )
     for fact in detail.facts:
         for source in fact.sources:
             if source.attribution_text is None:
@@ -224,6 +271,13 @@ def _detail(detail: PlaceDetailRecord, locale: str) -> PlaceDetail:
         description=description,
         description_origin=(
             None if not description else "AI_SUMMARY" if origin == "AI_SUMMARY" else "SOURCE"
+        ),
+        description_source=(
+            _description_source(
+                detail.description_source_en if locale == "en" else detail.description_source_vi
+            )
+            if description
+            else None
         ),
         visit_minutes_min=detail.visit_minutes_min,
         visit_minutes_max=detail.visit_minutes_max,

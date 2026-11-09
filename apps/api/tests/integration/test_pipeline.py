@@ -124,7 +124,7 @@ async def _summaries(session: AsyncSession, qid: str, locales: Sequence[str]) ->
                 locale=locale,
                 title=f"Title {qid} {locale}",
                 page_url=f"https://{locale}.wikipedia.org/wiki/Title_{qid}",
-                summary=f"Summary of {qid} in {locale}.",
+                summary=f"Summary of {qid} in {locale}. This lead is long enough to pass the 80-character stub check for a description.",
                 revision="1",
             )
             for locale in locales
@@ -212,9 +212,20 @@ async def test_import_auto_publish_and_idempotency(session: AsyncSession) -> Non
     outcome = {o.place_id: o for o in first.outcomes}
     assert outcome[good_id].status == "published"
     assert outcome[good_id].area_code == "hoi-an-old-town"
-    assert outcome[vi_only_id].status == "rejected"
-    # The VI proper name is reused as the EN name (D3 fallback); no EN description yet.
-    assert outcome[vi_only_id].reasons == ["MISSING_DESCRIPTION:en"]
+    # DEC-033 (option A): descriptions are optional at the gate. A VI-only place publishes with the
+    # VI proper name reused as the EN name and no description; the card shows "No description yet".
+    assert outcome[vi_only_id].status == "published"
+    assert outcome[vi_only_id].description_sources == {"vi": None, "en": None}
+    vi_row = (
+        await session.execute(
+            text(
+                "SELECT name_en, description_vi, description_en FROM vw_published_places"
+                " WHERE place_id = :id"
+            ),
+            {"id": vi_only_id},
+        )
+    ).one()
+    assert vi_row[0] == "Chỉ có tiếng Việt" and vi_row[1] is None and vi_row[2] is None
 
     row = (
         await session.execute(
@@ -226,7 +237,11 @@ async def test_import_auto_publish_and_idempotency(session: AsyncSession) -> Non
         )
     ).one()
     assert row[0] == f"Chùa thử {good}" and row[1] == f"Test pagoda {good}"
-    assert row[2] == f"Summary of {good} in vi." and row[4] is not None
+    assert (
+        row[2]
+        == f"Summary of {good} in vi. This lead is long enough to pass the 80-character stub check for a description."
+        and row[4] is not None
+    )
     facts = (
         await session.execute(
             text(
@@ -275,7 +290,7 @@ async def test_import_auto_publish_and_idempotency(session: AsyncSession) -> Non
                 "en",
                 f"Title {good} en",
                 f"https://en.wikipedia.org/wiki/T_{good}",
-                "A new summary.",
+                "A new summary. This lead is long enough to pass the 80-character stub check for a description.",
                 "2",
             ),
             PageSummary(
@@ -283,7 +298,7 @@ async def test_import_auto_publish_and_idempotency(session: AsyncSession) -> Non
                 "vi",
                 f"Title {good} vi",
                 f"https://vi.wikipedia.org/wiki/T_{good}",
-                f"Summary of {good} in vi.",
+                f"Summary of {good} in vi. This lead is long enough to pass the 80-character stub check for a description.",
                 "1",
             ),
         ],
@@ -483,7 +498,9 @@ async def test_web_candidate_promotion(session: AsyncSession) -> None:
     assert (
         await promote_web_candidate_if_eligible(session, eligible.id)
     ).reason == "STATE_PROMOTED"
-    # The promoted place goes through the same gate: no descriptions, unlicensed web source.
+    # The promoted place goes through the same gate: unlicensed web source, no editorial source.
+    # DEC-033: the missing VI/EN description is no longer a gate reason.
     report = await _publish(session, [promoted.place_id])
     assert report.outcomes[0].status == "rejected"
-    assert "MISSING_DESCRIPTION:vi" in report.outcomes[0].reasons
+    assert "MISSING_LICENCE:example.org" in report.outcomes[0].reasons
+    assert not any(r.startswith("MISSING_DESCRIPTION") for r in report.outcomes[0].reasons)

@@ -8,8 +8,10 @@ Manual edits (API-020) run no selection, routing or solver (that is M3, architec
 re-timing rule is **sequential shift within the day**: the first stop keeps its arrival (a new first
 stop starts at the day window), every later stop arrives at the previous departure plus the leg
 duration when that leg is measured (0 otherwise) and departs ``visit_minutes`` later. Legs whose
-endpoints or mode changed lose their measurement (``EXPIRED``, null distance/duration) until M3
-re-measures them.
+endpoints or mode changed are re-measured by the caller's routing provider when one is given
+(:class:`LegMeasurement`, keyed by place pair and mode; ADR-011 "the retimer measures only changed
+legs"); a leg that cannot be measured stays ``EXPIRED`` with null distance/duration. Save copies
+the head revision's legs as they are, so a saved trip keeps the measurement it was saved with.
 """
 
 import uuid
@@ -29,6 +31,8 @@ from app.schemas.trips import (
 )
 
 LegAvailability = Literal["AVAILABLE", "UNAVAILABLE", "EXPIRED"]
+# (from place, to place, mode) of a leg the editor wants measured.
+LegKey = tuple[uuid.UUID, uuid.UUID, TravelMode]
 
 
 class _Snap(BaseModel):
@@ -136,6 +140,20 @@ class PlanSnapshot(_Snap):
         return any(stop.trust_level == "WEB_UNVERIFIED" for stop in self.all_stops())
 
 
+class LegMeasurement(BaseModel):
+    """A measured leg from the routing provider (never invented, BRU-006)."""
+
+    distance_m: int = Field(ge=0)
+    duration_s: int = Field(ge=0)
+    data_provider_id: uuid.UUID
+    measured_at: datetime
+    expires_at: datetime | None = None
+    estimated: bool = False
+
+
+LEG_ESTIMATED_MESSAGE = "Travel time and distance are estimates, not measured routes."
+
+
 class PublishedPlace(BaseModel):
     """Current publication of a place, as needed by ADD_STOP / REPLACE_STOP."""
 
@@ -146,12 +164,19 @@ class PublishedPlace(BaseModel):
     visit_minutes_max: int
 
 
-# INFO notices (LEG_ESTIMATED) are shown but never change plan_health.
+# INFO notices (LEG_ESTIMATED, OPENING_HOURS_UNKNOWN) are shown but never change plan_health.
 SEVERITY_HEALTH: dict[str, PlanHealth] = {
     "BLOCKING": "BLOCKED",
     "WARNING": "WARNING",
     "INFO": "GOOD",
 }
+
+
+def _current_severity(conflict: Conflict) -> Conflict:
+    """Snapshots saved before DEC-030 carry unknown hours as WARNING; they are INFO now."""
+    if conflict.type == "OPENING_HOURS_UNKNOWN" and conflict.severity != "INFO":
+        return conflict.model_copy(update={"severity": "INFO"})
+    return conflict
 
 
 def evaluate_health(snapshot: PlanSnapshot) -> tuple[PlanHealth, list[Conflict]]:
@@ -172,6 +197,7 @@ def evaluate_health(snapshot: PlanSnapshot) -> tuple[PlanHealth, list[Conflict]]
             reasons.extend(stop.conflicts)
         for leg in day.legs:
             reasons.extend(leg.conflicts)
+    reasons = [_current_severity(reason) for reason in reasons]
     if snapshot.has_web_unverified():
         reasons.append(
             Conflict(
@@ -231,6 +257,7 @@ class _Editor:
             (leg.from_stop_id, leg.to_stop_id): leg for day in snapshot.days for leg in day.legs
         }
         self.mode_overrides: dict[tuple[uuid.UUID, uuid.UUID], TravelMode] = {}
+        self.measurements: dict[LegKey, LegMeasurement] = {}
         self.original_first_arrival = {
             day.day_index: (day.stops[0].id, day.stops[0].planned_arrival)
             for day in snapshot.days
@@ -370,15 +397,60 @@ class _Editor:
 
     # -- rebuild -------------------------------------------------------------------------------
 
-    def _leg(self, before: SnapshotStop, after: SnapshotStop) -> SnapshotLeg:
+    def _changed_mode(self, before: SnapshotStop, after: SnapshotStop) -> TravelMode | None:
+        """The mode of a leg that must be re-measured, or ``None`` when it is kept as is."""
         key = (before.id, after.id)
         original = self.original_legs.get(key)
         override = self.mode_overrides.get(key)
         if original is not None and (override is None or override == original.travel_mode):
-            return original.model_copy(deep=True)
-        mode: TravelMode = override or (
-            original.travel_mode if original is not None else self.default_mode
+            return None
+        return override or (original.travel_mode if original is not None else self.default_mode)
+
+    def pending_legs(self) -> list[LegKey]:
+        """Place pairs and modes of the legs this edit changed (to be measured before build)."""
+        wanted: dict[LegKey, None] = {}
+        for stops in self.days.values():
+            for before, after in zip(stops, stops[1:], strict=False):
+                mode = self._changed_mode(before, after)
+                if mode is not None and before.place_id and after.place_id:
+                    wanted.setdefault((before.place_id, after.place_id, mode))
+        return list(wanted)
+
+    def _leg(self, before: SnapshotStop, after: SnapshotStop) -> SnapshotLeg:
+        key = (before.id, after.id)
+        mode = self._changed_mode(before, after)
+        if mode is None:
+            return self.original_legs[key].model_copy(deep=True)
+        measured = (
+            self.measurements.get((before.place_id, after.place_id, mode))
+            if before.place_id and after.place_id
+            else None
         )
+        if measured is not None:
+            return SnapshotLeg(
+                from_stop_id=before.id,
+                to_stop_id=after.id,
+                travel_mode=mode,
+                availability="AVAILABLE",
+                distance_m=measured.distance_m,
+                duration_s=measured.duration_s,
+                data_provider_id=measured.data_provider_id,
+                measured_at=measured.measured_at,
+                expires_at=measured.expires_at,
+                estimated=measured.estimated,
+                conflicts=(
+                    [
+                        Conflict(
+                            type="LEG_ESTIMATED",
+                            severity="INFO",
+                            message=LEG_ESTIMATED_MESSAGE,
+                            stop_ids=[before.id, after.id],
+                        )
+                    ]
+                    if measured.estimated
+                    else []
+                ),
+            )
         return SnapshotLeg(
             from_stop_id=before.id,
             to_stop_id=after.id,
@@ -449,15 +521,33 @@ class _Editor:
         )
 
 
-def apply_edits(
+class PreparedEdits:
+    """Edits applied, legs not yet rebuilt: measure :meth:`pending_legs`, then :meth:`finish`."""
+
+    def __init__(self, editor: _Editor) -> None:
+        self._editor = editor
+
+    def pending_legs(self) -> list[LegKey]:
+        return self._editor.pending_legs()
+
+    def finish(
+        self, measurements: dict[LegKey, LegMeasurement] | None = None
+    ) -> tuple[PlanSnapshot, PlanHealth]:
+        self._editor.measurements = dict(measurements or {})
+        rebuilt = self._editor.build()
+        health, _ = evaluate_health(rebuilt)
+        return rebuilt, health
+
+
+def prepare_edits(
     snapshot: PlanSnapshot,
     edits: list[PreviewEditOperation],
     *,
     day_count: int,
     default_mode: TravelMode,
     publications: dict[uuid.UUID, PublishedPlace],
-) -> tuple[PlanSnapshot, PlanHealth]:
-    """Apply ``edits`` in order and return the new snapshot and its Plan Health.
+) -> PreparedEdits:
+    """Apply ``edits`` in order (validation errors raise here); legs are built by ``finish``.
 
     ``publications`` maps each ``place_id`` named by ADD_STOP/REPLACE_STOP to its current
     publication in the trip's city (missing = not published there → 422 ``place_not_in_city``).
@@ -467,6 +557,20 @@ def apply_edits(
     )
     for index, edit in enumerate(edits):
         editor.apply(index, edit)
-    rebuilt = editor.build()
-    health, _ = evaluate_health(rebuilt)
-    return rebuilt, health
+    return PreparedEdits(editor)
+
+
+def apply_edits(
+    snapshot: PlanSnapshot,
+    edits: list[PreviewEditOperation],
+    *,
+    day_count: int,
+    default_mode: TravelMode,
+    publications: dict[uuid.UUID, PublishedPlace],
+    measurements: dict[LegKey, LegMeasurement] | None = None,
+) -> tuple[PlanSnapshot, PlanHealth]:
+    """Apply ``edits`` and return the new snapshot and its Plan Health (see ``prepare_edits``)."""
+    prepared = prepare_edits(
+        snapshot, edits, day_count=day_count, default_mode=default_mode, publications=publications
+    )
+    return prepared.finish(measurements)

@@ -34,9 +34,9 @@ Implementation status per area is summarised in §2.1 below the table.
 | **Catalog & trust** | | | |
 | FR-001 | The traveler app shall present Đà Nẵng as the current and only enabled city, with its travel areas (e.g. Hội An Old Town) as filters. | Must | `/v1/cities` returns exactly one enabled city with its areas; 100% of search results belong to Đà Nẵng. |
 | FR-002 | Gonarra shall return published Đà Nẵng places matching a query by Vietnamese name, English name or sourced alias, ignoring case and diacritics. | Must | 30 name/alias searches plus 10 diacritic-free queries: the target place is in the first 5 results in 100% of cases. |
-| FR-003 | Gonarra shall show a place's details in the chosen language — both names, description, category, area, suggested duration, map position — with the Vietnamese name always visible. A description written by the grounded writer from sources is labelled "Summarised from sources" (DEC-025). | Must | 20 random published places: all elements present or labelled unknown; Vietnamese name shown in both locales. |
+| FR-003 | Gonarra shall show a place's details in the chosen language — both names, description, category, area, suggested duration, map position — with the Vietnamese name always visible. When no human-written description exists in that locale the card says "No description yet" / "Chưa có mô tả" (DEC-033); a human-written description shows its source and licence (DEC-032). | Must | 20 random published places: all elements present, or "No description yet" / unknown; Vietnamese name shown in both locales. |
 | FR-004 | Gonarra shall exclude unpublished candidate places from search, place details, proposals, Guide answers and photo results; a web-found place appears only as a stop or citation labelled `WEB_UNVERIFIED`. | Must | 10 candidates: 0 appear in any output; a direct ID request returns `not_found`; every web-found appearance carries the label. |
-| FR-005 | For each displayed operational fact, Gonarra shall show its source and source-check date, show "unknown" when no supported value exists, and label it stale after 180 days. An AI-extracted fact (DEC-028) is labelled "Summarised from sources" with its source link. | Must | 20 places: 0 facts without source and date; 5 missing facts show "unknown"; stale label at 181 days, none at 179. |
+| FR-005 | For each displayed operational fact, Gonarra shall show its source and source-check date, show "unknown" when no supported value exists, and label it stale after 180 days. Facts come only from human-written sources and the owner sheet (DEC-031); nothing is ever labelled as AI-generated catalog content. | Must | 20 places: 0 facts without source and date; 5 missing facts show "unknown"; stale label at 181 days, none at 179. |
 | FR-008 | Gonarra shall display the attribution recorded for a data source wherever that source's data is shown. | Must | Inspection of every traveler screen showing provider or open-data content finds the attribution; 0 misses. |
 | FR-098 rev. 1 | Gonarra shall show a trust label — `VERIFIED` ("Source-checked · <date>" / "Đã đối chiếu nguồn · <date>") or `WEB_UNVERIFIED` with source URL and fetched date — on every surface that shows a place: search result, proposal stop, timeline, map, place card and Guide citation. No surface or string claims human review (DEC-022). | Must | Inspection of all six surfaces for one trip containing a web-found stop finds the label on 100% of items; a `fetched_at` older than 7 days shows a stale mark; a grep of VI/EN locale files finds 0 strings such as "Verified", "reviewed", "Đã kiểm duyệt". |
 | **Planning** | | | |
@@ -95,12 +95,12 @@ Implementation status per area is summarised in §2.1 below the table.
 | FR-066 | Gonarra shall show indicative stay prices for the trip's dates with retrieval time and a partner-confirmation notice, behind a flag, and never store them. | Could | Prices for ≥ 1 stay or a hidden section with message; 100% carry time and notice; 0 prices in saved-trip records. |
 | **Ingestion pipeline and operator (rev. DEC-022; was "Admin (curator tool)")** | | | |
 | FR-009 rev. 1 | The ingestion pipeline (Typer CLI) shall import candidate places for Đà Nẵng from named open-data releases (Wikidata, OSM; Wikipedia extracts with attribution) and the owner's CSV sheet, without duplicates or changes to published places. | Must | Import tags candidates with source and release; re-import yields the same count; published set unchanged by import alone. |
-| FR-011 rev. 1 | The ingestion pipeline shall record bilingual names and descriptions, area, category and, for each operational fact, a value or "unknown" linked to an attributed source revision; a value with no source stays "unknown" — nothing is invented. The offline `enrich facts` CLI may add a value only when the model cites a supplied evidence id and code accepts it (BRU-002 rev. 2, DEC-028). | Must | 5 candidates with all four fact types: every non-unknown value links to a source revision; a CSV row without a source yields "unknown". |
+| FR-011 rev. 2 | The ingestion pipeline shall record bilingual names, an optional human-written description, area, category and, for each operational fact, a value or "unknown" linked to an attributed source revision; a value with no source stays "unknown" — nothing is invented and no model writes catalog content (BRU-002 rev. 3, DEC-031). | Must | 5 candidates with all four fact types: every non-unknown value links to a source revision; a CSV row without a source yields "unknown"; the `AI_CONTENT` gate rule rejects any AI-origin row. |
 | FR-013 rev. 1 | The automated publication gate shall refuse a candidate lacking Vietnamese content, English content, a location inside the Đà Nẵng boundary, a category, an attributed source revision for any shown fact, or a recorded licence, naming each failed check in the run report. | Must | Each incomplete case refused with the check named; a complete candidate publishes. |
 | FR-014 rev. 1 | The gate shall auto-publish every candidate that passes (visible in search within 1 minute; actor `system:gonarra-pipeline` and time recorded), idempotently; the operator can unpublish a place through `POST /v1/admin/places/{id}/unpublish` (emergency takedown). | Must (unpublish: Should) | 5 passing candidates visible within 1 min with system actor/time; a second run creates no new publication; an unpublished place is absent from new searches, proposals and answers and is not re-published by the next run unless its source revision changes. |
 | FR-016 rev. 1 | The ingestion pipeline shall record each source's licence and required attribution text from its source registry entry; a source without them blocks publication of facts that cite it. | Must | 5 sources carry licence and attribution; a source with no licence fails the gate for its facts. |
 | FR-018 rev. 1 | `GET /v1/admin/cities/summary` (operator only) shall return published-place counts for Đà Nẵng and per area against the gate (≥ 100 / ≥ 30) and gate rejections per reason. | Should | Counts equal the catalog report (MET-011 rev. 2). |
-| FR-019 | **Withdrawn by DEC-022** (AI-draft confirmation removed with curator review). Successor rule: BRU-002 rev. 2 (evidence-id rule for any model-extracted fact, DEC-028). | — | — |
+| FR-019 | **Withdrawn by DEC-022** (AI-draft confirmation removed with curator review). Successor rule: BRU-002 rev. 3 (models never author catalog content; DEC-031). | — | — |
 | FR-107 rev. 1 | Closure rules (place/area/city; weekly, date, lunar, season, ticket validity) with bilingual notes and a source shall be maintained by the owner in `apps/api/data/closure_rules/da-nang.yaml`, versioned in git and loaded by a CLI command that validates the schema; models never write rules (DEC-022; was: created and reviewed in the curator tool). | Must | Loading the file is idempotent and records the file's git revision; an invalid rule fails the load naming the rule; 0 rule rows written by any model path. |
 
 Merged (kept IDs absorb the listed ones): FR-003 ← FR-076; FR-005 ← FR-006, FR-007; FR-009 ← FR-010; FR-011 ← FR-012;
@@ -112,7 +112,9 @@ FR-071 ← FR-072; FR-073 ← FR-096; FR-075 ← FR-097; FR-086 ← FR-023, FR-0
 Withdrawn: FR-019 (DEC-022). FR-058 "no runtime web search" is superseded by its new wording and FR-105 (DEC-015).
 Revised by DEC-022: BRU-002, BRU-003, FR-009, FR-011, FR-013, FR-014, FR-016, FR-018, FR-098, FR-101, FR-102, FR-107, NFR-012, MET-011 (rev. 2).
 Revised or annotated by DEC-023 and DEC-025 (2026-11-08): BRU-006 (rev. 1), FR-029, FR-031, FR-037, FR-100, NFR-026 (stated exception), MET-011 (rev. 3).
-Annotated by DEC-028 (2026-11-08): BRU-002 (rev. 2), FR-003, FR-005, FR-011, FR-019 successor rule.
+Annotated by DEC-028 (2026-11-08): BRU-002 (rev. 2), FR-003, FR-005, FR-011, FR-019 successor rule. DEC-028 and
+DEC-025 are superseded in full by DEC-031 (2026-11-09): no AI-generated catalog content; MET-011 rev. 4 per DEC-033
+(description optional, human-written description count reported).
 
 ### 2.1 Implementation status (2026-11-09)
 
@@ -121,7 +123,7 @@ snapshot for planning; `progress.md` holds the evidence.
 
 | Area | FRs | Status |
 |---|---|---|
-| Catalog, search, place details, trust labels | FR-001..FR-008, FR-098 | Implemented (API and app). Descriptions and facts carry their origin (`AI_SUMMARY`, `AI_EXTRACTED`; migrations 0007, 0009). |
+| Catalog, search, place details, trust labels | FR-001..FR-008, FR-098 | Implemented (API and app). Descriptions and facts carry their origin; AI origins are retired by DEC-031 and rejected by the gate (`AI_CONTENT`). |
 | Planning, scheduling, Plan Health | FR-020, FR-022, FR-086, FR-025, FR-027, FR-029..FR-032, FR-102 | Implemented: selector with rule-based fallback, OR-Tools scheduler, Plan Health with closure rules from the YAML file. Routing runs on the haversine estimate provider in development/test/demo (DEC-023); the Google Routes adapter exists but is not used for the demo; Valhalla is not implemented. |
 | City calendar endpoint | FR-103 | Not implemented (no `/v1/cities/{city}/calendar` route). |
 | Edit, Save, trips | FR-033..FR-045 | Implemented (revisioned previews, idempotent Save, trip list, reopen, delete). |
@@ -136,7 +138,7 @@ snapshot for planning; `progress.md` holds the evidence.
 | Voice | FR-059 | Not implemented (a hidden app entry point behind `EXPO_PUBLIC_FEATURE_VOICE`; no STT/TTS). |
 | Photo identification | FR-061 | Not implemented. |
 | Indicative stay prices | FR-066 | Not implemented: the endpoint returns `feature_disabled`, or `not_implemented` when the flag is on. |
-| Ingestion pipeline, gate, operator | FR-009..FR-018, FR-107 | Implemented as Typer CLIs (`ingest wikidata/osm/wikipedia/commons/sheet`, `publish auto/takedown/summary/audit-sample`, `closure-rules load`, `pipeline run`) plus `enrich descriptions` (DEC-025) and `enrich facts` (DEC-028); operator endpoints `POST /v1/admin/places/{id}/unpublish` and `GET /v1/admin/cities/summary`. |
+| Ingestion pipeline, gate, operator | FR-009..FR-018, FR-107 | Implemented as Typer CLIs (`ingest wikidata/osm/wikipedia/wikivoyage/commons/sheet`, `publish auto/takedown/summary/audit-sample`, `policy activate/deactivate`, `closure-rules load`, `caches sweep`, `pipeline run`); operator endpoints `POST /v1/admin/places/{id}/unpublish` and `GET /v1/admin/cities/summary`. |
 
 ## 3. Non-functional requirements
 
@@ -151,7 +153,7 @@ snapshot for planning; `progress.md` holds the evidence.
 | BR-046 | Privacy: no account identifiers, contact data or precise location reach Gemini, Groq, Tavily or Google Places; the user is told what is sent (FR-074). | 20 recorded requests per provider, 0 findings; redactor unit tests fail closed. |
 | NFR-017 | Logging: logs, traces and AI invocation records exclude tokens, precise locations, question text, transcripts and full prompts (BRU-008). | 0 occurrences in logs of a full HA-02 and Guide run. |
 | NFR-022 | Accessibility (WCAG 2.1 AA, selected criteria): screen-reader labels in both languages, text contrast ≥ 4.5:1, usable at 200% system text. | 0 unlabelled controls; 0 contrast failures; 0 truncated essential text on key screens. |
-| NFR-026 | Bilingual parity: VI and EN are both launch locales with owner-reviewed UI strings; catalog content in both locales comes from attributed sources or the owner's CSV and is never machine-translated to pass the gate (stated exception, DEC-025: grounded `AI_SUMMARY` descriptions written separately in VI and EN from cited sources, labelled "Tóm tắt từ nguồn" / "Summarised from sources"; an EN name with no English source equals the Vietnamese proper name and is flagged, never translated; mentor OQ-133); times in UTC+7 regardless of device zone; diacritics render correctly. | 0 untranslated strings per locale; 0 wrong times of 20; 0 corrupted diacritics in a 50-place sample. |
+| NFR-026 | Bilingual parity: VI and EN are both launch locales with owner-reviewed UI strings; catalog content in both locales comes from attributed human-written sources or the owner's CSV and is never machine-translated, paraphrased or AI-written (DEC-031); an EN name with no English source equals the Vietnamese proper name and is flagged, never translated (DEC-033); times in UTC+7 regardless of device zone; diacritics render correctly. | 0 untranslated strings per locale; 0 wrong times of 20; 0 corrupted diacritics in a 50-place sample. |
 | NFR-032 | Determinism: for identical inputs (candidate pool, route matrix, windows, rules) the scheduler and Plan Health produce identical output; acceptance runs are reproducible with recorded providers. | Snapshot equality on two runs; 0 pass/fail differences on re-run. |
 | NFR-033 | Cost: cash spend USD 0 through 2027-01-31; quotas (FR-106) never interrupt a study session. | Weekly billing review; 0 quota failures logged during sessions; AWS spend within credits if used. |
 
@@ -173,7 +175,7 @@ uniqueness and resolution are checked by the docs link/ID check.
 | BO-001 Valid itinerary with little effort | MET-001..003 | FR-001, FR-002, FR-003, FR-020, FR-022, FR-086, FR-025, FR-029, FR-040, FR-064, FR-066, FR-073, FR-075; NFR-001, NFR-002, NFR-022, NFR-026 |
 | BO-002 Judge feasibility and change a trip safely | MET-004..006 | FR-027, FR-030, FR-031, FR-032, FR-102, FR-103, FR-033, FR-034, FR-037, FR-039, FR-040, FR-041, FR-043, FR-045, FR-047, FR-048, FR-051, FR-054, FR-055; NFR-004, NFR-032 |
 | BO-003 Trusted, labelled information and honest uncertainty | MET-007, MET-008, MET-014 | FR-004, FR-005, FR-008, FR-098, FR-099, FR-100, FR-104, FR-056, FR-058, FR-078, FR-057, FR-105, FR-059, FR-061; NFR-006 |
-| BO-004 Private, free-tier service with a source-checked catalog above the gate | MET-011 rev. 3 | FR-009, FR-011, FR-013, FR-014, FR-016, FR-018, FR-101, FR-107, FR-068, FR-070, FR-071, FR-074, FR-106; BR-046, NFR-008, NFR-012, NFR-017, NFR-033 |
+| BO-004 Private, free-tier service with a source-checked catalog above the gate | MET-011 rev. 4 | FR-009, FR-011, FR-013, FR-014, FR-016, FR-018, FR-101, FR-107, FR-068, FR-070, FR-071, FR-074, FR-106; BR-046, NFR-008, NFR-012, NFR-017, NFR-033 |
 | BO-005 Evaluation with real users against ChatGPT/Gemini | MET-014, MET-001..003 | FR-074, FR-077; NFR-008, NFR-033 |
 
 ### 4.2 Requirements to design and verification
@@ -199,8 +201,9 @@ uniqueness and resolution are checked by the docs link/ID check.
 An FR is accepted when its acceptance criterion passes against named fixtures, with build, language, environment
 and provider mode (live or recorded) recorded. The release candidate is accepted when:
 
-1. **Catalog gate:** MET-011 rev. 3 is met — ≥ 100 auto-published bilingual Đà Nẵng places passing the code gate,
-   ≥ 30 of them in the Hội An area codes, and the 10% owner audit sample reported as an accuracy figure.
+1. **Catalog gate:** MET-011 rev. 4 is met — ≥ 100 auto-published complete-card Đà Nẵng places passing the code
+   gate (both-locale names, category, area, location, attributed source; description optional, DEC-033), ≥ 30 of
+   them in the Hội An area codes, and the human-written description count plus the 10% owner audit sample reported.
 2. **Must FRs:** every Must FR passes its acceptance criterion.
 3. **Quality thresholds:** MET-004 = 100%, MET-005 = 0, MET-006 = 0, MET-007 ≥ 95%, MET-008 ≥ 90%; selector
    validity 100% and hallucinated-place rate 0; NFR thresholds met; 0 open blocking defects.
@@ -219,3 +222,4 @@ Study results (MET-001..003, MET-014) are reported in the thesis; they are not r
 |---|---|---|---|
 | 0.1–0.2 | 2026-11-04 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | Kit-based PRD for five cities (FR-001..FR-097, NFR-001..NFR-038), audit fix round 1; kept at tag `docs-sdlc-full` |
 | 2.0 | 2026-11-09 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | Rewritten from the condensed re-baseline requirements 1.2 (Đà Nẵng only, DEC-013..DEC-025) plus DEC-028 under DEC-029; FR merges and withdrawals listed; implementation status (§2.1) and traceability (§4, replacing `traceability.md`) added; business content moved to the BRD |
+| 2.1 | 2026-11-09 | Lê Ngọc Tấn Hiền (drafted with Claude Code) | DEC-031 retires AI-generated catalog content (FR-003, FR-005, FR-011 rev. 2, FR-019, NFR-026, implementation status); DEC-032 Wikivoyage attribution; DEC-033 description optional (MET-011 rev. 4) |

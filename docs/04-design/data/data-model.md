@@ -3,22 +3,23 @@
 | Field | Value |
 |---|---|
 | Document ID | GONARRA-DATA |
-| Version | 2.0 (condensed; 0.1–0.3 five-city text at git tag `docs-sdlc-full`) |
+| Version | 2.1 (condensed; 0.1–0.3 five-city text at git tag `docs-sdlc-full`) |
 | Date | 2026-11-09 |
 | Owner | Lê Ngọc Tấn Hiền |
 | Approver | trantrongminh, FYP mentor — **[Pending]** |
 | DBMS | PostgreSQL 16 + PostGIS + pgvector + pg_trgm + pgcrypto |
-| Implementation | Alembic `apps/api/migrations/versions`, head **`20261108_0009`** |
+| Implementation | Alembic `apps/api/migrations/versions`, head **`20261109_0010`** |
 | Contract file | [schema.sql](./schema.sql) |
 
 This document summarises the physical model, ownership, retention and the main transactions. Architecture: [SAD](../architecture/SAD.md) §4; API: [api-contract.md](../api/api-contract.md).
 
-**Source of truth.** The Alembic migrations at head (`20261108_0009`) are what runs. [`schema.sql`](./schema.sql) is generated from them with `pg_dump --schema-only` (the command is in its header) and must be regenerated after every migration; it applies cleanly on a fresh PostGIS/pgvector database (verified 2026-11-09, 48 tables). This document explains the model; the SQL file is the exact DDL.
+**Source of truth.** The Alembic migrations at head (`20261109_0010`) are what runs. [`schema.sql`](./schema.sql) is generated from them with `pg_dump --schema-only` (the command is in its header) and must be regenerated after every migration; it applies cleanly on a fresh PostGIS/pgvector database (verified 2026-11-09). This document explains the model; the SQL file is the exact DDL.
 
 | Version | Date | Change |
 |---|---|---|
 | 0.1–0.3 | 2026-11-04..05 | Five-city model with curator review |
 | 2.0 | 2026-11-09 | Rewritten against migrations 0001–0009: Đà Nẵng only, areas, web candidates and trust levels, closure rules, quota ledger and caches, automated publication gate (DEC-022), content origin (DEC-025), city-level Guide sessions (DEC-017), fact origin and grounding (DEC-028) |
+| 2.1 | 2026-11-09 | Migration 0010 dataset rebuild; AI catalog content retired (DEC-031), Wikivoyage source and description attribution (DEC-032), description optional at the gate (DEC-033), `places.is_area` |
 
 ## 1. Conventions
 
@@ -55,10 +56,10 @@ This document summarises the physical model, ownership, retention and the main t
 | Table | Purpose |
 |---|---|
 | `places` | Place identity, area, category, location, visit durations; `workflow_state` IMPORTED → … → PUBLISHED / RETIRED (internal, never traveler-visible) |
-| `place_localizations` | VI and EN name and descriptions per revision. `translation_origin` ORIGINAL, HUMAN_TRANSLATION, AI_DRAFT or **AI_SUMMARY** (0007, DEC-025: written by the grounded writer from cited sources). `name_is_source_fallback` (0007): the EN name is the Vietnamese proper name reused unchanged |
+| `place_localizations` | VI and EN name and descriptions per revision. `translation_origin` ORIGINAL, HUMAN_TRANSLATION, AI_DRAFT or AI_SUMMARY (0007); AI_SUMMARY/AI_DRAFT are **retired and rejected by the gate** (DEC-031), values stay for history. `name_is_source_fallback` (0007): the EN name is the Vietnamese proper name reused unchanged |
 | `place_aliases` | Search names per locale (`NAME` = display name, `ALIAS`); unique per (place, locale, normalized alias) since 0006 |
 | `sources`, `source_revisions` | Publisher, licence and attribution; each consulted URL or record as an immutable revision with retrieval time and content hash |
-| `place_facts` | One value per field per revision: `knowledge_state` KNOWN / UNKNOWN / NOT_APPLICABLE, `value` jsonb, `verified_at`, `valid_until`, conflict state. **`origin`** SOURCE / OWNER / AI_EXTRACTED and **`grounding`** STRONG / WEAK, the latter only for AI_EXTRACTED (0009, DEC-028) |
+| `place_facts` | One value per field per revision: `knowledge_state` KNOWN / UNKNOWN / NOT_APPLICABLE, `value` jsonb, `verified_at`, `valid_until`, conflict state. **`origin`** SOURCE / OWNER / AI_EXTRACTED and **`grounding`** STRONG / WEAK; AI_EXTRACTED is **retired and rejected by the gate** (DEC-031), values stay for history |
 | `fact_evidence` | Fact → source revision, with the supported claim |
 | `media_assets`, `place_media` | Licensed images (Wikimedia Commons, DEC-024) with creator, licence, attribution and rights state; ordered per place |
 | `place_closure_rules` | Calendar rules (`WEEKLY`, `DATE`, `LUNAR_DATE`, `SEASON`, `TICKET_VALIDITY`) for a place, area or city with effect `CLOSED` / `PARTIAL` / `EVENT` / `NOTICE` and severity; loaded only from the owner's YAML file (ADR-011, DEC-022) |
@@ -125,7 +126,7 @@ Referential actions: CASCADE for content that belongs to its parent; RESTRICT fo
 
 ### 5.1 Automated publication (DEC-022)
 
-`python -m app.cli publish auto` (or `pipeline run`) evaluates each candidate place in code (`curation/auto_publish.py`) and publishes through `fn_publish_place`, which re-checks the SQL gate (`fn_publication_gate_violations`) inside the same transaction. The gate requires VI and EN names and descriptions, a search name per locale, an in-boundary location, a category, an attributed source revision for every shown fact and a recorded licence. Unchanged input creates no new publication. Rejections are written to the audit log with a reason. `fn_withdraw_place` serves API-037 and `publish takedown`. AI-extracted facts (DEC-028) arrive as import records of provider `gonarra_ai_facts` and are published as `origin = AI_EXTRACTED` only where no owner-sheet or OSM value exists.
+`python -m app.cli publish auto` (or `pipeline run`) evaluates each candidate place in code (`curation/auto_publish.py`) and publishes through `fn_publish_place`, which re-checks the SQL gate (`fn_publication_gate_violations`) inside the same transaction. The gate requires VI and EN names, a search name per locale, an in-boundary location, a category, an area, an attributed source revision for every shown fact and a recorded licence; a description is optional (DEC-033 option A) and, when present, must be human-written in that locale (80-character minimum). Unchanged input creates no new publication. Rejections are written to the audit log with a reason. `fn_withdraw_place` serves API-037 and `publish takedown`. AI-generated descriptions and facts are retired (DEC-031): the `AI_CONTENT` gate rule rejects them, and the retired providers' import records stay as an audit trail.
 
 ### 5.2 Explicit Save (ADR-009)
 

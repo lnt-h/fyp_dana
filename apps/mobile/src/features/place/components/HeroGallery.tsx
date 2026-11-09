@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Photo, PhotoHero } from '../../../components/ui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Photo, PhotoFallback, PhotoHero } from '../../../components/ui';
 import type { Media } from '../../../lib/api/types';
 import { colors } from '../../../theme/colors';
 import { spacing } from '../../../theme/spacing';
-import { fonts } from '../../../theme/typography';
+import { fonts, typography } from '../../../theme/typography';
 
 const MAX_THUMBS = 4;
 const THUMB = 52;
@@ -52,7 +54,23 @@ export function HeroGallery({ name, thumbnail, media, height, categoryCode, topL
       : t('place.photoBy', { text: current.attribution_text })
     : null;
 
+  const insets = useSafeAreaInsets();
   const gallery = thumbs.length > 1;
+  if (!current) {
+    // No photo: the strong category gradient with a large category icon (never a brown or grey box), white title.
+    return <View style={[g.fallback, { height }]}>
+      <PhotoFallback categoryCode={categoryCode} iconSize={64} tone="dark" />
+      <LinearGradient colors={['rgba(22,33,43,0)', 'rgba(22,33,43,0.45)']} locations={[0.45, 1]} pointerEvents="none" style={StyleSheet.absoluteFill} />
+      <View pointerEvents="box-none" style={[g.controls, { top: insets.top + spacing.xs }]}>
+        <View>{topLeft}</View>
+        <View>{topRight}</View>
+      </View>
+      <View pointerEvents="box-none" style={g.body}>
+        <Text accessibilityRole="header" numberOfLines={3} style={g.title}>{title}</Text>
+        {children}
+      </View>
+    </View>;
+  }
   return <View>
     <PhotoHero
       accessibilityLabel={current?.alt_text ?? (current ? t('place.gallery.thumbA11y', { index: index + 1, name, total: photos.length }) : undefined)}
@@ -86,17 +104,22 @@ export function HeroGallery({ name, thumbnail, media, height, categoryCode, topL
         </Pressable>;
       })}
     </View> : null}
-    {gallery ? <View style={g.creditRow}>
+    {/* The credit sits left of the overhanging thumbnails, never under them. */}
+    {gallery ? <View style={[g.creditRow, { paddingRight: spacing.lg + thumbs.length * (THUMB + spacing.xs) }]}>
       {credit ? <Text accessibilityLiveRegion="polite" numberOfLines={2} style={g.credit}>{credit}</Text> : null}
     </View> : null}
   </View>;
 }
 
 const g = StyleSheet.create({
+  body: { bottom: 0, left: 0, paddingBottom: spacing.lg, paddingHorizontal: spacing.lg, position: 'absolute', right: 0 },
+  controls: { flexDirection: 'row', justifyContent: 'space-between', left: spacing.md, position: 'absolute', right: spacing.md },
+  fallback: { borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden', width: '100%' },
+  title: { ...typography.display, color: colors.white },
   straight: { borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
-  creditRow: { minHeight: GALLERY_OVERHANG + spacing.xs, paddingTop: GALLERY_OVERHANG + spacing.xs, paddingHorizontal: spacing.lg },
+  creditRow: { minHeight: GALLERY_OVERHANG + spacing.xs, paddingLeft: spacing.lg, paddingTop: spacing.xs },
   credit: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.textMuted },
   row: { position: 'absolute', right: spacing.lg, bottom: -GALLERY_OVERHANG, flexDirection: 'row', gap: spacing.xs },
   thumb: { width: THUMB, height: THUMB, borderRadius: 12, borderWidth: 2, borderColor: colors.white, overflow: 'hidden', backgroundColor: colors.white },
-  thumbSelected: { borderColor: colors.audioTeal, borderWidth: 3 },
+  thumbSelected: { borderColor: colors.primary, borderWidth: 3 },
 });

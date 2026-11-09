@@ -2,9 +2,9 @@
 
 ``python -m app.cli publish audit-sample [--fraction 0.1] [--seed N] [--out file.csv]`` writes,
 for each sampled current publication, the published VI/EN names (with the proper-name fallback
-flag), descriptions with their origin (``ORIGINAL`` / ``AI_SUMMARY``) and source locators, the
-cited URLs of an AI summary, every published fact with its value and evidence locators, and the
-image credit. The last two columns are empty for the owner to fill in (accurate? notes).
+flag), descriptions with their origin and source locators, every published fact with its value
+and evidence locators, and the image credit. The last two columns are empty for the owner to
+fill in (accurate? notes).
 """
 
 from __future__ import annotations
@@ -20,7 +20,6 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.curation.auto_publish import AI_SUMMARY_PROVIDER_KEY
 from app.models.catalog import (
     CatalogAuditEvent,
     CatalogPublication,
@@ -33,7 +32,6 @@ from app.models.catalog import (
     PublicationMedia,
     SourceRevision,
 )
-from app.models.providers import DataProvider, ImportRecord, ImportRun
 
 COLUMNS: tuple[str, ...] = (
     "slug",
@@ -47,7 +45,6 @@ COLUMNS: tuple[str, ...] = (
     "description_en",
     "description_en_origin",
     "description_sources",
-    "ai_cited_urls",
     "facts",
     "image_credit",
     "owner_accurate_yes_no",
@@ -104,21 +101,6 @@ async def audit_rows(
         source_ids: list[str] = []
         for values in ((detail or {}).get("sources") or {}).values():
             source_ids.extend(values)
-        ai_payload = await session.scalar(
-            select(ImportRecord.allowed_payload)
-            .join(ImportRun, ImportRun.id == ImportRecord.import_run_id)
-            .join(DataProvider, DataProvider.id == ImportRun.data_provider_id)
-            .where(
-                ImportRecord.place_id == place.id,
-                ImportRecord.validation_status == "ACCEPTED",
-                ImportRun.status == "SUCCEEDED",
-                DataProvider.provider_key == AI_SUMMARY_PROVIDER_KEY,
-            )
-            .order_by(ImportRun.started_at.desc())
-            .limit(1)
-        )
-        uses_ai = "AI_SUMMARY" in (vi.translation_origin, en.translation_origin)
-        cited = list((ai_payload or {}).get("cited_urls") or []) if uses_ai else []
         facts: list[str] = []
         fact_rows = (
             await session.scalars(
@@ -163,7 +145,6 @@ async def audit_rows(
                 "description_en": en.description or "",
                 "description_en_origin": en.translation_origin,
                 "description_sources": " | ".join(await _locators(session, source_ids)),
-                "ai_cited_urls": " | ".join(cited),
                 "facts": " ; ".join(facts),
                 "image_credit": " ; ".join(f"{m[0]} ({m[1]})" for m in media),
                 "owner_accurate_yes_no": "",

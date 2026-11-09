@@ -53,16 +53,71 @@ export async function listCategories(): Promise<Category[]> {
   return (await apiRequest<{ items: Category[] }>('/v1/categories')).items;
 }
 
-/** Page size for place search; the UI shows one page (cursor paging is not wired yet). */
+/** Page size for place search (the API caps `limit` at 50). */
 const PLACE_PAGE_LIMIT = 50;
+/** Pages followed for a full-city or full-category list (4 × 50 = 200 places; the FYP catalog is ~110). */
+const PLACE_MAX_PAGES = 4;
 
-/** API-010 `GET /v1/places?city_id&q&category_code` (first page only). */
-export async function searchPlaces(cityId: Uuid, q?: string, categoryCode?: string | null, areaCode?: string | null): Promise<Place[]> {
-  const query = {
+export type PlaceList = {
+  items: Place[];
+  /** True when more pages were left unread after `PLACE_MAX_PAGES` (the count is then a lower bound). */
+  truncated: boolean;
+};
+
+/**
+ * API-010 `GET /v1/places?city_id&q&category_code&area_code`, following `next_cursor` for up to `maxPages` pages.
+ * Category and area filters run on the server (never client-side over a partial page).
+ */
+export async function searchPlacesList(
+  cityId: Uuid, q?: string, categoryCode?: string | null, areaCode?: string | null, maxPages = PLACE_MAX_PAGES,
+): Promise<PlaceList> {
+  const base = {
     area_code: areaCode ?? undefined, category_code: categoryCode ?? undefined, city_id: cityId, limit: PLACE_PAGE_LIMIT, locale: currentLocale(),
     q: q?.trim() || undefined,
   };
-  return (await apiRequest<PlaceSummaryPage>('/v1/places', { query })).items;
+  const items: Place[] = [];
+  let cursor: string | null = null;
+  for (let page = 0; page < maxPages; page += 1) {
+    const result: PlaceSummaryPage = await apiRequest<PlaceSummaryPage>('/v1/places', { query: cursor ? { ...base, cursor } : base });
+    items.push(...result.items);
+    cursor = result.next_cursor;
+    if (!cursor) break;
+  }
+  return { items, truncated: !!cursor };
+}
+
+/** API-010 as a plain list (all pages up to the bound); see `searchPlacesList`. */
+export async function searchPlaces(cityId: Uuid, q?: string, categoryCode?: string | null, areaCode?: string | null): Promise<Place[]> {
+  return (await searchPlacesList(cityId, q, categoryCode, areaCode)).items;
+}
+
+const POPULATED_TTL_MS = 5 * 60_000;
+const populatedCache = new Map<string, { at: number; codes: Promise<Set<string>> }>();
+
+/**
+ * Which of `codes` have at least one published place in the city: one `limit=1` API-010 call per category, cached for
+ * five minutes per city. Data-driven, so a category appears as soon as its first place is published. A failed probe
+ * keeps the category (better a chip with an empty state than a missing one).
+ */
+export function populatedCategoryCodes(cityId: Uuid, codes: readonly string[]): Promise<Set<string>> {
+  const key = `${cityId}|${[...codes].sort().join(',')}`;
+  const hit = populatedCache.get(key);
+  if (hit && Date.now() - hit.at < POPULATED_TTL_MS) return hit.codes;
+  let failed = false;
+  const promise = Promise.all(codes.map(async code => {
+    try {
+      const page = await apiRequest<PlaceSummaryPage>('/v1/places', { query: { category_code: code, city_id: cityId, limit: 1 } });
+      return page.items.length > 0 ? code : null;
+    } catch {
+      failed = true;
+      return code;
+    }
+  })).then(found => {
+    if (failed) populatedCache.delete(key); // retry the probe next time instead of caching a guess
+    return new Set(found.filter((code): code is string => code !== null));
+  });
+  populatedCache.set(key, { at: Date.now(), codes: promise });
+  return promise;
 }
 
 /** API-011 `GET /v1/places/{place_id}`. */

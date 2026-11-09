@@ -45,7 +45,7 @@ from app.models.providers import ImportRecord, ImportRun
 logger = logging.getLogger("gonarra.ingestion")
 
 PROVIDER_KEY = "wikipedia"
-IMPORTER_VERSION = "wikipedia-1"
+IMPORTER_VERSION = "wikipedia-2"  # 2: records the article's own wikibase_item
 RELEASE_ID = "rest-v1-summary"
 SUMMARY_URL = "https://{lang}.wikipedia.org/api/rest_v1/page/summary/{title}"
 LICENSE_CODE = "CC-BY-SA-4.0"
@@ -69,13 +69,21 @@ class PageSummary:
     page_url: str
     summary: str
     revision: str | None
+    # The article's own Wikidata item (DEC-031): an extract describes the place only when this
+    # equals the place's QID (a sitelink may redirect to an article about another subject).
+    wikibase_item: str | None = None
 
     @property
     def upstream_id(self) -> str:
         return f"{self.locale}:{self.title}"
 
     def payload(self) -> dict[str, Any]:
-        return {"title": self.title, "page_url": self.page_url, "summary": self.summary}
+        return {
+            "title": self.title,
+            "page_url": self.page_url,
+            "summary": self.summary,
+            "wikibase_item": self.wikibase_item,
+        }
 
 
 def trim_extract(text: str, limit: int = MAX_EXTRACT_CHARS) -> str:
@@ -104,6 +112,7 @@ def parse_summary(request: PageRequest, body: dict[str, Any]) -> PageSummary | N
         page_url=str(page_url),
         summary=extract,
         revision=str(revision) if revision is not None else None,
+        wikibase_item=str(body["wikibase_item"]) if body.get("wikibase_item") else None,
     )
 
 

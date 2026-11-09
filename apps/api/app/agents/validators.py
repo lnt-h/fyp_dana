@@ -23,8 +23,6 @@ from app.agents.schemas import (
     Claim,
     GroundedAnswer,
     Pick,
-    PlaceDescription,
-    PlaceDescriptionDraft,
     RationaleSet,
     ResearchReport,
     ResearchTools,
@@ -260,6 +258,40 @@ _FACTLIKE_RE = re.compile(
 )
 
 
+# Spelled-out numbers with a unit are facts too ("đèo cao năm trăm mét", "five hundred metres",
+# "mười phút đi bộ", "half an hour"): distances, heights, durations and prices are never authored
+# by a model (durations only come from Google Routes).
+_VI_NUMBER_WORDS = (
+    "không|một|mốt|hai|ba|bốn|tư|năm|lăm|sáu|bảy|tám|chín|mười|mươi|trăm|nghìn|ngàn|triệu|tỷ|tỉ"
+    "|linh|lẻ|rưỡi|vài|mấy"
+)
+_VI_UNITS = (
+    "mét|m2|mét vuông|km|ki lô mét|ki-lô-mét|cây số|phút|giây|giờ|tiếng|tiếng đồng hồ|đồng"
+    "|nghìn đồng|ngàn đồng"
+)
+_EN_NUMBER_WORDS = (
+    "zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen"
+    "|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy"
+    "|eighty|ninety|hundred|thousand|million|billion|half|dozen|dozens|hundreds|thousands|couple"
+    "|few|several"
+)
+_EN_UNITS = (
+    "metres?|meters?|kilometres?|kilometers?|km|miles?|feet|foot|ft|yards?|minutes?|mins?"
+    "|hours?|hrs?|seconds?|dong|vnd|dollars?|usd|euros?"
+)
+_SPELLED_NUMBER_RE = re.compile(
+    rf"(?<!\w)(?:{_VI_NUMBER_WORDS})(?:[\s-]+(?:{_VI_NUMBER_WORDS}))*\s+(?:{_VI_UNITS})(?!\w)"
+    rf"|(?<!\w)(?:{_EN_NUMBER_WORDS})(?:[\s-]+(?:and[\s-]+)?(?:{_EN_NUMBER_WORDS}))*"
+    rf"(?:\s+(?:an?|of))?\s+(?:{_EN_UNITS})(?!\w)",
+    re.IGNORECASE,
+)
+
+
+def fact_like(text: str) -> bool:
+    """Digits or spelled-out numbers with a time, price, distance or height unit."""
+    return bool(_FACTLIKE_RE.search(text) or _SPELLED_NUMBER_RE.search(text))
+
+
 def validate_rationales(
     result: RationaleSet, *, stop_ids: Collection[uuid.UUID]
 ) -> tuple[dict[uuid.UUID, str | None], list[str]]:
@@ -281,7 +313,7 @@ def validate_rationales(
         if out[pid] is not None:
             issues.append(f"duplicate_place_id:{key}")
             continue
-        if _FACTLIKE_RE.search(item.text):
+        if fact_like(item.text):
             issues.append(f"fact_like_text:{key}")
             continue
         out[pid] = item.text
@@ -331,7 +363,8 @@ def validate_research(
 ) -> ResearchCheck:
     """Keep only what the fetched pages support.
 
-    * candidate ``source_url`` must be a page fetched in this run;
+    * candidate ``source_url`` must be a page fetched in this run and not a search engine /
+      cache page (:func:`blocked_source_host`);
     * ``name_quote`` must be verbatim page text and contain the candidate name;
     * each fact's ``quote`` must be verbatim page text, else the fact is dropped;
     * ``google_place_id`` must come from a places_check of this run, else it is cleared;
@@ -346,6 +379,9 @@ def validate_research(
         url = normalise_url(cand.source_url)
         text = tools.page_text(url)
         label = cand.name[:60]
+        if blocked_source_host(url):
+            dropped.append(f"candidate_source_blocked_host:{label}")
+            continue
         if text is None:
             dropped.append(f"candidate_source_not_fetched:{label}")
             continue
@@ -380,151 +416,11 @@ def validate_research(
     for item in report.evidence:
         url = normalise_url(item.source_url)
         text = tools.page_text(url)
+        if blocked_source_host(url):
+            dropped.append(f"evidence_blocked_host:{url[:80]}")
+            continue
         if text is None or not quote_in_text(item.quote, text):
             dropped.append(f"evidence_quote_not_found:{url[:80]}")
             continue
         evidence.append(item.model_copy(update={"source_url": url}))
     return ResearchCheck(ResearchReport(candidates=candidates, evidence=evidence), dropped)
-
-
-# ---------------------------------------------------------------------------------------------
-# grounded_writer: place descriptions (offline enrichment, 2026-11-08 D3)
-# ---------------------------------------------------------------------------------------------
-
-MIN_DESCRIPTION_SENTENCES = 2
-# The prompt asks for 2-3 sentences; one extra is tolerated for splitter edge cases.
-MAX_DESCRIPTION_SENTENCES = 4
-MIN_DESCRIPTION_CHARS = 60
-
-_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?…])\s+")
-_NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)*")
-_I = re.IGNORECASE
-
-# Facts are never authored by a model (AGENTS.md): prices, hours, phone numbers and ratings in
-# a description reject the whole draft. Years and counts are allowed (checked against sources).
-FACT_PATTERNS: dict[str, tuple[re.Pattern[str], ...]] = {
-    "price": (
-        re.compile(r"\d[\d.,]*\s*(?:k|nghìn|ngàn|triệu|đồng|vnd|vnđ|usd|dollars?|euros?)\b", _I),
-        re.compile(r"\d[\d.,]*\s*(?:đ|₫)(?!\w)", _I),
-        re.compile(r"[$€£₫]\s*\d", _I),
-        re.compile(
-            r"\b(?:giá vé|vé vào cửa|phí vào cửa|phí tham quan|miễn phí|entrance fee|"
-            r"admission(?: fee| price| is| costs?)?|ticket price|tickets? costs?|"
-            r"free of charge|price[sd]?|giá cả|bảng giá)\b",
-            _I,
-        ),
-    ),
-    "hours": (
-        re.compile(r"\b(?:[01]?\d|2[0-4])\s*[:h]\s*[0-5]\d\b", _I),
-        re.compile(r"\b\d{1,2}\s*(?:am|pm|a\.m\.|p\.m\.)", _I),
-        re.compile(r"\b\d{1,2}\s*giờ\b", _I),
-        re.compile(
-            r"\b(?:opening hours|open daily|open every day|opens? (?:at|from)|closes? at|"
-            r"closed on|giờ mở cửa|mở cửa (?:từ|lúc|hàng ngày|cả tuần)|đóng cửa (?:lúc|vào))\b",
-            _I,
-        ),
-    ),
-    "phone": (
-        re.compile(r"(?<!\d)(?:\+?84|0)[\s.\-]?\d(?:[\s.\-]?\d){7,9}(?!\d)"),
-        re.compile(r"\b(?:hotline|phone|telephone|tel|điện thoại|số điện thoại|sđt)\b", _I),
-    ),
-    "rating": (
-        re.compile(r"\b\d(?:[.,]\d)?\s*/\s*(?:5|10)\b", _I),
-        re.compile(r"\b\d(?:[.,]\d)?\s*(?:stars?|sao)\b", _I),
-        re.compile(r"\b(?:rating|rated|tripadvisor|google reviews?|reviews?|điểm đánh giá)\b", _I),
-    ),
-    "contact": (
-        re.compile(r"https?://|www\.", _I),
-        re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"),
-    ),
-}
-
-
-def sentences(text: str) -> list[str]:
-    return [part for part in _SENTENCE_SPLIT_RE.split(text.strip()) if part.strip()]
-
-
-def fact_kinds(text: str) -> list[str]:
-    """Kinds of operational facts / contact data present in ``text`` (empty = clean)."""
-    return [
-        kind for kind, patterns in FACT_PATTERNS.items() if any(p.search(text) for p in patterns)
-    ]
-
-
-def _digits(value: str) -> str:
-    return re.sub(r"[.,]", "", value)
-
-
-@dataclass(frozen=True, slots=True)
-class DescriptionCheck:
-    issues: tuple[str, ...]
-    insufficient_evidence: bool = False
-    description: PlaceDescription | None = None
-
-    @property
-    def ok(self) -> bool:
-        return self.insufficient_evidence or self.description is not None
-
-
-def validate_description(
-    draft: PlaceDescriptionDraft,
-    *,
-    supplied_urls: Collection[str],
-    source_text: str,
-) -> DescriptionCheck:
-    """Meaning checks for a description draft. Any failure rejects the whole draft.
-
-    * ``insufficient_evidence`` → valid, nothing to store (texts are ignored).
-    * Both locales present, 2-4 sentences and ≥ 60 characters each.
-    * ≥ 1 cited URL, and every cited URL is one of ``supplied_urls`` (normalised) and not an
-      aggregator / search-engine / cache host (:func:`blocked_source_host`).
-    * No prices, hours, phone numbers, ratings, URLs or e-mails (facts are never model-authored).
-    * Every number in a text (years, counts) occurs in the supplied source text.
-    """
-    if draft.insufficient_evidence:
-        return DescriptionCheck((), insufficient_evidence=True)
-    issues: list[str] = []
-    supplied = {normalise_url(url) for url in supplied_urls}
-    cited: list[str] = []
-    for url in draft.cited_urls:
-        normalised = normalise_url(url)
-        if blocked_source_host(normalised):
-            issues.append("cited_url_blocked_host")
-        elif normalised not in supplied:
-            issues.append("cited_url_not_supplied")
-        elif normalised not in cited:
-            cited.append(normalised)
-    if not cited:
-        issues.append("no_supplied_citation")
-    source_digits = _digits(source_text)
-    texts = {"vi": draft.description_vi, "en": draft.description_en}
-    for locale, value in texts.items():
-        if not value:
-            issues.append(f"missing_description:{locale}")
-            continue
-        count = len(sentences(value))
-        if not MIN_DESCRIPTION_SENTENCES <= count <= MAX_DESCRIPTION_SENTENCES:
-            issues.append(f"sentence_count:{locale}:{count}")
-        if len(value) < MIN_DESCRIPTION_CHARS:
-            issues.append(f"too_short:{locale}")
-        issues.extend(f"fact_in_text:{locale}:{kind}" for kind in fact_kinds(value))
-        for number in _NUMBER_RE.findall(value):
-            if _digits(number) not in source_digits:
-                issues.append(f"unsupported_number:{locale}:{number[:12]}")
-    if (
-        draft.description_vi
-        and draft.description_en
-        and (normalise_text(draft.description_vi) == normalise_text(draft.description_en))
-    ):
-        issues.append("same_text_in_both_locales")
-    if issues:
-        return DescriptionCheck(tuple(dict.fromkeys(issues)))
-    assert draft.description_vi is not None and draft.description_en is not None
-    return DescriptionCheck(
-        (),
-        description=PlaceDescription(
-            description_vi=_WS_RE.sub(" ", draft.description_vi).strip(),
-            description_en=_WS_RE.sub(" ", draft.description_en).strip(),
-            cited_urls=tuple(cited),
-        ),
-    )

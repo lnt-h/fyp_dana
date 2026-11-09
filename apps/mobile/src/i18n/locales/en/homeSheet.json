@@ -9,10 +9,10 @@
     "subtitleNoCity": "Where shall we go today?"
   },
   "plan": {
-    "kicker": "Trip planning assistant",
+    "kicker": "Trip planner",
     "title": "Plan 1–3 days in {{city}}",
-    "subtitle": "Built from source-checked places",
-    "action": "Start",
+    "subtitle": "Tell us what you like and get a day-by-day plan with a map",
+    "action": "Start planning",
     "offlineHint": "Planning needs a connection",
     "a11yHint": "Opens the trip planner"
   },
@@ -50,23 +50,29 @@
     "minutes": "{{count}} min",
     "loading": "Loading places",
     "emptyTitle": "Places for {{city}} are on the way",
-    "emptyBody": "More places are being source-checked. Check back soon!",
+    "emptyBody": "More places are being added. Check back soon!",
     "emptyFilter": "No places in this category yet.",
     "error": "Could not load places.",
     "retry": "Try again",
-    "cityError": "Could not load the city."
+    "cityError": "Could not load the city.",
+    "count_one": "{{count}} place",
+    "count_other": "{{count}} places"
   },
   "rails": {
     "hoiAn": {
       "title": "Spots in Hội An",
-      "subtitle": "Source-checked places in the Hội An area"
+      "subtitle": "The old town, beaches and villages around it"
     },
     "food": {
       "title": "Food & drink",
-      "subtitle": "Source-checked food spots and cafés"
+      "subtitle": "Places to eat and cafés"
     },
-    "meta": "{{category}} · about {{count}} min",
+    "meta": "{{category}} · {{count}} min",
     "credit": "Photo: {{credit}}",
-    "empty": "No places here yet"
+    "empty": "No places here yet",
+    "category": {
+      "BEACH": "Sand and sea around the city",
+      "VIEWPOINT": "Views over the city, river and coast"
+    }
   }
 }

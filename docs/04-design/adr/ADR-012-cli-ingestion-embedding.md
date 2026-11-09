@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Accepted by the owner (SRC-100 A-021, A-028; DEC-022 2026-11-06); mentor review at M0 [Pending] (OQ-131) |
-| Date | 2026-11-04 (0.4: 2026-11-06; 0.5: 2026-11-06) |
+| Date | 2026-11-04 (0.4: 2026-11-06; 0.5: 2026-11-06; 0.6: 2026-11-09) |
 | Version | 0.5 |
 | Owner / decider | Lê Ngọc Tấn Hiền |
 | Approver | trantrongminh, FYP mentor ([Pending]) |
@@ -14,7 +14,7 @@
 > Commons photos (CC0 / PD / CC BY / CC BY-SA with author; hot-linked thumbnails). An offline `enrich descriptions`
 > command lets the `grounded_writer` write VI and EN descriptions from supplied source text only (`translation_origin
 > = 'AI_SUMMARY'`, cited URLs validated, no facts, ≤ 150 places per run); an EN name with no English source equals the
-> Vietnamese proper name and is flagged. The release gate is MET-011 rev. 3 (adds a 10 % owner audit sample). The
+> Vietnamese proper name and is flagged. The release gate is MET-011 rev. 4 (complete cards, description optional, 10 % owner audit sample; DEC-033). The
 > research-candidate promotion below depends on the Places check, which DEC-023 replaces by open-data matching (OQ-134).
 
 ## Context
@@ -63,8 +63,9 @@ no model writes.
   not retrievable. `embed --pending` backfills; `embed --reembed-all --model <id>` re-embeds after a model change.
 - **Operator surface.** No admin SPA and no review endpoints. The owner keeps `POST /v1/admin/places/{id}/unpublish`
   (emergency takedown) and `GET /v1/admin/cities/summary` (release-gate count) behind `GONARRA_CURATOR_CLERK_USER_IDS`.
-- **Caches and jobs.** `routes warm` pre-fills `routes_matrix_cache`; `jobs` sweeps expired cache rows, previews,
-  Guide sessions and web candidates, retries deletions and recomputes freshness.
+- **Caches and jobs.** `routes warm` pre-fills `routes_matrix_cache`; `caches sweep` deletes expired cache rows
+  (Places lat/lng after 30 days), and `run-deletion-jobs` purges accounts whose deletion job is due. `pipeline run`
+  ends with a `caches sweep`.
 
 ## Options
 
@@ -96,3 +97,4 @@ MET-011, OQ-121, OQ-131, ASM-022, RSK-001, RSK-105.
 | 0.3 | 2026-11-05 | Embeddings on write by the curation API (DEC-012) |
 | 0.4 | 2026-11-06 | DEC-013 post-merger Đà Nẵng bounding box and areas; DEC-015 web candidates via the research agent and the admin queue; CLI `routes warm` and cache sweeps |
 | 0.5 | 2026-11-06 | DEC-022: curator review, admin queue and curation API removed; automated pipeline (Wikidata, OSM, Wikipedia, owner CSV) with a deterministic publication gate and system actor; auto-promotion of `EXISTS_OPERATIONAL` web candidates; closure rules from owner-maintained YAML; verbatim-quote rule for future AI extraction |
+| 0.6 | 2026-11-09 | DEC-031/DEC-032: Wikivoyage ingest (`ingest wikivoyage`, CC BY-SA 4.0, `lastedit` as verification date); the AI description and fact-extraction commands are removed (catalog content is human-written only); `pipeline run` adds `ingest wikidata-link` and ends with `caches sweep` |

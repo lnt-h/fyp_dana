@@ -1,0 +1,86 @@
+# Caddy reverse proxy for the Gonarra API (docker-compose.prod.yml).
+# Automatic HTTPS: Caddy obtains and renews a Let's Encrypt/ZeroSSL certificate for
+# GONARRA_API_HOST as long as DNS points at this VM and ports 80 and 443 are open.
+# GONARRA_TLS_MODE=internal switches to Caddy's local CA (smoke tests without public DNS).
+{
+	email {$ACME_EMAIL}
+	# Proxy error entries also carry the request URI: redact the query there too.
+	log proxy_errors {
+		include http.log.error
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp \?.*$ ?redacted
+				request>headers>Referer delete
+			}
+		}
+	}
+	log default {
+		exclude http.log.error
+	}
+}
+
+(tls_acme) {
+	# Default automatic HTTPS; nothing to configure.
+}
+
+(tls_internal) {
+	tls internal
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		# JSON API: nothing should be rendered as a document.
+		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		-Server
+		-Via
+	}
+}
+
+{$GONARRA_API_HOST} {
+	import tls_{$GONARRA_TLS_MODE:acme}
+	import security_headers
+
+	encode {
+		# JSON only: Server-Sent Events (text/event-stream) stay uncompressed and unbuffered.
+		match {
+			header Content-Type application/json*
+		}
+		zstd
+		gzip
+	}
+
+	request_body {
+		max_size 10MB
+	}
+
+	reverse_proxy api:8000 {
+		# SSE (text/event-stream) is flushed immediately by Caddy; keep slow proposals open.
+		transport http {
+			read_timeout 180s
+		}
+		# Ride out an api container restart (deploy) instead of failing fast with 502.
+		lb_try_duration 15s
+		lb_try_interval 500ms
+	}
+
+	# Access log without query strings: search text (q) and coordinates (near, bbox) travel in
+	# the query and must not be logged (AGENTS.md). Authorization/Cookie are redacted by Caddy.
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp \?.*$ ?redacted
+				request>headers>Referer delete
+			}
+		}
+	}
+}

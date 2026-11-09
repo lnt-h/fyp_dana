@@ -583,7 +583,7 @@ export interface components {
          */
         Freshness: "CURRENT" | "STALE";
         /**
-         * @description DEC-015 trust vocabulary. VERIFIED = published, curator-reviewed catalog content. WEB_UNVERIFIED = a
+         * @description DEC-015 trust vocabulary. VERIFIED = catalog content published through the automated gate (DEC-022). WEB_UNVERIFIED = a
          *     research-agent candidate with a source URL and fetched date, never a published place; rendered with the
          *     UnverifiedBadge on every surface and shown "stale" after 7 days.
          * @enum {string}
@@ -618,6 +618,38 @@ export interface components {
             license_code?: string | null;
             /** Format: uri */
             homepage_url?: string | null;
+        };
+        /**
+         * @description 1.0.5 (DEC-031/DEC-032). Where the displayed place description comes from. The text is verbatim
+         *     (markup removed), never model-written. Clients show one line under the description, e.g.
+         *     'From Wikivoyage · CC BY-SA 4.0' / 'Theo Wikivoyage · CC BY-SA 4.0', linking `url`; an OWNER
+         *     description is attributed to 'Gonarra'.
+         */
+        DescriptionSource: {
+            /** @enum {string} */
+            provider: "WIKIPEDIA" | "WIKIVOYAGE" | "OWNER" | "OTHER";
+            /**
+             * @example Wikivoyage (en)
+             * @example Wikipedia (vi)
+             */
+            publisher: string;
+            /** @description Page and revision, when known. */
+            title?: string | null;
+            /** Format: uri */
+            url?: string | null;
+            /**
+             * @example CC-BY-SA-4.0
+             * @example own-work
+             */
+            license_code: string;
+            /**
+             * Format: uri
+             * @description Licence deed, when open.
+             */
+            license_url?: string | null;
+            attribution_text?: string | null;
+            /** Format: date */
+            retrieved_at: string;
         };
         /**
          * @description Every citation points to evidence that was supplied to the writer (ADR-010 1.0). evidence_kind FACT and
@@ -767,6 +799,11 @@ export interface components {
             /** Format: uuid */
             catalog_publication_id: string;
             thumbnail?: components["schemas"]["Media"] | null;
+            /**
+             * @description 1.0.5 (DEC-031). True for an area (bay, peninsula, mountain range, old town) — shown on the map and answered by the Guide, but never a planner stop. Clients disable 'Add to trip' and say 'Area — pick a place inside it' / 'Khu vực — chọn điểm cụ thể bên trong'.
+             * @default false
+             */
+            is_area: boolean;
         };
         PlaceSummaryPage: components["schemas"]["PageInfo"] & {
             items: components["schemas"]["PlaceSummary"][];
@@ -801,12 +838,12 @@ export interface components {
             source?: components["schemas"]["Citation"] | null;
             sources: components["schemas"]["Citation"][];
             /**
-             * @description 1.0.4 (DEC-028). SOURCE = from an open-data or official source record; OWNER = owner sheet; AI_EXTRACTED = extracted by Gonarra's grounded writer from the cited source (label it "Summarised from sources" and show the source link). Absent means SOURCE.
+             * @description 1.0.4 (DEC-028), narrowed in 1.0.5 (DEC-031). SOURCE = from an open-data or official source record; OWNER = owner sheet. AI_EXTRACTED is retired and no longer produced. Absent means SOURCE.
              * @enum {string}
              */
             origin?: "SOURCE" | "OWNER" | "AI_EXTRACTED";
             /**
-             * @description 1.0.4. AI_EXTRACTED only. STRONG = the extraction quote matches the cited text; WEAK = it matches only partly. Null for other origins.
+             * @description 1.0.4. AI_EXTRACTED only (retired, DEC-031). STRONG = the extraction quote matches the cited text; WEAK = it matches only partly. Null for other origins.
              * @enum {string|null}
              */
             grounding?: "STRONG" | "WEAK" | null;
@@ -837,10 +874,12 @@ export interface components {
             name_en: string;
             description?: string | null;
             /**
-             * @description 1.0.3. SOURCE = text from a cited source (Wikipedia lead, operator sheet, Wikidata); AI_SUMMARY = summarised by Gonarra's grounded writer from the listed sources (label it in the UI). Null when there is no description.
+             * @description 1.0.3, narrowed in 1.0.5 (DEC-031). SOURCE = human-written text from a cited source (owner sheet, Wikivoyage, Wikipedia); `description_source` attributes it. AI_SUMMARY is retired and never served. Null when there is no description — show 'No description yet' / 'Chưa có mô tả'.
              * @enum {string|null}
              */
-            description_origin?: "SOURCE" | "AI_SUMMARY" | null;
+            description_origin?: "SOURCE" | null;
+            /** @description 1.0.5. Attribution, licence and link of the displayed description; null without one. */
+            description_source?: components["schemas"]["DescriptionSource"] | null;
             visit_minutes_min?: number | null;
             visit_minutes_max?: number | null;
             entrance_location?: components["schemas"]["GeoPoint"] | null;
@@ -970,6 +1009,7 @@ export interface components {
              *     blocking; LUNAR_EVENT_CONFLICT, TICKET_VALIDITY and SEASONAL_WARNING are warnings. Web stops
              *     (ADR-014): WEB_PLACE_UNVERIFIED caps the plan at WARNING; WEB_PLACE_UNRESOLVED is blocking.
              *     LEG_ESTIMATED (1.0.2, severity INFO) marks a leg whose values are a demo estimate (`Leg.estimated`).
+             *     OPENING_HOURS_UNKNOWN is severity INFO (DEC-030): a notice per stop that never changes plan_health.
              * @enum {string}
              */
             type: "CLOSED_AT_PLANNED_TIME" | "LEG_UNAVAILABLE" | "DAY_WINDOW_EXCEEDED" | "OPENING_HOURS_UNKNOWN" | "FACT_STALE" | "MUST_SEE_NOT_INCLUDED" | "CLOSED_ON_DATE" | "LEG_MODE_RESTRICTED" | "LUNAR_EVENT_CONFLICT" | "TICKET_VALIDITY" | "SEASONAL_WARNING" | "WEB_PLACE_UNVERIFIED" | "WEB_PLACE_UNRESOLVED" | "LEG_ESTIMATED";
@@ -1404,7 +1444,8 @@ export interface components {
         };
         /**
          * @description `revision_conflict` (context.current_revision), `idempotency_key_reused` (same key, different body),
-         *     `idempotency_in_progress`, `plan_blocked` (context.reasons), `trip_not_saved`, `deletion_in_progress`.
+         *     `idempotency_in_progress`, `plan_blocked` (context.reasons), `trip_not_saved`, `deletion_in_progress`,
+         *     `demo_account_not_deletable` (API-006 for the shared demo account of demo builds; it is never deleted).
          *     `deletion_in_progress` applies to every authenticated route while an account deletion job is open
          *     (except GET/POST /v1/me/deletion).
          */
@@ -1710,6 +1751,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
             422: components["responses"]["ValidationFailed"];
             503: components["responses"]["ServiceUnavailable"];
         };

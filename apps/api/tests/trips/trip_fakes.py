@@ -12,7 +12,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.api.routes.trips import get_trip_store
+from app.api.routes.trips import get_leg_measurer, get_trip_store
 from app.main import create_app
 from app.models.account import Account
 from app.models.planning import (
@@ -48,6 +48,7 @@ class FakeStore:
     pending_idem: dict[tuple[uuid.UUID, str, str], IdempotencyRecord] = field(default_factory=dict)
     jobs: list[AccountDeletionJob] = field(default_factory=list)
     commits: int = 0
+    leg_measurer: Any = None  # app.trips.measure.LegMeasurer for manual edits (None = unmeasured)
     rollbacks: int = 0
     saves: int = 0
 
@@ -382,6 +383,7 @@ def world() -> World:
         store.open_deletion_job_sync(account_id) is not None
     )
     app.dependency_overrides[get_trip_store] = lambda: store
+    app.dependency_overrides[get_leg_measurer] = lambda: store.leg_measurer
     return World(store=store, app=app, account_id=account_id, city=store.add_city())
 
 
