@@ -22,7 +22,7 @@ import { HomeMap } from '../../features/home/map/HomeMap';
 import { PlacePreviewCard } from '../../features/home/map/PlacePreviewCard';
 import { DA_NANG_TRAVEL_BBOX, cityCenter, cityRegion, framedRegion } from '../../features/home/map/region';
 import { useLocateMe } from '../../features/home/map/useLocateMe';
-import { SearchBody, SearchHeader } from '../../features/home/search/SearchPanel';
+import { SearchBody, SearchHeader, clearSearchSession, getSessionQuery } from '../../features/home/search/SearchPanel';
 import { SearchPill } from '../../features/home/search/SearchPill';
 import { HomeSheetContent } from '../../features/home/sections/HomeSheetContent';
 import { useIsOffline } from '../../features/home/useNetwork';
@@ -141,6 +141,8 @@ export default function HomeScreen() {
     if (offline) return;
     if (!isSignedIn) { setGate('search'); return; }
     setSelectedId(null);
+    // Restore the session's query after a tab switch remounted the sheet (Wave 5 P1: GIỮ kết quả).
+    setQuery(getSessionQuery(city?.id));
     setSearching(true);
     sheetRef.current?.snapToIndex(FULL);
   }
@@ -149,6 +151,8 @@ export default function HomeScreen() {
     Keyboard.dismiss();
     setSearching(false);
     setQuery('');
+    // The session ends here: Cancel or sheet collapse clears the retained results (Wave 5 P1).
+    clearSearchSession(city?.id);
     if (snapBack) sheetRef.current?.snapToIndex(HALF);
   }
 
@@ -340,7 +344,17 @@ const styles = StyleSheet.create({
   floatingInner: { bottom: 12, gap: 12, left: GUTTER, position: 'absolute', right: GUTTER - 4 },
   gutter: { backgroundColor: colors.canvas, paddingHorizontal: GUTTER },
   handle: { backgroundColor: colors.hairline, height: 5, width: 44 },
-  header: { gap: 10, left: 0, paddingHorizontal: GUTTER - 4, position: 'absolute', right: 0, top: 0 },
+  header: {
+    elevation: 4,
+    gap: 10,
+    left: 0,
+    paddingHorizontal: GUTTER - 4,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    // Above the bottom sheet (Wave 6 P2): the SearchPill stays visible and tappable at the FULL snap.
+    zIndex: 10,
+  },
   offlineHint: {
     alignItems: 'center',
     alignSelf: 'flex-start',
@@ -360,7 +374,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     flexDirection: 'row',
     gap: 6,
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: 14,
     ...elevationFloating,
   },

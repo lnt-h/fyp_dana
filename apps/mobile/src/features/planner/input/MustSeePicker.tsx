@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Modal, Pla
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
-import { palette } from '../../auth/components/AuthUI';
+import { Icon } from '../../../components/ui';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { searchPlaces } from '../../../lib/api/source';
 import type { Place, Uuid } from '../../../lib/api/types';
@@ -61,7 +61,7 @@ export function MustSeePicker({ visible, cityId, cityName, selected, onChange, o
             placeholderTextColor={colors.textMuted} maxLength={120} autoCorrect={false} returnKeyType="search" style={styles.input} />
         </View>
         {results === null
-          ? <View style={styles.status}><ActivityIndicator color={colors.audioTeal} /><Text style={p.hint}>{t('planner.mustSee.loading')}</Text></View>
+          ? <View style={styles.status}><ActivityIndicator color={colors.primary} /><Text style={p.hint}>{t('planner.mustSee.loading')}</Text></View>
           : <FlatList data={results} keyExtractor={item => item.id} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" style={styles.list}
             ListEmptyComponent={<Text accessibilityLiveRegion="polite" style={[p.hint, styles.status]}>{failed ? t('planner.errors.codes.network') : t('planner.mustSee.empty')}</Text>}
             renderItem={({ item }) => {
@@ -71,7 +71,7 @@ export function MustSeePicker({ visible, cityId, cityName, selected, onChange, o
               return <Pressable accessibilityRole="checkbox" accessibilityState={{ checked, disabled }} disabled={disabled}
                 accessibilityLabel={[item.name, secondary].filter(Boolean).join(', ')} onPress={() => toggle(item)}
                 style={({ pressed }) => [styles.row, (pressed || disabled) && { opacity: 0.55 }]}>
-                <View style={[styles.box, checked && styles.boxChecked]}>{checked && <Text style={p.chipTick}>✓</Text>}</View>
+                <View style={[styles.box, checked && styles.boxChecked]}>{checked && <Icon name="check" size={15} strokeWidth={2.6} color={colors.white} />}</View>
                 <View style={p.flex}>
                   <Text style={styles.name}>{item.name}</Text>
                   {secondary && <Text style={styles.secondary}>{secondary}</Text>}
@@ -86,13 +86,13 @@ export function MustSeePicker({ visible, cityId, cityName, selected, onChange, o
 
 const styles = StyleSheet.create({
   sheet: { maxHeight: '85%', minHeight: '60%' },
-  input: { flex: 1, fontSize: 16, color: colors.deepOcean, paddingVertical: 12 },
+  input: { flex: 1, fontSize: 16, color: colors.ink, paddingVertical: 12 },
   list: { marginTop: 8 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 20 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 60, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.hairline },
-  box: { width: 26, height: 26, borderRadius: 8, borderWidth: 1.5, borderColor: palette.border, alignItems: 'center', justifyContent: 'center' },
+  box: { width: 26, height: 26, borderRadius: 8, borderWidth: 1.5, borderColor: colors.hairline, alignItems: 'center', justifyContent: 'center' },
   boxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
-  name: { fontFamily: 'HankenGrotesk_700Bold', fontSize: 16, color: colors.deepOcean },
+  name: { fontFamily: 'HankenGrotesk_700Bold', fontSize: 16, color: colors.ink },
   secondary: { fontFamily: 'HankenGrotesk_500Medium', fontSize: 14, color: colors.textMuted, marginTop: 2 },
-  added: { fontFamily: 'HankenGrotesk_700Bold', fontSize: 13, color: colors.tealText },
+  added: { fontFamily: 'HankenGrotesk_700Bold', fontSize: 13, color: colors.primary },
 });

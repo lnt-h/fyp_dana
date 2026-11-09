@@ -17,6 +17,23 @@ const MAX_RESULTS = 20;
 /** Topic sentinel for "Show all places" (every published place of the city). */
 const ALL = '*';
 
+/**
+ * Retained search session per city (Wave 5 P1, decided GIỮ kết quả): switching bottom tabs remounts the
+ * sheet content, so the topic + last results live outside the component and are restored on remount.
+ * Cleared only when the search session ends (`clearSearchSession` on Cancel/sheet collapse).
+ */
+const sessionCache = new Map<string, { topic: string | null; items: Place[]; query: string }>();
+
+/** Ends the search session for a city: the next open starts fresh (recent queries are unaffected). */
+export function clearSearchSession(cityId: string | undefined) {
+  if (cityId) sessionCache.delete(cityId);
+}
+
+/** Query retained by the session (the sheet's `query` state lives in `home.tsx` and remounts with it). */
+export function getSessionQuery(cityId: string | undefined): string {
+  return (cityId && sessionCache.get(cityId)?.query) ?? '';
+}
+
 type Status = 'idle' | 'loading' | 'done' | 'error';
 
 type HeaderProps = {
@@ -83,11 +100,17 @@ export function SearchBody({ city, query, offline, recent, onPickRecent, onOpenP
   const [allCategories, setCategories] = useState<Category[]>([]);
   // Only topics with published places (data-driven); empty categories never lead to a dead end.
   const categories = usePopulatedCategories(city.id, allCategories) ?? [];
-  const [topic, setTopic] = useState<string | null>(null);
-  const [status, setStatus] = useState<Status>('idle');
-  const [items, setItems] = useState<Place[]>([]);
+  const restored = sessionCache.get(city.id);
+  const [topic, setTopic] = useState<string | null>(restored?.topic ?? null);
+  const [status, setStatus] = useState<Status>(restored && (restored.topic || restored.items.length > 0) ? 'done' : 'idle');
+  const [items, setItems] = useState<Place[]>(restored?.items ?? []);
   const [attempt, setAttempt] = useState(0);
   const q = query.trim();
+
+  // Keep the session so tab switches (remounts) restore the same query + results; cleared on Cancel/collapse.
+  useEffect(() => {
+    sessionCache.set(city.id, { items, query, topic });
+  }, [city.id, items, query, topic]);
 
   useEffect(() => {
     let active = true;

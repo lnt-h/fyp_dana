@@ -12,8 +12,7 @@ import { fonts } from '../../../theme/typography';
 
 export const WIZARD_STEPS = 4;
 
-/** One colour per step (teal, coral, indigo, green): the bar fills with colour as the traveller moves on. */
-const STEP_COLORS = [colors.primary, colors.coral, '#4F46E5', colors.success] as const;
+/** Single-colour progress under the header: one bar per step, done and current filled with primary. */
 
 /** Segmented progress under the header (`Unknown-7/8.jpg`): one bar per step, done and current filled. */
 export function StepProgress({ current, total = WIZARD_STEPS }: { current: number; total?: number }) {
@@ -26,7 +25,7 @@ export function StepProgress({ current, total = WIZARD_STEPS }: { current: numbe
     style={w.progress}
   >
     <View style={w.bars}>
-      {Array.from({ length: total }, (_, index) => <View key={index} style={[w.bar, index < current && { backgroundColor: STEP_COLORS[index % STEP_COLORS.length] }]} />)}
+      {Array.from({ length: total }, (_, index) => <View key={index} style={[w.bar, index < current && w.barDone]} />)}
     </View>
     <Text style={w.stepText}>{label}</Text>
   </View>;
@@ -60,9 +59,9 @@ export function ReviewCard({ title, icon, lines, onPress, editLabel }: { title: 
     accessibilityLabel={[title, ...lines].join(', ')}
     accessibilityRole="button"
     onPress={onPress}
-    style={({ pressed }) => [w.review, pressed && { backgroundColor: colors.surfaceTint }]}
+    style={({ pressed }) => [w.review, pressed && { backgroundColor: colors.surface }]}
   >
-    <View style={w.reviewIcon}><Icon color={colors.tealText} name={icon} size={20} /></View>
+    <View style={w.reviewIcon}><Icon color={colors.primary} name={icon} size={20} /></View>
     <View style={w.flex}>
       <Text style={w.reviewTitle}>{title}</Text>
       {lines.map((line, index) => <Text key={index} style={w.reviewLine}>{line}</Text>)}
@@ -72,8 +71,8 @@ export function ReviewCard({ title, icon, lines, onPress, editLabel }: { title: 
 }
 
 /** Sticky footer: Back (secondary, hidden on step 1) + Next / Create (primary), with an optional reason line above. */
-export function WizardFooter({ step, onBack, onNext, nextLabel, nextIcon, disabled, loading, reason, error }: {
-  step: number; onBack: () => void; onNext: () => void; nextLabel: string; nextIcon?: IconName; disabled?: boolean; loading?: boolean;
+export function WizardFooter({ step, onBack, onNext, nextLabel, disabled, loading, reason, error }: {
+  step: number; onBack: () => void; onNext: () => void; nextLabel: string; disabled?: boolean; loading?: boolean;
   reason?: string | null; error?: string | null;
 }) {
   const { t } = useTranslation();
@@ -85,8 +84,6 @@ export function WizardFooter({ step, onBack, onNext, nextLabel, nextIcon, disabl
       <PrimaryButton
         accessibilityHint={disabled && reason ? reason : undefined}
         disabled={disabled}
-        icon={nextIcon}
-        iconSize={16}
         label={nextLabel}
         loading={loading}
         onPress={onNext}
@@ -100,7 +97,7 @@ export function WizardFooter({ step, onBack, onNext, nextLabel, nextIcon, disabl
 export function LinkRow({ label, onPress, icon = 'chevron-right' }: { label: string; onPress: () => void; icon?: IconName }) {
   return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [w.link, pressed && { opacity: 0.6 }]}>
     <Text style={w.linkText}>{label}</Text>
-    <Icon color={colors.tealText} name={icon} size={16} />
+    <Icon color={colors.primary} name={icon} size={16} />
   </Pressable>;
 }
 
@@ -116,9 +113,10 @@ const w = StyleSheet.create({
   progress: { gap: 6, paddingTop: spacing.xs },
   bars: { flexDirection: 'row', gap: 6 },
   bar: { flex: 1, height: 6, borderRadius: 3, backgroundColor: colors.hairline },
+  barDone: { backgroundColor: colors.primary },
   stepText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.textSecondary },
   destination: { marginBottom: spacing.md },
-  destinationClip: { height: 140, borderRadius: radii.photoCard, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: colors.surfaceTint },
+  destinationClip: { height: 140, borderRadius: radii.photoCard, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: colors.surface },
   destinationCopy: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md },
   destinationPin: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
   destinationName: { fontFamily: fonts.bold, fontSize: 22, lineHeight: 27, color: colors.white, letterSpacing: -0.3 },
@@ -132,7 +130,7 @@ const w = StyleSheet.create({
   footerRow: { flexDirection: 'row', gap: spacing.sm },
   back: { minWidth: 112 },
   link: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: MIN_TOUCH, alignSelf: 'flex-start' },
-  linkText: { fontFamily: fonts.bold, fontSize: 15, color: colors.tealText },
+  linkText: { fontFamily: fonts.bold, fontSize: 15, color: colors.primary },
   stepHead: { marginTop: spacing.lg, marginBottom: spacing.md, gap: 4 },
   stepTitle: { fontFamily: fonts.bold, fontSize: 24, lineHeight: 30, letterSpacing: -0.4, color: colors.ink },
   stepHint: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted },

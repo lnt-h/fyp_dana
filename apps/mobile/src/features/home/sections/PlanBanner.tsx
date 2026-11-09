@@ -14,8 +14,8 @@ import { fonts } from '../../../theme/typography';
 const HEIGHT = 208;
 
 /**
- * SCR-008 Plan entry: the city photo under a teal wash, title, one-line promise and a coral "Start planning" pill (white
- * on coralText 5.14:1). The whole card is one button; offline it is disabled with a hint.
+ * SCR-008 Plan entry: the city photo under a legibility wash, title, one-line promise and a white "Start planning"
+ * pill (primary text 4.82:1). The whole card is one button; offline it is disabled with a hint.
  */
 export function PlanBanner({ cityCode, cityName, offline, onStart }: { cityCode: CityCode | null; cityName: string; offline: boolean; onStart: () => void }) {
   const { t } = useTranslation();
@@ -58,7 +58,7 @@ export function PlanBanner({ cityCode, cityName, offline, onStart }: { cityCode:
               <View style={styles.row}>
                 <View style={[styles.pill, offline && styles.pillDisabled]}>
                   <Text style={styles.pillText}>{t('homeSheet.plan.action')}</Text>
-                  <Icon color={colors.white} name="chevron-right" size={18} />
+                  <Icon color={colors.primary} name="chevron-right" size={18} />
                 </View>
                 {media && photo ? <Text numberOfLines={1} style={styles.credit}>{media.attribution_text}</Text> : null}
               </View>
@@ -79,9 +79,9 @@ const styles = StyleSheet.create({
   clip: { borderRadius: radii.card, height: HEIGHT, overflow: 'hidden' },
   credit: { color: 'rgba(255,255,255,0.85)', flexShrink: 1, fontFamily: fonts.medium, fontSize: 10, marginLeft: spacing.sm, textAlign: 'right' },
   hint: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, marginTop: spacing.xs },
-  pill: { alignItems: 'center', backgroundColor: colors.coralText, borderRadius: radii.pill, flexDirection: 'row', gap: 4, minHeight: MIN_TOUCH, paddingLeft: 18, paddingRight: 12 },
+  pill: { alignItems: 'center', backgroundColor: colors.white, borderRadius: radii.pill, flexDirection: 'row', gap: 4, minHeight: MIN_TOUCH, paddingLeft: 18, paddingRight: 12 },
   pillDisabled: { opacity: 0.6 },
-  pillText: { color: colors.white, fontFamily: fonts.bold, fontSize: 16 },
+  pillText: { color: colors.primary, fontFamily: fonts.bold, fontSize: 16 },
   pressed: { opacity: 0.94 },
   row: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md },
   subtitle: { color: 'rgba(255,255,255,0.94)', fontFamily: fonts.regular, fontSize: 15, lineHeight: 20, marginTop: 4 },

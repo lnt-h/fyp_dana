@@ -24,7 +24,7 @@ from __future__ import annotations
 import re
 import unicodedata
 import uuid
-from collections.abc import Callable, Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -158,6 +158,46 @@ def fame_preference(text: str | None) -> FamePreference | None:
     if _matches(text, _FAMOUS, _FAMOUS_FOLDED):
         return "FAMOUS"
     return None
+
+
+def _mentions(text_words: str, text_folded: str, name: str | None) -> bool:
+    """Whole-phrase mention of a place/area name, with or without VI diacritics."""
+    if name is None:
+        return False
+    exact = unicodedata.normalize("NFC", name).casefold().strip()
+    if len(exact) < 3:
+        return False
+    if _has(text_words, exact):
+        return True
+    folded = fold_words(name).strip()
+    return len(folded) >= 3 and _has(text_folded, folded)
+
+
+def match_request_places(
+    text: str | None,
+    names: Mapping[uuid.UUID, tuple[str | None, str | None]],
+    area_names: Mapping[str, tuple[str | None, str | None]],
+) -> tuple[list[uuid.UUID], list[str]]:
+    """Catalog places and travel areas the request text names (Đợt 3).
+
+    A user note such as "Sunset in Hoi An" is a constraint, not a hint: named places become
+    must-sees (scheduled, or ``MUST_SEE_NOT_INCLUDED``) and named areas must appear in the plan
+    (or the same warning). Deterministic; diacritic-insensitive. Results are ordered by id/code.
+    """
+    if not text:
+        return [], []
+    words, folded = _words(text), fold(text)
+    places = sorted(
+        pid
+        for pid, (vi, en) in names.items()
+        if _mentions(words, folded, vi) or _mentions(words, folded, en)
+    )
+    areas = sorted(
+        code
+        for code, (vi, en) in area_names.items()
+        if code and (_mentions(words, folded, vi) or _mentions(words, folded, en))
+    )
+    return places, areas
 
 
 def pool_size(days: int, pace: str | None) -> int:

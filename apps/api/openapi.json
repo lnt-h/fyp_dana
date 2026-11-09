@@ -1427,6 +1427,18 @@
             "title": "Media Asset Id",
             "type": "string"
           },
+          "thumb_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Small (330px) Commons variant of `url` for markers/lists; null when the stored key is not a sized Commons thumbnail. A derived URL only, never new content.",
+            "title": "Thumb Url"
+          },
           "url": {
             "title": "Url",
             "type": "string"

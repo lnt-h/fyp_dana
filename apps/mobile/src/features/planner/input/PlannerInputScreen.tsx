@@ -8,7 +8,7 @@ import { currentLocale } from '../../../i18n';
 import { ApiError, createTrip, getPreferences, listCategories, listCities } from '../../../lib/api/source';
 import type { Category, CategoryCode, City, ClarificationRequired, IsoDate, Pace, PlanPreviewCreate, TravelMode, Uuid } from '../../../lib/api/types';
 import { DEFAULT_CITY_CODE } from '../../../lib/api/types';
-import { Icon, PrimaryButton, SecondaryButton, Skeleton, categoryIcon, normalizeCategoryCode, travelModeIcon } from '../../../components/ui';
+import { Chip, Icon, PrimaryButton, SecondaryButton, Skeleton, categoryIcon, normalizeCategoryCode, travelModeIcon } from '../../../components/ui';
 import { CITY_IMAGES } from '../../../lib/images/cityImages';
 import { categoryColor, colors } from '../../../theme/colors';
 import { radii, spacing } from '../../../theme/spacing';
@@ -21,7 +21,7 @@ import {
 } from './draftStore';
 import { MUST_SEE_MAX, MustSeePicker } from './MustSeePicker';
 import {
-  Banner, Chip, ChipRow, CityTiles, FieldError, IntroCard, PickerField, PlannerShell, Segmented, SectionLabel, UserBubble, p, tone,
+  Banner, ChipRow, CityTiles, FieldError, IntroCard, PickerField, PlannerShell, SectionLabel, UserBubble, p, tone,
 } from './PlannerUI';
 import { addDays, RangeCalendar } from './RangeCalendar';
 import { dateFromIso, dateFromLocalTime, dayMonthYear, minutesOf, todayVn, vnIsoDate, vnLocalTime, weekdayOf } from './vnTime';
@@ -212,9 +212,10 @@ export function PlannerInputScreen() {
     onChange={date => { update({ startDate: vnIsoDate(date) }); setErrors(previous => ({ ...previous, startDate: undefined })); }} />;
 
   const dayPicker = <>
-    <Segmented<number> role="radio" label={t('planner.days.label')} value={draft.dayCount} invalid={!!errors.dayCount}
-      options={dayCounts.map(count => ({ label: t('planner.days.option', { count }), value: count }))}
-      onChange={count => { update({ dayCount: count as 1 | 2 | 3 }); setErrors(previous => ({ ...previous, dayCount: undefined })); }} />
+    <View accessibilityRole="radiogroup" accessibilityLabel={t('planner.days.label')} style={styles.chipRow}>
+      {dayCounts.map(count => <Chip key={count} label={t('planner.days.option', { count })} selected={draft.dayCount === count}
+        onPress={() => { update({ dayCount: count as 1 | 2 | 3 }); setErrors(previous => ({ ...previous, dayCount: undefined })); }} />)}
+    </View>
     <FieldError>{errors.dayCount}</FieldError>
   </>;
 
@@ -231,7 +232,7 @@ export function PlannerInputScreen() {
       footer={<>
         {!answered && <Text style={styles.reason}>{t('planner.clarify.disabledReason')}</Text>}
         {!!submitError && <Text accessibilityRole="alert" style={[styles.reason, { color: tone.error }]}>{submitError}</Text>}
-        <PrimaryButton label={busy ? t('planner.submit.creating') : t('planner.submit.create')} icon="sparkle" iconSize={16} loading={busy} disabled={!answered}
+        <PrimaryButton label={busy ? t('planner.submit.creating') : t('planner.submit.create')} loading={busy} disabled={!answered}
           accessibilityHint={answered ? undefined : t('planner.clarify.disabledReason')} onPress={() => void submit()} />
       </>}>
       {!!draft.requestText.trim() && <UserBubble text={draft.requestText.trim()} />}
@@ -241,7 +242,7 @@ export function PlannerInputScreen() {
       {missing.includes('start_date') && <><SectionLabel>{t('planner.date.label')}</SectionLabel>{dateField}</>}
       {missing.includes('day_count') && <><SectionLabel>{t('planner.days.label')}</SectionLabel>{dayPicker}</>}
       {!!summary && <View style={styles.understood}>
-        <Icon name="check" size={18} color={colors.tealText} strokeWidth={2.2} />
+        <Icon name="check" size={18} color={colors.primary} strokeWidth={2.2} />
         <Text style={styles.understoodText}>{t('planner.clarify.understood', { summary })}</Text>
       </View>}
       <SecondaryButton label={t('planner.clarify.edit')} onPress={() => setView({ kind: 'input' })} style={styles.secondary} />
@@ -265,7 +266,7 @@ export function PlannerInputScreen() {
     <Banner tone="info" title={t('planner.notice.title')}
       action={<Pressable accessibilityRole="link" accessibilityLabel={t('planner.notice.learnMore')} onPress={() => router.push('/settings')} style={styles.learnMore}>
         <Text style={p.link}>{t('planner.notice.learnMore')}</Text>
-        <Icon name="chevron-right" size={16} color={colors.tealText} />
+        <Icon name="chevron-right" size={16} color={colors.primary} />
       </Pressable>}>
       {t('planner.notice.body')}
     </Banner>
@@ -349,7 +350,6 @@ export function PlannerInputScreen() {
       disabled={!city || (step === 1 && !draft.startDate)}
       error={submitError}
       loading={busy && lastStep}
-      nextIcon={lastStep ? 'sparkle' : undefined}
       nextLabel={lastStep ? (busy ? t('planner.submit.creating') : t('planner.submit.create')) : t('planner.wizard.next')}
       onBack={back}
       onNext={next}
@@ -359,7 +359,7 @@ export function PlannerInputScreen() {
     {step === 1 && <>
       <StepTitle hint={t('planner.wizard.when.hint')}>{t('planner.wizard.when.title')}</StepTitle>
       {prefillShown && <View style={styles.prefill}>
-        <Icon name="check" size={16} color={colors.tealText} strokeWidth={2.4} />
+        <Icon name="check" size={16} color={colors.primary} strokeWidth={2.4} />
         <Text style={styles.prefillText}>{t('planner.prefilled')}</Text>
       </View>}
       {cities && cities.length > 1 ? cityPicker(item => setCity(item.id), draft.cityId) : null}
@@ -379,7 +379,7 @@ export function PlannerInputScreen() {
         today={today}
       />
       {rangeText ? <View accessibilityLiveRegion="polite" style={styles.range}>
-        <Icon name="calendar" size={18} color={colors.tealText} />
+        <Icon name="calendar" size={18} color={colors.primary} />
         <Text style={styles.rangeText}>{rangeText}</Text>
       </View> : null}
       <FieldError>{errors.startDate ?? errors.dayCount}</FieldError>
@@ -389,30 +389,30 @@ export function PlannerInputScreen() {
     {step === 2 && <>
       <StepTitle hint={t('planner.wizard.style.hint')}>{t('planner.wizard.style.title')}</StepTitle>
       <SectionLabel>{t('planner.pace.label')}</SectionLabel>
-      <View accessibilityRole="radiogroup" accessibilityLabel={t('planner.pace.label')} style={styles.row}>
-        {paces.map(pace => <Chip key={pace} grow kind="radio" label={t(`planner.pace.${pace}`)} selected={draft.pace === pace} onPress={() => update({ pace })} />)}
+      <View accessibilityRole="radiogroup" accessibilityLabel={t('planner.pace.label')} style={styles.chipRow}>
+        {paces.map(pace => <Chip key={pace} label={t(`planner.pace.${pace}`)} selected={draft.pace === pace} onPress={() => update({ pace })} />)}
       </View>
 
       <SectionLabel>{t('planner.interests.label')}</SectionLabel>
       {categories ? <ChipRow>{categories.map(category => {
         const checked = draft.interests.includes(category.code);
-        return <Chip key={category.code} kind="checkbox" icon={categoryIcon(category.code)} label={vi ? category.name_vi : category.name_en} selected={checked} tone={categoryColor(category.code)}
+        return <Chip key={category.code} icon={categoryIcon(category.code)} label={vi ? category.name_vi : category.name_en} selected={checked} tone={categoryColor(category.code)}
           onPress={() => update({ interests: checked ? draft.interests.filter(code => code !== category.code) : [...draft.interests, category.code] })} />;
       })}</ChipRow> : <View accessible accessibilityLabel={t('planner.interests.loading')} style={styles.chipSkeletons}>
         {[96, 120, 88, 110].map((width, index) => <Skeleton key={index} width={width} height={46} radius={radii.chip} />)}
       </View>}
 
       <SectionLabel>{t('planner.modes.label')}</SectionLabel>
-      <View style={styles.row}>{travelModes.map(mode => {
+      <View style={styles.chipRow}>{travelModes.map(mode => {
         const checked = draft.modes.includes(mode);
-        return <Chip key={mode} grow kind="checkbox" icon={travelModeIcon(mode)} label={t(`planner.modes.${mode}`)} selected={checked}
+        return <Chip key={mode} icon={travelModeIcon(mode)} label={t(`planner.modes.${mode}`)} selected={checked}
           onPress={() => { update({ modes: checked ? draft.modes.filter(item => item !== mode) : [...draft.modes, mode] }); setErrors(previous => ({ ...previous, modes: undefined })); }} />;
       })}</View>
       <FieldError>{errors.modes}</FieldError>
 
       <SectionLabel>{t('planner.hours.label')}</SectionLabel>
       <ChipRow>
-        <Chip kind="checkbox" icon="clock" label={t('planner.wizard.style.noEarly')} selected={lateStart}
+        <Chip icon="clock" label={t('planner.wizard.style.noEarly')} selected={lateStart}
           onPress={() => { update({ dayStart: lateStart ? DEFAULT_START : LATE_START }); setErrors(previous => ({ ...previous, hours: undefined })); }} />
       </ChipRow>
       <View style={[styles.row, styles.hours]}>
@@ -430,7 +430,7 @@ export function PlannerInputScreen() {
         {t('planner.mustSee.label')}
       </SectionLabel>
       {draft.mustSee.length > 0 && <View style={styles.mustSeeList}>{draft.mustSee.map(place => <View key={place.id} style={styles.placeChip}>
-        <Icon name="map-pin" size={16} color={colors.tealText} />
+        <Icon name="map-pin" size={16} color={colors.primary} />
         <Text numberOfLines={1} style={styles.placeText}>{place.name}</Text>
         <Pressable accessibilityRole="button" accessibilityLabel={t('planner.mustSee.remove', { name: place.name })} hitSlop={6}
           onPress={() => update({ mustSee: draft.mustSee.filter(item => item.id !== place.id) })} style={({ pressed }) => [styles.remove, pressed && { opacity: 0.6 }]}>
@@ -478,16 +478,17 @@ export function PlannerInputScreen() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.sm },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   hours: { marginTop: spacing.sm },
   range: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm, padding: spacing.sm, borderRadius: radii.field, backgroundColor: colors.primarySoft },
   rangeText: { flex: 1, fontFamily: fonts.semibold, fontSize: 15, lineHeight: 20, color: colors.ink },
   nameInput: { minHeight: 52, borderWidth: 1, borderColor: tone.border, borderRadius: radii.field, backgroundColor: colors.white, paddingHorizontal: spacing.md, fontFamily: fonts.bold, fontSize: 16, color: colors.ink },
   reviewList: { marginTop: spacing.lg },
   destinationSkeleton: { marginBottom: spacing.md },
-  nameLabel: { fontFamily: fonts.bold, fontSize: 14, color: colors.deepOcean, marginBottom: spacing.xs },
+  nameLabel: { fontFamily: fonts.bold, fontSize: 14, color: colors.ink, marginBottom: spacing.xs },
   reason: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.xs },
   prefill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.sm },
-  prefillText: { fontFamily: fonts.medium, fontSize: 14, color: colors.tealText },
+  prefillText: { fontFamily: fonts.medium, fontSize: 14, color: colors.primary },
   credit: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted, marginTop: spacing.xs },
   tileSkeletons: { flexDirection: 'row', gap: spacing.sm, paddingVertical: 6 },
   chipSkeletons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -495,16 +496,16 @@ const styles = StyleSheet.create({
   textInput: { flex: 1, minHeight: 120, fontFamily: fonts.regular, fontSize: 17, lineHeight: 25, color: colors.ink, padding: 0 },
   counter: { alignSelf: 'flex-end', fontFamily: fonts.bold, fontSize: 13, color: colors.textMuted, marginTop: 6 },
   learnMore: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 44, alignSelf: 'flex-start' },
-  understood: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs, marginTop: spacing.xl, backgroundColor: colors.surfaceTint, borderRadius: radii.field, padding: 14 },
-  understoodText: { flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 21, color: colors.deepOcean },
+  understood: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs, marginTop: spacing.xl, backgroundColor: colors.surface, borderRadius: radii.field, padding: 14 },
+  understoodText: { flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 21, color: colors.ink },
   secondary: { marginTop: spacing.xl },
-  count: { fontFamily: fonts.bold, fontSize: 13, color: colors.ink, backgroundColor: colors.surfaceTint, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, overflow: 'hidden' },
+  count: { fontFamily: fonts.bold, fontSize: 13, color: colors.ink, backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, overflow: 'hidden' },
   mustSeeList: { gap: spacing.xs, marginBottom: spacing.xs },
-  placeChip: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, borderRadius: radii.field, backgroundColor: colors.surfaceTint, paddingLeft: 14, paddingRight: 4 },
+  placeChip: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, borderRadius: radii.field, backgroundColor: colors.surface, paddingLeft: 14, paddingRight: 4 },
   placeText: { flex: 1, fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
   remove: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  removeGlyph: { fontSize: 24, lineHeight: 26, color: colors.deepOcean },
+  removeGlyph: { fontSize: 24, lineHeight: 26, color: colors.ink },
   addPlace: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 58, borderRadius: radii.field, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.hairline, backgroundColor: colors.white, paddingLeft: 8, paddingRight: 14 },
-  addPlus: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.surfaceTint, alignItems: 'center', justifyContent: 'center' },
-  addPlusGlyph: { fontFamily: fonts.bold, fontSize: 22, lineHeight: 24, color: colors.tealText },
+  addPlus: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  addPlusGlyph: { fontFamily: fonts.bold, fontSize: 22, lineHeight: 24, color: colors.primary },
 });

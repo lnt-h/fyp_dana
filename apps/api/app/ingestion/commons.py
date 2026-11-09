@@ -34,7 +34,9 @@ after the sources above, within ``EXTRA_REQUEST_BUDGET`` Commons requests per ru
   name and it is in the area (GPS within ``SEARCH_MAX_DISTANCE_M`` or, without GPS, a city/area
   name in its text), so a same-named pagoda elsewhere in Vietnam is never used.
 
-Both go through the same licence/author/MIME checks and NOT_A_PHOTO; a file whose title or
+Both go through the same licence/author/MIME checks and NOT_A_PHOTO; a geosearch hit is
+accepted only when its title, description or categories contain the normalised place name
+(geosearch is proximity only, never auto-accept); a file whose title or
 categories name a *different* published place (and not this one) is skipped (``OTHER_PLACE``).
 The import record provenance carries ``via`` (``commons_geosearch`` / ``commons_search``) and the
 distance or query.
@@ -577,6 +579,16 @@ def search_query(place: PublishedPlace) -> str | None:
     return " OR ".join(f'"{name}"' for name in names) or None
 
 
+def geo_match(item: CommonsFile, place: PublishedPlace) -> bool:
+    """A geosearch hit names this place (normalised VI name in title/desc/categories).
+
+    Geosearch is proximity only and never auto-accepts: without the name match the file
+    is a nearby-but-wrong subject (e.g. a tile floor next to a pagoda) and is left out.
+    """
+    haystack = item.match_text()
+    return any(_contains(haystack, key) for key in place.keys())
+
+
 def search_match(item: CommonsFile, place: PublishedPlace) -> bool:
     """A full-text hit names this place and is in the area (GPS, else a city/area word)."""
     haystack = item.match_text()
@@ -653,7 +665,10 @@ def choose_found(
     others: Sequence[PublishedPlace],
 ) -> list[tuple[str, dict[str, Any]]]:
     """Accepted (title, provenance) for one place: search matches first, then the nearest
-    geosearch photos (largest first at equal distance); at most ``MAX_PER_PLACE``."""
+    name-matching geosearch photos (largest first at equal distance); at most ``MAX_PER_PLACE``.
+
+    Geosearch hits are candidates only: a file whose title/description/categories do not
+    name this place is left out even when it is the nearest file (no auto-accept)."""
 
     def usable(title: str) -> CommonsFile | None:
         item = files.get(title)
@@ -669,7 +684,7 @@ def choose_found(
     geo: list[tuple[float, int, str]] = []
     for title, dist in geo_hits:
         item = usable(title)
-        if item is not None:
+        if item is not None and geo_match(item, place):
             geo.append((dist, -item.area_px, title))
     for dist, _area, title in sorted(geo)[:GEO_MAX_PER_PLACE]:
         chosen.append((title, {"via": "commons_geosearch", "distance_m": round(dist, 1)}))

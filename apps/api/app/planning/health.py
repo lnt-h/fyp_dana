@@ -19,7 +19,12 @@ the status: unknown hours stay unknown and an estimated leg is labelled on the l
 a feasible plan worse.
 
 Messages: each conflict has a stable ``message_key`` for the mobile i18n catalogue and a fixed
-English ``message`` as fallback; neither contains user or place text.
+fallback ``message``; neither contains user or place text. Hours fallbacks are bilingual
+(``VI / EN``): ``OPENING_HOURS_UNKNOWN`` means no hours data exists at all, while ``FACT_STALE``
+means hours data exists but was verified long ago. A ``SEASONAL_WARNING`` carrying a calendar
+rule note surfaces that note (which names the place, period and reason) instead of the generic
+fallback; notes are caller-supplied ``(note_vi, note_en)`` pairs so this module stays pure
+(no I/O, no model output).
 """
 
 from __future__ import annotations

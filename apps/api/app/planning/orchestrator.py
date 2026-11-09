@@ -27,7 +27,7 @@ import logging
 import uuid
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Literal
 
@@ -67,13 +67,18 @@ from app.planning.assemble import (
     schedule,
 )
 from app.planning.calendar.windows import PlaceRef, effective_windows
-from app.planning.health import evaluate
+from app.planning.health import (
+    HealthConflict,
+    evaluate,
+    message_key,
+)
 from app.planning.leg_modes import LegModePlan, plan_leg_modes, restricted_keys, restricted_pairs
 from app.planning.pool import PoolPlace, by_id, load_pool, load_rules
 from app.planning.rule_selector import (
     RuleCandidate,
     category_day_cap,
     diversify,
+    match_request_places,
     pool_size,
     rank_candidates,
     select_rule_based,
@@ -266,6 +271,37 @@ _PACE_LABELS: Mapping[str, Mapping[str, str]] = {
     "en": {"RELAXED": "relaxed", "BALANCED": "balanced", "PACKED": "packed"},
     "vi": {"RELAXED": "thong thả", "BALANCED": "cân bằng", "PACKED": "dày đặc"},
 }
+
+
+def missing_area_conflicts(
+    named_areas: Sequence[str],
+    places: Mapping[uuid.UUID, PoolPlace],
+    days: Sequence[SnapshotDay],
+) -> tuple[HealthConflict, ...]:
+    """Plan-level warnings for travel areas the note names but the plan skips (Đợt 3).
+
+    A user note such as "Sunset in Hoi An" is a constraint: a named area with no scheduled
+    stop surfaces the same MUST_SEE_NOT_INCLUDED warning a dropped named place gets —
+    never silently dropped. Deterministic; plan_health degrades to WARNING.
+    """
+    if not named_areas:
+        return ()
+    covered = {
+        places[pid].area_code
+        for day in days
+        for stop in day.stops
+        if (pid := stop.place_id) is not None and pid in places
+    }
+    return tuple(
+        HealthConflict(
+            type="MUST_SEE_NOT_INCLUDED",
+            severity="WARNING",
+            message_key=message_key("MUST_SEE_NOT_INCLUDED"),
+            message=f"A requested area ({code}) is not in the plan.",
+        )
+        for code in named_areas
+        if code not in covered
+    )
 
 
 def time_of_day(arrival: time) -> TimeOfDay:
@@ -598,11 +634,31 @@ class PlanningOrchestrator:
                 )
                 days = sorted([*other, *day_snapshot.days], key=lambda d: d.day_index)
                 dates = {f.day_index: f.date for f in frames}
+                places_by_id = by_id(pool)
                 result = evaluate(
-                    health_plan(days, dates, pool=by_id(pool), must_see=prefs.must_see),
+                    health_plan(days, dates, pool=places_by_id, must_see=prefs.must_see),
                     self._windows(pool, rules, city_id, frames),
                     today=vn_today(now),
                 )
+                # The regenerate instruction names constraints too: surface uncovered areas
+                # as MUST_SEE_NOT_INCLUDED rather than silently dropping the note.
+                _, regen_areas = match_request_places(
+                    body.instruction or "",
+                    {p.place_id: (p.name_vi, p.name_en) for p in pool},
+                    {
+                        code: (
+                            next((p.area_name_vi for p in pool if p.area_code == code), None),
+                            next((p.area_name_en for p in pool if p.area_code == code), None),
+                        )
+                        for code in {p.area_code for p in pool if p.area_code}
+                    },
+                )
+                missing = missing_area_conflicts(regen_areas, places_by_id, days)
+                plan_health = result.plan_health
+                if missing:
+                    result = replace(result, conflicts=result.conflicts + missing)
+                    if plan_health == "GOOD":
+                        plan_health = "WARNING"
                 snapshot = PlanSnapshot(
                     days=days,
                     health_reasons=attach_conflicts(days, result),
@@ -610,7 +666,7 @@ class PlanningOrchestrator:
                     research_used=parent.research_used or trace.research_used,
                     preferences=snapshot_prefs,
                 )
-                revision = await self._append_revision(command, snapshot, result.plan_health, trace)
+                revision = await self._append_revision(command, snapshot, plan_health, trace)
                 await budget.commit(Bucket.ACCOUNT_PROPOSALS)
         except BaseException:
             if claimed and command.idempotency_key is not None:
@@ -623,7 +679,7 @@ class PlanningOrchestrator:
                 "type": "preview_ready",
                 "preview_id": str(command.preview_id),
                 "preview_revision": revision,
-                "plan_health": result.plan_health,
+                "plan_health": plan_health,
             }
         )
 
@@ -666,6 +722,20 @@ class PlanningOrchestrator:
         )
         places = by_id(pool)
         must_see = tuple(pid for pid in prefs.must_see if pid in places)
+        # User notes name constraints, not hints (Đợt 3): named catalog places join the
+        # must-sees (a dropped one surfaces MUST_SEE_NOT_INCLUDED) and named areas are
+        # checked after scheduling (an uncovered one surfaces the same warning).
+        named_places, named_areas = match_request_places(
+            request_text,
+            {p.place_id: (p.name_vi, p.name_en) for p in pool},
+            {
+                code: (next((p.area_name_vi for p in pool if p.area_code == code), None),
+                       next((p.area_name_en for p in pool if p.area_code == code), None))
+                for code in {p.area_code for p in pool if p.area_code}
+            },
+        )
+        named_must_see = tuple(pid for pid in named_places if pid in places)
+        must_see = tuple(dict.fromkeys([*must_see, *named_must_see]))
 
         # 2. selection
         use_model = self._chain_configured(Role.SELECTOR)
@@ -734,8 +804,17 @@ class PlanningOrchestrator:
                 windows,
                 today=vn_today(now),
             )
+            # A named area is a constraint too: when no scheduled stop lies in it,
+            # surface the same MUST_SEE_NOT_INCLUDED warning a dropped named place gets.
+            missing = missing_area_conflicts(named_areas, places, days)
+            if missing:
+                result = replace(
+                    result, conflicts=result.conflicts + missing
+                )
             reasons = attach_conflicts(days, result)
             plan_health = result.plan_health
+            if missing and plan_health == "GOOD":
+                plan_health = "WARNING"
 
         # 7. rationales (never block)
         stops = [s for d in days for s in d.stops if s.place_id is not None]

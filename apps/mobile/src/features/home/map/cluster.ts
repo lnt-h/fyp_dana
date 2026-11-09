@@ -3,11 +3,18 @@ import type { Region } from 'react-native-maps';
 import type { Place } from '../../../lib/api/types';
 
 /**
- * Grid divisions across the visible region; markers sharing a cell collapse into one cluster. A phone map is about
- * twice as tall as it is wide, so the cells are ~58 pt squares (7 across, 15 down) — just over one 48 pt marker.
+ * Grid divisions across the visible region at the city-wide reference zoom; markers sharing a cell collapse into one
+ * cluster. A phone map is about twice as tall as it is wide, so the cells are ~58 pt squares (7 across, 15 down) —
+ * just over one 48 pt marker.
  */
 const GRID_X = 7;
 const GRID_Y = 15;
+/**
+ * Reference latitude span (city view) where the base grid applies. Zooming in scales the divisions up (Wave 6 P2),
+ * so cells shrink faster than the view and clusters split apart into individual markers at street zoom.
+ */
+const REF_DELTA = 0.15;
+const MAX_SCALE = 8;
 
 export type LatLng = { latitude: number; longitude: number };
 
@@ -20,8 +27,9 @@ export type MapItem =
  * stable while panning and only change on zoom. The selected place is never clustered so its card target stays visible.
  */
 export function clusterPlaces(places: Place[], region: Region, selectedId: string | null): MapItem[] {
-  const cellLat = region.latitudeDelta / GRID_Y;
-  const cellLng = region.longitudeDelta / GRID_X;
+  const scale = region.latitudeDelta > 0 ? Math.min(MAX_SCALE, Math.max(1, REF_DELTA / region.latitudeDelta)) : 1;
+  const cellLat = region.latitudeDelta / (GRID_Y * scale);
+  const cellLng = region.longitudeDelta / (GRID_X * scale);
   if (!(cellLat > 0) || !(cellLng > 0)) return places.map(place => ({ kind: 'place', place }));
 
   const cells = new Map<string, Place[]>();

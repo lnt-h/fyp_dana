@@ -9,11 +9,13 @@ from typing import Any
 
 import httpx
 
+from app.catalog.places import commons_thumb_url
 from app.ingestion.commons import (
     CommonsFile,
     PublishedPlace,
     Rejected,
     choose_found,
+    geo_match,
     geosearch,
     names_other_place,
     parse_geosearch,
@@ -107,10 +109,9 @@ def test_choose_found_orders_search_then_nearest_geosearch_and_caps() -> None:
         files=files,
         others=[BRIDGE, NEAR_BRIDGE],
     )
-    # The bridge photo names another published place; the tile photo (11.3 m) is the only one.
-    assert chosen == [
-        ("File:Raffi kojian-hoi an-155621875.jpg", {"via": "commons_geosearch", "distance_m": 11.3})
-    ]
+    # Geosearch is proximity only: the bridge photo names another published place and the
+    # tile photo (11.3 m) does not name this place, so neither is auto-accepted.
+    assert chosen == []
     chosen = choose_found(
         PHUOC_LAM,
         geo_hits=[],
@@ -121,6 +122,44 @@ def test_choose_found_orders_search_then_nearest_geosearch_and_caps() -> None:
     )
     assert [title for title, _ in chosen] == ["File:Phuoc Lam Pagoda 3.jpg"]
     assert chosen[0][1]["via"] == "commons_search"
+
+
+def test_geo_match_requires_the_place_name() -> None:
+    files = _files()
+    bridge_photo = files["File:Hội An, Chùa Cầu, 2020-01 CN-04.jpg"]
+    assert isinstance(bridge_photo, CommonsFile)
+    assert geo_match(bridge_photo, BRIDGE)
+    assert not geo_match(bridge_photo, NEAR_BRIDGE)
+    tiles = files["File:Raffi kojian-hoi an-155621875.jpg"]
+    assert isinstance(tiles, CommonsFile) and not geo_match(tiles, NEAR_BRIDGE)
+
+
+def test_choose_found_accepts_name_matching_geosearch() -> None:
+    files = _files()
+    chosen = choose_found(
+        BRIDGE,
+        geo_hits=[("File:Hội An, Chùa Cầu, 2020-01 CN-04.jpg", 0.4)],
+        search_hits=[],
+        query=None,
+        files=files,
+        others=[BRIDGE, NEAR_BRIDGE],
+    )
+    assert chosen == [
+        (
+            "File:Hội An, Chùa Cầu, 2020-01 CN-04.jpg",
+            {"via": "commons_geosearch", "distance_m": 0.4},
+        )
+    ]
+
+
+def test_commons_thumb_url_rewrites_sized_thumbnails() -> None:
+    hero = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Foo.jpg/1280px-Foo.jpg"
+    assert (
+        commons_thumb_url(hero)
+        == "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Foo.jpg/330px-Foo.jpg"
+    )
+    assert commons_thumb_url("places/linh-ung.jpg") is None
+    assert commons_thumb_url("https://upload.wikimedia.org/wikipedia/commons/a/ab/Foo.jpg") is None
 
 
 async def test_geosearch_and_search_requests() -> None:

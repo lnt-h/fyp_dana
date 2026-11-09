@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth, useSSO } from '@clerk/expo';
 import { authErrorMessage } from '../authErrors';
 import { finishAuth } from '../finishAuth';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useTranslation } from 'react-i18next';
@@ -15,15 +15,23 @@ import { ArrowIcon, ProviderIcon } from './AuthIcons';
 
 export const palette = { ...colors, muted: colors.textSecondary, border: colors.hairline, error: colors.danger };
 
-export function AuthShell({ children, back, step, skip }: { children: ReactNode; back?: () => void; step?: number; skip?: () => void }) {
+export function AuthShell({ children, back, step, skip, fitViewport = false }: { children: ReactNode; back?: () => void; step?: number; skip?: () => void; /** Fit one viewport at rest; the form scrolls only while the keyboard is open. */ fitViewport?: boolean }) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    if (!fitViewport) return;
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
+    return () => { show.remove(); hide.remove(); };
+  }, [fitViewport]);
   return (
     <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <StatusBar style="dark" />
       <ScrollView
         alwaysBounceVertical={false}
         bounces={false}
+        scrollEnabled={!fitViewport || keyboardOpen}
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[s.content, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}
@@ -35,7 +43,7 @@ export function AuthShell({ children, back, step, skip }: { children: ReactNode;
               {step ? (
                 <View accessibilityLabel={t('auth.shell.step', { step, total: 3 })} style={s.steps}>
                   {[1, 2, 3].map(n => (
-                    <View key={n} style={[s.step, n <= step && { backgroundColor: colors.audioTeal }]} />
+                    <View key={n} style={[s.step, n <= step && { backgroundColor: colors.primary }]} />
                   ))}
                 </View>
               ) : null}
@@ -199,14 +207,14 @@ export function Field({
   return (
     <View style={s.fieldBlock}>
       <Text style={s.label}>{label}</Text>
-      <View style={[s.field, !!error && { borderColor: palette.error }]}>
+      <View style={[s.field, !!error && { borderColor: colors.danger }]}>
         <FieldIcon kind={password ? 'password' : props.keyboardType === 'email-address' ? 'email' : 'person'} />
         <TextInput
           {...props}
           accessibilityLabel={label}
           autoComplete={props.autoComplete}
           placeholder={placeholder ?? label}
-          placeholderTextColor={palette.muted}
+          placeholderTextColor={colors.textSecondary}
           secureTextEntry={password && !visible}
           style={s.input}
         />
@@ -248,7 +256,7 @@ export const s = StyleSheet.create({
     borderRadius: 14,
     justifyContent: 'center',
     marginTop: 10,
-    minHeight: 48,
+    minHeight: 52,
     overflow: 'hidden',
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -270,15 +278,15 @@ export const s = StyleSheet.create({
   actionWrap: {
     marginTop: 12,
   },
-  back: { color: colors.deepOcean, fontSize: 36, lineHeight: 40 },
+  back: { color: colors.ink, fontSize: 36, lineHeight: 40 },
   content: { flexGrow: 1, paddingHorizontal: 24 },
   divider: { alignItems: 'center', flexDirection: 'row', gap: 14, marginVertical: 14 },
-  dividerLine: { backgroundColor: palette.border, flex: 1, height: 1 },
-  error: { color: palette.error, fontFamily: fonts.regular, fontSize: 13, marginTop: 6 },
+  dividerLine: { backgroundColor: colors.hairline, flex: 1, height: 1 },
+  error: { color: colors.danger, fontFamily: fonts.regular, fontSize: 13, marginTop: 6 },
   field: {
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderColor: palette.border,
+    borderColor: colors.hairline,
     borderRadius: 12,
     borderWidth: 1,
     flexDirection: 'row',
@@ -299,15 +307,15 @@ export const s = StyleSheet.create({
     paddingVertical: 12,
   },
   label: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 13, marginBottom: 6 },
-  link: { color: colors.tealText, fontFamily: fonts.bold, fontSize: 15 },
+  link: { color: colors.primary, fontFamily: fonts.bold, fontSize: 15 },
   nav: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
-  note: { color: palette.muted, fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, textAlign: 'center' },
-  secondary: { backgroundColor: colors.white, borderColor: palette.border, borderWidth: 1 },
+  note: { color: colors.textSecondary, fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, textAlign: 'center' },
+  secondary: { backgroundColor: colors.white, borderColor: colors.hairline, borderWidth: 1 },
   spacer: { height: 44, width: 44 },
-  step: { backgroundColor: palette.border, borderRadius: 3, height: 4, width: 36 },
+  step: { backgroundColor: colors.hairline, borderRadius: 3, height: 4, width: 36 },
   steps: { flexDirection: 'row', gap: 6 },
   subtitle: {
-    color: palette.muted,
+    color: colors.textSecondary,
     fontFamily: fonts.regular,
     fontSize: 15,
     lineHeight: 22,

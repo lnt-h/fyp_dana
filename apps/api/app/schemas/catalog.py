@@ -60,6 +60,13 @@ class CategoryList(BaseModel):
 class Media(BaseModel):
     media_asset_id: uuid.UUID
     url: str
+    thumb_url: str | None = Field(
+        default=None,
+        description=(
+            "Small (330px) Commons variant of `url` for markers/lists; null when the stored "
+            "key is not a sized Commons thumbnail. A derived URL only, never new content."
+        ),
+    )
     width_px: int | None = None
     height_px: int | None = None
     alt_text: str | None = None

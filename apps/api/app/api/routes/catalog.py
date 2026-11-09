@@ -123,6 +123,7 @@ def _media(media: MediaRecord, locale: str) -> Media:
     return Media(
         media_asset_id=media.media_asset_id,
         url=url,
+        thumb_url=media.thumb_url,
         width_px=media.width_px,
         height_px=media.height_px,
         alt_text=media.alt_text_en if locale == "en" else media.alt_text_vi,

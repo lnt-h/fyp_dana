@@ -6,6 +6,7 @@ publication snapshot (``vw_published_place_facts``), never from drafts. Unknown 
 ``UNKNOWN``; nothing here fills a missing value.
 """
 
+import re
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -100,6 +101,9 @@ class MediaRecord:
     alt_text_vi: str | None
     alt_text_en: str | None
     ordinal: int
+    # Small (330px) Commons variant of the stored thumbnail URL for markers/lists; None
+    # when the key is not a sized Commons thumbnail (a derived URL only, never new content).
+    thumb_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -163,6 +167,23 @@ class FactSourceRecord:
 
 
 _ORIGIN_COLUMN: list[bool] = []
+
+
+# Sized Commons thumbnails end in "/<width>px-<filename>" and Commons only serves the
+# widths below; the small variant is a derived URL of the same file, never new content.
+_COMMONS_THUMB_PX = re.compile(r"/(\d+)px-([^/]*)$")
+COMMONS_THUMB_SMALL_WIDTH = 330
+_COMMONS_THUMB_WIDTHS = frozenset({120, 250, 330, 500, 960, 1280, 1920})
+
+
+def commons_thumb_url(url: str, width: int = COMMONS_THUMB_SMALL_WIDTH) -> str | None:
+    """Small variant of a sized Commons thumbnail URL, or None for other keys."""
+    if width not in _COMMONS_THUMB_WIDTHS:
+        raise ValueError(f"Commons serves only {sorted(_COMMONS_THUMB_WIDTHS)}px, not {width}px")
+    match = _COMMONS_THUMB_PX.search(url)
+    if match is None:
+        return None
+    return f"{url[: match.start()]}/{width}px-{match.group(2)}"
 
 
 async def _fact_origin_available(session: AsyncSession) -> bool:
@@ -353,6 +374,7 @@ async def load_publication_media(
                 alt_text_vi=row.alt_text_vi,
                 alt_text_en=row.alt_text_en,
                 ordinal=row.ordinal,
+                thumb_url=commons_thumb_url(row.object_key),
             )
         )
     return media

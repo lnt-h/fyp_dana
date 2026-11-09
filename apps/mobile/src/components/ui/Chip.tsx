@@ -8,24 +8,24 @@ export type ChipProps = {
   label: string;
   /** Optional leading icon. */
   icon?: IconName;
-  /** Selected chips fill with primarySoft and use primary text (4.59:1). */
+  /** Selected chips fill with primarySoft and keep the ink label (never colour-alone, never a tick). */
   selected?: boolean;
   /** Pressable when set (toggle semantics if `selected` is defined). */
   onPress?: () => void;
   disabled?: boolean;
   /**
    * `default` = white with a hairline outline; `tint` = surface fill; a `CategoryTone` (from `categoryColor(code)`)
-   * = category soft fill with the icon in the category colour. Labels stay ink (category colours are icon-only).
+   * colours only the icon: unselected chips stay neutral so twelve categories never shout at once. Labels stay ink.
    */
   tone?: 'default' | 'tint' | CategoryTone;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 };
 
-/** Pill chip, 40 tall: filters, choices and category labels. */
+/** Pill chip, 44 tall: filters, choices and category labels. */
 export function Chip({ label, icon, selected, onPress, disabled, tone = 'default', accessibilityLabel, style }: ChipProps) {
   const category = typeof tone === 'object' ? tone : null;
-  const fg = selected ? colors.primary : colors.ink;
+  const fg = colors.ink;
   const iconColor = selected ? colors.primary : category ? category.fg : colors.textSecondary;
   const body = (
     <>
@@ -36,7 +36,6 @@ export function Chip({ label, icon, selected, onPress, disabled, tone = 'default
   const look = [
     styles.chip,
     tone === 'tint' && styles.tint,
-    category && { backgroundColor: category.bg, borderColor: category.bg },
     selected && styles.selected,
     disabled && styles.disabled,
     style,
@@ -69,7 +68,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 6,
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: 14,
   },
   disabled: { opacity: 0.45 },

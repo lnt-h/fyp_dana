@@ -47,7 +47,10 @@ from app.schemas.trips import Conflict
 from app.trips.snapshot import SnapshotDay, SnapshotLeg, SnapshotStop
 
 # Scheduling preference (not a fact): FOOD stops are placed at lunch or dinner time.
-MEAL_WINDOWS_MIN: tuple[tuple[int, int], ...] = ((11 * 60, 14 * 60), (17 * 60 + 30, 21 * 60))
+# Tightened 2026-11-09 (Đợt 3): lunch ends 13:30 and dinner ends 20:00 so the two meals of a
+# day can never sit ~1h apart — the windows alone force lunch start ≤ 13:30 − visit and dinner
+# start ≥ 17:30, i.e. always ≥ 3h apart.
+MEAL_WINDOWS_MIN: tuple[tuple[int, int], ...] = ((11 * 60, 13 * 60 + 30), (17 * 60 + 30, 20 * 60))
 UNAVAILABLE_BUFFER_S = 30 * 60
 GOOGLE_TTL = timedelta(days=30)
 
@@ -179,6 +182,7 @@ def schedule(inp: ScheduleInput) -> ScheduleOutput:
                 must_see=place.place_id in inp.must_see,
                 lock=Lock(index_of[locked.day_index], locked.position) if locked else None,
                 category=place.category_code,
+                area=place.area_code,
                 ticket_group=groups.get(place.key),
             )
         )

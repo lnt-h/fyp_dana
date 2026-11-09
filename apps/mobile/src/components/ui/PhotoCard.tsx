@@ -1,16 +1,15 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import type { Media } from '../../lib/api/types';
 import { colors } from '../../theme/colors';
 import { radii, spacing } from '../../theme/spacing';
 import { fonts, typography } from '../../theme/typography';
 import { GlassBadge } from './GlassBadge';
 import { Icon, type IconName } from './Icon';
-import { Photo, usePhotoFailed } from './Photo';
+import { Photo, usePhotoFailed, type PhotoImage } from './Photo';
 
 export type PhotoCardProps = {
-  image: Pick<Media, 'url'> | null | undefined;
+  image: PhotoImage | null | undefined;
   /** Icon on the fallback tile when there is no photo; default = the category icon, or the map pin. */
   fallbackIcon?: IconName;
   /** Category of the place shown: colours the fallback tile. */

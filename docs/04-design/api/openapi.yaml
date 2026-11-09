@@ -2145,6 +2145,10 @@ components:
         url:
           type: string
           format: uri
+        thumb_url:
+          type: [string, 'null']
+          format: uri
+          description: Small (330px) Commons variant of `url` for markers/lists; null when the stored key is not a sized Commons thumbnail.
         width_px:
           type: [integer, 'null']
         height_px:
